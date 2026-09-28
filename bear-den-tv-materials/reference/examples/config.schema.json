@@ -1,0 +1,427 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Bear Den TV \u2014 proposed initial configuration subset",
+  "description": "Design example only. Runtime semantic validation must additionally check app references, unique IDs, approved launch arguments, actual interfaces, certificate trust, and capability requirements.",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 2147483647
+    },
+    "device": {
+      "type": "object",
+      "properties": {
+        "display_name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "preferred_display": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "display_name",
+        "preferred_display"
+      ],
+      "additionalProperties": false
+    },
+    "ui": {
+      "type": "object",
+      "properties": {
+        "theme": {
+          "const": "den-dark"
+        },
+        "accent": {
+          "type": "string",
+          "pattern": "^#[0-9A-Fa-f]{6}$"
+        },
+        "text_scale": {
+          "type": "number",
+          "minimum": 0.8,
+          "maximum": 2.0
+        },
+        "tile_density": {
+          "enum": [
+            "comfortable",
+            "large"
+          ]
+        },
+        "safe_margin_percent": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 10
+        },
+        "reduced_motion": {
+          "type": "boolean"
+        },
+        "hero_enabled": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "theme",
+        "accent",
+        "text_scale",
+        "tile_density",
+        "safe_margin_percent",
+        "reduced_motion",
+        "hero_enabled"
+      ],
+      "additionalProperties": false
+    },
+    "applications": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]{0,63}$"
+          },
+          "label": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "adapter": {
+            "enum": [
+              "plex-htpc",
+              "vacuumtube"
+            ]
+          },
+          "launch": {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "const": "flatpak"
+              },
+              "app_id": {
+                "type": "string",
+                "minLength": 3
+              },
+              "args": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 16
+              }
+            },
+            "required": [
+              "kind",
+              "app_id",
+              "args"
+            ],
+            "additionalProperties": false
+          },
+          "home_policy": {
+            "enum": [
+              "pause-if-supported",
+              "leave-running"
+            ]
+          },
+          "remote_enabled": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "adapter",
+          "launch",
+          "home_policy",
+          "remote_enabled"
+        ],
+        "additionalProperties": false
+      },
+      "maxItems": 32
+    },
+    "sections": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]{0,63}$"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "kind": {
+            "enum": [
+              "applications",
+              "plex-continue-watching",
+              "plex-recently-added"
+            ]
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "application_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "uniqueItems": true
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "kind",
+          "enabled"
+        ],
+        "additionalProperties": false,
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "kind": {
+                  "const": "applications"
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "application_ids"
+              ]
+            },
+            "else": {
+              "not": {
+                "required": [
+                  "application_ids"
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "maxItems": 32
+    },
+    "plex_content": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "connection_ref": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        }
+      },
+      "required": [
+        "enabled",
+        "connection_ref"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "enabled": {
+                "const": true
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "connection_ref": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      ]
+    },
+    "remote": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "transport": {
+          "enum": [
+            "trusted-lan-http",
+            "https"
+          ]
+        },
+        "port": {
+          "type": "integer",
+          "minimum": 1024,
+          "maximum": 65535
+        },
+        "interfaces": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "mdns": {
+          "type": "boolean"
+        },
+        "http_layout_editing": {
+          "type": "boolean"
+        },
+        "pairing_expiry_seconds": {
+          "type": "integer",
+          "minimum": 30,
+          "maximum": 300
+        },
+        "pairing_max_attempts": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10
+        },
+        "https": {
+          "type": "object",
+          "properties": {
+            "certificate_file": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "minLength": 1
+            },
+            "private_key_file": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "minLength": 1
+            }
+          },
+          "required": [
+            "certificate_file",
+            "private_key_file"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "enabled",
+        "transport",
+        "port",
+        "interfaces",
+        "mdns",
+        "http_layout_editing",
+        "pairing_expiry_seconds",
+        "pairing_max_attempts",
+        "https"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "enabled": {
+                "const": true
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "interfaces": {
+                "minItems": 1
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "enabled": {
+                "const": true
+              },
+              "transport": {
+                "const": "https"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "https": {
+                "properties": {
+                  "certificate_file": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "private_key_file": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "cache": {
+      "type": "object",
+      "properties": {
+        "artwork_max_mib": {
+          "type": "integer",
+          "minimum": 32,
+          "maximum": 8192
+        }
+      },
+      "required": [
+        "artwork_max_mib"
+      ],
+      "additionalProperties": false
+    },
+    "startup": {
+      "type": "object",
+      "properties": {
+        "autostart_enabled": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "autostart_enabled"
+      ],
+      "additionalProperties": false
+    },
+    "privacy": {
+      "type": "object",
+      "properties": {
+        "telemetry_enabled": {
+          "const": false
+        }
+      },
+      "required": [
+        "telemetry_enabled"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "schema_version",
+    "revision",
+    "device",
+    "ui",
+    "applications",
+    "sections",
+    "plex_content",
+    "remote",
+    "cache",
+    "startup",
+    "privacy"
+  ],
+  "additionalProperties": false
+}

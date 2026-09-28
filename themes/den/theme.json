@@ -1,0 +1,107 @@
+{
+  "schema": 1,
+  "id": "den",
+  "name": "Den",
+  "aliases": [
+    "den-gradient"
+  ],
+  "description": "The bears' cosy cave: vines with daisies and blossoms, fireflies, the family at home.",
+  "accent": "#79A889",
+  "wallpaper": {
+    "image": "wallpaper.png",
+    "top": "#1F2A26",
+    "bottom": "#0C0E10",
+    "pixel": true,
+    "sprites": [
+      {
+        "sheet": "lantern.png",
+        "frames": 4,
+        "fps": 6,
+        "x": 30,
+        "y": 214
+      },
+      {
+        "sheet": "lantern.png",
+        "frames": 4,
+        "fps": 6,
+        "x": 336,
+        "y": 218
+      },
+      {
+        "sheet": "mist.png",
+        "frames": 8,
+        "fps": 4,
+        "x": 150,
+        "y": 184
+      }
+    ]
+  },
+  "palette": {
+    "stem": "#5E8C6E",
+    "light": "#A3D1AE",
+    "dark": "#6A9C7A",
+    "bloom": "#F7F0E2",
+    "glow": "#E3B35C"
+  },
+  "focus": {
+    "style": "vine",
+    "tip": "daisy",
+    "extras": [
+      "daisy",
+      "blossom"
+    ]
+  },
+  "ambient": {
+    "kind": "fireflies",
+    "count": 16
+  },
+  "scene": "den",
+  "bears": {
+    "carry": "daisy",
+    "chase": "firefly"
+  },
+  "heading": "sprig",
+  "phone": {
+    "backdrop": "backdrop.png",
+    "veil": "#16191C",
+    "particles": "fireflies"
+  },
+  "classic": {
+    "wallpaper": {
+      "image": "wallpaper.jpg",
+      "sprites": [
+        {
+          "sheet": "classic-shafts.png",
+          "frames": 4,
+          "fps": 3,
+          "x": 220,
+          "y": 60
+        },
+        {
+          "sheet": "classic-mist.png",
+          "frames": 4,
+          "fps": 2,
+          "x": 60,
+          "y": 470
+        },
+        {
+          "sheet": "classic-mist.png",
+          "frames": 4,
+          "fps": 3,
+          "x": 620,
+          "y": 520
+        },
+        {
+          "sheet": "classic-lantern.png",
+          "frames": 4,
+          "fps": 6,
+          "x": 1920,
+          "y": 250
+        }
+      ]
+    },
+    "phone": {
+      "backdrop": "backdrop.jpg"
+    }
+  }
+}

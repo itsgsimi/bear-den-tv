@@ -1,0 +1,1 @@
+{"protocol":1,"request_id":"b1ed0b5e-e592-4b33-b7a7-9029a434a818","outcome":"failed","code":"stale_epoch","message":"The TV switched to Plex since this button was pressed. Refresh and try again.","context_epoch":48,"target":{"kind":"app","app_id":"plex-htpc","label":"Plex"},"detail":{"expected_epoch":48,"got_epoch":47}}

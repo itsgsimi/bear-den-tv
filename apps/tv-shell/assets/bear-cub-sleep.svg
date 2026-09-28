@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Bear cub asleep">
+  <!-- Bear cub with closed eyes (blinks, den family at night). -->
+  <circle cx="56" cy="70" r="46" fill="#79A889"/>
+  <circle cx="200" cy="70" r="46" fill="#79A889"/>
+  <circle cx="58" cy="72" r="26" fill="#EDE3D1"/>
+  <circle cx="198" cy="72" r="26" fill="#EDE3D1"/>
+  <path d="M128 64 C204 64 242 102 242 152 C242 206 194 238 128 238 C62 238 14 206 14 152 C14 102 52 64 128 64 Z" fill="#79A889"/>
+  <g fill="none" stroke="#16191C" stroke-width="8" stroke-linecap="round">
+    <path d="M68 134 Q87 150 106 134"/>
+    <path d="M150 134 Q169 150 188 134"/>
+  </g>
+  <circle cx="54" cy="174" r="17" fill="#EDE3D1"/>
+  <circle cx="202" cy="174" r="17" fill="#EDE3D1"/>
+  <ellipse cx="128" cy="186" rx="52" ry="42" fill="#EDE3D1"/>
+  <path d="M108 160 Q128 146 148 160 Q146 176 128 180 Q110 176 108 160 Z" fill="#16191C"/>
+  <path d="M128 178 V188 M104 190 Q116 204 128 190 Q140 204 152 190" fill="none" stroke="#16191C" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

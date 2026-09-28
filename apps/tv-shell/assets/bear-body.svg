@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 112" role="img" aria-label="bear body">
+  <!-- Walking bear puppet: torso with a cream belly and soft side shading. Palette as the heads. -->
+  <path d="M60 4 C92 4 112 30 112 62 C112 92 90 108 60 108 C30 108 8 92 8 62 C8 30 28 4 60 4 Z" fill="#79A889"/>
+  <path d="M60 4 C92 4 112 30 112 62 C112 92 90 108 60 108 C84 98 100 82 100 60 C100 34 86 14 60 4 Z" fill="#6E9F7C" opacity="0.55"/>
+  <ellipse cx="58" cy="66" rx="33" ry="32" fill="#EDE3D1"/>
+</svg>

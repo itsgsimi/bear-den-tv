@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 80" role="img" aria-label="pine tree">
+  <!-- Small pine tree in three tiers (forest scene). -->
+  <rect x="29" y="68" width="6" height="12" rx="2" fill="#6B4A32"/>
+  <path d="M32 4 L50 30 H40 L56 50 H42 L60 72 H4 L22 50 H8 L24 30 H14 Z" fill="#3F6B4B"/>
+  <path d="M32 4 L50 30 H40 L56 50 H42 L60 72 H32 Z" fill="#355C40"/>
+</svg>

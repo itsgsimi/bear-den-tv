@@ -1,0 +1,17 @@
+{
+  "name": "Bear Den TV remote",
+  "short_name": "Bear Den",
+  "description": "Phone remote and layout editor for Bear Den TV.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#16191c",
+  "theme_color": "#16191c",
+  "icons": [
+    { "src": "icons/bear-den-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/bear-den-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/bear-den-maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "icons/bear-den-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

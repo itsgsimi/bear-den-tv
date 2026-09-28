@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="berries">
+  <!-- Cluster of red berries with two small leaves (forest). -->
+  <g fill="#5C9161"><path d="M32 30 C22 22 12 24 8 30 C16 34 26 34 32 30 Z"/><path d="M32 30 C42 22 52 24 56 30 C48 34 38 34 32 30 Z"/></g>
+  <g fill="#C8403A" stroke="#9E2E2A" stroke-width="1.2"><circle cx="26" cy="40" r="8"/><circle cx="39" cy="39" r="8"/><circle cx="32" cy="50" r="8"/></g>
+  <g fill="#F6B2A8"><circle cx="23" cy="37" r="2.2"/><circle cx="36" cy="36" r="2.2"/><circle cx="29" cy="47" r="2.2"/></g>
+</svg>

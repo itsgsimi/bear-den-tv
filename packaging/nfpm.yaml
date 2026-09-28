@@ -1,0 +1,44 @@
+# nfpm package definition for Bear Den TV (deb for Mint/Ubuntu/Debian, rpm for others).
+# Build: make package  (runs packaging/bundle-qt.sh first). Version comes from VERSION env.
+name: bear-den-tv
+arch: amd64
+platform: linux
+version: ${VERSION}
+section: video
+priority: optional
+maintainer: Bear Den TV contributors
+description: |
+  TV home screen with a LAN phone remote for Plex HTPC and VacuumTube.
+  Installs the session coordinator, CLI, and the Qt Quick shell with a
+  bundled Qt runtime. Clients (Plex HTPC, VacuumTube) are separate Flatpaks.
+license: MIT
+homepage: https://github.com/bear-den-tv
+depends:
+  - libc6 (>= 2.31)
+  - libx11-6
+  - libxcb1
+  - libxkbcommon0
+  - libxkbcommon-x11-0
+  - libgl1
+  - libegl1
+  - fontconfig
+recommends:
+  - flatpak
+contents:
+  - src: build/bin/bear-den-tv
+    dst: /usr/bin/bear-den-tv
+  - src: build/bin/bear-den-tv-session
+    dst: /usr/bin/bear-den-tv-session
+  - src: build/shell-bundle/
+    dst: /opt/bear-den-tv/shell/
+  - src: /opt/bear-den-tv/shell/bin/bear-den-tv-shell
+    dst: /usr/bin/bear-den-tv-shell
+    type: symlink
+  - src: packaging/bear-den-tv.desktop
+    dst: /usr/share/applications/bear-den-tv.desktop
+  - src: packaging/autostart/bear-den-tv.desktop
+    dst: /usr/share/bear-den-tv/autostart/bear-den-tv.desktop
+  - src: packaging/icons/bear-den-tv.svg
+    dst: /usr/share/icons/hicolor/scalable/apps/bear-den-tv.svg
+  - src: docs/operations.md
+    dst: /usr/share/doc/bear-den-tv/operations.md

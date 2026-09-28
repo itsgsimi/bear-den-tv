@@ -1,0 +1,1040 @@
+// Focus-graph and screen tests for the TV shell (UI-01..03). The shell is
+// loaded offline from a DEMO fixture and driven through Nav.apply, the same
+// entry point the coordinator's `input` messages use.
+#include "FocusMemory.h"
+#include "IpcClient.h"
+#include "Navigator.h"
+#include "SessionModel.h"
+#include "ShellController.h"
+#include "Theme.h"
+#include "ThemeRegistry.h"
+
+#include <QDir>
+#include <QFile>
+#include <QImageReader>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QQmlApplicationEngine>
+#include <QQmlComponent>
+#include <QQuickItem>
+#include <QQuickWindow>
+#include <QTemporaryDir>
+#include <QtTest>
+
+#include <cmath>
+#include <functional>
+#include <memory>
+
+class ShellTest : public QObject {
+    Q_OBJECT
+
+private:
+    QQmlApplicationEngine *m_engine = nullptr;
+    QQuickWindow *m_window = nullptr;
+    Navigator *m_nav = nullptr;
+    QString m_shotDir;
+
+    QJsonObject fixture() const
+    {
+        QFile f(QStringLiteral(BDTV_FIXTURE_DIR "/state.demo.json"));
+        if (!f.open(QIODevice::ReadOnly))
+            return {};
+        return QJsonDocument::fromJson(f.readAll()).object();
+    }
+    QVariantMap act(const QString &action)
+    {
+        const QVariantMap r = m_nav->apply(action);
+        QCoreApplication::processEvents();
+        return r;
+    }
+    void shot(const QString &name)
+    {
+        if (m_shotDir.isEmpty())
+            return;
+        QTest::qWait(250);
+        m_window->grabWindow().save(QDir(m_shotDir).filePath(name + QStringLiteral(".png")));
+    }
+    void goHome()
+    {
+        act(QStringLiteral("home"));
+        QCOMPARE(m_nav->screen(), QStringLiteral("home"));
+    }
+    // Home restores the last focused section; tests that need a fixed start walk there.
+    void toHeader()
+    {
+        for (int i = 0; i < 5 && m_nav->sectionId() != QLatin1String("header"); ++i)
+            act(QStringLiteral("nav.up"));
+        QCOMPARE(m_nav->sectionId(), QStringLiteral("header"));
+    }
+    void toFavorites()
+    {
+        toHeader();
+        act(QStringLiteral("nav.down"));
+        QCOMPARE(m_nav->sectionId(), QStringLiteral("favorites"));
+    }
+
+    // Every visible settings row, and the focused row's ring, fits inside the
+    // clipping list that holds it: nothing of a rounded corner is cut off.
+    void settingsRowsFitTheirList()
+    {
+        QTest::qWait(Theme::instance()->durationFast() + 50); // the focused row's scale-up
+        int rows = 0;
+        QList<QQuickItem *> items; // delegates are visual children only, so walk the item tree
+        std::function<void(QQuickItem *)> collect = [&](QQuickItem *item) {
+            if (!item->isVisible())
+                return;
+            if (item->objectName() == QLatin1String("settingsRow"))
+                items.append(item);
+            for (QQuickItem *child : item->childItems())
+                collect(child);
+        };
+        collect(m_window->contentItem());
+        for (QQuickItem *row : items) {
+            QQuickItem *clip = row->parentItem();
+            while (clip && !clip->clip())
+                clip = clip->parentItem();
+            QVERIFY(clip);
+            const QRectF box = clip->mapRectToScene(clip->boundingRect());
+            QQuickItem *outer = row;
+            for (QQuickItem *child : row->childItems())
+                if (child->objectName() == QLatin1String("focusFrame") && child->isVisible())
+                    outer = child;
+            const QRectF r = outer->mapRectToScene(outer->boundingRect());
+            if (r.bottom() < box.top() || r.top() > box.bottom())
+                continue; // scrolled out of the list
+            QVERIFY2(r.left() >= box.left() && r.right() <= box.right(),
+                     qPrintable(QStringLiteral("%1 spans %2..%3, its list %4..%5")
+                                    .arg(row->property("label").toString())
+                                    .arg(r.left()).arg(r.right()).arg(box.left()).arg(box.right())));
+            ++rows;
+        }
+        QVERIFY(rows > 3);
+    }
+
+private slots:
+    void initTestCase()
+    {
+        m_shotDir = qEnvironmentVariable("BDTV_SCREENSHOT_DIR");
+        Theme::create(nullptr, nullptr)->setForceNoAnimations(true);
+        m_nav = Navigator::create(nullptr, nullptr);
+        SessionModel::create(nullptr, nullptr);
+        FocusMemory::create(nullptr, nullptr);
+        ShellController::Options opts;
+        opts.offline = true;
+        opts.fixturePath = QStringLiteral(BDTV_FIXTURE_DIR "/state.demo.json");
+        auto *controller = ShellController::create(nullptr, nullptr);
+        controller->configure(opts);
+
+        m_engine = new QQmlApplicationEngine(this);
+        m_engine->setInitialProperties({{QStringLiteral("fullscreen"), false}});
+        m_engine->loadFromModule("BearDen", "Main");
+        QVERIFY(!m_engine->rootObjects().isEmpty());
+        m_window = qobject_cast<QQuickWindow *>(m_engine->rootObjects().constFirst());
+        QVERIFY(m_window);
+        m_nav->setWindow(m_window);
+        m_window->requestActivate();
+        controller->start();
+        QVERIFY2(SessionModel::instance()->loaded(), qPrintable(SessionModel::instance()->lastError()));
+        QTRY_VERIFY(m_window->isExposed());
+        QTRY_COMPARE(m_nav->sectionId(), QStringLiteral("favorites"));
+    }
+
+    void homeStartsOnFirstApp()
+    {
+        goHome(); // first visit: no focus memory yet
+        QCOMPARE(m_nav->sectionId(), QStringLiteral("favorites"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("plex-htpc"));
+        shot(QStringLiteral("home"));
+    }
+
+    void leftRightMovesWithinRailAndStopsAtEdges()
+    {
+        goHome();
+        act(QStringLiteral("nav.right"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("youtube"));
+        act(QStringLiteral("nav.right")); // last app: stays put
+        QCOMPARE(m_nav->itemId(), QStringLiteral("youtube"));
+        act(QStringLiteral("nav.left"));
+        act(QStringLiteral("nav.left"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("plex-htpc"));
+    }
+
+    void upDownChangesSectionsAndRestoresItemById()
+    {
+        goHome();
+        act(QStringLiteral("nav.right")); // youtube
+        act(QStringLiteral("nav.down"));
+        QCOMPARE(m_nav->sectionId(), QStringLiteral("plex-continue"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("demo-1"));
+        act(QStringLiteral("nav.right"));
+        act(QStringLiteral("nav.right"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("demo-3"));
+        shot(QStringLiteral("home-continue"));
+        act(QStringLiteral("nav.up"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("youtube"));
+        act(QStringLiteral("nav.down"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("demo-3"));
+    }
+
+    void backAtRootIsReportedNoOp()
+    {
+        goHome();
+        const QVariantMap r = act(QStringLiteral("back"));
+        QCOMPARE(r.value(QStringLiteral("outcome")).toString(), QStringLiteral("observed"));
+        QVERIFY(r.value(QStringLiteral("detail")).toMap().value(QStringLiteral("at_root")).toBool());
+        QCOMPARE(m_nav->screen(), QStringLiteral("home"));
+    }
+
+    void headerPillsOpenScreensAndBackReturns()
+    {
+        goHome();
+        toHeader();
+        act(QStringLiteral("nav.right"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("settings"));
+        act(QStringLiteral("select"));
+        QCOMPARE(m_nav->screen(), QStringLiteral("settings"));
+        shot(QStringLiteral("settings"));
+        settingsRowsFitTheirList();
+        act(QStringLiteral("nav.down"));
+        act(QStringLiteral("nav.down"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("devices"));
+        act(QStringLiteral("select"));
+        QCOMPARE(m_nav->screen(), QStringLiteral("devices"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("dev_a1"));
+        shot(QStringLiteral("devices"));
+        act(QStringLiteral("select")); // revoke confirmation, focus on the safe choice
+        QCOMPARE(m_nav->screen(), QStringLiteral("dialog"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("cancel"));
+        shot(QStringLiteral("devices-confirm"));
+        act(QStringLiteral("back"));
+        QCOMPARE(m_nav->screen(), QStringLiteral("devices"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("dev_a1")); // modal focus returns to its control
+        act(QStringLiteral("back"));
+        QCOMPARE(m_nav->screen(), QStringLiteral("settings"));
+        act(QStringLiteral("back"));
+        QCOMPARE(m_nav->screen(), QStringLiteral("home"));
+    }
+
+    void secondaryScreensRender()
+    {
+        goHome();
+        toHeader();
+        act(QStringLiteral("nav.right"));
+        act(QStringLiteral("nav.right"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("pairing"));
+        act(QStringLiteral("select"));
+        QCOMPARE(m_nav->screen(), QStringLiteral("pairing"));
+        shot(QStringLiteral("pairing"));
+        act(QStringLiteral("back"));
+        act(QStringLiteral("back"));
+        QCOMPARE(m_nav->screen(), QStringLiteral("home"));
+        toHeader();
+        act(QStringLiteral("nav.right"));
+        act(QStringLiteral("select"));
+        for (int i = 0; i < 20; ++i) // Settings remembers its row; walk to the top first
+            act(QStringLiteral("nav.up"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("remote"));
+        for (int i = 0; i < 16; ++i) // remote … theme, style, art style, margin, motion, contrast, hero, clock, weather, playback, advanced playback
+            act(QStringLiteral("nav.down"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("diagnostics"));
+        act(QStringLiteral("select"));
+        QCOMPARE(m_nav->screen(), QStringLiteral("diagnostics"));
+        shot(QStringLiteral("diagnostics"));
+        goHome();
+    }
+
+    // Local weather (state.weather): the header chip shows the reading, a bad
+    // enum rejects the whole snapshot, and Settings → Weather searches from its
+    // text field (Return → weather.search) and configures from a result.
+    void weatherChipShowsTemperature()
+    {
+        goHome();
+        QObject *chip = m_window->findChild<QObject *>(QStringLiteral("weatherChip"));
+        QVERIFY(chip);
+        QVERIFY(chip->property("visible").toBool());
+        QObject *temp = m_window->findChild<QObject *>(QStringLiteral("weatherTemperature"));
+        QVERIFY(temp);
+        QCOMPARE(temp->property("text").toString(), QStringLiteral("12°"));
+        shot(QStringLiteral("home-weather"));
+
+        // No reading: the chip hides.
+        SessionModel *session = SessionModel::instance();
+        QJsonObject snap = fixture();
+        QJsonObject w = snap.value(QStringLiteral("weather")).toObject();
+        w.insert(QStringLiteral("status"), QStringLiteral("error"));
+        w.insert(QStringLiteral("current"), QJsonValue::Null);
+        snap.insert(QStringLiteral("weather"), w);
+        QVERIFY2(session->applySnapshot(snap), qPrintable(session->lastError()));
+        QCoreApplication::processEvents();
+        QVERIFY(!chip->property("visible").toBool());
+        QVERIFY(session->applySnapshot(fixture()));
+        QCoreApplication::processEvents();
+        QVERIFY(chip->property("visible").toBool());
+    }
+
+    void badWeatherRejectsSnapshot()
+    {
+        SessionModel *session = SessionModel::instance();
+        const int epoch = session->contextEpoch();
+        QJsonObject snap = fixture();
+        snap.insert(QStringLiteral("context_epoch"), epoch + 100);
+        QJsonObject w = snap.value(QStringLiteral("weather")).toObject();
+        QJsonObject current = w.value(QStringLiteral("current")).toObject();
+        current.insert(QStringLiteral("condition"), QStringLiteral("hail"));
+        w.insert(QStringLiteral("current"), current);
+        snap.insert(QStringLiteral("weather"), w);
+        QVERIFY(!session->applySnapshot(snap));
+        QVERIFY2(session->lastError().contains(QStringLiteral("state.weather.current")), qPrintable(session->lastError()));
+        QCOMPARE(session->contextEpoch(), epoch); // the previous state stays
+
+        w = fixture().value(QStringLiteral("weather")).toObject();
+        w.insert(QStringLiteral("status"), QStringLiteral("sunny"));
+        snap.insert(QStringLiteral("weather"), w);
+        QVERIFY(!session->applySnapshot(snap));
+        w = fixture().value(QStringLiteral("weather")).toObject();
+        w.remove(QStringLiteral("units"));
+        snap.insert(QStringLiteral("weather"), w);
+        QVERIFY(!session->applySnapshot(snap));
+        // Absent is fine (weather off, or an older coordinator).
+        snap.remove(QStringLiteral("weather"));
+        QVERIFY2(session->applySnapshot(snap), qPrintable(session->lastError()));
+        QVERIFY(session->weather().isEmpty());
+        QVERIFY(session->applySnapshot(fixture()));
+    }
+
+    void weatherScreenSearchesAndConfigures()
+    {
+        goHome();
+        toHeader();
+        act(QStringLiteral("nav.right"));
+        act(QStringLiteral("select"));
+        QCOMPARE(m_nav->screen(), QStringLiteral("settings"));
+        for (int i = 0; i < 20; ++i)
+            act(QStringLiteral("nav.up"));
+        for (int i = 0; i < 13; ++i) // remote … art style, … hero, clock, weather
+            act(QStringLiteral("nav.down"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("weather"));
+        act(QStringLiteral("select"));
+        QCOMPARE(m_nav->screen(), QStringLiteral("settings")); // the contract's name for it
+        QCOMPARE(m_nav->sectionId(), QStringLiteral("weather"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("enabled"));
+        QVERIFY(!m_nav->textFieldFocused());
+
+        IpcClient *ipc = ShellController::instance()->ipc();
+        auto last = [ipc](const QString &type) {
+            const QList<QJsonObject> sent = ipc->sentMessages();
+            for (auto it = sent.crbegin(); it != sent.crend(); ++it)
+                if (it->value(QStringLiteral("type")).toString() == type)
+                    return *it;
+            return QJsonObject{};
+        };
+        auto countOf = [ipc](const QString &type) {
+            int n = 0;
+            for (const QJsonObject &m : ipc->sentMessages())
+                n += m.value(QStringLiteral("type")).toString() == type;
+            return n;
+        };
+        ipc->clearSent();
+
+        // Focus reports carry text_field, and a new one follows when it changes.
+        QSignalSpy reports(m_nav, &Navigator::focusReported);
+        for (int i = 0; i < 3; ++i)
+            act(QStringLiteral("nav.down"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("search"));
+        QVERIFY(m_nav->textFieldFocused());
+        QVERIFY(!reports.isEmpty());
+        QCOMPARE(reports.constLast().at(4).toBool(), true);
+        ipc->sendFocus(m_nav->screen(), m_nav->sectionId(), m_nav->itemId(), 0, m_nav->textFieldFocused());
+        QCOMPARE(last(QStringLiteral("focus")).value(QStringLiteral("text_field")), QJsonValue(true));
+
+        // Only the field's focus changes (same row): a new report still follows.
+        QObject *field = m_window->findChild<QObject *>(QStringLiteral("weatherSearchField"));
+        QVERIFY(field);
+        const qsizetype before = reports.size();
+        field->setProperty("focus", false);
+        QCoreApplication::processEvents();
+        QCOMPARE(reports.size(), before + 1);
+        QCOMPARE(reports.constLast().at(4).toBool(), false);
+        QMetaObject::invokeMethod(field, "forceActiveFocus");
+        QCoreApplication::processEvents();
+        QCOMPARE(reports.constLast().at(4).toBool(), true);
+
+        // The phone keyboard: text.submit fills the field and presses Return.
+        const QVariantMap r = m_nav->apply(QStringLiteral("text.submit"), {{QStringLiteral("text"), QStringLiteral("Zagreb")}});
+        QCoreApplication::processEvents();
+        QCOMPARE(r.value(QStringLiteral("outcome")).toString(), QStringLiteral("observed"));
+        QCOMPARE(countOf(QStringLiteral("weather.search")), 1);
+        const QJsonObject search = last(QStringLiteral("weather.search"));
+        QCOMPARE(search.value(QStringLiteral("query")).toString(), QStringLiteral("Zagreb"));
+        const QString requestId = search.value(QStringLiteral("request_id")).toString();
+        QVERIFY(!requestId.isEmpty());
+        QVERIFY(ShellController::instance()->weatherSearching());
+
+        // A physical Return in the field searches again.
+        act(QStringLiteral("select"));
+        QCOMPARE(countOf(QStringLiteral("weather.search")), 2);
+        const QString requestId2 = last(QStringLiteral("weather.search")).value(QStringLiteral("request_id")).toString();
+
+        // The coordinator answers with places; the first place is one press away.
+        const QJsonObject places{
+            {QStringLiteral("type"), QStringLiteral("weather_places")},
+            {QStringLiteral("request_id"), requestId2},
+            {QStringLiteral("ok"), true},
+            {QStringLiteral("error"), QString()},
+            {QStringLiteral("places"), QJsonArray{
+                QJsonObject{{QStringLiteral("name"), QStringLiteral("Zagreb")}, {QStringLiteral("region"), QStringLiteral("City of Zagreb")},
+                            {QStringLiteral("country"), QStringLiteral("Croatia")}, {QStringLiteral("latitude"), 45.81}, {QStringLiteral("longitude"), 15.98}},
+                QJsonObject{{QStringLiteral("name"), QStringLiteral("Zagreb Hill")}, {QStringLiteral("region"), QString()},
+                            {QStringLiteral("country"), QStringLiteral("Demo")}, {QStringLiteral("latitude"), 1.0}, {QStringLiteral("longitude"), 2.0}},
+            }},
+        };
+        emit ipc->replyReceived(requestId2, QStringLiteral("weather.search"), places);
+        QCoreApplication::processEvents();
+        QCOMPARE(ShellController::instance()->weatherPlaces().size(), 2);
+        QVERIFY(!ShellController::instance()->weatherSearching());
+        shot(QStringLiteral("weather"));
+        act(QStringLiteral("nav.right"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("place-0"));
+        QVERIFY(!m_nav->textFieldFocused());
+        QCOMPARE(reports.constLast().at(4).toBool(), false);
+        act(QStringLiteral("select"));
+        const QJsonObject configure = last(QStringLiteral("weather.configure"));
+        QCOMPARE(configure.value(QStringLiteral("enabled")), QJsonValue(true));
+        QCOMPARE(configure.value(QStringLiteral("units")).toString(), QStringLiteral("celsius"));
+        QCOMPARE(configure.value(QStringLiteral("scene")), QJsonValue(true));
+        const QJsonObject place = configure.value(QStringLiteral("place")).toObject();
+        QCOMPARE(place.value(QStringLiteral("name")).toString(), QStringLiteral("Zagreb"));
+        QCOMPARE(place.value(QStringLiteral("latitude")).toDouble(), 45.81);
+
+        // Units: ◀ ▶ on its row; place null keeps the stored place.
+        for (int i = 0; i < 10; ++i)
+            act(QStringLiteral("nav.up"));
+        act(QStringLiteral("nav.down"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("units"));
+        act(QStringLiteral("nav.right"));
+        const QJsonObject units = last(QStringLiteral("weather.configure"));
+        QCOMPARE(units.value(QStringLiteral("units")).toString(), QStringLiteral("fahrenheit"));
+        QVERIFY(units.contains(QStringLiteral("place")));
+        QVERIFY(units.value(QStringLiteral("place")).isNull());
+        QCOMPARE(units.value(QStringLiteral("enabled")), QJsonValue(true));
+        act(QStringLiteral("nav.up"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("enabled"));
+        act(QStringLiteral("select")); // Weather off, keeping the place
+        const QJsonObject off = last(QStringLiteral("weather.configure"));
+        QCOMPARE(off.value(QStringLiteral("enabled")), QJsonValue(false));
+        QVERIFY(off.value(QStringLiteral("place")).isNull());
+
+        act(QStringLiteral("back"));
+        QCOMPARE(m_nav->screen(), QStringLiteral("settings"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("weather"));
+        QVERIFY(!m_nav->textFieldFocused());
+        goHome();
+    }
+
+    // Settings → Advanced playback lists each app's settings from state.playback;
+    // Left/Right sends playback.set with the next offered option, OK returns the
+    // row to Auto (value "").
+    void advancedPlaybackSendsPlaybackSet()
+    {
+        goHome();
+        toHeader();
+        act(QStringLiteral("nav.right"));
+        act(QStringLiteral("select"));
+        QCOMPARE(m_nav->screen(), QStringLiteral("settings"));
+        for (int i = 0; i < 20; ++i)
+            act(QStringLiteral("nav.up"));
+        for (int i = 0; i < 15; ++i) // remote … art style, … clock, weather, playback, advanced playback
+            act(QStringLiteral("nav.down"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("advanced-playback"));
+        act(QStringLiteral("select"));
+        QCOMPARE(m_nav->screen(), QStringLiteral("diagnostics")); // the contract's name for these screens
+        QCOMPARE(m_nav->sectionId(), QStringLiteral("playback"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("moonlight.codec"));
+        shot(QStringLiteral("advanced-playback"));
+        settingsRowsFitTheirList();
+
+        IpcClient *ipc = ShellController::instance()->ipc();
+        auto lastPlaybackSet = [ipc]() {
+            const QList<QJsonObject> sent = ipc->sentMessages();
+            for (auto it = sent.crbegin(); it != sent.crend(); ++it)
+                if (it->value(QStringLiteral("type")).toString() == QLatin1String("playback.set"))
+                    return *it;
+            return QJsonObject{};
+        };
+        ipc->clearSent();
+        act(QStringLiteral("nav.down"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("moonlight.fps"));
+        act(QStringLiteral("nav.right")); // 60 fps (chosen by hand) → 120 fps
+        QJsonObject m = lastPlaybackSet();
+        QCOMPARE(m.value(QStringLiteral("adapter")).toString(), QStringLiteral("moonlight"));
+        QCOMPARE(m.value(QStringLiteral("setting")).toString(), QStringLiteral("fps"));
+        QCOMPARE(m.value(QStringLiteral("value")).toString(), QStringLiteral("120"));
+        QVERIFY(!m.value(QStringLiteral("request_id")).toString().isEmpty());
+        act(QStringLiteral("select")); // back to Auto
+        QCOMPARE(lastPlaybackSet().value(QStringLiteral("value")).toString(), QString());
+        QCOMPARE(lastPlaybackSet().value(QStringLiteral("setting")).toString(), QStringLiteral("fps"));
+
+        ipc->clearSent();
+        act(QStringLiteral("nav.up")); // codec: Auto (H.264) is the last offered option here
+        act(QStringLiteral("nav.right"));
+        act(QStringLiteral("select")); // not chosen by hand: nothing to reset
+        QVERIFY(lastPlaybackSet().isEmpty());
+        for (int i = 0; i < 4; ++i) // fps, resolution, frame pacing → YouTube's first setting
+            act(QStringLiteral("nav.down"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("vacuumtube.codecs"));
+        act(QStringLiteral("back"));
+        QCOMPARE(m_nav->screen(), QStringLiteral("settings"));
+        goHome();
+    }
+
+    void uninstalledAppExplainsInsteadOfLaunching()
+    {
+        goHome();
+        toFavorites();
+        act(QStringLiteral("nav.right")); // YouTube is not installed in the fixture
+        act(QStringLiteral("select"));
+        QCOMPARE(m_nav->screen(), QStringLiteral("dialog"));
+        QCOMPARE(ShellController::instance()->launchingAppId(), QString());
+        shot(QStringLiteral("app-unavailable"));
+        act(QStringLiteral("back"));
+        QCOMPARE(m_nav->screen(), QStringLiteral("home"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("youtube"));
+    }
+
+    void homeClosesDialogsAndRestoresFocus()
+    {
+        goHome();
+        toFavorites();
+        act(QStringLiteral("nav.down"));
+        act(QStringLiteral("nav.right"));
+        const QString before = m_nav->itemId();
+        act(QStringLiteral("select")); // DEMO item → message dialog
+        QCOMPARE(m_nav->screen(), QStringLiteral("dialog"));
+        act(QStringLiteral("home"));
+        QCOMPARE(m_nav->screen(), QStringLiteral("home"));
+        QCOMPARE(m_nav->itemId(), before);
+    }
+
+    void refreshReorderKeepsFocusedId()
+    {
+        goHome();
+        toFavorites();
+        act(QStringLiteral("nav.right"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("youtube"));
+        QJsonObject snap = fixture();
+        QJsonObject layout = snap.value(QStringLiteral("layout")).toObject();
+        QJsonArray sections = layout.value(QStringLiteral("sections")).toArray();
+        QJsonObject fav = sections.at(0).toObject();
+        fav.insert(QStringLiteral("application_ids"), QJsonArray{QStringLiteral("youtube"), QStringLiteral("plex-htpc")});
+        sections.replace(0, fav);
+        layout.insert(QStringLiteral("sections"), sections);
+        snap.insert(QStringLiteral("layout"), layout);
+        snap.insert(QStringLiteral("context_epoch"), snap.value(QStringLiteral("context_epoch")).toInt() + 1);
+        QVERIFY(SessionModel::instance()->applySnapshot(snap));
+        QCoreApplication::processEvents();
+        act(QStringLiteral("nav.left")); // youtube is now first: left must stay on it
+        QCOMPARE(m_nav->itemId(), QStringLiteral("youtube"));
+        QVERIFY(SessionModel::instance()->applySnapshot(fixture()));
+    }
+
+    void lockedHidesEverything()
+    {
+        goHome();
+        QJsonObject snap = fixture();
+        QJsonObject session = snap.value(QStringLiteral("session")).toObject();
+        session.insert(QStringLiteral("locked"), true);
+        snap.insert(QStringLiteral("session"), session);
+        snap.remove(QStringLiteral("devices"));
+        snap.remove(QStringLiteral("content"));
+        QVERIFY(SessionModel::instance()->applySnapshot(snap));
+        QCoreApplication::processEvents();
+        const QString item = m_nav->itemId();
+        act(QStringLiteral("nav.right"));
+        QCOMPARE(m_nav->itemId(), item); // no navigation while locked
+        shot(QStringLiteral("locked"));
+        QVERIFY(SessionModel::instance()->applySnapshot(fixture()));
+    }
+
+    void screensaverAfterIdleAndFirstPressOnlyWakes()
+    {
+        goHome();
+        QObject *saver = m_engine->rootObjects().constFirst()->findChild<QObject *>(QStringLiteral("screensaver"));
+        QVERIFY(saver);
+        ShellController::instance()->setScreensaverSeconds(1);
+        act(QStringLiteral("nav.left")); // input restarts the idle timer with the new interval
+        const QString focused = m_nav->itemId();
+        QTRY_VERIFY_WITH_TIMEOUT(saver->property("active").toBool(), 3000);
+        shot(QStringLiteral("screensaver"));
+        act(QStringLiteral("nav.right")); // wakes only
+        QVERIFY(!saver->property("active").toBool());
+        QCOMPARE(m_nav->itemId(), focused);
+        ShellController::instance()->setScreensaverSeconds(300);
+    }
+
+    // Pixel-art wallpapers: sprites resolve to URLs; a bad sprite skips the theme.
+    void themeWallpaperSprites()
+    {
+        QTemporaryDir root;
+        QVERIFY(root.isValid());
+        auto write = [&](const QString &rel, const QByteArray &data) {
+            QDir(root.path()).mkpath(QFileInfo(rel).path());
+            QFile f(root.filePath(rel));
+            QVERIFY(f.open(QIODevice::WriteOnly));
+            f.write(data);
+        };
+        const QByteArray manifest = R"({"schema":1,"id":"%1","name":"P","accent":"#123456","wallpaper":{"image":"bg.png","pixel":true,"top":"#000000","bottom":"#111111","sprites":[{"sheet":"fire.png","frames":4,"fps":%2,"x":10,"y":200}]}})";
+        for (const auto &[id, fps] : {std::pair{QStringLiteral("pix"), 8}, std::pair{QStringLiteral("badfps"), 21}}) {
+            write(id + QStringLiteral("/theme.json"), QString::fromUtf8(manifest).arg(id).arg(fps).toUtf8());
+            write(id + QStringLiteral("/bg.png"), "png");
+            write(id + QStringLiteral("/fire.png"), "png");
+        }
+        ThemeRegistry &reg = *ThemeRegistry::create(nullptr, nullptr); // the singleton; reloaded below
+        reg.loadFrom({root.path()});
+        const auto restore = qScopeGuard([&] { reg.reload(); });
+        const QVariantMap wp = reg.get(QStringLiteral("pix")).value(QStringLiteral("wallpaper")).toMap();
+        QCOMPARE(reg.get(QStringLiteral("pix")).value(QStringLiteral("id")).toString(), QStringLiteral("pix"));
+        QVERIFY(wp.value(QStringLiteral("pixel")).toBool());
+        const QVariantList sprites = wp.value(QStringLiteral("sprites")).toList();
+        QCOMPARE(sprites.size(), 1);
+        const QVariantMap sp = sprites.first().toMap();
+        QVERIFY(sp.value(QStringLiteral("sheet")).toString().endsWith(QStringLiteral("/pix/fire.png")));
+        QCOMPARE(sp.value(QStringLiteral("frames")).toInt(), 4);
+        QCOMPARE(sp.value(QStringLiteral("fps")).toInt(), 8);
+        QCOMPARE(sp.value(QStringLiteral("x")).toInt(), 10);
+        QCOMPARE(sp.value(QStringLiteral("y")).toInt(), 200);
+        QCOMPARE(reg.problems().size(), 1);
+        QVERIFY2(reg.problems().first().contains(QStringLiteral("badfps")) && reg.problems().first().contains(QStringLiteral("fps")),
+                 qPrintable(reg.problems().first()));
+    }
+
+    // Art style (layout.ui.art_style): a theme resolves in Pixel and Classic;
+    // Classic takes its classic wallpaper and backdrop (drawn smooth) and SVG
+    // ornaments first, Pixel the PNGs; a theme without classic art keeps its
+    // own. The setting reaches Theme.artStyle, and a missing value means pixel.
+    void artStyleResolvesThemes()
+    {
+        QTemporaryDir root;
+        QVERIFY(root.isValid());
+        auto write = [&](const QString &rel, const QByteArray &data) {
+            QDir(root.path()).mkpath(QFileInfo(rel).path());
+            QFile f(root.filePath(rel));
+            QVERIFY(f.open(QIODevice::WriteOnly));
+            f.write(data);
+        };
+        const QByteArray bothManifest = R"({"schema":1,"id":"both","name":"B","accent":"#123456","heading":"leaf","wallpaper":{"image":"bg.png","pixel":true,"top":"#000000","bottom":"#111111"},"phone":{"backdrop":"phone.png"},"classic":{"wallpaper":{"image":"bg.jpg","sprites":[{"sheet":"mist.png","frames":2,"fps":4,"x":0,"y":0}]},"phone":{"backdrop":"phone.jpg"}}})";
+        const QByteArray oneManifest = R"({"schema":1,"id":"one","name":"O","accent":"#123456","wallpaper":{"image":"bg.png","pixel":true,"top":"#000000","bottom":"#111111"}})";
+        const QByteArray badManifest = R"({"schema":1,"id":"bad","name":"X","accent":"#123456","wallpaper":{"top":"#000000","bottom":"#111111"},"classic":{"wallpaper":{"image":"gone.jpg"}}})";
+        write(QStringLiteral("both/theme.json"), bothManifest);
+        write(QStringLiteral("one/theme.json"), oneManifest);
+        write(QStringLiteral("bad/theme.json"), badManifest);
+        for (const char *f : {"both/bg.png", "both/bg.jpg", "both/mist.png", "both/phone.png", "both/phone.jpg", "both/leaf.png", "both/leaf.svg", "one/bg.png"})
+            write(QString::fromLatin1(f), "img");
+        ThemeRegistry &reg = *ThemeRegistry::create(nullptr, nullptr);
+        reg.loadFrom({root.path()});
+        const auto restore = qScopeGuard([&] { reg.reload(); });
+        auto wall = [&](const char *id, const char *style) { return reg.get(QString::fromLatin1(id), QString::fromLatin1(style)).value(QStringLiteral("wallpaper")).toMap(); };
+        auto backdrop = [&](const char *id, const char *style) {
+            return reg.get(QString::fromLatin1(id), QString::fromLatin1(style)).value(QStringLiteral("phone")).toMap().value(QStringLiteral("backdrop")).toString();
+        };
+        QVERIFY(wall("both", "pixel").value(QStringLiteral("image")).toString().endsWith(QStringLiteral("/both/bg.png")));
+        QVERIFY(wall("both", "pixel").value(QStringLiteral("pixel")).toBool());
+        QVERIFY(wall("both", "pixel").value(QStringLiteral("sprites")).toList().isEmpty());
+        QVERIFY(wall("both", "classic").value(QStringLiteral("image")).toString().endsWith(QStringLiteral("/both/bg.jpg")));
+        QVERIFY(!wall("both", "classic").value(QStringLiteral("pixel")).toBool());
+        QCOMPARE(wall("both", "classic").value(QStringLiteral("sprites")).toList().size(), 1);
+        QVERIFY(backdrop("both", "pixel").endsWith(QStringLiteral("/both/phone.png")));
+        QVERIFY(backdrop("both", "classic").endsWith(QStringLiteral("/both/phone.jpg")));
+        QVERIFY(reg.get(QStringLiteral("both")).value(QStringLiteral("heading")).toString().endsWith(QStringLiteral("leaf.png")));
+        QVERIFY(reg.get(QStringLiteral("both"), QStringLiteral("classic")).value(QStringLiteral("heading")).toString().endsWith(QStringLiteral("leaf.svg")));
+        QVERIFY(reg.ornament(QStringLiteral("both"), QStringLiteral("leaf"), QStringLiteral("classic")).toString().endsWith(QStringLiteral("leaf.svg")));
+        QVERIFY(wall("one", "classic").value(QStringLiteral("image")).toString().endsWith(QStringLiteral("/one/bg.png")));
+        QVERIFY(wall("one", "classic").value(QStringLiteral("pixel")).toBool());
+        QCOMPARE(reg.problems().size(), 1);
+        QVERIFY2(reg.problems().first().contains(QStringLiteral("gone.jpg")), qPrintable(reg.problems().first()));
+
+        QJsonObject snap = fixture();
+        QJsonObject layout = snap.value(QStringLiteral("layout")).toObject();
+        QJsonObject ui = layout.value(QStringLiteral("ui")).toObject();
+        ui.insert(QStringLiteral("art_style"), QStringLiteral("classic"));
+        layout.insert(QStringLiteral("ui"), ui);
+        snap.insert(QStringLiteral("layout"), layout);
+        QVERIFY(SessionModel::instance()->applySnapshot(snap));
+        QCOMPARE(Theme::instance()->artStyle(), QStringLiteral("classic"));
+        ui.insert(QStringLiteral("art_style"), QStringLiteral("watercolour"));
+        layout.insert(QStringLiteral("ui"), ui);
+        snap.insert(QStringLiteral("layout"), layout);
+        QVERIFY(!SessionModel::instance()->applySnapshot(snap));
+        QVERIFY(SessionModel::instance()->applySnapshot(fixture())); // no art_style: pixel
+        QCOMPARE(Theme::instance()->artStyle(), QStringLiteral("pixel"));
+    }
+
+    // Classic art style, the basics: boxes are antialiased rounded
+    // Rectangles, the built-in worlds show their classic pictures, and
+    // ornaments resolve to their SVGs; switching back restores pixel art.
+    void classicDrawsSmooth()
+    {
+        auto withArt = [&](const char *art) {
+            QJsonObject snap = fixture();
+            QJsonObject layout = snap.value(QStringLiteral("layout")).toObject();
+            QJsonObject ui = layout.value(QStringLiteral("ui")).toObject();
+            ui.insert(QStringLiteral("background"), QStringLiteral("den"));
+            ui.insert(QStringLiteral("art_style"), QString::fromLatin1(art));
+            layout.insert(QStringLiteral("ui"), ui);
+            snap.insert(QStringLiteral("layout"), layout);
+            QVERIFY(SessionModel::instance()->applySnapshot(snap));
+        };
+        const auto restore = qScopeGuard([&] { QVERIFY(SessionModel::instance()->applySnapshot(fixture())); });
+        QQmlComponent c(m_engine);
+        c.setData("import QtQuick\nimport BearDen\nPixelBox { width: 80; height: 40; radius: 8; property url sprig: World.ornament(\"sprig\") }",
+                  QUrl(QStringLiteral("qrc:/test/Classic.qml")));
+        std::unique_ptr<QObject> box(c.create());
+        QVERIFY2(box, qPrintable(c.errorString()));
+        auto drawn = [&](const char *type) {
+            for (QQuickItem *child : qobject_cast<QQuickItem *>(box.get())->childItems())
+                if (QByteArray(child->metaObject()->className()).startsWith(type))
+                    return child->isVisible();
+            return false;
+        };
+        withArt("classic");
+        QVERIFY(drawn("QQuickRectangle") && !drawn("QQuickCanvasItem"));
+        QVERIFY(box->property("sprig").toUrl().toString().endsWith(QStringLiteral("/sprig.svg")));
+        QVERIFY(Theme::instance()->wallpaperSource().toString().endsWith(QStringLiteral("/den/wallpaper.jpg")));
+        // Its own size, for animated layers placed in its pixels.
+        const QVariantMap wp = ThemeRegistry::instance()->get(QStringLiteral("den"), QStringLiteral("classic")).value(QStringLiteral("wallpaper")).toMap();
+        QCOMPARE(wp.value(QStringLiteral("width")).toInt(), 2560);
+        QCOMPARE(wp.value(QStringLiteral("height")).toInt(), 1440);
+        withArt("pixel");
+        QVERIFY(!drawn("QQuickRectangle") && drawn("QQuickCanvasItem"));
+        QVERIFY(box->property("sprig").toUrl().toString().endsWith(QStringLiteral("/sprig.png")));
+        QVERIFY(Theme::instance()->wallpaperSource().toString().endsWith(QStringLiteral("/den/wallpaper.png")));
+    }
+
+    // Pixel art building blocks (docs/THEMES.md → Pixel art): PixelBox cuts
+    // its corners in stairs of whole art pixels, bears pick the frame for
+    // their pose from the generated rig, PNG ornaments draw as pixel art.
+    void pixelArtBuildingBlocks()
+    {
+        auto make = [&](const QByteArray &qml) {
+            QQmlComponent c(m_engine);
+            c.setData("import QtQuick\nimport BearDen\n" + qml, QUrl(QStringLiteral("qrc:/test/Pixel.qml")));
+            QObject *o = c.create();
+            if (!o)
+                qWarning() << c.errors();
+            return o;
+        };
+        QObject *box = make("PixelBox { width: 80; height: 40; radius: 8 }");
+        QVERIFY(box);
+        QVariant ret;
+        QMetaObject::invokeMethod(box, "insets", Q_RETURN_ARG(QVariant, ret), Q_ARG(QVariant, 10), Q_ARG(QVariant, 2));
+        QCOMPARE(ret.toList(), (QVariantList{2, 1, 0, 0, 0, 0, 0, 0, 1, 2}));
+        QMetaObject::invokeMethod(box, "insets", Q_RETURN_ARG(QVariant, ret), Q_ARG(QVariant, 12), Q_ARG(QVariant, 5));
+        const QVariantList round = ret.toList();
+        for (int y = 1; y < 6; ++y)
+            QVERIFY2(round.at(y).toInt() <= round.at(y - 1).toInt(), "a round corner never widens going in");
+        QVERIFY(round.at(0).toInt() > 1 && round.at(5).toInt() == 0);
+        delete box;
+
+        QObject *bear = make("BearPuppet { kind: \"dad\"; size: 184 }");
+        QVERIFY(bear);
+        QVERIFY(bear->property("unit").toReal() > 0);
+        QCOMPARE(bear->property("width").toReal(), bear->property("frameW").toReal() * bear->property("unit").toReal());
+        QCOMPARE(bear->property("pose").toString(), QStringLiteral("stand"));
+        bear->setProperty("walking", true);
+        bear->setProperty("walk", 0.1);
+        QCOMPARE(bear->property("pose").toString(), QStringLiteral("walk0"));
+        bear->setProperty("walk", 3.3);
+        QCOMPARE(bear->property("pose").toString(), QStringLiteral("walk2"));
+        bear->setProperty("walk", -0.2);   // negative phases wrap round
+        QCOMPARE(bear->property("pose").toString(), QStringLiteral("walk3"));
+        bear->setProperty("walking", false);
+        bear->setProperty("wave", 1.0);
+        bear->setProperty("wavePhase", 1.5);
+        QCOMPARE(bear->property("pose").toString(), QStringLiteral("wave0"));
+        bear->setProperty("wave", 0.0);
+        bear->setProperty("sitting", true);
+        bear->setProperty("reach", 1.0);
+        QCOMPARE(bear->property("pose").toString(), QStringLiteral("reach"));
+        bear->setProperty("asleep", true);
+        QCOMPARE(bear->property("pose").toString(), QStringLiteral("sleep"));
+        // Every pose the puppet can pick has anchors in the generated rig.
+        const QVariantMap at = bear->property("at").toMap();
+        QVERIFY(at.contains(QStringLiteral("paw")) && at.contains(QStringLiteral("head")));
+        delete bear;
+
+        QObject *orn = make("Ornament { name: \"daisy\"; width: 40; height: 40 }");
+        QVERIFY(orn);
+        QVERIFY2(orn->property("pixel").toBool(), "built-in ornaments are PNG pixel art");
+        delete orn;
+    }
+
+    // Classic art style, the drawn and animated parts: bears are smooth SVG
+    // rigs posed by the same numbers as the pixel ones, the corner engine and
+    // brand backdrops paint at full size with antialiasing, the focus ring's
+    // spark is the smooth canvas, and Home picks the classic corner scene.
+    // Pixel keeps the grid-snapped versions.
+    void classicComponents()
+    {
+        auto withArt = [&](const char *art) {
+            QJsonObject snap = fixture();
+            QJsonObject layout = snap.value(QStringLiteral("layout")).toObject();
+            QJsonObject ui = layout.value(QStringLiteral("ui")).toObject();
+            ui.insert(QStringLiteral("background"), QStringLiteral("den"));
+            ui.insert(QStringLiteral("art_style"), QString::fromLatin1(art));
+            layout.insert(QStringLiteral("ui"), ui);
+            snap.insert(QStringLiteral("layout"), layout);
+            QVERIFY(SessionModel::instance()->applySnapshot(snap));
+        };
+        const auto restore = qScopeGuard([&] { QVERIFY(SessionModel::instance()->applySnapshot(fixture())); });
+        const QByteArray probeQml = R"(import QtQuick
+import BearDen
+Item {
+    width: 400; height: 300
+    BearPuppet { objectName: "puppet"; kind: "dad"; size: 200 }
+    BearHead { objectName: "head"; kind: "dad"; width: 80 }
+    CornerDecor { objectName: "corner"; progress: 1 }
+    BrandBackdrop { objectName: "backdrop"; width: 120; height: 80 }
+    Item { width: 200; height: 100; FocusFrame { objectName: "ring"; shown: true; glint: true } }
+})";
+        QQmlComponent c(m_engine);
+        c.setData(probeQml, QUrl(QStringLiteral("qrc:/test/ClassicParts.qml")));
+        std::unique_ptr<QObject> probe(c.create());
+        QVERIFY2(probe, qPrintable(c.errorString()));
+        auto item = [&](const char *name) { return probe->findChild<QQuickItem *>(QString::fromLatin1(name)); };
+        // Image sources drawn (visible) under an item.
+        auto sources = [&](QQuickItem *root) {
+            QStringList out;
+            std::function<void(QQuickItem *)> walk = [&](QQuickItem *i) {
+                if (!i->isVisible())
+                    return;
+                const QString s = i->property("source").toUrl().toString();
+                if (!s.isEmpty() && QByteArray(i->metaObject()->className()).contains("Image"))
+                    out << s;
+                for (QQuickItem *child : i->childItems())
+                    walk(child);
+            };
+            walk(root);
+            return out;
+        };
+        QQuickItem *puppet = item("puppet");
+        QVERIFY(puppet);
+
+        withArt("classic");
+        QCoreApplication::processEvents();
+        QQuickItem *rigLoader = item("bearPuppetClassic");
+        QVERIFY(rigLoader);
+        QObject *rig = rigLoader->property("item").value<QObject *>();
+        QVERIFY2(rig, "Classic loads the smooth rig");
+        const QStringList parts = sources(puppet);
+        QVERIFY2(parts.contains(QStringLiteral("qrc:/qt/qml/BearDen/assets/bear-mark.svg"))
+                     && parts.contains(QStringLiteral("qrc:/qt/qml/BearDen/assets/bear-arm.svg")),
+                 qPrintable(parts.join(QLatin1Char(' '))));
+        for (const QString &s : parts)
+            QVERIFY2(s.endsWith(QStringLiteral(".svg")), qPrintable(s));
+        QCOMPARE(puppet->width(), 140.0);
+        puppet->setProperty("walking", true);
+        puppet->setProperty("walk", 1.0);
+        QCOMPARE(rig->property("step").toReal(), std::sin(1.0));
+        puppet->setProperty("sitting", true);
+        QVERIFY(rig->property("seat").toReal() > 0);
+        puppet->setProperty("asleep", true);
+        QVERIFY(sources(puppet).contains(QStringLiteral("qrc:/qt/qml/BearDen/assets/bear-sleep.svg")));
+        QVERIFY(sources(item("head")).contains(QStringLiteral("qrc:/qt/qml/BearDen/assets/bear-mark.svg")));
+        QVERIFY(item("cornerSmooth")->isVisible() && item("cornerSmooth")->antialiasing() && !item("cornerPixel")->isVisible());
+        QCOMPARE(item("cornerSmooth")->width(), item("corner")->width());
+        QVERIFY(item("brandBackdropSmooth")->isVisible() && item("brandBackdropSmooth")->antialiasing());
+        QCOMPARE(item("ring")->property("thickness").toReal(), Theme::instance()->property("focusWidth").toReal());
+        QVERIFY(item("focusSpark")->antialiasing());
+
+        goHome();
+        QObject *scene = m_window->findChild<QObject *>(QStringLiteral("cornerScene"));
+        QVERIFY(scene);
+        auto sceneMade = [&]() {
+            auto *comp = scene->property("sourceComponent").value<QQmlComponent *>();
+            std::unique_ptr<QObject> o(comp ? comp->create(comp->creationContext()) : nullptr);
+            return o ? QString::fromLatin1(o->metaObject()->className()) : QString();
+        };
+        QVERIFY2(sceneMade().startsWith(QStringLiteral("DenFamilyClassic")), qPrintable(sceneMade()));
+
+        withArt("pixel");
+        QCoreApplication::processEvents();
+        QVERIFY(!rigLoader->property("item").value<QObject *>());
+        for (const QString &s : sources(puppet))
+            QVERIFY2(s.endsWith(QStringLiteral(".png")), qPrintable(s));
+        QCOMPARE(puppet->width(), puppet->property("frameW").toReal() * puppet->property("unit").toReal());
+        QVERIFY(!item("cornerSmooth")->isVisible() && item("cornerPixel")->isVisible());
+        QVERIFY(!item("cornerPixel")->antialiasing() && !item("cornerPixel")->smooth());
+        QVERIFY(!item("brandBackdropSmooth")->isVisible());
+        const int px = qRound(4 * Theme::instance()->property("scale").toReal());
+        QCOMPARE(std::fmod(item("ring")->property("thickness").toReal(), qMax(1, px)), 0.0);
+        const QString pixelScene = sceneMade();
+        QVERIFY2(pixelScene.startsWith(QStringLiteral("DenFamily")) && !pixelScene.contains(QStringLiteral("Classic")), qPrintable(pixelScene));
+    }
+
+    // The featured panel's life: every app's stage names a room that exists in
+    // the generated rig, the cabin TV plays its static once per item, and the
+    // remote's secret code starts the bear parade.
+    void heroPanelLife()
+    {
+        auto make = [&](const QByteArray &qml) {
+            QQmlComponent c(m_engine);
+            c.setData("import QtQuick\nimport BearDen\n" + qml, QUrl(QStringLiteral("qrc:/test/Hero.qml")));
+            QObject *o = c.create();
+            if (!o)
+                qWarning() << c.errors();
+            return o;
+        };
+        QObject *probe = make(R"(import "qrc:/qt/qml/BearDen/HeroRig.js" as Rig
+            Item {
+                function missing() {
+                    const out = []
+                    for (const a of ["plex-htpc", "vacuumtube", "moonlight", "something-new"])
+                        if (!Rig.scenes[Apps.stage(a).scene]) out.push(a)
+                    return out.join(",")
+                }
+            })");
+        QVERIFY(probe);
+        QVariant missing;
+        QMetaObject::invokeMethod(probe, "missing", Q_RETURN_ARG(QVariant, missing));
+        QCOMPARE(missing.toString(), QString());
+        delete probe;
+
+        Theme::instance()->setForceNoAnimations(false);
+        const auto restore = qScopeGuard([] { Theme::instance()->setForceNoAnimations(true); });
+        QObject *room = make("HeroScene { scene: \"cabin\" }");
+        QVERIFY(room);
+        room->setProperty("itemId", QStringLiteral("youtube"));
+        QVERIFY2(room->property("introPlaying").toBool(), "a new item starts on the TV's static");
+        QTRY_VERIFY_WITH_TIMEOUT(!room->property("introPlaying").toBool(), 3000);
+        delete room;
+
+        goHome();
+        QObject *visitors = m_window->findChild<QObject *>(QStringLiteral("bearVisitors"));
+        QVERIFY(visitors);
+        QVERIFY(!visitors->property("busy").toBool());
+        for (const char *a : {"nav.up", "nav.up", "nav.down", "nav.down", "nav.left", "nav.right", "nav.left", "nav.right"})
+            act(QString::fromLatin1(a));
+        QVERIFY(!visitors->property("busy").toBool());
+        act(QStringLiteral("select"));
+        QVERIFY2(visitors->property("busy").toBool(), "the secret code starts a parade");
+        QMetaObject::invokeMethod(visitors, "stop");
+        goHome();
+    }
+
+    // Classic art for what was only ever pixel art (tools/classicart): every
+    // featured-panel room, weather icon and seasonal piece has an SVG; Winter
+    // has a classic world; HeroScene draws the SVG room in Classic with the
+    // icon's screen rectangle exactly where the pixel room puts it.
+    void classicArtAssets()
+    {
+        const QString dir = QStringLiteral(":/qt/qml/BearDen/assets/");
+        QStringList names{QStringLiteral("classic/hero-cinema"), QStringLiteral("classic/hero-arcade"),
+                          QStringLiteral("classic/hero-static-0"), QStringLiteral("classic/hero-static-1"),
+                          QStringLiteral("classic/snowcap"), QStringLiteral("classic/sleep-z"), QStringLiteral("ornaments/pumpkin")};
+        for (const char *scene : {"cinema", "cabin", "arcade"})
+            names << QStringLiteral("classic/hero-%1-glow").arg(QLatin1String(scene));
+        for (const char *time : {"night", "dawn", "day", "dusk"})
+            names << QStringLiteral("classic/hero-cabin-%1").arg(QLatin1String(time));
+        for (const char *icon : {"sun", "moon", "sun-cloud", "moon-cloud", "cloud", "fog", "drizzle", "rain", "snow", "thunder"}) {
+            QVERIFY2(QFile::exists(dir + QStringLiteral("pixel/weather-%1.png").arg(QLatin1String(icon))), icon);
+            names << QStringLiteral("classic/weather-%1").arg(QLatin1String(icon));
+        }
+        for (const QString &name : names)
+            QVERIFY2(QFile::exists(dir + name + QStringLiteral(".svg")), qPrintable(name));
+
+        auto withArt = [&](const char *art) {
+            QJsonObject snap = fixture();
+            QJsonObject layout = snap.value(QStringLiteral("layout")).toObject();
+            QJsonObject ui = layout.value(QStringLiteral("ui")).toObject();
+            ui.insert(QStringLiteral("background"), QStringLiteral("winter"));
+            ui.insert(QStringLiteral("art_style"), QString::fromLatin1(art));
+            layout.insert(QStringLiteral("ui"), ui);
+            snap.insert(QStringLiteral("layout"), layout);
+            QVERIFY(SessionModel::instance()->applySnapshot(snap));
+        };
+        const auto restore = qScopeGuard([&] { QVERIFY(SessionModel::instance()->applySnapshot(fixture())); });
+        const QByteArray qml = "import QtQuick\nimport BearDen\n"
+                               "HeroScene { scene: \"cinema\"; itemId: \"plex\"; shift: 1\n"
+                               "  property var classicWinter: Themes.get(\"winter\", \"classic\")\n"
+                               "  property var pixelWinter: Themes.get(\"winter\", \"pixel\") }";
+        QQmlComponent c(m_engine);
+        c.setData(qml, QUrl(QStringLiteral("qrc:/test/ClassicArt.qml")));
+        std::unique_ptr<QObject> room(c.create());
+        QVERIFY2(room, qPrintable(c.errorString()));
+
+        const QVariantMap cw = room->property("classicWinter").toMap();
+        const QVariantMap cwWall = cw.value(QStringLiteral("wallpaper")).toMap();
+        QVERIFY(cwWall.value(QStringLiteral("image")).toString().endsWith(QStringLiteral("/winter/classic-wallpaper.svg")));
+        QVERIFY(!cwWall.value(QStringLiteral("pixel")).toBool());
+        QVERIFY(cw.value(QStringLiteral("phone")).toMap().value(QStringLiteral("backdrop")).toString().endsWith(QStringLiteral("/winter/classic-backdrop.svg")));
+        // Every built-in world animates in Classic too (tools/classicart/layers.py):
+        // at least one classic.wallpaper.sprites layer, each sheet loads, splits
+        // into whole frames and sits inside the picture it is placed on.
+        int builtIns = 0;
+        for (const QVariant &entry : ThemeRegistry::instance()->list()) {
+            const QVariantMap info = entry.toMap();
+            if (!info.value(QStringLiteral("builtIn")).toBool())
+                continue;
+            ++builtIns;
+            const QString id = info.value(QStringLiteral("id")).toString();
+            const QVariantMap wall = ThemeRegistry::instance()->get(id, QStringLiteral("classic")).value(QStringLiteral("wallpaper")).toMap();
+            const QVariantList layers = wall.value(QStringLiteral("sprites")).toList();
+            QVERIFY2(!wall.value(QStringLiteral("pixel")).toBool(), qPrintable(id));
+            QVERIFY2(!layers.isEmpty(), qPrintable(id + QStringLiteral(": no classic layers")));
+            for (const QVariant &layer : layers) {
+                const QVariantMap sp = layer.toMap();
+                const QUrl url(sp.value(QStringLiteral("sheet")).toString());
+                const QString path = url.scheme() == QLatin1String("qrc") ? QLatin1Char(':') + url.path() : url.toLocalFile();
+                QImageReader reader(path);
+                const QImage sheet = reader.read();
+                QVERIFY2(!sheet.isNull(), qPrintable(id + QStringLiteral(": ") + path + QStringLiteral(" ") + reader.errorString()));
+                const int frames = sp.value(QStringLiteral("frames")).toInt();
+                QVERIFY2(frames > 0 && sheet.width() % frames == 0, qPrintable(path));
+                const int x = sp.value(QStringLiteral("x")).toInt(), y = sp.value(QStringLiteral("y")).toInt();
+                QVERIFY2(x >= 0 && y >= 0 && x < wall.value(QStringLiteral("width")).toInt() && y < wall.value(QStringLiteral("height")).toInt(),
+                         qPrintable(id + QStringLiteral(": layer outside the picture")));
+            }
+        }
+        QVERIFY(builtIns >= 5);
+
+        const QVariantMap pw = room->property("pixelWinter").toMap();
+        QVERIFY(pw.value(QStringLiteral("wallpaper")).toMap().value(QStringLiteral("image")).toString().endsWith(QStringLiteral("/winter/wallpaper.png")));
+
+        withArt("pixel");
+        QCoreApplication::processEvents();
+        const QRectF pixelScreen = room->property("screenRect").toRectF();
+        QObject *classicRoom = room->findChild<QObject *>(QStringLiteral("heroClassicRoom"));
+        QObject *classicImage = room->findChild<QObject *>(QStringLiteral("heroClassicImage"));
+        QVERIFY(classicRoom && classicImage);
+        QVERIFY(!classicRoom->property("visible").toBool());
+        withArt("classic");
+        QCoreApplication::processEvents();
+        QVERIFY(classicRoom->property("visible").toBool());
+        QVERIFY(classicImage->property("source").toUrl().toString().endsWith(QStringLiteral("/classic/hero-cinema.svg")));
+        QCOMPARE(room->property("screenRect").toRectF(), pixelScreen);
+        QVERIFY(!pixelScreen.isEmpty());
+    }
+
+    void largeTextStillFits()
+    {
+        QJsonObject snap = fixture();
+        QJsonObject layout = snap.value(QStringLiteral("layout")).toObject();
+        QJsonObject ui = layout.value(QStringLiteral("ui")).toObject();
+        ui.insert(QStringLiteral("text_scale"), 1.5);
+        ui.insert(QStringLiteral("tile_density"), QStringLiteral("large"));
+        ui.insert(QStringLiteral("safe_margin_percent"), 6);
+        ui.insert(QStringLiteral("high_contrast_focus"), true);
+        layout.insert(QStringLiteral("ui"), ui);
+        snap.insert(QStringLiteral("layout"), layout);
+        QVERIFY(SessionModel::instance()->applySnapshot(snap));
+        goHome();
+        toFavorites();
+        act(QStringLiteral("nav.down"));
+        QCOMPARE(m_nav->sectionId(), QStringLiteral("plex-continue"));
+        shot(QStringLiteral("home-large-text"));
+        QVERIFY(SessionModel::instance()->applySnapshot(fixture()));
+    }
+};
+
+QTEST_MAIN(ShellTest)
+#include "tst_shell.moc"

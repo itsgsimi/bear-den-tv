@@ -1,0 +1,17 @@
+build/
+apps/tv-shell/build/
+apps/remote-web/node_modules/
+apps/remote-web/test-results/
+apps/remote-web/playwright-report/
+node_modules/
+*.log
+/dist/
+/.toolchain/
+/.tmp/
+.claude/worktrees/
+/.tmp-claude-rc/
+
+# Local TV machine details (see target.env.example)
+/target.env
+__pycache__/
+*.pyc

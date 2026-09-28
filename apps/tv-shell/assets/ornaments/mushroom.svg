@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="mushroom">
+  <!-- Red-cap mushroom with cream spots (forest ferns sprout them). -->
+  <path d="M25 34 C24 44 23 52 24 58 C28 61 36 61 40 58 C41 52 40 44 39 34 Z" fill="#EFE4CF"/>
+  <path d="M26 40 C30 42 34 42 38 40" fill="none" stroke="#D6C6A8" stroke-width="1.6" stroke-linecap="round"/>
+  <path d="M4 36 C4 18 17 6 32 6 C47 6 60 18 60 36 C60 40 56 41 52 40 C40 37 24 37 12 40 C8 41 4 40 4 36 Z" fill="#D9483F"/>
+  <path d="M10 30 C12 18 21 11 30 10" fill="none" stroke="#EE7A6E" stroke-width="3" stroke-linecap="round" opacity="0.7"/>
+  <g fill="#F7F0E2"><ellipse cx="22" cy="20" rx="5" ry="4"/><ellipse cx="40" cy="17" rx="4" ry="3.2"/><ellipse cx="48" cy="29" rx="3.6" ry="3"/><ellipse cx="31" cy="30" rx="3" ry="2.5"/><ellipse cx="14" cy="32" rx="2.6" ry="2.2"/></g>
+</svg>

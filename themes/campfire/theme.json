@@ -1,0 +1,139 @@
+{
+  "schema": 1,
+  "id": "campfire",
+  "name": "Campfire",
+  "aliases": [
+    "charcoal"
+  ],
+  "description": "Smoke and embers: glowing ember trails with flames, rising sparks, marshmallows by the fire.",
+  "accent": "#E8A45C",
+  "wallpaper": {
+    "image": "wallpaper.png",
+    "top": "#26292D",
+    "bottom": "#0B0C0E",
+    "pixel": true,
+    "sprites": [
+      {
+        "sheet": "fire-small.png",
+        "frames": 4,
+        "fps": 8,
+        "x": 286,
+        "y": 214
+      },
+      {
+        "sheet": "smoke.png",
+        "frames": 8,
+        "fps": 6,
+        "x": 282,
+        "y": 156
+      },
+      {
+        "sheet": "ripples.png",
+        "frames": 6,
+        "fps": 6,
+        "x": 176,
+        "y": 238
+      },
+      {
+        "sheet": "ripples.png",
+        "frames": 6,
+        "fps": 6,
+        "x": 352,
+        "y": 250
+      },
+      {
+        "sheet": "rain.png",
+        "frames": 6,
+        "fps": 12,
+        "x": 0,
+        "y": 0
+      }
+    ]
+  },
+  "palette": {
+    "stem": "#F28A3D",
+    "light": "#FFD490",
+    "dark": "#C9552B",
+    "bloom": "#FFB45E",
+    "glow": "#FF7A2F"
+  },
+  "focus": {
+    "style": "embers",
+    "tip": "flame",
+    "tip_upright": true
+  },
+  "ambient": {
+    "kind": "embers",
+    "count": 14
+  },
+  "scene": "campfire",
+  "bears": {
+    "carry": "stick",
+    "chase": "ember"
+  },
+  "heading": "flame",
+  "phone": {
+    "backdrop": "backdrop.png",
+    "veil": "#161412",
+    "particles": "embers"
+  },
+  "classic": {
+    "wallpaper": {
+      "image": "wallpaper.jpg",
+      "sprites": [
+        {
+          "sheet": "classic-rain.png",
+          "frames": 3,
+          "fps": 8,
+          "x": 0,
+          "y": 0
+        },
+        {
+          "sheet": "classic-rain.png",
+          "frames": 3,
+          "fps": 8,
+          "x": 512,
+          "y": 0
+        },
+        {
+          "sheet": "classic-rain.png",
+          "frames": 3,
+          "fps": 8,
+          "x": 1024,
+          "y": 0
+        },
+        {
+          "sheet": "classic-rain.png",
+          "frames": 3,
+          "fps": 8,
+          "x": 1536,
+          "y": 0
+        },
+        {
+          "sheet": "classic-rain.png",
+          "frames": 3,
+          "fps": 8,
+          "x": 2048,
+          "y": 0
+        },
+        {
+          "sheet": "classic-smoke.png",
+          "frames": 4,
+          "fps": 2,
+          "x": 40,
+          "y": 40
+        },
+        {
+          "sheet": "classic-smoke.png",
+          "frames": 4,
+          "fps": 3,
+          "x": 1900,
+          "y": 120
+        }
+      ]
+    },
+    "phone": {
+      "backdrop": "backdrop.jpg"
+    }
+  }
+}

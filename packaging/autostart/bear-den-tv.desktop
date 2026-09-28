@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Bear Den TV
+Comment=Start the Bear Den TV session coordinator and shell at login (opt-in; installed by `bear-den-tv autostart enable`)
+Exec=bear-den-tv session
+Icon=bear-den-tv
+Terminal=false
+X-GNOME-Autostart-enabled=true
+OnlyShowIn=XFCE;GNOME;KDE;X-Cinnamon;MATE;LXQt;

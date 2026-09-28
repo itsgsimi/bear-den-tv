@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 64" role="img" aria-label="game controller">
+  <!-- Game controller (the cub holds it on the Moonlight tile). -->
+  <path d="M22 8 H78 C92 8 98 22 98 36 C98 52 92 60 83 60 C75 60 71 52 65 46 H35 C29 52 25 60 17 60 C8 60 2 52 2 36 C2 22 8 8 22 8 Z" fill="#2B3036"/>
+  <path d="M22 11 H78 C88 11 93 18 95 26 C84 18 16 18 5 26 C7 18 12 11 22 11 Z" fill="#3B424A"/>
+  <g fill="#EDE3D1"><rect x="18" y="30" width="18" height="6" rx="2"/><rect x="24" y="24" width="6" height="18" rx="2"/></g>
+  <circle cx="74" cy="25" r="4.5" fill="#E3B35C"/>
+  <circle cx="83" cy="33" r="4.5" fill="#79A889"/>
+  <circle cx="74" cy="41" r="4.5" fill="#EDE3D1"/>
+  <circle cx="65" cy="33" r="4.5" fill="#E07A6A"/>
+</svg>

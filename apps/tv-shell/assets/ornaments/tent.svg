@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 144" role="img" aria-label="tent">
+  <!-- A-frame tent with the door open (transparent), for bears to peek out of (forest scene). -->
+  <path fill-rule="evenodd" fill="#D9A441" d="M100 8 L192 136 H8 Z M100 36 L150 136 H50 Z"/>
+  <path fill="#B98530" d="M100 8 L192 136 H150 L100 36 Z"/>
+  <path d="M100 36 L50 136 H66 L100 54 Z" fill="#E8BF6A"/>
+  <path d="M100 36 L150 136 H134 L100 54 Z" fill="#9C6F26"/>
+  <g stroke="#6B4A32" stroke-width="3" stroke-linecap="round"><path d="M100 8 L100 2"/><path d="M8 136 L0 142"/><path d="M192 136 L200 142"/></g>
+  <g fill="#79A889"><path d="M58 70 L66 80 L50 80 Z"/><path d="M76 46 L84 56 L68 56 Z" fill="#E3B35C"/><path d="M124 46 L132 56 L116 56 Z" fill="#E07A6A"/><path d="M142 70 L150 80 L134 80 Z"/></g>
+  <path d="M40 90 Q100 30 160 90" fill="none" stroke="#6B4A32" stroke-width="1.5" opacity="0.5"/>
+</svg>

@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="daisy">
+  <!-- Daisy from the owner's ornament sheet: cream petals, amber centre. Blooms at the tips of the focus vines. -->
+  <g transform="translate(32 32) rotate(0)">
+    <ellipse cx="0" cy="-18.6" rx="9.0" ry="15.6" fill="#F7F0E2" stroke="#E2D3B8" stroke-width="1.2" transform="rotate(0)"/>
+    <ellipse cx="0" cy="-18.6" rx="9.0" ry="15.6" fill="#F7F0E2" stroke="#E2D3B8" stroke-width="1.2" transform="rotate(40)"/>
+    <ellipse cx="0" cy="-18.6" rx="9.0" ry="15.6" fill="#F7F0E2" stroke="#E2D3B8" stroke-width="1.2" transform="rotate(80)"/>
+    <ellipse cx="0" cy="-18.6" rx="9.0" ry="15.6" fill="#F7F0E2" stroke="#E2D3B8" stroke-width="1.2" transform="rotate(120)"/>
+    <ellipse cx="0" cy="-18.6" rx="9.0" ry="15.6" fill="#F7F0E2" stroke="#E2D3B8" stroke-width="1.2" transform="rotate(160)"/>
+    <ellipse cx="0" cy="-18.6" rx="9.0" ry="15.6" fill="#F7F0E2" stroke="#E2D3B8" stroke-width="1.2" transform="rotate(200)"/>
+    <ellipse cx="0" cy="-18.6" rx="9.0" ry="15.6" fill="#F7F0E2" stroke="#E2D3B8" stroke-width="1.2" transform="rotate(240)"/>
+    <ellipse cx="0" cy="-18.6" rx="9.0" ry="15.6" fill="#F7F0E2" stroke="#E2D3B8" stroke-width="1.2" transform="rotate(280)"/>
+    <ellipse cx="0" cy="-18.6" rx="9.0" ry="15.6" fill="#F7F0E2" stroke="#E2D3B8" stroke-width="1.2" transform="rotate(320)"/>
+    <circle r="10.2" fill="#E3B35C"/>
+    <circle r="10.2" fill="none" stroke="#C9953E" stroke-width="1.6"/>
+    <circle cx="-3.0" cy="-3.0" r="3.0" fill="#F3D48E"/>
+  </g>
+</svg>

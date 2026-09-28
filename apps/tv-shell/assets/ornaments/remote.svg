@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 90" role="img" aria-label="TV remote">
+  <!-- A little TV remote (the cub holds it on the YouTube tile, like the owner's bear-with-remote art). -->
+  <rect x="4" y="2" width="32" height="86" rx="13" fill="#2B3036"/>
+  <rect x="7" y="5" width="26" height="12" rx="6" fill="#3B424A"/>
+  <circle cx="20" cy="15" r="4" fill="#E07A6A"/>
+  <circle cx="20" cy="38" r="10" fill="#3B424A"/>
+  <circle cx="20" cy="38" r="4.5" fill="#EDE3D1"/>
+  <g fill="#EDE3D1"><circle cx="13" cy="58" r="3.2"/><circle cx="27" cy="58" r="3.2"/><circle cx="13" cy="70" r="3.2"/><circle cx="27" cy="70" r="3.2"/></g>
+  <circle cx="20" cy="80" r="3.2" fill="#79A889"/>
+</svg>

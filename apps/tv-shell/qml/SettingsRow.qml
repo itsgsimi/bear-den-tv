@@ -1,0 +1,75 @@
+// One settings entry: label, optional description, value, and an affordance
+// showing whether OK opens a page (›) or Left/Right changes the value (‹ ›).
+
+import QtQuick
+import BearDen
+
+PixelBox {
+    id: root
+    property string label
+    property string description
+    property string value
+    property string kind: "link"   // link | choice | toggle | danger
+    property bool focused: false
+    // Optional small marker before the value (e.g. "Auto" on Advanced playback).
+    property string badge: ""
+    implicitHeight: (description.length > 0 ? 104 : 84) * Theme.scale
+    radius: 18 * Theme.scale
+    color: focused ? Theme.surfaceRaised : Theme.surface
+    borderColor: Theme.surfaceBorder
+    borderWidth: 1
+    scale: focused ? 1.015 : 1
+    Behavior on scale { NumberAnimation { duration: Theme.durationFast } }
+
+    Column {
+        anchors { left: parent.left; leftMargin: 32 * Theme.scale; verticalCenter: parent.verticalCenter; right: badgePill.visible ? badgePill.left : valueText.left; rightMargin: 24 * Theme.scale }
+        spacing: 4 * Theme.scale
+        Text {
+            text: root.label
+            color: root.kind === "danger" ? Theme.danger : Theme.textPrimary
+            font.family: Theme.fontFamily
+            font.pixelSize: 28 * Theme.fontUnit
+            font.weight: Font.DemiBold
+        }
+        Text {
+            visible: root.description.length > 0
+            width: parent.width
+            text: root.description
+            elide: Text.ElideRight
+            color: Theme.textMuted
+            font.family: Theme.fontFamily
+            font.pixelSize: 20 * Theme.fontUnit
+        }
+    }
+    PixelBox {
+        id: badgePill
+        visible: root.badge.length > 0
+        anchors { right: valueText.left; rightMargin: 16 * Theme.scale; verticalCenter: parent.verticalCenter }
+        implicitWidth: badgeText.implicitWidth + 24 * Theme.scale
+        implicitHeight: 32 * Theme.scale
+        radius: height / 2
+        color: Theme.alpha("#000000", 0.3)
+        borderColor: Theme.surfaceBorder
+        Text {
+            id: badgeText
+            anchors.centerIn: parent
+            text: root.badge
+            color: Theme.textMuted
+            font.family: Theme.fontFamily
+            font.pixelSize: 17 * Theme.fontUnit
+            font.weight: Font.Medium
+        }
+    }
+    Text {
+        id: valueText
+        anchors { right: parent.right; rightMargin: 32 * Theme.scale; verticalCenter: parent.verticalCenter }
+        text: root.kind === "choice" ? "‹  " + root.value + "  ›"
+              : root.kind === "toggle" ? (root.value === "on" ? qsTr("On") : qsTr("Off"))
+              : (root.value.length > 0 ? root.value + "   ›" : "›")
+        color: root.kind === "toggle" && root.value === "on" ? Theme.success : (root.focused ? Theme.textPrimary : Theme.textSecondary)
+        font.family: Theme.fontFamily
+        font.pixelSize: 26 * Theme.fontUnit
+        font.weight: Font.Medium
+    }
+    FocusFrame { objectName: "focusFrame"; shown: root.focused; cornerRadius: root.radius }
+}

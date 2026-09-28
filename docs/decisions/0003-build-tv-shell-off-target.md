@@ -1,0 +1,7 @@
+# ADR 0003 — Build the TV shell on the workstation against a glibc 2.28 sysroot
+
+Date: 2026-09-22. Status: accepted.
+
+The Qt shell used to be compiled on the TV machine because a workstation build linked newer glibc symbols (`fmod@GLIBC_2.38`) than the TV's Mint 21 (glibc 2.35) provides. On the Celeron 2955U that took ~4.5 minutes for a QML-heavy change and competed with playback and the other services on the box. Both machines run the identical pinned conda-forge toolchain (same Qt 6.8.4 build, same gcc 15.3, same `~/.bdtv-toolchain` path), so only the C library baseline differed. `make shell-target` now builds the shell here with conda's compiler and `--sysroot` pointing at conda-forge's `sysroot_linux-64=2.28` (installed by `scripts/bootstrap-toolchain.sh` into `~/.bdtv-toolchain/sysroot-2.28`, user-space). The binary needs at most `GLIBC_2.14` and resolves Qt through the shared RPATH. `scripts/deploy-target.sh` ships it by copy + rename and verifies the running binary's hash. A full build takes ~12 s here, and nothing compiles on the TV. `make shell` still builds on whichever machine runs it.
+
+Update 2026-09-23: the shared RPATH only worked because both machines had the same user name. `make shell-target` now puts `TARGET_TOOLCHAIN/env/lib` first in the shell's RPATH, and `scripts/deploy-target.sh` sets it to the TV's own toolchain (`BDTV_TARGET_TOOLCHAIN` in `target.env`, else `~/.bdtv-toolchain` of the ssh user). The TV still needs the same pinned toolchain (the same Qt 6.8 build).

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="lantern">
+  <!-- Camp lantern with a warm glass (forest scene). -->
+  <path d="M20 4 A12 10 0 0 1 44 4" fill="none" stroke="#3B424A" stroke-width="3"/>
+  <rect x="16" y="10" width="32" height="8" rx="3" fill="#3B424A"/>
+  <rect x="18" y="18" width="28" height="36" rx="6" fill="#FFD27A"/>
+  <rect x="22" y="22" width="20" height="28" rx="4" fill="#FFF0C4"/>
+  <path d="M32 30 C35 34 36 37 36 40 C36 43 34 45 32 45 C30 45 28 43 28 40 C28 37 29 34 32 30 Z" fill="#F29A3D"/>
+  <g stroke="#3B424A" stroke-width="2.5"><path d="M18 30 H46"/><path d="M32 18 V54" opacity="0.4"/></g>
+  <rect x="14" y="54" width="36" height="8" rx="3" fill="#3B424A"/>
+</svg>

@@ -1,0 +1,256 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bear-den-tv.local/contracts/state.schema.json",
+  "title": "Bear Den TV state snapshot (protocol 1)",
+  "description": "Pushed by the coordinator to authenticated phones (redacted per permission) and to the TV shell (full). Absent optional objects mean 'not visible to this viewer', never 'unknown'.",
+  "type": "object",
+  "properties": {
+    "protocol": {"const": 1},
+    "context_epoch": {"type": "integer", "minimum": 0},
+    "generated_at_ms": {"type": "integer", "description": "Coordinator monotonic milliseconds; ordering only, not wall-clock."},
+    "device_name": {"type": "string", "maxLength": 64},
+    "dev_mode": {"type": "boolean", "description": "True only when the coordinator was started with --dev-fixtures; every fixture item is labeled DEMO."},
+    "config_revision": {"type": "integer", "minimum": 1},
+    "session": {
+      "type": "object",
+      "properties": {
+        "locked": {"type": "boolean"},
+        "display_session": {"enum": ["x11", "wayland", "unknown"]},
+        "desktop_adapter": {"type": "string", "description": "Backend name such as x11-ewmh-xtest, wayland-limited, fake."},
+        "shell_connected": {"type": "boolean"},
+        "shell_state": {"enum": ["stopped", "starting", "running", "crashed", "restarting", "circuit_open", "exited"]}
+      },
+      "required": ["locked", "display_session", "desktop_adapter", "shell_connected", "shell_state"],
+      "additionalProperties": false
+    },
+    "target": {
+      "type": "object",
+      "properties": {
+        "kind": {"enum": ["shell", "app", "unknown", "locked", "none"]},
+        "app_id": {"type": ["string", "null"]},
+        "label": {"type": "string"},
+        "observed": {"type": "boolean", "description": "True when the foreground was verified by the desktop adapter, false when inferred from intent only."},
+        "window_title": {"type": ["string", "null"], "description": "Never contains private media titles for external apps; coordinator redacts to the app label."}
+      },
+      "required": ["kind", "app_id", "label", "observed"],
+      "additionalProperties": false
+    },
+    "capabilities": {
+      "type": "object",
+      "description": "Per action for the current target: available with backend, or unavailable with a reason.",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "available": {"type": "boolean"},
+          "backend": {"type": "string"},
+          "reason": {"type": "string"},
+          "holdable": {"type": "boolean"}
+        },
+        "required": ["available"],
+        "additionalProperties": false
+      }
+    },
+    "shell": {
+      "type": "object",
+      "properties": {
+        "screen": {"enum": ["home", "settings", "pairing", "devices", "diagnostics", "dialog", "setup", "error", "unknown"]},
+        "focus": {
+          "type": "object",
+          "properties": {"section_id": {"type": ["string", "null"]}, "item_id": {"type": ["string", "null"]}},
+          "required": ["section_id", "item_id"],
+          "additionalProperties": false
+        }
+      },
+      "required": ["screen", "focus"],
+      "additionalProperties": false
+    },
+    "applications": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {"type": "string"},
+          "label": {"type": "string"},
+          "adapter": {"type": "string"},
+          "installed": {"type": "boolean"},
+          "version": {"type": ["string", "null"]},
+          "installation": {"enum": ["user", "system", "none", "unknown"]},
+          "running": {"type": "boolean"},
+          "foreground": {"type": "boolean"},
+          "launch_state": {"enum": ["idle", "launching", "running", "failed", "exited", "crashed"]},
+          "last_error": {"type": ["string", "null"]}
+        },
+        "required": ["id", "label", "adapter", "installed", "version", "installation", "running", "foreground", "launch_state", "last_error"],
+        "additionalProperties": false
+      }
+    },
+    "remote": {
+      "type": "object",
+      "properties": {
+        "enabled": {"type": "boolean"},
+        "transport": {"enum": ["local-only", "trusted-lan-http", "https"]},
+        "listening": {"type": "boolean"},
+        "addresses": {"type": "array", "items": {"type": "string"}, "description": "Literal URLs the coordinator is bound to; empty when not listening."},
+        "https": {"type": "boolean"},
+        "http_layout_editing": {"type": "boolean"},
+        "paired_device_count": {"type": "integer", "minimum": 0},
+        "hold": {
+          "type": "object",
+          "properties": {"active": {"type": "boolean"}, "device_id": {"type": ["string", "null"]}, "action": {"type": ["string", "null"]}},
+          "required": ["active", "device_id", "action"],
+          "additionalProperties": false
+        },
+        "limits": {
+          "type": "object",
+          "properties": {
+            "repeat_delay_ms": {"type": "integer"}, "repeat_hz": {"type": "integer"},
+            "hold_renew_ms": {"type": "integer"}, "hold_expiry_ms": {"type": "integer"},
+            "max_message_bytes": {"type": "integer"}
+          },
+          "required": ["repeat_delay_ms", "repeat_hz", "hold_renew_ms", "hold_expiry_ms", "max_message_bytes"],
+          "additionalProperties": false
+        }
+      },
+      "required": ["enabled", "transport", "listening", "addresses", "https", "http_layout_editing", "paired_device_count", "hold", "limits"],
+      "additionalProperties": false
+    },
+    "me": {
+      "type": "object",
+      "description": "The viewing device's own session (phones only).",
+      "properties": {
+        "device_id": {"type": "string"},
+        "device_name": {"type": "string"},
+        "permissions": {"type": "array", "items": {"enum": ["controller", "layout_editor", "owner"]}},
+        "transport_secure": {"type": "boolean"}
+      },
+      "required": ["device_id", "device_name", "permissions", "transport_secure"],
+      "additionalProperties": false
+    },
+    "appearance": {"type": "object", "description": "The TV's look, mirrored by paired phones: the themed world, the style and the accent (not sensitive).", "properties": {"background": {"type": "string", "pattern": "^[a-z][a-z0-9-]{1,31}$", "description": "Canonical theme id."}, "theme": {"enum": ["den-dark", "plain-dark", "performance"]}, "accent": {"type": "string", "pattern": "^#[0-9A-Fa-f]{6}$"}, "name": {"type": "string", "maxLength": 32}, "pixel": {"type": "boolean", "description": "The backdrop in use is pixel art: draw it without smoothing."}, "art_style": {"enum": ["pixel", "classic"], "description": "The TV's art style (layout.ui.art_style): pixel art, or smooth classic art. Missing means pixel."}, "palette": {"type": "object", "properties": {"stem": {"type": "string"}, "light": {"type": "string"}, "dark": {"type": "string"}, "bloom": {"type": "string"}, "glow": {"type": "string"}}, "additionalProperties": false}, "focus": {"type": "object", "description": "The phone's tile decoration: the theme's focus style and ornament URLs (same origin).", "properties": {"style": {"enum": ["", "vine", "fern", "stars", "embers"]}, "tip": {"type": "string"}, "tip_upright": {"type": "boolean"}}, "additionalProperties": false}, "phone": {"type": "object", "properties": {"backdrop": {"type": "string"}, "veil": {"type": "string", "pattern": "^#[0-9A-Fa-f]{6}$"}, "particles": {"enum": ["", "none", "fireflies", "leaves", "stars", "embers", "snow"]}}, "additionalProperties": false}, "themes": {"type": "array", "description": "Installed themes, for pickers.", "items": {"type": "object", "properties": {"id": {"type": "string"}, "name": {"type": "string"}, "accent": {"type": "string"}}, "required": ["id", "name"], "additionalProperties": false}}}, "required": ["background", "theme", "accent"], "additionalProperties": false},
+    "pairing": {
+      "type": "object",
+      "description": "Shell only. The live invitation the TV is displaying, or null.",
+      "properties": {
+        "active": {"type": "boolean"},
+        "code": {"type": ["string", "null"], "pattern": "^[0-9]{6}$"},
+        "url": {"type": ["string", "null"], "description": "Full QR URL including the single-use fragment token; only ever sent over the private IPC socket."},
+        "qr_modules": {"type": ["array", "null"], "items": {"type": "string"}, "description": "Rows of 0/1 characters; rendered by the shell."},
+        "expires_in_s": {"type": "integer", "minimum": 0},
+        "attempts_left": {"type": "integer", "minimum": 0}
+      },
+      "required": ["active", "code", "url", "qr_modules", "expires_in_s", "attempts_left"],
+      "additionalProperties": false
+    },
+    "devices": {
+      "type": "array",
+      "description": "Owner permission or shell only.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {"type": "string"},
+          "name": {"type": "string"},
+          "permissions": {"type": "array", "items": {"enum": ["controller", "layout_editor", "owner"]}},
+          "connected": {"type": "boolean"},
+          "last_seen_ms": {"type": "integer"},
+          "created_at": {"type": "string"}
+        },
+        "required": ["id", "name", "permissions", "connected", "last_seen_ms", "created_at"],
+        "additionalProperties": false
+      }
+    },
+    "layout": {"$ref": "layout.schema.json", "description": "Portable layout/appearance subset of the configuration (editor permission or shell)."},
+    "layout_pending": {
+      "type": ["object", "null"],
+      "description": "A timed layout change awaiting confirmation; null when none.",
+      "properties": {
+        "revision": {"type": "integer"},
+        "previous_revision": {"type": "integer"},
+        "expires_in_s": {"type": "integer"},
+        "source": {"enum": ["tv", "web"]}
+      },
+      "required": ["revision", "previous_revision", "expires_in_s", "source"],
+      "additionalProperties": false
+    },
+    "notifications": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {"type": "string"},
+          "kind": {"enum": ["info", "success", "warning", "error"]},
+          "text": {"type": "string", "maxLength": 200},
+          "created_ms": {"type": "integer"}
+        },
+        "required": ["id", "kind", "text", "created_ms"],
+        "additionalProperties": false
+      }
+    },
+    "playback": {"type": "object", "description": "Latest playback detection test (shell view only): the box, the display, and per app hardware decoding, expectations, caveats and tuning status (internal/applications/tuning).", "properties": {"at_ms": {"type": "integer"}, "summary": {"type": "string"}, "display": {"type": "string"}, "notes": {"type": "array", "items": {"type": "object", "properties": {"level": {"enum": ["info", "warn"]}, "text": {"type": "string"}}, "required": ["level", "text"], "additionalProperties": false}}, "apps": {"type": "array", "items": {"type": "object", "properties": {"label": {"type": "string"}, "adapter": {"type": "string"}, "hardware": {"type": "array", "items": {"type": "string"}}, "expect": {"type": "array", "items": {"type": "string"}}, "notes": {"type": "array", "items": {"type": "object", "properties": {"level": {"enum": ["info", "warn"]}, "text": {"type": "string"}}, "required": ["level", "text"], "additionalProperties": false}}, "status": {"enum": ["tuned", "applied", "pending", "off", "error", "suggested"]}, "changes": {"type": "array", "items": {"type": "string"}}, "settings": {"type": "array", "description": "Settings the owner may adjust by hand (TV Settings → Advanced playback), with only the options this box can handle. value is the one in effect: the override while it is offered, else auto.", "items": {"type": "object", "properties": {"id": {"type": "string", "pattern": "^[a-z][a-z0-9_]{1,31}$"}, "label": {"type": "string"}, "auto": {"type": "string"}, "value": {"type": "string"}, "overridden": {"type": "boolean"}, "options": {"type": "array", "items": {"type": "object", "properties": {"value": {"type": "string"}, "label": {"type": "string"}, "note": {"type": "string"}}, "required": ["value", "label"], "additionalProperties": false}}}, "required": ["id", "label", "auto", "value", "overridden", "options"], "additionalProperties": false}}}, "required": ["label", "adapter", "hardware", "expect", "notes", "status", "changes"], "additionalProperties": false}}}, "required": ["at_ms", "summary", "notes", "apps"], "additionalProperties": false},
+    "weather": {
+      "type": "object",
+      "description": "Shell view only: local weather for the header chip and the scene. Phones and anonymous viewers never get it; a locked session omits it.",
+      "properties": {
+        "status": {"enum": ["disabled", "connecting", "ready", "stale", "error"]},
+        "message": {"type": "string"},
+        "place": {"type": "string"},
+        "units": {"enum": ["celsius", "fahrenheit"]},
+        "scene": {"type": "boolean"},
+        "current": {
+          "type": ["object", "null"],
+          "properties": {
+            "temperature": {"type": "integer", "description": "Already in units, rounded."},
+            "condition": {"enum": ["clear", "partly-cloudy", "cloudy", "fog", "drizzle", "rain", "snow", "thunder"]},
+            "intensity": {"enum": ["light", "moderate", "heavy"]},
+            "is_day": {"type": "boolean"},
+            "observed_at": {"type": "string", "description": "RFC 3339."}
+          },
+          "required": ["temperature", "condition", "intensity", "is_day", "observed_at"],
+          "additionalProperties": false
+        }
+      },
+      "required": ["status", "message", "place", "units", "scene", "current"],
+      "additionalProperties": false
+    },
+    "content": {
+      "type": "object",
+      "description": "Optional provider rows (Plex connector). Absent when no provider is configured.",
+      "properties": {
+        "provider": {"type": "string"},
+        "status": {"enum": ["disabled", "connecting", "ready", "stale", "error"]},
+        "message": {"type": "string"},
+        "sections": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "section_id": {"type": "string"},
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {"type": "string"},
+                    "title": {"type": "string"},
+                    "subtitle": {"type": "string"},
+                    "artwork": {"type": ["string", "null"], "description": "Coordinator-local artwork path or proxied URL; never a credentialed upstream URL."},
+                    "progress": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+                    "open_action": {"enum": ["open_app", "play_exact"]},
+                    "demo": {"type": "boolean"}
+                  },
+                  "required": ["id", "title", "subtitle", "artwork", "progress", "open_action", "demo"],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": ["section_id", "items"],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": ["provider", "status", "message", "sections"],
+      "additionalProperties": false
+    }
+  },
+  "required": ["protocol", "context_epoch", "generated_at_ms", "device_name", "dev_mode", "config_revision", "session", "target", "capabilities", "shell", "applications", "remote", "notifications"],
+  "additionalProperties": false
+}

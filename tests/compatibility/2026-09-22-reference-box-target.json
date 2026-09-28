@@ -1,0 +1,39 @@
+{
+  "recorded_at": "2026-09-22T00:30:00Z",
+  "build_reference": "pre-implementation probe",
+  "environment": {
+    "kind": "physical",
+    "is_user_tv_target": true,
+    "hostname": "reference-box",
+    "distribution": "Linux Mint",
+    "release": "21.3 Virginia (Ubuntu 22.04 base, kernel 5.15.0-91)",
+    "architecture": "x86_64",
+    "desktop": "Xfce",
+    "desktop_version": "xfwm4 (Mint 21.3 Xfce edition)",
+    "display_session": "x11",
+    "portal_backends": ["gtk", "xapp"],
+    "gpu_driver": "Intel Haswell-ULT integrated graphics (Mesa crocus/i965 available)",
+    "display_mode": "HDMI-1 1920x1080 @120Hz reported, LG TV SSCR2, 1600x900mm",
+    "qt_version": "6.8.4 (user-space conda-forge toolchain)",
+    "cpu": "2 cores", "memory": "7.6 GiB",
+    "glibc": "2.35",
+    "phone_os_browser": null
+  },
+  "observations": [
+    "No sudo without password: system packages cannot be installed by the agent.",
+    "flatpak present with flathub (system remote); org.kde.Platform 6.8 and Moonlight installed; Plex HTPC and VacuumTube NOT installed.",
+    "flathub offers tv.plex.PlexHTPC (runtime org.freedesktop.Platform 23.08) and rocks.shy.VacuumTube (runtime 25.08).",
+    "Session c1 (xfce, x11) is online but NOT active; seat0 active session is the LightDM greeter (light-locker). LockedHint=no. DRM device ACL belongs to lightdm while inactive: /dev/dri permission denied for user processes, GL unavailable.",
+    "New X11 clients connect to :0 but are not mapped by xfwm4 while the seat is on the greeter (xmessage/Qt windows never enter _NET_CLIENT_LIST). Live-display checks need an active user session.",
+    "Qt 6.8.4 xcb with conda libglvnd: GLX integration deadlocks in glXQueryServerString; QT_XCB_GL_INTEGRATION=xcb_egl initialises. Software scenegraph also initialises.",
+    "wmctrl, xprop, xwd, xdpyinfo, gdb, strace present; xdotool absent (not needed).",
+    "PulseAudio server present, default sink auto_null while HDMI audio sink is not active.",
+    "org.freedesktop.ScreenSaver (light-locker) and xdg-desktop-portal (gtk, xapp) on the session bus; avahi-daemon installed.",
+    "Interfaces: enp1s0 (LAN, private IPv4 /24), docker0/br-* (must be excluded), lo."
+  ],
+  "clients": [
+    {"app": "Plex HTPC", "installed": false, "version": null, "package_format": "flatpak (available)", "installation_scope": null},
+    {"app": "VacuumTube", "installed": false, "version": null, "package_format": "flatpak (available)", "installation_scope": null}
+  ],
+  "support_level": "unverified"
+}

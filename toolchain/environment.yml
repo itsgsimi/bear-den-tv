@@ -1,0 +1,13 @@
+# Pinned user-space toolchain for Bear Den TV. Installed by scripts/bootstrap-toolchain.sh
+# into $BDTV_TOOLCHAIN (default ~/.bdtv-toolchain); never touches system packages.
+name: bdtv
+channels:
+  - conda-forge
+dependencies:
+  - cxx-compiler
+  - cmake >=3.28
+  - ninja
+  - pkg-config
+  - qt6-main =6.8.*
+  - go =1.24.*
+  - nodejs =22.*

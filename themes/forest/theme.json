@@ -1,0 +1,111 @@
+{
+  "schema": 1,
+  "id": "forest",
+  "name": "Forest",
+  "description": "Misty pines: ferns unfurling, mushrooms and berries, falling leaves, bears camping.",
+  "accent": "#8DBF7F",
+  "wallpaper": {
+    "image": "wallpaper.png",
+    "top": "#1B3A2C",
+    "bottom": "#0A100D",
+    "pixel": true,
+    "sprites": [
+      {
+        "sheet": "mist.png",
+        "frames": 8,
+        "fps": 4,
+        "x": 20,
+        "y": 196
+      },
+      {
+        "sheet": "mist.png",
+        "frames": 8,
+        "fps": 3,
+        "x": 250,
+        "y": 214
+      },
+      {
+        "sheet": "glints.png",
+        "frames": 4,
+        "fps": 6,
+        "x": 150,
+        "y": 246
+      }
+    ]
+  },
+  "palette": {
+    "stem": "#46704F",
+    "light": "#A6D38F",
+    "dark": "#5C9161",
+    "bloom": "#D9483F",
+    "glow": "#F4D58D"
+  },
+  "focus": {
+    "style": "fern",
+    "extras": [
+      "mushroom"
+    ],
+    "extras_bottom": [
+      "berries"
+    ],
+    "extras_upright": true
+  },
+  "ambient": {
+    "kind": "leaves",
+    "count": 10,
+    "colors": [
+      "#C9A65A",
+      "#7FAE72",
+      "#5E8F5E"
+    ]
+  },
+  "scene": "camp",
+  "bears": {
+    "hat": "hat-beanie",
+    "chase": "leaf"
+  },
+  "heading": "sprig",
+  "phone": {
+    "backdrop": "backdrop.png",
+    "veil": "#121814",
+    "particles": "leaves"
+  },
+  "classic": {
+    "wallpaper": {
+      "image": "wallpaper.jpg",
+      "sprites": [
+        {
+          "sheet": "classic-mist.png",
+          "frames": 4,
+          "fps": 2,
+          "x": 640,
+          "y": 210
+        },
+        {
+          "sheet": "classic-mist.png",
+          "frames": 4,
+          "fps": 3,
+          "x": 1100,
+          "y": 260
+        },
+        {
+          "sheet": "classic-mist.png",
+          "frames": 4,
+          "fps": 2,
+          "x": 180,
+          "y": 330
+        },
+        {
+          "sheet": "classic-mist.png",
+          "frames": 4,
+          "fps": 3,
+          "x": 1700,
+          "y": 300
+        }
+      ]
+    },
+    "phone": {
+      "backdrop": "backdrop.jpg"
+    }
+  }
+}

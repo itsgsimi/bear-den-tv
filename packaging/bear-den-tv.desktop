@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Bear Den TV
+Comment=TV home screen with a phone remote for Plex HTPC and VacuumTube
+Exec=bear-den-tv session
+Icon=bear-den-tv
+Terminal=false
+Categories=AudioVideo;Video;TV;
+StartupWMClass=bear-den-tv-shell

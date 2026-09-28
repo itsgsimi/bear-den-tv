@@ -1,0 +1,133 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bear-den-tv.local/contracts/theme.schema.json",
+  "title": "Bear Den theme manifest (theme.json)",
+  "description": "A theme is a folder <id>/ holding theme.json and its art. Built-in themes live in themes/ (compiled into the TV shell and the coordinator); owners add or override themes in $XDG_DATA_HOME/bear-den-tv/themes/<id>/. Every visual choice here picks from the engine's building blocks (docs/THEMES.md); any ornament name resolves to <name>.svg|png in the theme folder first, then to the built-in ornaments (apps/tv-shell/assets/ornaments/). Unknown keys are rejected so typos surface in `bear-den-tv themes validate`.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "id", "name", "accent", "wallpaper"],
+  "properties": {
+    "schema": {"const": 1, "description": "Manifest format version."},
+    "id": {"$ref": "#/$defs/id", "description": "Must equal the folder name. Stored in layout.ui.background."},
+    "name": {"type": "string", "minLength": 1, "maxLength": 32, "description": "Shown in Settings → Theme and on phones."},
+    "description": {"type": "string", "maxLength": 200},
+    "aliases": {"type": "array", "items": {"type": "string", "pattern": "^[a-z][a-z0-9-]{1,31}$"}, "maxItems": 4, "description": "Older layout.ui.background values that mean this theme (den-gradient → den)."},
+    "accent": {"$ref": "#/$defs/color", "description": "Default focus/accent colour; Settings applies it when the theme is chosen."},
+    "wallpaper": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["top", "bottom"],
+      "properties": {
+        "image": {"$ref": "#/$defs/file", "description": "16:9 picture, at least 1920×1080 (2560×1440 recommended) unless pixel is true. Optional: without it the gradient is the wallpaper."},
+        "pixel": {"type": "boolean", "default": false, "description": "The image is pixel art: drawn at a whole-number scale without smoothing (a 480×270 image draws 4× on a 1080p screen). The ≥1920×1080 advice does not apply."},
+        "sprites": {"$ref": "#/$defs/sprites"},
+        "top": {"$ref": "#/$defs/color", "description": "Gradient behind (or instead of) the image, top."},
+        "bottom": {"$ref": "#/$defs/color", "description": "Gradient bottom; also the lock screen and window colour."}
+      }
+    },
+    "palette": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Colours of the decorations (stems/lines, two leaf tones, blossoms/cores, glows).",
+      "properties": {
+        "stem": {"$ref": "#/$defs/color"},
+        "light": {"$ref": "#/$defs/color"},
+        "dark": {"$ref": "#/$defs/color"},
+        "bloom": {"$ref": "#/$defs/color"},
+        "glow": {"$ref": "#/$defs/color"}
+      }
+    },
+    "focus": {"$ref": "#/$defs/decor", "description": "Decoration grown around the focused card (top-right and bottom-left corners)."},
+    "panel": {"$ref": "#/$defs/decor", "description": "Decoration hugging the featured panel's corners; defaults to focus."},
+    "ambient": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "kind": {"enum": ["none", "fireflies", "leaves", "stars", "embers", "snow"]},
+        "count": {"type": "integer", "minimum": 0, "maximum": 40},
+        "colors": {"type": "array", "items": {"$ref": "#/$defs/color"}, "minItems": 1, "maxItems": 4}
+      }
+    },
+    "scene": {"enum": ["none", "den", "camp", "moon", "campfire"], "description": "Corner scene on Home (the family at home)."},
+    "bears": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "How visiting bears are dressed and what the cub chases.",
+      "properties": {
+        "hat": {"$ref": "#/$defs/ornamentOrEmpty"},
+        "carry": {"$ref": "#/$defs/ornamentOrEmpty", "description": "An ornament held in the paw, or \"stick\" for a toasting stick."},
+        "chase": {"$ref": "#/$defs/ornamentOrEmpty", "description": "\"firefly\", \"leaf\", \"star\", \"ember\", or an ornament name."}
+      }
+    },
+    "heading": {"$ref": "#/$defs/ornamentOrEmpty", "description": "Little mark beside rail headings."},
+    "phone": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "backdrop": {"$ref": "#/$defs/file", "description": "Portrait picture for phones (~780×1260). Defaults to the wallpaper image."},
+        "veil": {"$ref": "#/$defs/color", "description": "Colour of the dark veil over the backdrop."},
+        "particles": {"enum": ["none", "fireflies", "leaves", "stars", "embers", "snow"], "description": "Defaults to ambient.kind."}
+      }
+    },
+    "classic": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "The theme's art for the Classic art style (layout.ui.art_style). Optional: without it Classic shows the main wallpaper and backdrop.",
+      "properties": {
+        "wallpaper": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["image"],
+          "properties": {
+            "image": {"$ref": "#/$defs/file", "description": "16:9 smooth picture, at least 1920×1080 (2560×1440 recommended); an SVG scales to any screen. The main wallpaper's top and bottom colours still apply."},
+            "sprites": {"$ref": "#/$defs/sprites"}
+          }
+        },
+        "phone": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["backdrop"],
+          "properties": {
+            "backdrop": {"$ref": "#/$defs/file", "description": "Portrait picture for phones (~780×1260). Defaults to the classic wallpaper image."}
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "sprites": {
+      "type": "array",
+      "maxItems": 16,
+      "description": "Animated layers drawn over the wallpaper image at its scale (without smoothing when the image is pixel art).",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["sheet", "frames", "fps", "x", "y"],
+        "properties": {
+          "sheet": {"$ref": "#/$defs/file", "description": "Sprite sheet: the frames laid side by side, equal width, in one row."},
+          "frames": {"type": "integer", "minimum": 1, "maximum": 32},
+          "fps": {"type": "integer", "minimum": 1, "maximum": 20},
+          "x": {"type": "integer", "minimum": 0, "maximum": 3840, "description": "Left of the sprite in the wallpaper image's own pixels."},
+          "y": {"type": "integer", "minimum": 0, "maximum": 3840, "description": "Top of the sprite in the wallpaper image's own pixels."}
+        }
+      }
+    },
+    "id": {"type": "string", "pattern": "^[a-z][a-z0-9-]{1,31}$"},
+    "color": {"type": "string", "pattern": "^#[0-9A-Fa-f]{6}$"},
+    "file": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}\\.(svg|png|jpg|jpeg|webp)$"},
+    "ornament": {"type": "string", "pattern": "^[a-z][a-z0-9-]{0,31}$"},
+    "ornamentOrEmpty": {"type": "string", "pattern": "^([a-z][a-z0-9-]{0,31})?$"},
+    "decor": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "style": {"enum": ["none", "vine", "fern", "stars", "embers"], "description": "The corner engine's drawing style (docs/THEMES.md)."},
+        "tip": {"$ref": "#/$defs/ornamentOrEmpty", "description": "Ornament blooming at each tip."},
+        "tip_upright": {"type": "boolean", "description": "Keep the tip upright on mirrored corners (flames, mushrooms)."},
+        "extras": {"type": "array", "items": {"$ref": "#/$defs/ornament"}, "maxItems": 6, "description": "Ornaments that pop open along the path while focus stays (top corners)."},
+        "extras_bottom": {"type": "array", "items": {"$ref": "#/$defs/ornament"}, "maxItems": 6, "description": "Same for bottom corners (mirrored vertically); defaults to extras."},
+        "extras_upright": {"type": "boolean", "description": "Extras stand upright on the top edge (mushrooms)."}
+      }
+    }
+  }
+}

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 68" role="img" aria-label="logs">
+  <!-- Crossed campfire logs with stones (charcoal scene). -->
+  <g fill="#7A5A3E"><rect x="14" y="30" width="92" height="16" rx="8" transform="rotate(-14 60 38)"/><rect x="14" y="30" width="92" height="16" rx="8" transform="rotate(14 60 38)"/></g>
+  <g fill="#5E4330"><circle cx="18" cy="48" r="7"/><circle cx="102" cy="48" r="7"/></g>
+  <g fill="#C9A77E"><circle cx="18" cy="48" r="4"/><circle cx="102" cy="48" r="4"/></g>
+  <g fill="#6E7780"><ellipse cx="8" cy="56" rx="9" ry="6"/><ellipse cx="30" cy="60" rx="10" ry="6"/><ellipse cx="60" cy="61" rx="11" ry="6"/><ellipse cx="90" cy="60" rx="10" ry="6"/><ellipse cx="112" cy="56" rx="9" ry="6"/></g>
+</svg>

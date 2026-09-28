@@ -1,0 +1,30 @@
+{
+  "date": "2026-09-22",
+  "host": "reference-box",
+  "operator_authorization": "Owner authorized user-scope Flatpak installs of the clients for end-to-end testing (2026-09-22). Unlocking the session was not performed.",
+  "session": {"id": "c1", "display": ":0", "active": false, "locked_hint": false, "foreground_seat_session": "lightdm greeter on :1", "coordinator_lock_observer": "locked"},
+  "installs": [
+    {"app": "tv.plex.PlexHTPC", "version": "1.70.1", "installation": "user", "installed_by": "flatpak install --user flathub (this session)"},
+    {"app": "rocks.shy.VacuumTube", "version": "1.8.2", "installation": "user", "installed_by": "flatpak install --user flathub (this session)"},
+    {"app": "com.moonlight_stream.Moonlight", "version": "6.1.0", "installation": "system", "installed_by": "pre-existing"}
+  ],
+  "disk_after_install": "/ 88% used, 3.4 GB free",
+  "coordinator_discovery": {"plex-htpc": "installed user 1.70.1", "youtube": "installed user 1.8.2", "moonlight": "installed system 6.1.0"},
+  "fail_closed_while_locked": [
+    {"action": "app.launch plex-htpc", "result": "failed/locked"},
+    {"action": "nav.right", "result": "failed/locked"},
+    {"action": "home", "result": "failed/locked"}
+  ],
+  "wm_class_observed": {
+    "bear-den-tv-shell": ["bear-den-tv-shell", "bear-den-tv-shell"],
+    "rocks.shy.VacuumTube": ["vacuumtube", "Vacuumtube"],
+    "tv.plex.PlexHTPC": null,
+    "com.moonlight_stream.Moonlight": null
+  },
+  "notes": [
+    "New top-level windows are created but not mapped by xfwm4 while the user session is not the active seat session; wmctrl lists none, xwininfo -root -tree shows them.",
+    "Plex HTPC and Moonlight created only their Qt selection-owner window within 25 s while inactive; their main window class remains UNVERIFIED.",
+    "GPU device ACLs are withheld from the inactive session (libEGL: /dev/dri/card0 permission denied); the shell fell back to software rendering.",
+    "Unlocking/activating the session from SSH was declined by the operator's safety policy; the product itself never unlocks."
+  ]
+}

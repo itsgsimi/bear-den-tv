@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Bear cub">
+  <!-- Bear cub: the mark without brows or ear notch (mascot scenes). Palette: sage #79A889, cream #EDE3D1,
+       charcoal #16191C, amber #E3B35C. Transparent background. -->
+  <g>
+    <circle cx="56" cy="70" r="46" fill="#79A889"/>
+    <circle cx="200" cy="70" r="46" fill="#79A889"/>
+  </g>
+  <circle cx="58" cy="72" r="26" fill="#EDE3D1"/>
+  <circle cx="198" cy="72" r="26" fill="#EDE3D1"/>
+  <path d="M128 64 C204 64 242 102 242 152 C242 206 194 238 128 238 C62 238 14 206 14 152 C14 102 52 64 128 64 Z" fill="#79A889"/>
+  <g fill="#16191C">
+    <path d="M66 146 Q66 118 87 118 Q108 118 108 146 Q98 136 87 136 Q76 136 66 146 Z"/>
+    <path d="M148 146 Q148 118 169 118 Q190 118 190 146 Q180 136 169 136 Q158 136 148 146 Z"/>
+  </g>
+  <circle cx="96" cy="128" r="4.6" fill="#E3B35C"/>
+  <circle cx="178" cy="128" r="4.6" fill="#E3B35C"/>
+  <circle cx="54" cy="174" r="17" fill="#EDE3D1"/>
+  <circle cx="202" cy="174" r="17" fill="#EDE3D1"/>
+  <ellipse cx="128" cy="186" rx="52" ry="42" fill="#EDE3D1"/>
+  <path d="M108 160 Q128 146 148 160 Q146 176 128 180 Q110 176 108 160 Z" fill="#16191C"/>
+  <path d="M128 178 V188 M104 190 Q116 204 128 190 Q140 204 152 190" fill="none" stroke="#16191C" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

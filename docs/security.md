@@ -1,0 +1,29 @@
+# Security model (LAN remote and desktop control)
+
+## Assets and trust boundaries
+
+- **Desktop input and window control** on the TV machine: reachable only through the coordinator's action router. The phone never sends keycodes, shell strings, paths, URLs, or scripts; it sends named actions validated against [`contracts/action.schema.json`](../contracts/action.schema.json) (the list is in [`contracts/actions.md`](../contracts/actions.md)).
+- **Private state** (focus, layout, device list, content rows): visible only to authenticated devices, redacted by permission, and withheld entirely while the desktop session is locked.
+- **Secrets**: paired-device session tokens are stored as SHA-256 hashes; invitation tokens/codes are single-use with expiry and attempt limits; Plex tokens live in the Secret Service, never in `config.json`, exports, logs, or phone payloads.
+- **Location (local weather)**: off by default. Only when the owner turns weather on (TV Settings → Weather or `bear-den-tv weather set`) does the coordinator make outbound HTTPS requests (10 s timeout, `User-Agent: bear-den-tv`, no cookies or account), to Open-Meteo only (`api.open-meteo.com` for the reading every 30 minutes, `geocoding-api.open-meteo.com` for a place search the owner types). No key or account exists; the endpoints are constants in `internal/weather`, never configuration. Coordinates are rounded to 2 decimals (about 1 km) before they are stored or sent, are never logged, and never reach phones: `state.weather` is shell-only and hidden while locked. Open-Meteo sees the TV's public IP address and the rounded location, as any web service would. Nothing new listens. Settings: [`contracts/config.md`](../contracts/config.md); commands: [`docs/operations.md`](operations.md#local-weather).
+- **LAN listener**: off until onboarding consent; bound only to the addresses of the selected interface; loopback-only in development mode.
+
+## Controls (where enforced)
+
+| Threat | Control | Location |
+|---|---|---|
+| Unpaired LAN device controls the TV | cookie session + per-request authorization; anonymous routes are `/`, `/api/v1/info`, `/api/v1/pair/claim` only | `internal/remote` |
+| Brute-forced pairing code | 6-digit code + 5 attempts per invitation, 2 min expiry, per-source rate limit, invitation issued only from the TV/CLI | `internal/pairing`, `internal/remote` |
+| CSRF from another site on the phone | `SameSite=Strict`, `HttpOnly` cookie + `X-BDTV-CSRF` header bound to the session; no state change on GET | `internal/remote` |
+| DNS rebinding / wrong host | `Host` allowlist (bound literals + configured names) → 421; `Origin` allowlist on state changes and WebSocket upgrades → 403 | `internal/remote` |
+| Sniffing/modification on HTTP mode | documented limitation; HTTPS preferred; on `trusted-lan-http` no credential entry, no device admin, no diagnostics, layout editing only if explicitly enabled | `internal/remote`, UI copy |
+| Revoked device keeps a socket | revocation closes WebSockets (4001) and invalidates sessions within 1 s | `internal/remote`, `internal/pairing` |
+| Input routed to the wrong window | target resolved from observed foreground; unknown/locked ⇒ refuse; XTEST delivery re-verifies `_NET_ACTIVE_WINDOW` immediately before each tap | `internal/actions`, `internal/platform/x11` |
+| Stale/replayed presses after reconnect | context epochs; dedup with payload comparison; holds are server leases that die on disconnect/hide/lock/epoch change; reconnect fetches state, never replays | `internal/actions`, `apps/remote-web` |
+| Killing unrelated processes | close = WM_DELETE on the tracked window; force = `flatpak kill <instance>` only | `internal/applications/flatpak` |
+| Secret leakage via logs/exports | Plex `Redactor` strips the account token and item titles from logs, diagnostics and state messages; exports contain the portable layout only; config validator rejects `token`, `x_plex_token` and `password` keys | `internal/providers/plex`, `internal/config`, `internal/session` |
+| SSRF via artwork/metadata | provider fetches only the configured Plex server host; redirects to other hosts refused; no generic fetch endpoint | `internal/providers/plex` |
+| Location leak via weather | off by default; requests only while enabled, only to the Open-Meteo constants; coordinates rounded to 2 decimals (config rule 10) and absent from logs, errors, diagnostics and phone payloads; `weather.search`/`weather.configure` accepted from trusted local IPC peers only | `internal/weather`, `internal/session`, `internal/config` |
+| Executable themes/plugins | none exist; layout is data ([`contracts/layout.schema.json`](../contracts/layout.schema.json)); themes are data packages with no code ([`docs/THEMES.md`](THEMES.md)) | — |
+| Unrestricted IPC | Unix socket 0600 in a 0700 dir, `SO_PEERCRED` uid check, protocol handshake, 256 KiB frames, one shell client | `internal/shellipc` |
+| Remote unlock of the desktop | never implemented; `home` is refused while locked | `internal/actions` |

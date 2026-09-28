@@ -1,0 +1,121 @@
+{
+  "schema": 1,
+  "id": "midnight",
+  "name": "Midnight",
+  "description": "A moonlit lake: constellations traced around the cards, twinkling and shooting stars, the cub asleep on the moon.",
+  "accent": "#A9C1EC",
+  "wallpaper": {
+    "image": "wallpaper.png",
+    "top": "#1A2238",
+    "bottom": "#080B12",
+    "pixel": true,
+    "sprites": [
+      {
+        "sheet": "shimmer.png",
+        "frames": 4,
+        "fps": 5,
+        "x": 313,
+        "y": 196
+      }
+    ]
+  },
+  "palette": {
+    "stem": "#C8D6F4",
+    "light": "#FFFFFF",
+    "dark": "#9DB2DD",
+    "bloom": "#F4E7B8",
+    "glow": "#BFD2FF"
+  },
+  "focus": {
+    "style": "stars",
+    "tip": "moon"
+  },
+  "ambient": {
+    "kind": "stars",
+    "count": 26
+  },
+  "scene": "moon",
+  "bears": {
+    "hat": "hat-nightcap",
+    "chase": "star"
+  },
+  "heading": "star",
+  "phone": {
+    "backdrop": "backdrop.png",
+    "veil": "#0A0E1C",
+    "particles": "stars"
+  },
+  "classic": {
+    "wallpaper": {
+      "image": "wallpaper.jpg",
+      "sprites": [
+        {
+          "sheet": "classic-shimmer.png",
+          "frames": 4,
+          "fps": 4,
+          "x": 236,
+          "y": 575
+        },
+        {
+          "sheet": "classic-lakemist.png",
+          "frames": 4,
+          "fps": 2,
+          "x": 480,
+          "y": 495
+        },
+        {
+          "sheet": "classic-lakemist.png",
+          "frames": 4,
+          "fps": 3,
+          "x": 1320,
+          "y": 505
+        },
+        {
+          "sheet": "classic-twinkle.png",
+          "frames": 4,
+          "fps": 2,
+          "x": 685,
+          "y": 39
+        },
+        {
+          "sheet": "classic-twinkle.png",
+          "frames": 4,
+          "fps": 3,
+          "x": 1092,
+          "y": 155
+        },
+        {
+          "sheet": "classic-twinkle.png",
+          "frames": 4,
+          "fps": 4,
+          "x": 2215,
+          "y": 41
+        },
+        {
+          "sheet": "classic-twinkle.png",
+          "frames": 4,
+          "fps": 3,
+          "x": 1755,
+          "y": 206
+        },
+        {
+          "sheet": "classic-twinkle.png",
+          "frames": 4,
+          "fps": 2,
+          "x": 633,
+          "y": 159
+        },
+        {
+          "sheet": "classic-twinkle.png",
+          "frames": 4,
+          "fps": 4,
+          "x": 1745,
+          "y": 47
+        }
+      ]
+    },
+    "phone": {
+      "backdrop": "backdrop.jpg"
+    }
+  }
+}

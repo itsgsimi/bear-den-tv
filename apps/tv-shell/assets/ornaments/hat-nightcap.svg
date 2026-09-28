@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 116 80" role="img" aria-label="nightcap">
+  <!-- Droopy nightcap with a star-yellow pom-pom (midnight bears). -->
+  <path d="M8 66 C12 36 30 16 56 14 C76 13 94 24 104 46 C96 38 86 34 78 36 C84 44 88 54 90 66 Z" fill="#5A6FB0"/>
+  <g fill="#F4E7B8"><circle cx="40" cy="40" r="2.5"/><circle cx="60" cy="30" r="2"/><circle cx="72" cy="50" r="2.5"/><circle cx="30" cy="56" r="1.8"/></g>
+  <circle cx="104" cy="48" r="9" fill="#F4E7B8"/>
+  <rect x="4" y="60" width="90" height="14" rx="7" fill="#EDE3D1"/>
+</svg>

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="flame">
+  <!-- Little flame: ember orange outside, warm gold inside (charcoal world). -->
+  <path d="M32 4 C40 18 54 26 54 42 C54 54 44 62 32 62 C20 62 10 54 10 42 C10 30 20 26 22 14 C26 20 28 24 30 28 C32 20 32 12 32 4 Z" fill="#F07A2E"/>
+  <path d="M32 24 C38 32 46 38 46 46 C46 54 40 59 32 59 C24 59 18 54 18 47 C18 40 24 38 26 32 C28 36 30 38 31 40 C32 34 32 30 32 24 Z" fill="#FFC15C"/>
+  <path d="M32 40 C35 45 39 48 39 52 C39 56 36 58 32 58 C28 58 25 56 25 52 C25 48 29 46 32 40 Z" fill="#FFF1C9"/>
+</svg>

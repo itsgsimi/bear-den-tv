@@ -1,0 +1,118 @@
+{
+  "schema": 1,
+  "id": "winter",
+  "name": "Winter",
+  "description": "A snowy night made from this manifest and pixel art: frosted branches with snowflakes, falling snow.",
+  "accent": "#B8D8F0",
+  "wallpaper": {
+    "top": "#22364F",
+    "bottom": "#0B1220",
+    "image": "wallpaper.png",
+    "pixel": true,
+    "sprites": [
+      {
+        "sheet": "aurora.png",
+        "frames": 6,
+        "fps": 5,
+        "x": 0,
+        "y": 16
+      },
+      {
+        "sheet": "smoke.png",
+        "frames": 8,
+        "fps": 5,
+        "x": 180,
+        "y": 150
+      }
+    ]
+  },
+  "palette": {
+    "stem": "#9FC3E0",
+    "light": "#F4FAFF",
+    "dark": "#7FA6C8",
+    "bloom": "#FFFFFF",
+    "glow": "#CFE6FF"
+  },
+  "focus": {
+    "style": "vine",
+    "tip": "snowflake",
+    "extras": [
+      "snowflake",
+      "star"
+    ]
+  },
+  "ambient": {
+    "kind": "snow",
+    "count": 30
+  },
+  "scene": "moon",
+  "bears": {
+    "hat": "hat-beanie",
+    "chase": "snowflake"
+  },
+  "heading": "snowflake",
+  "phone": {
+    "veil": "#0B1220",
+    "particles": "snow",
+    "backdrop": "backdrop.png"
+  },
+  "classic": {
+    "wallpaper": {
+      "image": "classic-wallpaper.svg",
+      "sprites": [
+        {
+          "sheet": "classic-aurora.png",
+          "frames": 4,
+          "fps": 3,
+          "x": 80,
+          "y": 330
+        },
+        {
+          "sheet": "classic-aurora.png",
+          "frames": 4,
+          "fps": 4,
+          "x": 700,
+          "y": 330
+        },
+        {
+          "sheet": "classic-aurora.png",
+          "frames": 4,
+          "fps": 3,
+          "x": 1320,
+          "y": 330
+        },
+        {
+          "sheet": "classic-aurora.png",
+          "frames": 4,
+          "fps": 4,
+          "x": 1940,
+          "y": 330
+        },
+        {
+          "sheet": "classic-smoke.png",
+          "frames": 6,
+          "fps": 4,
+          "x": 880,
+          "y": 560
+        },
+        {
+          "sheet": "classic-window.png",
+          "frames": 4,
+          "fps": 5,
+          "x": 793,
+          "y": 1112
+        },
+        {
+          "sheet": "classic-window.png",
+          "frames": 4,
+          "fps": 6,
+          "x": 905,
+          "y": 1112
+        }
+      ]
+    },
+    "phone": {
+      "backdrop": "classic-backdrop.svg"
+    }
+  }
+}

@@ -1,0 +1,298 @@
+{
+  "recorded_at": "2026-09-22T14:35:36.070969287Z",
+  "build_reference": "a1183ec + uncommitted remote fixes; cmd/bdtv-probe built on target (go build ./cmd/bdtv-probe)",
+  "environment": {
+    "kind": "physical",
+    "is_user_tv_target": true,
+    "hostname": "reference-box",
+    "distribution": "Linux Mint 21.3 (Ubuntu 22.04 base)",
+    "desktop": "Xfce / xfwm4",
+    "display_session": "x11"
+  },
+  "observations": [
+    "X11 connect to :0 succeeds over plain ssh with DISPLAY=:0 XAUTHORITY=$HOME/.Xauthority (same user owns the session).",
+    "Seat now has a real Xfce session: xfdesktop and xfce4-panel are mapped and present in _NET_CLIENT_LIST; the greeter-era 'windows never map' failure is resolved.",
+    "Adapter x11-ewmh-xtest reports activate, observe_foreground, and input capabilities AVAILABLE; EWMH supported incl. _NET_ACTIVE_WINDOW, _NET_WM_STATE_FULLSCREEN, _NET_CLOSE_WINDOW.",
+    "XTEST available; all remote keysyms resolve to keycodes (play 172, pause 209, rewind 176, forward 216, nav+select).",
+    "light-locker screensaver currently ACTIVE (locked=true, session c1 not active per logind at probe time): live visual verification requires someone to unlock the TV; do not bypass.",
+    "PulseAudio present but default sink auto_null (no HDMI audio sink active at probe time, screen idle/locked).",
+    "MPRIS available on session bus, zero players registered (no media clients running).",
+    "Flatpak 1.12.7; tv.plex.PlexHTPC and rocks.shy.VacuumTube NOT installed (user scope none); install commands confirmed by probe."
+  ],
+  "clients": {
+    "rocks.shy.VacuumTube": {
+      "adapter": "vacuumtube",
+      "installation": {
+        "Installed": false,
+        "Version": "",
+        "Scope": "none"
+      },
+      "install_command": [
+        "flatpak",
+        "install",
+        "--user",
+        "flathub",
+        "rocks.shy.VacuumTube"
+      ]
+    },
+    "tv.plex.PlexHTPC": {
+      "adapter": "plex-htpc",
+      "installation": {
+        "Installed": false,
+        "Version": "",
+        "Scope": "none"
+      },
+      "install_command": [
+        "flatpak",
+        "install",
+        "--user",
+        "flathub",
+        "tv.plex.PlexHTPC"
+      ]
+    }
+  },
+  "support_level": "live-probed",
+  "probe_report": {
+    "recorded_at": "2026-09-22T14:35:36.070969287Z",
+    "host": {
+      "hostname": "reference-box",
+      "os": "linux",
+      "arch": "amd64",
+      "uid": 1000,
+      "pid": 1153689
+    },
+    "session_env": {
+      "DBUS_SESSION_BUS_ADDRESS": "unix:path=/run/user/1000/bus",
+      "DISPLAY": ":0",
+      "XAUTHORITY": "~/.Xauthority",
+      "XDG_RUNTIME_DIR": "/run/user/1000",
+      "XDG_SESSION_ID": "438",
+      "XDG_SESSION_TYPE": "tty"
+    },
+    "display_session": "x11",
+    "adapter": {
+      "name": "x11-ewmh-xtest",
+      "capabilities": {
+        "activate": {
+          "Available": true,
+          "Backend": "x11-ewmh-xtest",
+          "Reason": ""
+        },
+        "input": {
+          "Available": true,
+          "Backend": "x11-ewmh-xtest",
+          "Reason": ""
+        },
+        "lock_observation": {
+          "Available": true,
+          "Backend": "dbus-screensaver+logind",
+          "Reason": ""
+        },
+        "observe_foreground": {
+          "Available": true,
+          "Backend": "x11-ewmh-xtest",
+          "Reason": ""
+        },
+        "physical_home": {
+          "Available": false,
+          "Backend": "x11-ewmh-xtest",
+          "Reason": "not implemented; use the phone remote's Home"
+        }
+      }
+    },
+    "x11": {
+      "display": ":0",
+      "vendor": "The X.Org Foundation",
+      "protocol_version": "11.0",
+      "wm_name": "Xfwm4",
+      "ewmh": true,
+      "supported": {
+        "_NET_ACTIVE_WINDOW": true,
+        "_NET_CLIENT_LIST": true,
+        "_NET_CLOSE_WINDOW": true,
+        "_NET_WM_NAME": true,
+        "_NET_WM_PID": true,
+        "_NET_WM_STATE": true,
+        "_NET_WM_STATE_FULLSCREEN": true
+      },
+      "xtest": true,
+      "min_keycode": 8,
+      "max_keycode": 255,
+      "keys": {
+        "back": {
+          "keysym": 65307,
+          "keycode": 9,
+          "resolved": true
+        },
+        "down": {
+          "keysym": 65364,
+          "keycode": 116,
+          "resolved": true
+        },
+        "forward": {
+          "keysym": 269025175,
+          "keycode": 216,
+          "resolved": true
+        },
+        "left": {
+          "keysym": 65361,
+          "keycode": 113,
+          "resolved": true
+        },
+        "pause": {
+          "keysym": 269025073,
+          "keycode": 209,
+          "resolved": true
+        },
+        "play": {
+          "keysym": 269025044,
+          "keycode": 172,
+          "resolved": true
+        },
+        "play_pause": {
+          "keysym": 269025044,
+          "keycode": 172,
+          "resolved": true
+        },
+        "rewind": {
+          "keysym": 269025086,
+          "keycode": 176,
+          "resolved": true
+        },
+        "right": {
+          "keysym": 65363,
+          "keycode": 114,
+          "resolved": true
+        },
+        "select": {
+          "keysym": 65293,
+          "keycode": 36,
+          "resolved": true
+        },
+        "up": {
+          "keysym": 65362,
+          "keycode": 111,
+          "resolved": true
+        }
+      },
+      "foreground": {
+        "Known": true,
+        "Window": {
+          "ID": 12582984,
+          "PID": 1114,
+          "Class": [
+            "xfdesktop",
+            "Xfdesktop"
+          ],
+          "Title": "Desktop",
+          "Mapped": true,
+          "Fullscreen": false
+        }
+      },
+      "windows": [
+        {
+          "ID": 14680067,
+          "PID": 1084,
+          "Class": [
+            "xfce4-panel",
+            "Xfce4-panel"
+          ],
+          "Title": "xfce4-panel",
+          "Mapped": true,
+          "Fullscreen": false
+        },
+        {
+          "ID": 12582984,
+          "PID": 1114,
+          "Class": [
+            "xfdesktop",
+            "Xfdesktop"
+          ],
+          "Title": "Desktop",
+          "Mapped": true,
+          "Fullscreen": false
+        },
+        {
+          "ID": 18874482,
+          "PID": 1109,
+          "Class": [
+            "Thunar",
+            "Thunar"
+          ],
+          "Title": "Downloads - Thunar",
+          "Mapped": false,
+          "Fullscreen": false
+        }
+      ]
+    },
+    "lock": {
+      "capability": {
+        "Available": true,
+        "Backend": "dbus-screensaver+logind",
+        "Reason": ""
+      },
+      "state": {
+        "screensaver_active": true,
+        "session_id": "c1",
+        "session_path": "/org/freedesktop/login1/session/c1",
+        "locked_hint": false,
+        "session_active": false,
+        "known": true,
+        "locked": true
+      }
+    },
+    "mpris": {
+      "available": true,
+      "players": []
+    },
+    "audio": {
+      "capability": {
+        "Available": false,
+        "Backend": "pulseaudio-pactl",
+        "Reason": "No active audio sink (HDMI audio not active)"
+      },
+      "info": {
+        "server_name": "pulseaudio",
+        "server_version": "15.99.1",
+        "default_sink": "auto_null",
+        "default_source": "auto_null.monitor"
+      }
+    },
+    "flatpak": {
+      "version": "Flatpak 1.12.7",
+      "apps": {
+        "rocks.shy.VacuumTube": {
+          "adapter": "vacuumtube",
+          "installation": {
+            "Installed": false,
+            "Version": "",
+            "Scope": "none"
+          },
+          "install_command": [
+            "flatpak",
+            "install",
+            "--user",
+            "flathub",
+            "rocks.shy.VacuumTube"
+          ]
+        },
+        "tv.plex.PlexHTPC": {
+          "adapter": "plex-htpc",
+          "installation": {
+            "Installed": false,
+            "Version": "",
+            "Scope": "none"
+          },
+          "install_command": [
+            "flatpak",
+            "install",
+            "--user",
+            "flathub",
+            "tv.plex.PlexHTPC"
+          ]
+        }
+      },
+      "instances": []
+    }
+  }
+}

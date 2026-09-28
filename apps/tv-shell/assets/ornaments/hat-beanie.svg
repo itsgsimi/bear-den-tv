@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 70" role="img" aria-label="beanie">
+  <!-- Knit beanie with a pom-pom (forest bears). -->
+  <circle cx="50" cy="12" r="11" fill="#F7F0E2"/>
+  <path d="M8 58 C8 30 26 16 50 16 C74 16 92 30 92 58 Z" fill="#C8553D"/>
+  <g stroke="#A8432F" stroke-width="3" fill="none" stroke-linecap="round"><path d="M30 22 C26 32 25 44 26 56"/><path d="M50 18 V56"/><path d="M70 22 C74 32 75 44 74 56"/></g>
+  <rect x="4" y="52" width="92" height="16" rx="8" fill="#A8432F"/>
+  <g stroke="#C8553D" stroke-width="2.5" stroke-linecap="round"><path d="M16 55 V65"/><path d="M28 55 V65"/><path d="M40 55 V65"/><path d="M52 55 V65"/><path d="M64 55 V65"/><path d="M76 55 V65"/><path d="M88 55 V65"/></g>
+</svg>

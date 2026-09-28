@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 64" role="img" aria-label="bear leg">
+  <!-- Walking bear puppet: leg, hip at the top centre, with a rounded foot. -->
+  <rect x="7" y="0" width="36" height="52" rx="18" fill="#79A889"/>
+  <path d="M2 50 C2 42 12 38 25 38 C38 38 48 42 48 50 C48 58 38 62 25 62 C12 62 2 58 2 50 Z" fill="#6E9F7C"/>
+  <g fill="#5E8C6E"><circle cx="16" cy="44" r="2.4"/><circle cx="25" cy="42.5" r="2.4"/><circle cx="34" cy="44" r="2.4"/></g>
+</svg>

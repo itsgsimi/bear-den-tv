@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bear-den-tv.local/contracts/action.schema.json",
+  "title": "Bear Den TV action request and result (protocol 1)",
+  "$defs": {
+    "uuid": {"type": "string", "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"},
+    "appId": {"type": "string", "pattern": "^[a-z][a-z0-9-]{0,63}$"},
+    "target": {"anyOf": [{"enum": ["active", "shell"]}, {"$ref": "#/$defs/appId"}]},
+    "actionName": {
+      "enum": [
+        "nav.up", "nav.down", "nav.left", "nav.right", "select", "back", "home",
+        "app.launch", "app.close",
+        "media.play", "media.pause", "media.seek_relative",
+        "audio.volume_delta", "audio.mute",
+        "text.submit", "shell.restart"
+      ]
+    },
+    "targetInfo": {
+      "type": "object",
+      "properties": {
+        "kind": {"enum": ["shell", "app", "unknown", "locked", "none"]},
+        "app_id": {"type": ["string", "null"]},
+        "label": {"type": "string"}
+      },
+      "required": ["kind", "app_id", "label"],
+      "additionalProperties": false
+    },
+    "request": {
+      "type": "object",
+      "properties": {
+        "protocol": {"const": 1},
+        "request_id": {"$ref": "#/$defs/uuid"},
+        "context_epoch": {"type": "integer", "minimum": 0},
+        "target": {"$ref": "#/$defs/target"},
+        "action": {"$ref": "#/$defs/actionName"},
+        "args": {"type": "object"}
+      },
+      "required": ["protocol", "request_id", "context_epoch", "target", "action", "args"],
+      "additionalProperties": false,
+      "allOf": [
+        {"if": {"properties": {"action": {"enum": ["nav.up", "nav.down", "nav.left", "nav.right", "select", "back", "home", "media.play", "media.pause", "shell.restart"]}}},
+         "then": {"properties": {"args": {"type": "object", "additionalProperties": false, "maxProperties": 0}}}},
+        {"if": {"properties": {"action": {"const": "app.launch"}}},
+         "then": {"properties": {"args": {"type": "object", "properties": {"app_id": {"$ref": "#/$defs/appId"}}, "required": ["app_id"], "additionalProperties": false}}}},
+        {"if": {"properties": {"action": {"const": "app.close"}}},
+         "then": {"properties": {"args": {"type": "object", "properties": {"app_id": {"$ref": "#/$defs/appId"}, "force": {"type": "boolean"}}, "required": ["app_id"], "additionalProperties": false}}}},
+        {"if": {"properties": {"action": {"const": "media.seek_relative"}}},
+         "then": {"properties": {"args": {"type": "object", "properties": {"seconds": {"type": "integer", "minimum": -600, "maximum": 600, "not": {"const": 0}}}, "required": ["seconds"], "additionalProperties": false}}}},
+        {"if": {"properties": {"action": {"const": "audio.volume_delta"}}},
+         "then": {"properties": {"args": {"type": "object", "properties": {"delta": {"type": "integer", "minimum": -100, "maximum": 100, "not": {"const": 0}}}, "required": ["delta"], "additionalProperties": false}}}},
+        {"if": {"properties": {"action": {"const": "audio.mute"}}},
+         "then": {"properties": {"args": {"type": "object", "properties": {"muted": {"type": "boolean"}}, "required": ["muted"], "additionalProperties": false}}}},
+        {"if": {"properties": {"action": {"const": "text.submit"}}},
+         "then": {"properties": {"args": {"type": "object", "properties": {"text": {"type": "string", "minLength": 1, "maxLength": 256, "pattern": "^[^\\p{Cc}]*$"}}, "required": ["text"], "additionalProperties": false}}}}
+      ]
+    },
+    "result": {
+      "type": "object",
+      "properties": {
+        "protocol": {"const": 1},
+        "request_id": {"$ref": "#/$defs/uuid"},
+        "outcome": {"enum": ["accepted", "delivered", "observed", "failed"]},
+        "code": {"enum": ["ok", "invalid", "unsupported_protocol", "unauthorized", "forbidden", "rate_limited", "duplicate_mismatch", "stale_epoch", "no_target", "unknown_foreground", "locked", "unsupported", "target_unfocused", "busy", "launch_failed", "timeout", "internal"]},
+        "message": {"type": "string", "maxLength": 512},
+        "context_epoch": {"type": "integer", "minimum": 0},
+        "target": {"$ref": "#/$defs/targetInfo"},
+        "detail": {"type": "object"}
+      },
+      "required": ["protocol", "request_id", "outcome", "code", "message", "context_epoch", "target", "detail"],
+      "additionalProperties": false,
+      "allOf": [
+        {"if": {"properties": {"outcome": {"const": "failed"}}}, "then": {"properties": {"code": {"not": {"const": "ok"}}}}},
+        {"if": {"properties": {"outcome": {"enum": ["accepted", "delivered", "observed"]}}}, "then": {"properties": {"code": {"const": "ok"}}}}
+      ]
+    },
+    "holdMessage": {
+      "type": "object",
+      "properties": {
+        "type": {"enum": ["hold.start", "hold.renew", "hold.stop"]},
+        "hold_id": {"$ref": "#/$defs/uuid"},
+        "action": {"enum": ["nav.up", "nav.down", "nav.left", "nav.right"]},
+        "context_epoch": {"type": "integer", "minimum": 0}
+      },
+      "required": ["type", "hold_id"],
+      "additionalProperties": false,
+      "if": {"properties": {"type": {"const": "hold.start"}}},
+      "then": {"required": ["action", "context_epoch"]}
+    }
+  },
+  "oneOf": [{"$ref": "#/$defs/request"}, {"$ref": "#/$defs/result"}, {"$ref": "#/$defs/holdMessage"}]
+}
