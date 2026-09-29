@@ -86,6 +86,7 @@ public:
     /// weather.configure: the whole weather block (place null or {name, region, country, latitude, longitude}).
     QString sendWeatherConfigure(bool enabled, const QJsonValue &place, const QString &units, bool scene);
     QString sendPlaybackSet(const QString &adapter, const QString &setting, const QString &value);
+    QString sendRemoteNowPlaying(bool enabled);
     void sendShellExit(const QString &reason);
     void sendPing();
     void sendPong();

@@ -239,6 +239,8 @@ void ShellController::onReply(const QString &requestId, const QString &type, con
         emit requestFailed(tr("Phone remote"), error);
     else if (type == QLatin1String("devices.revoke"))
         emit requestFailed(tr("Paired phones"), error);
+    else if (type == QLatin1String("remote.now_playing"))
+        emit requestFailed(tr("Now playing on phones"), error);
     else if (type == QLatin1String("playback.set"))
         emit requestFailed(tr("Advanced playback"), error);
     else
@@ -301,6 +303,11 @@ void ShellController::weatherConfigure(bool enabled, const QVariant &place, cons
 void ShellController::setPlayback(const QString &adapter, const QString &setting, const QString &value)
 {
     m_ipc->sendPlaybackSet(adapter, setting, value);
+}
+
+void ShellController::setNowPlaying(bool enabled)
+{
+    m_ipc->sendRemoteNowPlaying(enabled);
 }
 
 void ShellController::answerConfirm(const QString &confirmId, bool accepted)

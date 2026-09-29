@@ -1,5 +1,6 @@
-// Settings: phone remote, pairing, devices, appearance, weather (sent to the
-// coordinator as a layout update), diagnostics, and a maintenance exit.
+// Settings: phone remote, pairing, devices, Now playing on phones
+// (remote.now_playing over IPC), appearance (sent to the coordinator as a
+// layout update), weather, playback, diagnostics, and a maintenance exit.
 
 import QtQuick
 import BearDen
@@ -36,6 +37,11 @@ Item {
           value: remote.listening ? qsTr("On") : qsTr("Off") },
         { id: "pairing", kind: "link", label: qsTr("Pair a phone"), description: qsTr("Show a QR code and six-digit code"), value: "" },
         { id: "devices", kind: "link", label: qsTr("Paired phones"), description: "", value: String(Session.devices.length) },
+        // state.remote.now_playing mirrors config remote.now_playing; missing
+        // (an older coordinator) means on, its default.
+        { id: "now-playing", kind: "toggle", label: qsTr("Now playing on phones"),
+          description: qsTr("Paired phones show the title of what is playing (never while locked)"),
+          value: remote.now_playing === false ? "off" : "on" },
         { id: "text", kind: "choice", label: qsTr("Text size"), description: "", value: Math.round((ui.text_scale || 1) * 100) + "%" },
         { id: "density", kind: "choice", label: qsTr("Tile size"), description: "", value: ui.tile_density === "large" ? qsTr("Large") : qsTr("Comfortable") },
         { id: "background", kind: "choice", label: qsTr("Theme"), description: qsTr("The world Bear Den lives in, on the TV and the phone"), value: Themes.get(ui.background).name || qsTr("Den") },
@@ -84,6 +90,7 @@ Item {
         case "remote": openScreen("remote-setup"); break
         case "pairing": openScreen("pairing"); break
         case "devices": openScreen("devices"); break
+        case "now-playing": Shell.setNowPlaying(remote.now_playing === false); break
         case "weather": openScreen("weather"); break
         case "playback": openScreen("playback"); break
         case "advanced-playback": openScreen("advanced-playback"); break

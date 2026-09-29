@@ -465,6 +465,17 @@ QString IpcClient::sendPlaybackSet(const QString &adapter, const QString &settin
     return track(id, QStringLiteral("playback.set"));
 }
 
+QString IpcClient::sendRemoteNowPlaying(bool enabled)
+{
+    const QString id = newRequestId();
+    send(QJsonObject{
+        {QStringLiteral("type"), QStringLiteral("remote.now_playing")},
+        {QStringLiteral("request_id"), id},
+        {QStringLiteral("enabled"), enabled},
+    });
+    return track(id, QStringLiteral("remote.now_playing"));
+}
+
 void IpcClient::sendShellExit(const QString &reason)
 {
     send(QJsonObject{{QStringLiteral("type"), QStringLiteral("shell.exit")}, {QStringLiteral("reason"), reason}});

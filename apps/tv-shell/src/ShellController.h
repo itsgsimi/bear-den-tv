@@ -111,6 +111,9 @@ public:
     // Settings → Advanced playback: choose one app's setting by hand
     // (playback.set); value "" returns it to automatic.
     Q_INVOKABLE void setPlayback(const QString &adapter, const QString &setting, const QString &value);
+    // Settings → Now playing on phones (remote.now_playing): whether paired
+    // phones see what the app in front is playing.
+    Q_INVOKABLE void setNowPlaying(bool enabled);
     // Settings → Weather (contracts/ipc.md): weather.search finds places for a
     // query (answer in weatherPlaces); weather.configure stores the whole block
     // (place: a weatherPlaces entry replaces the stored place; null/empty keeps it;

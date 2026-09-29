@@ -235,7 +235,7 @@ private slots:
         for (int i = 0; i < 20; ++i) // Settings remembers its row; walk to the top first
             act(QStringLiteral("nav.up"));
         QCOMPARE(m_nav->itemId(), QStringLiteral("remote"));
-        for (int i = 0; i < 16; ++i) // remote … theme, style, art style, margin, motion, contrast, hero, clock, weather, playback, advanced playback
+        for (int i = 0; i < 17; ++i) // remote, pairing, devices, now playing … theme, style, art style, margin, motion, contrast, hero, clock, weather, playback, advanced playback
             act(QStringLiteral("nav.down"));
         QCOMPARE(m_nav->itemId(), QStringLiteral("diagnostics"));
         act(QStringLiteral("select"));
@@ -334,6 +334,65 @@ private slots:
         QVERIFY(session->applySnapshot(fixture()));
     }
 
+    // Settings → Now playing on phones: a toggle showing state.remote.now_playing
+    // (missing means on), OK sends remote.now_playing with the opposite value.
+    void nowPlayingRowTogglesTheSetting()
+    {
+        SessionModel *session = SessionModel::instance();
+        auto focusedValue = [this]() {
+            QString value;
+            std::function<void(QQuickItem *)> find = [&](QQuickItem *item) {
+                if (!item->isVisible() || item->opacity() == 0)
+                    return;
+                if (item->objectName() == QLatin1String("settingsRow") && item->property("focused").toBool())
+                    value = item->property("value").toString();
+                for (QQuickItem *child : item->childItems())
+                    find(child);
+            };
+            find(m_window->contentItem());
+            return value;
+        };
+        IpcClient *ipc = ShellController::instance()->ipc();
+        auto lastToggle = [ipc]() {
+            const QList<QJsonObject> sent = ipc->sentMessages();
+            for (auto it = sent.crbegin(); it != sent.crend(); ++it)
+                if (it->value(QStringLiteral("type")).toString() == QLatin1String("remote.now_playing"))
+                    return *it;
+            return QJsonObject{};
+        };
+
+        goHome();
+        toHeader();
+        act(QStringLiteral("nav.right"));
+        act(QStringLiteral("select"));
+        QCOMPARE(m_nav->screen(), QStringLiteral("settings"));
+        for (int i = 0; i < 20; ++i)
+            act(QStringLiteral("nav.up"));
+        for (int i = 0; i < 3; ++i) // remote, pairing, devices
+            act(QStringLiteral("nav.down"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("now-playing"));
+        QCOMPARE(focusedValue(), QStringLiteral("on")); // the demo fixture has no remote.now_playing: on
+        shot(QStringLiteral("settings-now-playing"));
+
+        ipc->clearSent();
+        act(QStringLiteral("select"));
+        QCOMPARE(lastToggle().value(QStringLiteral("enabled")), QJsonValue(false));
+        QVERIFY(!lastToggle().value(QStringLiteral("request_id")).toString().isEmpty());
+
+        QJsonObject snap = fixture();
+        QJsonObject remote = snap.value(QStringLiteral("remote")).toObject();
+        remote.insert(QStringLiteral("now_playing"), false);
+        snap.insert(QStringLiteral("remote"), remote);
+        QVERIFY2(session->applySnapshot(snap), qPrintable(session->lastError()));
+        QCoreApplication::processEvents();
+        QCOMPARE(focusedValue(), QStringLiteral("off"));
+        act(QStringLiteral("select"));
+        QCOMPARE(lastToggle().value(QStringLiteral("enabled")), QJsonValue(true));
+
+        QVERIFY(session->applySnapshot(fixture()));
+        goHome();
+    }
+
     void weatherScreenSearchesAndConfigures()
     {
         goHome();
@@ -343,7 +402,7 @@ private slots:
         QCOMPARE(m_nav->screen(), QStringLiteral("settings"));
         for (int i = 0; i < 20; ++i)
             act(QStringLiteral("nav.up"));
-        for (int i = 0; i < 13; ++i) // remote … art style, … hero, clock, weather
+        for (int i = 0; i < 14; ++i) // remote … now playing, … art style, … hero, clock, weather
             act(QStringLiteral("nav.down"));
         QCOMPARE(m_nav->itemId(), QStringLiteral("weather"));
         act(QStringLiteral("select"));
@@ -475,7 +534,7 @@ private slots:
         QCOMPARE(m_nav->screen(), QStringLiteral("settings"));
         for (int i = 0; i < 20; ++i)
             act(QStringLiteral("nav.up"));
-        for (int i = 0; i < 15; ++i) // remote … art style, … clock, weather, playback, advanced playback
+        for (int i = 0; i < 16; ++i) // remote … now playing, … art style, … clock, weather, playback, advanced playback
             act(QStringLiteral("nav.down"));
         QCOMPARE(m_nav->itemId(), QStringLiteral("advanced-playback"));
         act(QStringLiteral("select"));
