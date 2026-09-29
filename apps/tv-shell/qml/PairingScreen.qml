@@ -2,7 +2,9 @@
 // and the six-digit code, with expiry and remaining attempts. Leaving the
 // screen withdraws the invitation. "Who is it for?" (◀ ▶) chooses a family
 // phone or a guest pass (tonight, 24 hours, 7 days: IPC pair.issue "pass",
-// contracts/http.md#guest-passes); changing it issues a new code.
+// contracts/http.md#guest-passes); changing it issues a new code. The
+// guest note and the address sit on a surface panel in the theme's text
+// colours, so they read over any scene and in both art styles.
 
 import QtQuick
 import BearDen
@@ -176,26 +178,44 @@ Item {
                     description: root.kindDescription()
                     focused: root.focusIndex === 0
                 }
-                Text {
-                    visible: root.pass !== ""
+                PixelBox {
+                    objectName: "pairAddressPanel"
                     width: 740 * Theme.scale
-                    wrapMode: Text.WordWrap
-                    text: qsTr("Guests can move around, open apps, play, pause and change the volume. They can't close apps, change settings or turn anything off.")
-                    color: Theme.textSecondary
-                    font.family: Theme.fontFamily
-                    font.pixelSize: 22 * Theme.fontUnit
-                }
-                Text {
-                    text: qsTr("Or open this address and enter the code")
-                    color: Theme.textSecondary
-                    font.family: Theme.fontFamily
-                    font.pixelSize: 26 * Theme.fontUnit
-                }
-                Text {
-                    text: (Session.remote.addresses || [])[0] || ""
-                    color: Theme.accent
-                    font.family: Theme.monoFamily
-                    font.pixelSize: 32 * Theme.fontUnit
+                    height: addressColumn.implicitHeight + 2 * addressColumn.pad
+                    radius: 18 * Theme.scale
+                    color: Theme.surface
+                    borderColor: Theme.surfaceBorder
+                    borderWidth: 1
+                    Column {
+                        id: addressColumn
+                        readonly property real pad: 22 * Theme.scale
+                        x: pad; y: pad
+                        width: parent.width - 2 * pad
+                        spacing: 10 * Theme.scale
+                        Text {
+                            visible: root.pass !== ""
+                            width: parent.width
+                            wrapMode: Text.WordWrap
+                            text: qsTr("Guests can move around, open apps, play, pause and change the volume. They can't close apps, change settings or turn anything off.")
+                            color: Theme.textSecondary
+                            font.family: Theme.fontFamily
+                            font.pixelSize: 22 * Theme.fontUnit
+                        }
+                        Text {
+                            text: qsTr("Or open this address and enter the code")
+                            color: Theme.textSecondary
+                            font.family: Theme.fontFamily
+                            font.pixelSize: 26 * Theme.fontUnit
+                        }
+                        Text {
+                            objectName: "pairAddress"
+                            text: (Session.remote.addresses || [])[0] || ""
+                            color: Theme.textPrimary
+                            font.family: Theme.monoFamily
+                            font.pixelSize: 32 * Theme.fontUnit
+                            font.weight: Font.Bold
+                        }
+                    }
                 }
                 Row {
                     spacing: 14 * Theme.scale

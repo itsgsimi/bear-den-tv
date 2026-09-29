@@ -1034,6 +1034,13 @@ private slots:
         QVERIFY(!lastIssue().contains(QStringLiteral("pass"))); // a family phone by default
         QVERIFY(kindRow());
         QCOMPARE(kindRow()->property("value").toString(), QStringLiteral("Family phone"));
+        // The address reads over any scene: primary text on a surface panel.
+        QObject *address = m_window->findChild<QObject *>(QStringLiteral("pairAddress"));
+        QObject *panel = m_window->findChild<QObject *>(QStringLiteral("pairAddressPanel"));
+        QVERIFY(address && panel);
+        QCOMPARE(address->property("color").value<QColor>(), Theme::instance()->textPrimary());
+        QCOMPARE(panel->property("color").value<QColor>(), Theme::instance()->surface());
+        QVERIFY(Theme::instance()->surface().alphaF() > 0.85);
 
         act(QStringLiteral("nav.right"));
         QCOMPARE(lastIssue().value(QStringLiteral("pass")).toString(), QStringLiteral("tonight"));
