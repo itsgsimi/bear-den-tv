@@ -101,6 +101,28 @@ scripts/deploy-target.sh --dry-run   # print the steps
 - **Verifies** the running binaries' hashes, the shell connection
   (`bear-den-tv doctor`), and `BDTV_TARGET_HEALTH_CMD` if set.
 
+## Upgrading
+
+A new version keeps your `config.json`: your apps, their order, what is on
+or off, the layout and every setting. When the coordinator starts it adds
+the apps this version knows that your file does not have yet (for a box
+that started with Plex, YouTube and Moonlight: Spotify, Jellyfin,
+RetroArch, Netflix, Disney+, Hulu and the Browser), exactly as a fresh
+install has them: the optional apps and the Browser show no tile until
+they are installed, and the streaming sites stay off until you turn them on
+in Settings → Streaming sites. Their ids go at the end of your "Your Apps"
+section (the section with id `favorites`), if you still have one. The
+change is written like any other (a new revision, a copy in
+`config.history/`, the last-known-good file) and logged as `config: added
+the apps this version knows`; starting again adds nothing. Nothing is
+added while Bear Den runs on the last-known-good copy or the defaults
+because `config.json` did not load.
+
+`config.json` has no way to say "I removed this app", so an app whose row
+you deleted by hand comes back (hidden or off where a fresh install has it
+so). To keep a streaming site away, leave it off in Settings → Streaming
+sites.
+
 ## Starting, stopping, autostart
 
 On the TV, in the checkout (`$BDTV_TARGET_DIR`):
@@ -603,9 +625,8 @@ verified: [`IMPLEMENTATION_STATUS.md`](IMPLEMENTATION_STATUS.md).
 Widevine copy. The page each tile opens is `applications[].web.url` in
 `config.json` (https on the service's own domain; for the Browser any https
 start page, or none for a blank page; [`contracts/config.md`](../contracts/config.md) rule 11).
-An existing `config.json` keeps its own app list: copy the four rows from
-[`contracts/fixtures/config.default.valid.json`](../contracts/fixtures/config.default.valid.json)
-to add them.
+A `config.json` from before the web apps gains their rows when Bear Den
+starts ([Upgrading](#upgrading)).
 
 5. **Brave instead of Chromium** (optional,
    [ADR 0013](decisions/0013-brave-as-a-browser-choice.md)): TV Settings →

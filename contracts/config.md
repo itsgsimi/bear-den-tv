@@ -52,7 +52,7 @@ as `state.appearance.app_icons` and fetch the icon from
 ## Optional apps (optional field)
 
 - `applications[].hide_when_missing` (boolean, absent = `false`): an optional app. While its Flatpak is not installed (or not yet discovered) the coordinator marks it `hidden` in `state.applications[]` and neither the shell nor phones draw a tile for it; the core apps leave it out and show "Not installed" instead. The built-in defaults ship Spotify, Jellyfin and RetroArch this way, after the three core apps, in the "Your Apps" rail.
-- Defaults only seed a fresh install: an existing `config.json` keeps its own `applications` list, so an existing box gains the optional apps only by adding their rows (copy them from [`fixtures/config.default.valid.json`](fixtures/config.default.valid.json)).
+- Defaults seed a fresh install. An existing `config.json` keeps its own rows, and when the coordinator starts it appends every default application whose id and adapter it lacks, exactly as [`fixtures/config.default.valid.json`](fixtures/config.default.valid.json) has it (optional apps hidden while missing, streaming sites off, a web row in the browser `apps` names for it), plus its id at the end of each application section the defaults put it in that the config also has; nothing else changes (`config.Store.UpgradeApps`, [`operations.md` → Upgrading](../docs/operations.md#upgrading)).
 - Additive: `schema_version` stays 1.
 
 ## Web apps (optional fields)

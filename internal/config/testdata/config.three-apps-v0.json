@@ -1,0 +1,116 @@
+{
+  "schema_version": 1,
+  "revision": 17,
+  "device": {
+    "display_name": "Living room",
+    "preferred_display": "auto"
+  },
+  "ui": {
+    "theme": "plain-dark",
+    "accent": "#79A889",
+    "background": "forest",
+    "text_scale": 1.15,
+    "tile_density": "comfortable",
+    "safe_margin_percent": 3,
+    "reduced_motion": false,
+    "high_contrast_focus": false,
+    "hero_enabled": true,
+    "clock_enabled": false,
+    "art_style": "classic"
+  },
+  "applications": [
+    {
+      "id": "plex-htpc",
+      "label": "Plex",
+      "adapter": "plex-htpc",
+      "launch": {
+        "kind": "flatpak",
+        "app_id": "tv.plex.PlexHTPC",
+        "args": []
+      },
+      "home_policy": "pause-if-supported",
+      "remote_enabled": true
+    },
+    {
+      "id": "youtube",
+      "label": "YouTube",
+      "adapter": "vacuumtube",
+      "launch": {
+        "kind": "flatpak",
+        "app_id": "rocks.shy.VacuumTube",
+        "args": [
+          "--fullscreen",
+          "--no-window-decorations"
+        ]
+      },
+      "home_policy": "pause-if-supported",
+      "remote_enabled": true
+    },
+    {
+      "id": "moonlight",
+      "label": "Moonlight",
+      "adapter": "moonlight",
+      "launch": {
+        "kind": "flatpak",
+        "app_id": "com.moonlight_stream.Moonlight",
+        "args": []
+      },
+      "home_policy": "leave-running",
+      "remote_enabled": true
+    }
+  ],
+  "sections": [
+    {
+      "id": "favorites",
+      "title": "Watch",
+      "kind": "applications",
+      "enabled": true,
+      "application_ids": [
+        "youtube",
+        "plex-htpc",
+        "moonlight"
+      ],
+      "hide_when_empty": false
+    },
+    {
+      "id": "plex-continue",
+      "title": "Continue Watching",
+      "kind": "plex-continue-watching",
+      "enabled": false,
+      "hide_when_empty": true
+    }
+  ],
+  "plex_content": {
+    "enabled": false,
+    "connection_ref": null
+  },
+  "remote": {
+    "enabled": false,
+    "transport": "trusted-lan-http",
+    "port": 8090,
+    "interfaces": [],
+    "allowed_hosts": [],
+    "mdns": false,
+    "http_layout_editing": false,
+    "now_playing": true,
+    "pairing_expiry_seconds": 180,
+    "pairing_max_attempts": 5,
+    "https": {
+      "certificate_file": null,
+      "private_key_file": null
+    }
+  },
+  "cache": {
+    "artwork_max_mib": 256
+  },
+  "startup": {
+    "autostart_enabled": true
+  },
+  "privacy": {
+    "telemetry_enabled": false
+  },
+  "onboarding": {
+    "completed": true,
+    "lan_consent": false
+  }
+}

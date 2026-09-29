@@ -24,7 +24,7 @@ Wire shapes come from [`contracts/`](../contracts/AGENTS.md) and nowhere else.
 | [`applications/install`](applications/install/install.go) | one-press app installs from Flathub, per user, no root ([ADR 0011](../docs/decisions/0011-per-user-flathub-installs.md)): fixed argv `flatpak remote-add\|remote-info\|info\|install\|update --user`, the one remote URL a constant, ids only from the adapter table, x86_64 only; sizes and the free-space check, phases from flatpak's lines, percent from the disk filling, cancel (SIGTERM then SIGKILL to the process group), plain-words failures, updates | `install.go`, `runner.go`, `testdata/` (real flatpak output from a container) |
 | [`applications/web`](applications/web/web.go) | web apps (streaming sites, the Browser tile): Flathub Chromium, or Brave by the owner's choice (the adapter table's browsers, ADR 0013), per app with its own profile per browser (`prefs.go` writes the browser row's prefs, only into Bear Den's own profiles), the DevTools pipe (`--remote-debugging-pipe`, no port), the navigation script in the `bearden` isolated world, the closed set of trusted input it performs ([ADR 0010](../docs/decisions/0010-web-apps-over-cdp-pipe.md)) | `web.go` (profile dir, argv, `AllowedKeys`), `cdp.go` (the pipe client), `browser.go` (`Manager`: Launch, Apply, Pointer, PauseIfPlaying, Close), `script.go` (embedded `nav.js` + hints), `widevine.go` (`Widevine`: is `<profile>/WidevineCdm/*/manifest.json` there, and the quiet headless first run that lets Chromium fetch it) |
 | [`applications/tuning`](applications/tuning/tuning.go) | playback detection and per-app settings ([`docs/APP_PERFORMANCE.md`](../docs/APP_PERFORMANCE.md)) | `detect.go` (`Apps` table), `plans.go` (`Plan<App>`) |
-| [`config`](config/config.go) | `config.json`: defaults, validation, atomic writes, last-known-good, layout workflow | `config.go`, `validate.go`, `store.go`, `layout.go` |
+| [`config`](config/config.go) | `config.json`: defaults, validation, atomic writes, last-known-good, layout workflow, the upgrade that adds apps a newer version knows | `config.go`, `validate.go`, `store.go`, `layout.go`, `upgrade.go` |
 | [`pairing`](pairing/pairing.go) | invitations, redemption, device/session records (`remote.Devices`), guest passes (`IssuePass`, `PassEnd`, the expiry sweep on the injected clock) | `pairing.go`, `guest.go`, `qr.go` |
 | [`remote`](remote/server.go) | the LAN HTTP/WebSocket server: static assets, cookies, CSRF, Host/Origin, rate limits, revocation, the app icon route (`handleAppIcon`, seam `AppIconSource`) | `server.go`, `routes.go`, `ws.go`, `auth.go`, `options.go`, `backend.go` (seams) |
 | [`remote/mdns`](remote/mdns/mdns.go) | Avahi advertisement, best effort; not wired into `session` yet | `mdns.go` |
@@ -148,8 +148,10 @@ An app is data in a few closed tables; no engine code branches on it.
      [`config.default.valid.json`](../contracts/fixtures/config.default.valid.json).
      That fixture *is* `config.Defaults()`; `TestDefaultsMatchFixture` in
      [`config/config_test.go`](config/config_test.go) checks the app count.
-     Defaults only seed a fresh install: an existing `config.json` keeps its
-     own `applications` list. An optional app (tile only when installed)
+     Defaults seed a fresh install; an existing `config.json` gains the new
+     row when the coordinator starts (`config/upgrade.go`,
+     `Store.UpgradeApps`: missing default apps appended as the defaults
+     have them, nothing else changed). An optional app (tile only when installed)
      sets `"hide_when_missing": true` in its row; the coordinator then marks
      it `hidden` in the state while it is missing (`appStatesLocked`).
 5. Playback settings: [`docs/APP_PERFORMANCE.md` → Adding an app](../docs/APP_PERFORMANCE.md#adding-an-app).
