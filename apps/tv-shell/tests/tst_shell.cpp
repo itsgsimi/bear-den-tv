@@ -414,6 +414,41 @@ private slots:
         QVERIFY(session->power().isEmpty());
     }
 
+    // Guest passes: pairing.guest/pass_expires_at_ms and devices[].guest/
+    // expires_at_ms are accepted; guest with another permission is rejected.
+    void guestPassFieldsAcceptedAndChecked()
+    {
+        SessionModel *session = SessionModel::instance();
+        const int epoch = session->contextEpoch();
+        QJsonObject snap = fixture();
+        snap.insert(QStringLiteral("context_epoch"), epoch + 400);
+        QJsonObject pairing = snap.value(QStringLiteral("pairing")).toObject();
+        pairing.insert(QStringLiteral("guest"), true);
+        pairing.insert(QStringLiteral("pass_expires_at_ms"), 1790647200000.0);
+        snap.insert(QStringLiteral("pairing"), pairing);
+        QJsonObject guest{{QStringLiteral("id"), QStringLiteral("dev_g")}, {QStringLiteral("name"), QStringLiteral("Guest phone")},
+                          {QStringLiteral("permissions"), QJsonArray{QStringLiteral("guest")}}, {QStringLiteral("connected"), true},
+                          {QStringLiteral("last_seen_ms"), 1000}, {QStringLiteral("created_at"), QStringLiteral("2026-09-28T19:30:00Z")},
+                          {QStringLiteral("guest"), true}, {QStringLiteral("expires_at_ms"), 1790647200000.0}};
+        QJsonArray devices = snap.value(QStringLiteral("devices")).toArray();
+        devices.append(guest);
+        snap.insert(QStringLiteral("devices"), devices);
+        QVERIFY2(session->applySnapshot(snap), qPrintable(session->lastError()));
+        QCOMPARE(session->contextEpoch(), epoch + 400);
+        QVERIFY(session->pairing().value(QStringLiteral("guest")).toBool());
+        QCOMPARE(session->devices().last().toMap().value(QStringLiteral("guest")).toBool(), true);
+
+        snap.insert(QStringLiteral("context_epoch"), epoch + 500);
+        guest.insert(QStringLiteral("permissions"), QJsonArray{QStringLiteral("guest"), QStringLiteral("controller")});
+        devices.removeLast();
+        devices.append(guest);
+        snap.insert(QStringLiteral("devices"), devices);
+        QVERIFY(!session->applySnapshot(snap));
+        QVERIFY2(session->lastError().contains(QStringLiteral("guest")), qPrintable(session->lastError()));
+        QCOMPARE(session->contextEpoch(), epoch + 400); // the previous state stays
+        QVERIFY(session->applySnapshot(fixture()));
+    }
+
     // Settings → Now playing on phones: a toggle showing state.remote.now_playing
     // (missing means on), OK sends remote.now_playing with the opposite value.
     void nowPlayingRowTogglesTheSetting()

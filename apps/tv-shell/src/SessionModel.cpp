@@ -218,6 +218,30 @@ bool SessionModel::validateSnapshot(const QJsonObject &snapshot, QString *error)
         if (!requireKeys(v.toObject(), {QStringLiteral("id"), QStringLiteral("name"), QStringLiteral("permissions"), QStringLiteral("connected"), QStringLiteral("last_seen_ms"), QStringLiteral("created_at")},
                          QStringLiteral("state.devices[]"), error))
             return false;
+        // Permissions are a closed set; a guest pass never comes with another
+        // permission (state.schema.json devices[].permissions).
+        const QJsonArray perms = v.toObject().value(QStringLiteral("permissions")).toArray();
+        bool guest = false;
+        for (const QJsonValue &p : perms) {
+            const QString name = p.toString();
+            if (name != QLatin1String("controller") && name != QLatin1String("layout_editor") && name != QLatin1String("owner") && name != QLatin1String("guest")) {
+                if (error)
+                    *error = QStringLiteral("state.devices[].permissions: unknown permission '%1'").arg(name);
+                return false;
+            }
+            guest = guest || name == QLatin1String("guest");
+        }
+        if (guest && perms.size() != 1) {
+            if (error)
+                *error = QStringLiteral("state.devices[].permissions: guest never comes with another permission");
+            return false;
+        }
+        const QJsonValue expires = v.toObject().value(QStringLiteral("expires_at_ms"));
+        if (!expires.isUndefined() && !expires.isNull() && !expires.isDouble()) {
+            if (error)
+                *error = QStringLiteral("state.devices[].expires_at_ms must be a number or null");
+            return false;
+        }
     }
     if (!requireType(snapshot, QStringLiteral("notifications"), QJsonValue::Array, QStringLiteral("state"), error))
         return false;

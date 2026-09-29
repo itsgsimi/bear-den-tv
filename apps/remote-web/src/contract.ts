@@ -143,7 +143,8 @@ export type ServerMessage =
   | { type: 'pong' };
 
 export type Transport = 'local-only' | 'trusted-lan-http' | 'https';
-export type Permission = 'controller' | 'layout_editor' | 'owner';
+/** `guest` is a time-limited guest pass and never comes with another permission. */
+export type Permission = 'controller' | 'layout_editor' | 'owner' | 'guest';
 
 export interface Capability {
   available: boolean;
@@ -214,6 +215,8 @@ export interface Me {
   device_name: string;
   permissions: Permission[];
   transport_secure: boolean;
+  /** Guest passes only: when the pass ends, Unix epoch ms (the TV's wall clock). */
+  expires_at_ms?: number;
 }
 
 export interface Device {
@@ -223,6 +226,10 @@ export interface Device {
   connected: boolean;
   last_seen_ms: number;
   created_at: string;
+  /** A guest pass (permissions is ['guest']); missing means false. */
+  guest?: boolean;
+  /** Guest passes: when the pass ends, Unix epoch ms; null or missing for family phones. */
+  expires_at_ms?: number | null;
 }
 
 export interface LayoutPending {

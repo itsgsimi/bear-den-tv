@@ -41,6 +41,8 @@
 | `power.sleep_timer` | `{"minutes": 45}` (0 cancels; else 15, 30, 45, 60, 90 or 120) | controller | Sets, replaces or cancels the sleep timer on the coordinator clock (`state.power.sleep_at_ms`). `observed` with `detail.sleep_at_ms` (null after a cancel). 60 s before it fires `state.power.warning` turns true, the TV shows "Going to sleep in 1 minute" and any input cancels it. When it fires: pause through MPRIS only if the foreground app's own player is verified (never a guessed key), then the `home` path, then the display off; while locked only the display goes off. Ignores stale epochs. |
 | `display.off` | `{}` | controller | Turns the display off now (X11 DPMS; `state.power.display = "off"`). `observed` when the display reports off, `delivered` when that could not be read back, `observed` with `detail.already_off` when it was off. Any input turns it on again. Ignores stale epochs. |
 
+**Guest passes** ([`http.md`](http.md#guest-passes)) are not `controller`: a device with `guest` may send only `nav.*`, `select`, `back`, `home`, `app.launch`, `media.play`, `media.pause`, `media.seek_relative`, `audio.volume_delta`, `audio.mute` and `text.submit` (`contract.GuestActions`). Every other action, including `app.close` in any mode, `shell.restart` and any action added later, is refused to guests with `failed/forbidden`. A new action joins the guest list only on purpose.
+
 Unknown or disabled actions ⇒ `failed/unsupported` with a `message` explaining why (for example "VacuumTube pause has not been verified on this installation").
 
 ### Sleep, screen off and wake

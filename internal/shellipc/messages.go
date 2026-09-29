@@ -279,10 +279,14 @@ type SettingsResult struct {
 // Kind implements Message.
 func (SettingsResult) Kind() string { return TypeSettingsResult }
 
-// PairIssue asks for a fresh invitation.
+// PairIssue asks for a fresh invitation. Pass empty is a family phone
+// (controller); tonight, 24h or 7d issues a guest pass of that length
+// (contract.PassDurations). Only trusted local peers send it: phones never
+// issue invitations.
 type PairIssue struct {
 	Type      string `json:"type"`
 	RequestID string `json:"request_id"`
+	Pass      string `json:"pass,omitempty"`
 }
 
 // Kind implements Message.
