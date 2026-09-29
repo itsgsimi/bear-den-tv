@@ -38,8 +38,9 @@ func (c *Coordinator) buildState(view viewKind) contract.State {
 
 // buildStateFor assembles a snapshot redacted for the viewer (contracts/http.md
 // and state.schema.json): pairing is shell-only, devices owner/shell only,
-// layout editor/shell only, playback and weather shell only; while locked no
-// focus, devices, layout, content, playback or weather.
+// layout editor/shell only, playback and weather shell only, now_playing
+// controller phones only (never the shell); while locked no focus, devices,
+// layout, content, playback, weather or now_playing.
 func (c *Coordinator) buildStateFor(view viewKind, v *remote.Viewer) contract.State {
 	cfg := c.opts.Config.Current()
 	pending := c.opts.Config.Pending()
@@ -70,7 +71,10 @@ func (c *Coordinator) buildStateFor(view viewKind, v *remote.Viewer) contract.St
 	}
 	locked := c.locked
 	playback := c.playback // an immutable snapshot, replaced whole by the tuner
+	nowPlaying := c.nowPlayingLocked()
 	c.mu.Unlock()
+	showNowPlaying := cfg.Remote.ShowNowPlaying()
+	st.Remote.NowPlaying = &showNowPlaying
 
 	st.Remote.Enabled = cfg.Remote.Enabled && cfg.Onboarding.LANConsent
 	if st.Remote.Enabled {
@@ -124,6 +128,12 @@ func (c *Coordinator) buildStateFor(view viewKind, v *remote.Viewer) contract.St
 				if v.Has(contract.PermLayoutEditor) {
 					l := cfg.Layout()
 					st.Layout = &l
+				}
+				// What is playing names private media: controller phones
+				// only, never while locked, and only while the owner allows
+				// it (contracts/http.md "Now playing").
+				if v.Has(contract.PermController) && showNowPlaying {
+					st.NowPlaying = nowPlaying
 				}
 				st.Content = c.content()
 			}

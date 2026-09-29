@@ -138,6 +138,8 @@ func (h *ShellHandler) Receive(cl *shellipc.Client, m shellipc.Message) {
 		c.publish()
 	case shellipc.RemoteConfigure:
 		h.reply(cl, msg.RequestID, c.configureRemote(&msg), nil)
+	case shellipc.RemoteNowPlaying:
+		h.reply(cl, msg.RequestID, c.setNowPlaying(msg.Enabled), nil)
 	case shellipc.PlaybackSet:
 		h.reply(cl, msg.RequestID, c.setPlayback(ctx, msg.Adapter, msg.Setting, msg.Value), nil)
 	case shellipc.WeatherSearch:

@@ -24,6 +24,7 @@ import (
 	"bear-den-tv/internal/applications/adapters"
 	"bear-den-tv/internal/applications/flatpak"
 	"bear-den-tv/internal/applications/tuning"
+	"bear-den-tv/internal/clock"
 	"bear-den-tv/internal/config"
 	"bear-den-tv/internal/doctor"
 	"bear-den-tv/internal/pairing"
@@ -196,6 +197,11 @@ func runSession(f sessionFlags) error {
 		fd.SetActive(shellWin)
 		desk, launcher = fd, fake.NewLauncher(fd)
 		log.Info("dev: fake desktop with a synthetic shell window; nothing touches the real display")
+		if f.devFixtures {
+			// DEMO players so the phone's Now playing card and media
+			// buttons have something to show; never on a real session.
+			media = fake.DemoMedia(clock.Real{}, adapters.PlexHTPCFlatpakID, adapters.VacuumTubeFlatpakID)
+		}
 	} else {
 		lo := lock.New(ctx, lock.Options{})
 		defer lo.Close()
