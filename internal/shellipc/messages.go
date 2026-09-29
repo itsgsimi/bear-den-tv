@@ -376,7 +376,8 @@ type CECConfigure struct {
 // Kind implements Message.
 func (CECConfigure) Kind() string { return TypeCECConfigure }
 
-// InstallRequest asks for a guided Flatpak install.
+// InstallRequest is the older name of AppInstall, kept as an alias for
+// shells built before app installs existed (contracts/ipc.md).
 type InstallRequest struct {
 	Type      string `json:"type"`
 	RequestID string `json:"request_id"`
@@ -460,8 +461,9 @@ func (ShellExit) Kind() string { return TypeShellExit }
 
 // Result is the generic terminal reply to request_id-bearing administrative
 // messages (pair.*, devices.*, remote.configure, remote.now_playing, cec.configure,
-// applications.install_request, playback.set, weather.configure,
-// achievements.configure, achievements.reset).
+// app.enable, app.install, app.install_info, app.install_cancel,
+// apps.configure, applications.install_request, playback.set,
+// weather.configure, achievements.configure, achievements.reset).
 // Data carries an operation-specific payload, for example the issued
 // invitation for pair.issue. contracts/ipc.md does not list this message yet.
 type Result struct {
@@ -568,6 +570,9 @@ func Decode(frame []byte) (Message, error) {
 		if m = decodeAchievements(head.Type); m != nil {
 			break
 		}
+		if m = decodeInstall(head.Type); m != nil {
+			break
+		}
 		return nil, fmt.Errorf("%w: %q", ErrUnknownType, head.Type)
 	}
 	if err := json.Unmarshal(frame, m); err != nil {
@@ -657,6 +662,9 @@ func deref(m Message) Message {
 		return v
 	}
 	if v := derefAchievements(m); v != nil {
+		return v
+	}
+	if v := derefInstall(m); v != nil {
 		return v
 	}
 	return m

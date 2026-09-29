@@ -1,0 +1,1 @@
+{"protocol":1,"request_id":"8a1f5c2e-3b4d-4e6f-9a0b-1c2d3e4f5a63","context_epoch":47,"target":"shell","action":"app.install","args":{"app_id":"moonlight","ref":"app/org.example.Other/x86_64/stable"}}

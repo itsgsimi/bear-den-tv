@@ -40,6 +40,21 @@ type Config struct {
 	CEC *CEC `json:"cec,omitempty"`
 	// Achievements switches Den badges; nil = on (contracts/config.md).
 	Achievements *Achievements `json:"achievements,omitempty"`
+	// Apps holds app install settings; nil = auto_update on
+	// (contracts/config.md "App installs").
+	Apps *Apps `json:"apps,omitempty"`
+}
+
+// Apps is config.apps: app installs from Flathub.
+type Apps struct {
+	// AutoUpdate keeps the apps installed for this user up to date while
+	// the TV is idle (internal/applications/install).
+	AutoUpdate bool `json:"auto_update"`
+}
+
+// AutoUpdate reports config apps.auto_update; an absent block means on.
+func (c Config) AutoUpdate() bool {
+	return c.Apps == nil || c.Apps.AutoUpdate
 }
 
 // Achievements is config.achievements: whether Den badges count anything.
@@ -332,6 +347,10 @@ func (c Config) Clone() Config {
 	if c.Achievements != nil {
 		a := *c.Achievements
 		out.Achievements = &a
+	}
+	if c.Apps != nil {
+		a := *c.Apps
+		out.Apps = &a
 	}
 	if c.Playback != nil {
 		out.Playback = &Playback{}

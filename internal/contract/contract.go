@@ -71,6 +71,10 @@ const (
 	ActionPointerMove   = "pointer.move"
 	ActionPointerClick  = "pointer.click"
 	ActionPointerScroll = "pointer.scroll"
+	// App installs from Flathub, per user (contracts/actions.md "App
+	// installs"): owner phones only (OwnerActions), never guests.
+	ActionAppInstall       = "app.install"
+	ActionAppInstallCancel = "app.install_cancel"
 )
 
 // AllActions lists every action name in protocol 1, in contract order.
@@ -80,6 +84,16 @@ var AllActions = []string{
 	ActionAudioVolume, ActionAudioMute, ActionTextSubmit, ActionShellRestart,
 	ActionSleepTimer, ActionDisplayOff, ActionTVPower,
 	ActionPointerMove, ActionPointerClick, ActionPointerScroll,
+	ActionAppInstall, ActionAppInstallCancel,
+}
+
+// OwnerActions need the owner permission from a phone (contracts/actions.md
+// "Who may send"); app.close with force is the one conditional case and is
+// checked in the router.
+var OwnerActions = map[string]bool{
+	ActionShellRestart:     true,
+	ActionAppInstall:       true,
+	ActionAppInstallCancel: true,
 }
 
 // IsPointer reports whether the action is one of the touchpad's pointer actions.
@@ -115,7 +129,8 @@ func IsNav(action string) bool {
 // in front when the button was drawn does not matter to them.
 func IgnoresStaleEpoch(action string) bool {
 	switch action {
-	case ActionHome, ActionAppLaunch, ActionShellRestart, ActionSleepTimer, ActionDisplayOff, ActionTVPower:
+	case ActionHome, ActionAppLaunch, ActionShellRestart, ActionSleepTimer, ActionDisplayOff, ActionTVPower,
+		ActionAppInstall, ActionAppInstallCancel:
 		return true
 	}
 	return false
@@ -327,6 +342,52 @@ type AppState struct {
 	// Enabled is present only for apps the owner can turn on and off on the
 	// TV (web adapters, Settings → Streaming sites); false means turned off.
 	Enabled *bool `json:"enabled,omitempty"`
+	// Install is the app's Flatpak install from Flathub; shell and owner
+	// phones only (state.schema.json#/$defs/install).
+	Install *Install `json:"install,omitempty"`
+}
+
+// Install states (state.schema.json#/$defs/install).
+const (
+	InstallNone        = "none"
+	InstallAvailable   = "available"
+	InstallPreparing   = "preparing"
+	InstallDownloading = "downloading"
+	InstallInstalling  = "installing"
+	InstallFailed      = "failed"
+	InstallDone        = "done"
+)
+
+// Install phases.
+const (
+	PhaseIdle      = ""
+	PhaseChecking  = "checking"
+	PhaseRuntime   = "runtime"
+	PhaseApp       = "app"
+	PhaseFinishing = "finishing"
+)
+
+// DRM states of a streaming web app's profile (Widevine).
+const (
+	DRMReady     = "ready"
+	DRMPreparing = "preparing"
+	DRMPending   = "pending"
+)
+
+// Install is state.schema.json#/$defs/install.
+type Install struct {
+	State     string `json:"state"`
+	Progress  int    `json:"progress"`
+	Phase     string `json:"phase"`
+	SizeBytes *int64 `json:"size_bytes,omitempty"`
+	DiskBytes *int64 `json:"disk_bytes,omitempty"`
+	Message   string `json:"message,omitempty"`
+	DRM       string `json:"drm,omitempty"`
+}
+
+// AppsState is state.schema.json#/properties/apps (shell and owner phones).
+type AppsState struct {
+	AutoUpdate bool `json:"auto_update"`
 }
 
 // HoldState is state.schema.json#/properties/remote/properties/hold.
@@ -564,6 +625,7 @@ type State struct {
 	CEC            *CEC                  `json:"cec,omitempty"`
 	Plex           *Plex                 `json:"plex,omitempty"`
 	Achievements   *Achievements         `json:"achievements,omitempty"`
+	Apps           *AppsState            `json:"apps,omitempty"`
 }
 
 // Achievements is state.schema.json#/properties/achievements: Den badges

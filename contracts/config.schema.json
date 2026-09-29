@@ -132,6 +132,13 @@
       "required": ["completed", "lan_consent"],
       "additionalProperties": false
     },
+    "apps": {
+      "type": "object",
+      "description": "Optional; absent means auto_update on. App installs from Flathub (contracts/config.md).",
+      "properties": {"auto_update": {"type": "boolean", "description": "Keep apps up to date: update the apps installed for this user while the TV is idle."}},
+      "required": ["auto_update"],
+      "additionalProperties": false
+    },
     "achievements": {
       "type": "object",
       "description": "Optional; absent means on. Den badges from local counters (contracts/config.md). false: nothing is counted.",

@@ -52,6 +52,23 @@ There is no HTTP route for playback settings, local weather or Plex sign-in: tho
 
 An application whose config has `hide_when_missing: true` ([`config.md`](config.md#optional-apps-optional-field)) carries `hidden: true` while its Flatpak is not installed or not yet discovered. Phones and the shell draw no tile for a hidden app; it stays in the list so layout editors still see it. Absent means `false`.
 
+## App installs (`state.applications[].install`)
+
+The shell and **owner** phones get `install` on every application and `state.apps` (`{"auto_update": true|false}`, config `apps.auto_update`). Family (`controller`) phones, layout editors, guest passes and anonymous viewers never do (the schema rejects it), so they draw no install controls. Apps that share a Flatpak share one install: the four web apps all show Chromium's.
+
+| `state` | Meaning |
+|---|---|
+| `none` | Nothing to install: the app is installed (for this user or system-wide; a system-wide install carries `message` "Updated by your system"), or installs are unavailable (`message` says why, for example "Flatpak isn't installed on this box"). |
+| `available` | Not installed, and Install would work. `size_bytes`/`disk_bytes` appear once the TV's install card asked Flathub (IPC `app.install_info`). |
+| `preparing` | Adding the `flathub` remote, reading sizes, checking free space (`phase: checking`). |
+| `downloading` | `flatpak install` is running: `phase` `runtime` (a shared runtime or extension) or `app`; `progress` 0..100. |
+| `installing` | flatpak finished; Bear Den is checking the result (`phase: finishing`). |
+| `failed` | `message` says why: no network, not enough space, Flathub refused, flatpak failed. Install again to retry. |
+| `done` | Installed by this session; the tile is ready. |
+
+- **Progress** comes from flatpak's own output (one line per runtime or app it starts) and from how much the disk under `~/.local/share/flatpak` has filled against Flathub's sizes: `flatpak install --noninteractive` prints no percentages. It never goes backwards and reaches 100 only when the install is verified.
+- **Streaming sites** (`netflix`, `disney-plus`, `hulu`) carry `drm` once Chromium is installed: `ready` when their Chromium profile holds Widevine, `preparing` while Bear Den's quiet first run fetches it, `pending` otherwise ("Still setting up playback support").
+
 ## Now playing (`state.now_playing`)
 
 While an app that exposes an MPRIS player is in front, phones with the `controller` permission (or a [guest pass](#guest-passes)) get `state.now_playing`: the app id, the title, an optional subtitle (artist or album), `status` (`playing`, `paused`, `stopped`), optional `length_ms` and `position_ms`, `position_at` and `rate`. This is a deliberate exception to "phones never see external window titles" (`target.window_title` stays redacted): the owner shows what is playing to the devices they paired for control, and can turn it off.

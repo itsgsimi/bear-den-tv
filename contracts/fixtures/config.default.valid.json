@@ -27,5 +27,6 @@
   "privacy": {"telemetry_enabled": false},
   "onboarding": {"completed": false, "lan_consent": false},
   "weather": {"enabled": false, "place": null, "units": "celsius", "scene": true},
-  "achievements": {"enabled": true}
+  "achievements": {"enabled": true},
+  "apps": {"auto_update": true}
 }

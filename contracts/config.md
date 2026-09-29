@@ -69,6 +69,12 @@ Preview (`POST /api/v1/layout/preview`) sends a draft to the shell over IPC with
 - Written by the trusted local `achievements.configure` (`ipc.md`: TV Settings → Badges, or `bear-den-tv badges on|off`). The counters themselves live in the state database, never in `config.json` ([`docs/security.md`](../docs/security.md#den-badges)).
 - Additive: `schema_version` stays 1.
 
+## App installs (optional field)
+
+- `apps` (object, absent = `{"auto_update": true}`): `{"auto_update": true|false}`. The built-in default file writes `true`. While `true` the coordinator updates the apps it can install (the adapter table's Flatpak ids) that are installed **for this user**, with `flatpak update --user --noninteractive -y <ids>`, at most once a day, only while nothing is playing, no app is running and Bear Den is in front (its screensaver may be on); an app starting cancels the update. Apps installed system-wide are never touched ("Updated by your system").
+- Written by the trusted local `apps.configure` (`ipc.md`: TV Settings → Keep apps up to date).
+- Additive: `schema_version` stays 1.
+
 ## Now playing on phones (optional field)
 
 - `remote.now_playing` (boolean, default `true`; the built-in default file writes `true`, and a file without the key means `true`): paired phones with the `controller` permission see what the app in front reports it is playing (`state.now_playing`, [`http.md`](http.md#now-playing-statenow_playing)). `false` removes `now_playing` from every snapshot.

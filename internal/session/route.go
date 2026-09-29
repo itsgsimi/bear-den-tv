@@ -140,8 +140,8 @@ func (c *Coordinator) route(ctx context.Context, s sender, req contract.ActionRe
 // phoneMay is the permission gate for a phone's action. A guest pass may send
 // only contract.GuestActions (so an action added later is refused to guests
 // until someone puts it on that list) and nothing once its pass has ended;
-// everyone else needs controller, and owner for shell.restart and a forced
-// app.close.
+// everyone else needs controller, and owner for contract.OwnerActions
+// (shell.restart, app.install, app.install_cancel) and a forced app.close.
 func (c *Coordinator) phoneMay(v remote.Viewer, req contract.ActionRequest) (bool, string) {
 	if v.Guest() {
 		if c.passEnded(v) {
@@ -152,11 +152,13 @@ func (c *Coordinator) phoneMay(v remote.Viewer, req contract.ActionRequest) (boo
 		}
 		return true, ""
 	}
-	need := contract.PermController
-	if req.Action == contract.ActionShellRestart || (req.Action == contract.ActionAppClose && boolArg(req.Args, "force")) {
-		need = contract.PermOwner
+	if contract.OwnerActions[req.Action] || (req.Action == contract.ActionAppClose && boolArg(req.Args, "force")) {
+		if !v.Has(contract.PermOwner) {
+			return false, "Only the owner's phone can do that."
+		}
+		return true, ""
 	}
-	if !v.Has(need) {
+	if !v.Has(contract.PermController) {
 		return false, "This device is not allowed to do that."
 	}
 	return true, ""

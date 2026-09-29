@@ -204,6 +204,34 @@ bool SessionModel::validateSnapshot(const QJsonObject &snapshot, QString *error)
                 *error = QStringLiteral("state.applications[].enabled must be a boolean");
             return false;
         }
+        // Optional: the app's install from Flathub (state.schema.json#/$defs/install).
+        if (app.contains(QStringLiteral("install"))) {
+            const QString where = QStringLiteral("state.applications[].install");
+            if (!requireType(app, QStringLiteral("install"), QJsonValue::Object, QStringLiteral("state.applications[]"), error))
+                return false;
+            const QJsonObject inst = app.value(QStringLiteral("install")).toObject();
+            if (!requireKeys(inst, {QStringLiteral("state"), QStringLiteral("progress"), QStringLiteral("phase")}, where, error)
+                || !requireEnum(inst, QStringLiteral("state"), {QStringLiteral("none"), QStringLiteral("available"), QStringLiteral("preparing"), QStringLiteral("downloading"),
+                                                                QStringLiteral("installing"), QStringLiteral("failed"), QStringLiteral("done")}, where, error)
+                || !requireEnum(inst, QStringLiteral("phase"), {QString(), QStringLiteral("checking"), QStringLiteral("runtime"), QStringLiteral("app"), QStringLiteral("finishing")}, where, error))
+                return false;
+            const QJsonValue progress = inst.value(QStringLiteral("progress"));
+            if (!progress.isDouble() || progress.toDouble() < 0 || progress.toDouble() > 100 || progress.toDouble() != progress.toInt()) {
+                if (error)
+                    *error = QStringLiteral("%1.progress must be an integer 0..100").arg(where);
+                return false;
+            }
+            if (inst.contains(QStringLiteral("drm"))
+                && !requireEnum(inst, QStringLiteral("drm"), {QStringLiteral("ready"), QStringLiteral("preparing"), QStringLiteral("pending")}, where, error))
+                return false;
+        }
+    }
+    if (snapshot.contains(QStringLiteral("apps"))) {
+        // state.apps (optional, shell and owner phones): install settings.
+        if (!requireType(snapshot, QStringLiteral("apps"), QJsonValue::Object, QStringLiteral("state"), error)
+            || !requireKeys(snapshot.value(QStringLiteral("apps")).toObject(), {QStringLiteral("auto_update")}, QStringLiteral("state.apps"), error)
+            || !requireType(snapshot.value(QStringLiteral("apps")).toObject(), QStringLiteral("auto_update"), QJsonValue::Bool, QStringLiteral("state.apps"), error))
+            return false;
     }
     const QJsonObject remote = snapshot.value(QStringLiteral("remote")).toObject();
     if (!requireKeys(remote, {QStringLiteral("enabled"), QStringLiteral("transport"), QStringLiteral("listening"), QStringLiteral("addresses"), QStringLiteral("https"),

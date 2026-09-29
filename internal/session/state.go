@@ -345,6 +345,8 @@ func (c *Coordinator) capabilitiesLocked() map[string]contract.Capability {
 	}
 	c.powerCapsLocked(caps)
 	c.cecCapsLocked(caps)
+	caps[contract.ActionAppInstall] = unavailable("App installs are not available in this session.")
+	caps[contract.ActionAppInstallCancel] = caps[contract.ActionAppInstall]
 	return caps
 }
 

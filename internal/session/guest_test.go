@@ -44,6 +44,8 @@ func validArgs(action string) map[string]any {
 		return map[string]any{"button": "left"}
 	case contract.ActionPointerScroll:
 		return map[string]any{"dy": 120.0}
+	case contract.ActionAppInstall, contract.ActionAppInstallCancel:
+		return map[string]any{"app_id": "moonlight"}
 	}
 	return map[string]any{}
 }

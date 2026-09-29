@@ -22,6 +22,9 @@ Canonical messages consumed by contract tests in Go ([`tests/contract/fixtures_t
 | `action.request.pointer-click-coordinates.invalid.json` | rejected: phones never send coordinates (`pointer.click` takes only `button`) |
 | `action.request.tv-power.valid.json` | `action.schema.json#/$defs/request` (`tv.power`, standby) |
 | `action.request.tv-power-off.invalid.json` | rejected: `tv.power` `power` must be `on` or `standby` |
+| `action.request.app-install.valid.json` | `action.schema.json#/$defs/request` (`app.install` for a config app id) |
+| `action.request.app-install-cancel.valid.json` | `action.schema.json#/$defs/request` (`app.install_cancel`) |
+| `action.request.app-install-ref.invalid.json` | rejected: `app.install` takes only `app_id` (a phone never names a Flatpak ref) |
 | `action.result.observed.valid.json` | `action.schema.json#/$defs/result` |
 | `action.result.failed-stale.valid.json` | `action.schema.json#/$defs/result` |
 | `action.result.display-off-woke.valid.json` | `action.schema.json#/$defs/result` (`failed/display_off`: the press woke the screen and was not applied) |
@@ -52,6 +55,13 @@ Canonical messages consumed by contract tests in Go ([`tests/contract/fixtures_t
 | `state.guest-achievements.invalid.json` | rejected: a guest pass never gets `achievements` |
 | `state.locked-achievements.invalid.json` | rejected: a locked session never carries `achievements` |
 | `state.phone-celebrate.invalid.json` | rejected: `achievements.celebrate` is for the shell only (a phone view has `me`) |
+| `state.phone-owner-installs.valid.json` | `state.schema.json` (owner phone: one app downloading a runtime, one available with its size, a system install, Chromium done with Widevine pending, `apps.auto_update`) |
+| `state.family-install.invalid.json` | rejected: a phone without `owner` never gets `applications[].install` |
+| `state.guest-install.invalid.json` | rejected: a guest pass never gets `applications[].install` |
+| `state.install-bad-state.invalid.json` | rejected: `install.state` must be one of the seven install states |
+| `state.install-progress-range.invalid.json` | rejected: `install.progress` is 0..100 |
+| `state.install-ref.invalid.json` | rejected: `install` has no room for a ref or anything else (`additionalProperties: false`) |
+| `config.apps-auto-update-not-bool.invalid.json` | rejected structurally: `apps.auto_update` must be a boolean |
 | `config.default.valid.json` | `config.schema.json` (built-in defaults) |
 | `config.web-apps.valid.json` | `config.schema.json` (a Netflix row and a Browser with its own start page) |
 | `config.web-http.invalid.json` | rejected structurally: `web.url` must start with `https://` |

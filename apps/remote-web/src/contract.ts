@@ -28,7 +28,15 @@ export type ActionName =
   | 'power.sleep_timer'
   | 'display.off'
   | 'tv.power'
-  | PointerAction;
+  | PointerAction
+  | 'app.install'
+  | 'app.install_cancel';
+
+/**
+ * What needs the owner permission (contract.OwnerActions in Go, contracts/actions.md).
+ * The server enforces it; the phone draws these controls only for owners.
+ */
+export const OWNER_ACTIONS: ReadonlySet<ActionName> = new Set<ActionName>(['shell.restart', 'app.install', 'app.install_cancel']);
 
 /** power.sleep_timer minutes: 0 cancels, otherwise one of the fixed choices. */
 export type SleepMinutes = 0 | 15 | 30 | 45 | 60 | 90 | 120;
@@ -81,6 +89,9 @@ export type ActionArgs = {
   'pointer.click': { button: 'left' | 'right' };
   /** Wheel delta in CSS pixels, -2000..2000, non-zero. */
   'pointer.scroll': { dy: number };
+  /** Install the app's Flatpak from Flathub for this user (owner only). */
+  'app.install': { app_id: string };
+  'app.install_cancel': { app_id: string };
 };
 
 /** `"active"`, `"shell"`, or a registered application id. */
@@ -223,6 +234,31 @@ export interface Application {
   hidden?: boolean;
   /** Present only for apps the owner can turn on and off on the TV (web apps); false = turned off (and hidden). */
   enabled?: boolean;
+  /** The app's install from Flathub: owner phones only (state.schema.json#/$defs/install). */
+  install?: Install;
+}
+
+export type InstallState = 'none' | 'available' | 'preparing' | 'downloading' | 'installing' | 'failed' | 'done';
+export type InstallPhase = '' | 'checking' | 'runtime' | 'app' | 'finishing';
+
+/** state.applications[].install (contracts/http.md, "App installs"). */
+export interface Install {
+  state: InstallState;
+  /** 0..100 */
+  progress: number;
+  phase: InstallPhase;
+  /** About how much to download (the app and any runtime it still needs). */
+  size_bytes?: number;
+  /** About how much disk it takes once installed. */
+  disk_bytes?: number;
+  message?: string;
+  /** Streaming web apps only: Widevine in the app's Chromium profile. */
+  drm?: 'ready' | 'preparing' | 'pending';
+}
+
+/** state.apps: owner phones and the shell only. */
+export interface AppsSettings {
+  auto_update: boolean;
 }
 
 export interface RemoteLimits {
@@ -375,6 +411,8 @@ export interface StateSnapshot {
   achievements?: Achievements;
   /** TV control over HDMI-CEC; absent for anonymous viewers and from older coordinators. */
   cec?: Cec;
+  /** App install settings: owner phones only. */
+  apps?: AppsSettings;
 }
 
 /** state.cec (contracts/http.md, "TV control over HDMI-CEC"). */

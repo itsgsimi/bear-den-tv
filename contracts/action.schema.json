@@ -15,7 +15,8 @@
         "text.submit", "shell.restart",
         "power.sleep_timer", "display.off",
         "tv.power",
-        "pointer.move", "pointer.click", "pointer.scroll"
+        "pointer.move", "pointer.click", "pointer.scroll",
+        "app.install", "app.install_cancel"
       ]
     },
     "targetInfo": {
@@ -44,6 +45,8 @@
         {"if": {"properties": {"action": {"enum": ["nav.up", "nav.down", "nav.left", "nav.right", "select", "back", "home", "media.play", "media.pause", "shell.restart", "display.off"]}}},
          "then": {"properties": {"args": {"type": "object", "additionalProperties": false, "maxProperties": 0}}}},
         {"if": {"properties": {"action": {"const": "app.launch"}}},
+         "then": {"properties": {"args": {"type": "object", "properties": {"app_id": {"$ref": "#/$defs/appId"}}, "required": ["app_id"], "additionalProperties": false}}}},
+        {"if": {"properties": {"action": {"enum": ["app.install", "app.install_cancel"]}}},
          "then": {"properties": {"args": {"type": "object", "properties": {"app_id": {"$ref": "#/$defs/appId"}}, "required": ["app_id"], "additionalProperties": false}}}},
         {"if": {"properties": {"action": {"const": "app.close"}}},
          "then": {"properties": {"args": {"type": "object", "properties": {"app_id": {"$ref": "#/$defs/appId"}, "force": {"type": "boolean"}}, "required": ["app_id"], "additionalProperties": false}}}},

@@ -60,6 +60,8 @@ class SessionModel : public QObject {
     Q_PROPERTY(QVariantMap plex READ plex NOTIFY snapshotChanged)
     /// Den badges (state.achievements; empty when absent: locked or an older coordinator).
     Q_PROPERTY(QVariantMap achievements READ achievements NOTIFY snapshotChanged)
+    /// App install settings (state.apps; empty when absent: an older coordinator).
+    Q_PROPERTY(QVariantMap apps READ apps NOTIFY snapshotChanged)
     Q_PROPERTY(SectionsModel *sections READ sections CONSTANT)
     Q_PROPERTY(QString lastError READ lastError NOTIFY snapshotRejected)
 
@@ -115,6 +117,7 @@ public:
     QVariantMap cec() const { return m_snapshot.value(QStringLiteral("cec")).toObject().toVariantMap(); }
     QVariantMap plex() const { return m_snapshot.value(QStringLiteral("plex")).toObject().toVariantMap(); }
     QVariantMap achievements() const { return m_snapshot.value(QStringLiteral("achievements")).toObject().toVariantMap(); }
+    QVariantMap apps() const { return m_snapshot.value(QStringLiteral("apps")).toObject().toVariantMap(); }
     SectionsModel *sections() const { return m_sections; }
     QString lastError() const { return m_lastError; }
 
