@@ -44,6 +44,9 @@ CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs `make test`,
 `make check-web-dist`) on every push to `main` and every pull request. When
 it fails, [`scripts/ci-annotate.sh`](scripts/ci-annotate.sh) turns the
 failing tests into annotations on the run, readable without signing in.
+CI has passed on GitHub since run 36572595472 (commit `c8449a5`,
+2026-09-29), its first green run: keep it green. The README badge shows the
+latest run on `main`.
 
 Faster, one part at a time:
 
