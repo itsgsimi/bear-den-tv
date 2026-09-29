@@ -46,6 +46,7 @@ export const t = {
     remote: 'Remote',
     editor: 'Layout',
     devices: 'Devices',
+    badges: 'Badges',
     about: 'About',
   },
 
@@ -280,6 +281,36 @@ export const t = {
     revision: (n: number) => `Revision ${n}`,
   },
 
+  // Den badges (views/badges.tsx): read-only; names and hints keyed by the
+  // badge ids of internal/achievements (the TV has the same copy in Badges.qml).
+  badges: {
+    heading: 'Den badges',
+    summary: (earned: number, total: number) => `${earned} of ${total} earned on your TV`,
+    off: 'Badges are off on the TV: nothing is being counted.',
+    hidden: 'Badges show on family phones while the TV is unlocked.',
+    earnedOn: (day: string) => `Earned ${day}`,
+    progress: (count: number, goal: number) => `${count} of ${goal}`,
+    privacy: 'Counted on the TV only: just counts and days, never what was watched. Turn badges off or reset them in Settings → Badges on the TV.',
+    names: {
+      'first-night-in': ['First Night In', 'Open any app from Home.'],
+      'movie-night': ['Movie Night', 'Open Plex ten times.'],
+      'couch-explorer': ['Couch Explorer', 'Open every installed app at least once.'],
+      'night-owl': ['Night Owl', 'Visit Home after 11 pm on five nights.'],
+      'early-cub': ['Early Cub', 'Visit Home before 7 am on five mornings.'],
+      'rainy-day': ['Rainy Day Den', 'Visit Home while it rains, on three days. Needs Weather on.'],
+      'snow-day': ['Snow Day', 'Visit Home while it snows. Needs Weather on.'],
+      'thunder-buddy': ['Thunder Buddy', 'Keep the bears company in a thunderstorm. Needs Weather on.'],
+      'all-seasons': ['All Seasons', 'Visit Home in spring, summer, autumn and winter.'],
+      'style-switcher': ['Style Switcher', 'Try both art styles: Pixel and Classic.'],
+      'theme-tourist': ['Theme Tourist', 'Visit every built-in theme.'],
+      'family-den': ['Family Den', 'Pair two family phones.'],
+      'good-host': ['Good Host', 'Give a visitor a guest pass.'],
+      'sleepy-bear': ['Sleepy Bear', 'Set the sleep timer five times.'],
+      'parade-spotter': ['Parade Spotter', 'The bears march for an old, old code…'],
+      'loyal-den': ['Loyal Den', 'Spend time in the den on thirty different days.'],
+    } as Record<string, readonly [string, string]>,
+  },
+
   // Devices.
   devices: {
     heading: 'Paired phones',
@@ -356,6 +387,17 @@ export const t = {
 } as const;
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
+
+/**
+ * @param day A badge's earned day, YYYY-MM-DD (the TV's local calendar day).
+ * @returns "2 Sep 2026", or the text as sent when it is not a day.
+ */
+export function badgeDay(day: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(day);
+  const month = m ? MONTHS[Number(m[2]) - 1] : undefined;
+  return m && month ? `${Number(m[3])} ${month} ${m[1]}` : day;
+}
 
 /**
  * @param endsAt When a guest pass ends, Unix epoch ms.

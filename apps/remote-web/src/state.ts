@@ -30,7 +30,7 @@ import { GUEST_ACTIONS } from './contract.ts';
 
 export type Connection = 'idle' | 'connecting' | 'online' | 'reconnecting' | 'offline';
 export type Screen = 'loading' | 'pair' | 'app';
-export type Tab = 'remote' | 'editor' | 'devices' | 'about';
+export type Tab = 'remote' | 'editor' | 'devices' | 'badges' | 'about';
 /** `pass_ended`: a guest pass was revoked (it ran out, or the owner removed it). */
 export type SessionEndReason = 'revoked' | 'logout' | 'unauthenticated' | 'pass_ended';
 export type NoticeKind = 'info' | 'success' | 'warning' | 'error';
@@ -476,6 +476,9 @@ export function visibleTabs(state: AppState): Tab[] {
   const tabs: Tab[] = ['remote'];
   if (permissions.includes('layout_editor')) tabs.push('editor');
   if (permissions.includes('owner')) tabs.push('devices');
+  // Den badges: only when the coordinator sent them (controller phones,
+  // never guest passes, never while locked).
+  if (state.snapshot?.achievements) tabs.push('badges');
   tabs.push('about');
   return tabs;
 }

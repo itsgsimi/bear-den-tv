@@ -20,7 +20,7 @@ and [`contracts/actions.md`](../../contracts/actions.md).
 | [`src/i18n.ts`](src/i18n.ts) | every user-facing string (`t`, `ACTION_NAMES`) |
 | [`src/uuid.ts`](src/uuid.ts) | UUID v4 from `crypto` only (works on plain-HTTP LAN pages) |
 | `src/device-name.ts`, `src/press-fx.ts`, `src/icons.tsx`, `src/vines.tsx` | default device name, press ripple, inline SVG icons, `AppArt` (the app tiles' icons: Bear Den's own `app-<adapter>` art from `tools/pixelart`/`tools/classicart` appicons.py, never official logos) and `Art` (Pixel: `static/art/pixel/*.png` at whole-number scales; Classic: `static/art/*.svg`), theme-styled tile vines drawn on a pixel grid or, in Classic, as smooth Bézier vines (`tests/unit/vines.spec.ts`, `tests/unit/art-style.spec.ts`) |
-| [`src/views/`](src/views/shell.tsx) | `shell.tsx` (frame, tabs), `remote.tsx` (D-pad, apps, playback, volume, text), `nowplaying.tsx` (the Now playing card: `state.now_playing`, position extrapolated from `position_at` + `rate` with a 1 s tick only while visible and playing; `snapshotAt` and `hidden` in the store), `sleep.tsx` (Sleep: timer chips, time left counted from `state.power.sleep_at_ms` with a 1 s tick only while a timer runs and the page is visible, Cancel, Screen off), `tv.tsx` (TV on / standby over HDMI-CEC, drawn only while `tv.power` is available; the volume group's heading, "TV volume" while `state.cec` sends the volume buttons to the TV), `pair.tsx`, `editor.tsx` (layout), `devices.tsx` (owner), `about.tsx` |
+| [`src/views/`](src/views/shell.tsx) | `shell.tsx` (frame, tabs), `remote.tsx` (D-pad, apps, playback, volume, text), `nowplaying.tsx` (the Now playing card: `state.now_playing`, position extrapolated from `position_at` + `rate` with a 1 s tick only while visible and playing; `snapshotAt` and `hidden` in the store), `sleep.tsx` (Sleep: timer chips, time left counted from `state.power.sleep_at_ms` with a 1 s tick only while a timer runs and the page is visible, Cancel, Screen off), `tv.tsx` (TV on / standby over HDMI-CEC, drawn only while `tv.power` is available; the volume group's heading, "TV volume" while `state.cec` sends the volume buttons to the TV), `pair.tsx`, `editor.tsx` (layout), `devices.tsx` (owner), `badges.tsx` (the Badges tab: the TV's Den badges, read-only, only when `state.achievements` is present, which the coordinator sends to controller phones and never to guest passes; names and hints in `i18n.ts` `t.badges`, medals from `static/art/{pixel/,}badge-<id>[-locked].*`), `about.tsx` |
 | `src/app.css`, `static/` | styles (Pixel by default: square corners, square particles, stepped motion, `html[data-pixel]` draws the backdrop unsmoothed; the Classic overrides at the end of the file, keyed on `html[data-art='classic']`, restore the rounded, smooth look); `index.html`, manifest, icons and art copied verbatim into `dist/` |
 | [`scripts/pixel-icons.mjs`](scripts/pixel-icons.mjs) | makes the PWA icons from `static/art/pixel/bear-mark.png` (nearest-neighbour); the pixel art itself comes from `tools/pixelart` |
 | [`scripts/build.mjs`](scripts/build.mjs) | esbuild bundle into `dist/`, deterministic (no hashes or timestamps) |
@@ -75,8 +75,9 @@ ends (`revoked` or a 401) the pair screen says "Your guest pass has ended"
 (`pass_ended`).
 
 Theme art is fetched same-origin from `/themes/...`. Controller phones may receive
-`state.now_playing` (the Now playing card); phones never receive
-`state.weather`, so the phone shows no weather.
+`state.now_playing` (the Now playing card) and `state.achievements` (the
+Badges tab); phones never receive `state.weather`, so the phone shows no
+weather.
 
 ## Content-Security-Policy
 
@@ -143,7 +144,7 @@ without the field.
 
 | Suite | Where | Runs |
 |---|---|---|
-| Unit | [`tests/unit/`](tests/unit/state.spec.ts) (`state.spec.ts`, `hold.spec.ts`, `vines.spec.ts`, `nowplaying.spec.ts`, `sleep.spec.ts`, `guest.spec.ts`, `invitation.spec.ts`) | vitest under Node, fake timers, injected fakes |
+| Unit | [`tests/unit/`](tests/unit/state.spec.ts) (`state.spec.ts`, `hold.spec.ts`, `vines.spec.ts`, `nowplaying.spec.ts`, `sleep.spec.ts`, `guest.spec.ts`, `invitation.spec.ts`, `badges.spec.ts`) | vitest under Node, fake timers, injected fakes |
 | Contract | [`tests/contract.spec.ts`](tests/contract.spec.ts) | Ajv 2020 loads the layout, action, state and config schemas; every `contracts/fixtures` file must be in `SCHEMA_FOR` or `SEMANTIC_ONLY`; client-built requests, holds and edited layouts must validate |
 | Browser | `tests/e2e/` (Playwright, `playwright.config.ts`, `serve-dist.mjs`) | **empty today**; `npm test` passes `--pass-with-no-tests` so the empty suite does not fail the run |
 

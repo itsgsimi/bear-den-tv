@@ -617,6 +617,15 @@ input[type='range'] { width: 100%; accent-color: var(--accent); min-height: 32px
 .facts { display: grid; grid-template-columns: max-content 1fr; gap: 0.6rem 1rem; margin: 0 0 1rem; }
 .facts dt { color: var(--text-2); }
 .facts dd { margin: 0; min-width: 0; }
+/* Den badges (views/badges.tsx): a shelf of medals, earned in colour, the
+   rest as silhouettes; corners follow the art style through --radius. */
+.badge-grid { list-style: none; margin: 0 0 1rem; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 0.6rem; }
+.badge { display: flex; flex-direction: column; align-items: center; gap: 0.2rem; text-align: center; padding: 0.6rem 0.35rem; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius, 0); min-width: 0; }
+.badge-earned { border-color: rgba(var(--sage-rgb), 0.55); }
+.badge-locked .badge-art { opacity: 0.85; }
+.badge-name { font-weight: 800; font-size: 0.85rem; line-height: 1.15; overflow-wrap: anywhere; }
+.badge-earned .badge-detail { color: var(--sage-light, var(--cream)); }
+.badge-hint { font-size: 0.72rem; line-height: 1.2; }
 
 /* Corner vines (vines.tsx): retracted by default; grown while the host is hovered,
    pressed, keyboard-focused, briefly after a tap (data-vine), or always (.is-grown).

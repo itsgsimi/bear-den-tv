@@ -14,8 +14,9 @@ import { RemoteView } from './remote.tsx';
 import { EditorView } from './editor.tsx';
 import { DevicesView } from './devices.tsx';
 import { AboutView } from './about.tsx';
+import { BadgesView } from './badges.tsx';
 
-const TAB_ICONS: Record<Tab, IconName> = { remote: 'remote', editor: 'layout', devices: 'devices', about: 'about' };
+const TAB_ICONS: Record<Tab, IconName> = { remote: 'remote', editor: 'layout', devices: 'devices', badges: 'badge', about: 'about' };
 /** How long the decorative "paired" moment stays over the freshly shown remote. */
 const CELEBRATE_MS = 1700;
 const FIREFLIES = 7;
@@ -151,6 +152,7 @@ function Frame({ app, state }: { app: App; state: AppState }): JSX.Element {
         {state.tab === 'remote' ? <RemoteView app={app} state={state} /> : null}
         {state.tab === 'editor' ? <EditorView app={app} state={state} /> : null}
         {state.tab === 'devices' ? <DevicesView app={app} state={state} /> : null}
+        {state.tab === 'badges' ? <BadgesView state={state} /> : null}
         {state.tab === 'about' ? <AboutView app={app} state={state} /> : null}
       </main>
       <nav class="tabbar" aria-label="Sections">

@@ -29,6 +29,7 @@ export type IconName =
   | 'layout'
   | 'devices'
   | 'about'
+  | 'badge'
   | 'restart'
   | 'close'
   | 'moon'
@@ -56,6 +57,7 @@ const PATHS: Record<IconName, string> = {
   layout: 'M3 4h18v5H3zm0 7h8v9H3zm10 0h8v9h-8z',
   devices: 'M4 4h10v14H4zm2 2v10h6V6zm10 3h4v11h-4zm1 2v7h2v-7z',
   about: 'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm-1 5h2v2h-2zm0 4h2v6h-2z',
+  badge: 'M12 2a7 7 0 1 0 0 14 7 7 0 0 0 0-14zm0 3l1.5 3 3.3.5-2.4 2.3.6 3.2L12 12.5 9 14l.6-3.2-2.4-2.3 3.3-.5zM7.5 15.2L5.5 22l3-1.4 2.2 2.2 1-5.3a9 9 0 0 1-4.2-2.3zm9 0a9 9 0 0 1-4.2 2.3l1 5.3 2.2-2.2 3 1.4z',
   restart: 'M12 4a8 8 0 1 0 7.3 4.8l-1.8.8A6 6 0 1 1 12 6v3l4-4-4-4z',
   close: 'M6.4 5l12.6 12.6-1.4 1.4L5 6.4zM5 17.6L17.6 5 19 6.4 6.4 19z',
   moon: 'M14.5 3a8.5 8.5 0 1 0 6.5 13.9A7 7 0 0 1 14.5 3z',
