@@ -21,6 +21,14 @@ if [ ! -d "$ROOT/sysroot-2.28/x86_64-conda-linux-gnu/sysroot" ]; then
   echo "[bootstrap] installing the glibc 2.28 target sysroot"
   "$ROOT/bin/micromamba" create -y -p "$ROOT/sysroot-2.28" -c conda-forge "sysroot_linux-64=2.28"
 fi
+# nfpm builds the .deb (`make package`). conda-forge has no package for it, so
+# it is built from source with the toolchain's Go into env/bin (on PATH after
+# `. scripts/env.sh`). v2.43.1 is the newest release that builds with Go 1.24.
+NFPM_VERSION=v2.43.1
+if ! "$ROOT/env/bin/go" version -m "$ROOT/env/bin/nfpm" 2>/dev/null | grep -qE "^\s+mod\s+github.com/goreleaser/nfpm/v2\s+$NFPM_VERSION\s"; then
+  echo "[bootstrap] building nfpm $NFPM_VERSION"
+  GOBIN="$ROOT/env/bin" GOTOOLCHAIN=local CGO_ENABLED=0 "$ROOT/env/bin/go" install "github.com/goreleaser/nfpm/v2/cmd/nfpm@$NFPM_VERSION"
+fi
 echo "[bootstrap] done: source scripts/env.sh"
 "$ROOT/env/bin/go" version
 "$ROOT/env/bin/cmake" --version | head -1
