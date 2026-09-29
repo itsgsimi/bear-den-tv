@@ -2,13 +2,15 @@
 // `bear-den-tv dev` (nothing touches a real bus). It keeps a TV power state
 // that PowerOn and Standby change and PowerStatus reads, records every call
 // in order (Calls), and can report no adapter (SetCapability), fail one
-// operation (Fail), hang until the caller's deadline (Hang), or stop
+// operation (Fail), hang until the caller's deadline or until released
+// (Hang), or stop
 // answering power status (SetAnswers).
 
 package fake
 
 import (
 	"context"
+	"errors"
 	"sync"
 
 	"bear-den-tv/internal/platform"
@@ -26,6 +28,7 @@ type TV struct {
 	calls   []string
 	fail    map[string]error
 	hang    bool
+	release chan struct{} // closed by Hang(false): hung commands return
 	closed  int
 }
 
@@ -76,10 +79,20 @@ func (t *TV) Fail(op string, err error) {
 	}
 }
 
-// Hang makes every command wait for the caller's deadline.
+// ErrReleased is what a hung command returns when Hang(false) releases it.
+var ErrReleased = errors.New("fake TV: released from a hang")
+
+// Hang makes every command wait for the caller's deadline; Hang(false)
+// releases the commands still waiting (they return ErrReleased).
 func (t *TV) Hang(on bool) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
+	switch {
+	case on && !t.hang:
+		t.release = make(chan struct{})
+	case !on && t.hang:
+		close(t.release)
+	}
 	t.hang = on
 }
 
@@ -108,11 +121,15 @@ func (t *TV) Probe(context.Context) platform.Capability {
 func (t *TV) do(ctx context.Context, op, call string, apply func()) error {
 	t.mu.Lock()
 	t.calls = append(t.calls, call)
-	hang, err, avail, reason := t.hang, t.fail[op], t.cap.Available, t.cap.Reason
+	hang, release, err, avail, reason := t.hang, t.release, t.fail[op], t.cap.Available, t.cap.Reason
 	t.mu.Unlock()
 	if hang {
-		<-ctx.Done()
-		return ctx.Err()
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-release:
+			return ErrReleased
+		}
 	}
 	if !avail {
 		return &unavailableError{reason}

@@ -148,7 +148,7 @@ func TestCECWithoutAnAdapterIsUnavailableWithTheReason(t *testing.T) {
 	expectOutcome(t, h.submit(h.ctl, h.req(contract.ActionAudioVolume, map[string]any{"delta": float64(5)})), contract.OutcomeFailed, contract.CodeUnsupported)
 	expectOutcome(t, h.submit(h.ctl, h.req(contract.ActionDisplayOff, nil)), contract.OutcomeObserved, contract.CodeOK)
 	expectOutcome(t, h.submit(h.ctl, h.req(contract.ActionSelect, nil)), contract.OutcomeFailed, contract.CodeDisplayOff)
-	time.Sleep(30 * time.Millisecond)
+	h.c.waitCECIdle()
 	if calls := tv.Calls(); len(calls) != 0 || len(h.audio.Calls()) != 0 {
 		t.Fatalf("something was sent: tv %v, pc %v", calls, h.audio.Calls())
 	}
@@ -240,7 +240,7 @@ func TestDisplayOffSendsStandby(t *testing.T) {
 	h2.configure(true, contract.VolumeTargetPC)
 	h2.display.SetCapability(platform.Capability{Backend: fake.DisplayBackend, Reason: "no DPMS"})
 	expectOutcome(t, h2.submit(h2.ctl, h2.req(contract.ActionDisplayOff, nil)), contract.OutcomeFailed, contract.CodeUnsupported)
-	time.Sleep(30 * time.Millisecond)
+	h2.c.waitCECIdle()
 	if got := commands(h2.tv.Calls()); len(got) != 0 {
 		t.Fatalf("standby without the display going off: %v", got)
 	}
@@ -294,7 +294,7 @@ func TestAnyActionAfterStandbyWakesTheTV(t *testing.T) {
 	h.waitCalls("woken", "standby", "power_on", "active_source")
 	// Once awake, further presses leave the bus alone.
 	expectOutcome(t, h.submit(h.ctl, h.req(contract.ActionSelect, nil)), contract.OutcomeObserved, contract.CodeOK)
-	time.Sleep(30 * time.Millisecond)
+	h.c.waitCECIdle() // a wake this press started would be counted here
 	if got := commands(h.tv.Calls()); len(got) != 3 {
 		t.Fatalf("TV commands %v", got)
 	}
@@ -336,11 +336,18 @@ func TestTVPowerAction(t *testing.T) {
 	if d := time.Since(start); d > 2*time.Second {
 		t.Fatalf("tv.power took %v", d)
 	}
-	// Home never waits on the bus, even when it hangs.
-	start = time.Now()
-	expectOutcome(t, h.submit(h.ctl, h.req(contract.ActionHome, nil)), contract.OutcomeAccepted, contract.CodeOK)
-	if d := time.Since(start); d > 50*time.Millisecond {
-		t.Fatalf("home waited %v on HDMI-CEC", d)
+	// Home never waits on the bus, even when it hangs: with every command
+	// hung for an hour, Home answers before the hang is released. (A 50 ms
+	// budget here failed on busy machines.)
+	CECTimeout = time.Hour
+	home := make(chan contract.ActionResult, 1)
+	go func() { home <- h.submit(h.ctl, h.req(contract.ActionHome, nil)) }()
+	select {
+	case res := <-home:
+		expectOutcome(t, res, contract.OutcomeAccepted, contract.CodeOK)
+	case <-time.After(3 * time.Second): // the harness's eventually bound; waiting on the bus would take the hour
+		h.tv.Hang(false)
+		t.Fatal("home waited on HDMI-CEC")
 	}
 	h.tv.Hang(false)
 
