@@ -12,7 +12,7 @@ Wire shapes come from [`contracts/`](../contracts/AGENTS.md) and nowhere else.
 
 | Package | Owns | Key files |
 |---|---|---|
-| [`session`](session/coordinator.go) | the core: epoch, target, state snapshot, action routing; implements `remote.Backend` (phones) and `shellipc.Handler` (shell) | `coordinator.go` (Options, `retargetLocked`, `publish`), `route.go` (`route`, `doLaunch`, `doHome`, `doClose`), `state.go` (`buildStateFor`, `capabilitiesLocked`), `backend.go`, `ipc.go`, `tuning.go`, `nowplaying.go` (`state.now_playing`: the foreground player's reading, memory only) |
+| [`session`](session/coordinator.go) | the core: epoch, target, state snapshot, action routing; implements `remote.Backend` (phones) and `shellipc.Handler` (shell) | `coordinator.go` (Options, `retargetLocked`, `publish`), `route.go` (`route`, `doLaunch`, `doHome`, `doClose`), `state.go` (`buildStateFor`, `capabilitiesLocked`), `backend.go`, `ipc.go`, `tuning.go`, `nowplaying.go` (`state.now_playing`: the foreground player's reading, memory only), `power.go` (sleep timer, display off and wake: `state.power`) |
 | [`contract`](contract/contract.go) | Go types for protocol 1 and JSON Schema validation of the embedded `contracts/*.json` | `contract.go`, `validate.go` |
 | [`actions`](actions/dedup.go) | request de-duplication and server-side hold leases, on an injected clock | `dedup.go`, `holds.go` |
 | [`applications`](applications/applications.go) | `Adapter` and `Launcher` interfaces | `applications.go` |
@@ -76,6 +76,10 @@ different body is `duplicate_mismatch`), then `route()`, which checks in order:
    submit actions): `controller` for everything; `owner` for `shell.restart`
    and `app.close` with `force`. Otherwise `forbidden`.
 3. **Lock**: a locked session refuses every action, `home` included (`locked`).
+   Just before it, `powerGate` ([`session/power.go`](session/power.go)) wakes
+   a display Bear Den turned off and cancels a sleep warning; an unlocked
+   press that woke the display is swallowed (`display_off`) unless it is a
+   power action.
 4. **Stale epoch** (phones only; shell requests are stamped with the current
    epoch): `req.ContextEpoch != epoch` is `stale_epoch` unless `contract.IgnoresStaleEpoch` (`home`, `app.launch`, `shell.restart`).
 5. **Capability**: input, media and audio go through `capability()`, which reads

@@ -160,6 +160,10 @@ func (h *ShellHandler) Receive(cl *shellipc.Client, m shellipc.Message) {
 		h.reply(cl, msg.RequestID, c.configureWeather(&msg), nil)
 	case shellipc.InstallRequest:
 		h.reply(cl, msg.RequestID, errors.New("guided installation is not available yet; install from Flathub on the TV"), nil)
+	case shellipc.PowerActivity:
+		if isShell {
+			c.onTVActivity()
+		}
 	case shellipc.ShellExit:
 		if isShell && c.opts.Supervisor != nil {
 			c.opts.Supervisor.MarkIntentionalExit()
