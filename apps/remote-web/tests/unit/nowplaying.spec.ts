@@ -165,6 +165,19 @@ describe('behind Home', () => {
   });
 });
 
+describe('from the Plex server', () => {
+  it('says the reading is read-only and from the Plex server', () => {
+    const plex: NowPlaying = { ...DEMO, foreground: false, source: 'plex_server' };
+    const tree = walk(NowPlayingCard({ np: plex, appLabel: 'Plex', positionMs: 754_000 }));
+    expect(byTestId(tree, 'now-playing')?.props['data-source']).toBe('plex_server');
+    expect(text(byTestId(tree, 'now-playing-source'))).toBe('From your Plex server · read-only');
+    expect(text(byTestId(tree, 'now-playing-behind'))).toBe('Playing in Plex · behind Home');
+    for (const np of [DEMO, { ...DEMO, source: 'mpris' as const }]) {
+      expect(byTestId(walk(NowPlayingCard({ np, appLabel: 'Plex', positionMs: 1 })), 'now-playing-source')).toBeUndefined();
+    }
+  });
+});
+
 describe('position extrapolation', () => {
   it('advances from position_at on the coordinator clock plus the time since arrival, at the rate', () => {
     // Read 500 ms before the snapshot was generated; the snapshot arrived 2 s ago.

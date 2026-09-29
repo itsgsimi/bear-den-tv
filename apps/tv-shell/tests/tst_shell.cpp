@@ -463,6 +463,16 @@ private slots:
         QVERIFY(!session->applySnapshot(snap));
         QVERIFY2(session->lastError().contains(QStringLiteral("state.now_playing")), qPrintable(session->lastError()));
         np.remove(QStringLiteral("foreground"));
+        // source: mpris or plex_server only.
+        snap.insert(QStringLiteral("context_epoch"), epoch + 260);
+        np.insert(QStringLiteral("source"), QStringLiteral("plex_server"));
+        snap.insert(QStringLiteral("now_playing"), np);
+        QVERIFY2(session->applySnapshot(snap), qPrintable(session->lastError()));
+        snap.insert(QStringLiteral("context_epoch"), epoch + 270);
+        np.insert(QStringLiteral("source"), QStringLiteral("plex_tv"));
+        snap.insert(QStringLiteral("now_playing"), np);
+        QVERIFY(!session->applySnapshot(snap));
+        np.remove(QStringLiteral("source"));
 
         snap.insert(QStringLiteral("context_epoch"), epoch + 300);
         np.insert(QStringLiteral("status"), QStringLiteral("buffering"));
@@ -473,7 +483,7 @@ private slots:
         np.remove(QStringLiteral("position_at"));
         snap.insert(QStringLiteral("now_playing"), np);
         QVERIFY(!session->applySnapshot(snap));
-        QCOMPARE(session->contextEpoch(), epoch + 200); // the previous state stays
+        QCOMPARE(session->contextEpoch(), epoch + 260); // the previous state stays
         QVERIFY(session->applySnapshot(fixture()));
     }
 

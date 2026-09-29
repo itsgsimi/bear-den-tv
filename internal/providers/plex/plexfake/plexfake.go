@@ -2,7 +2,7 @@
 // used by the plex connector's tests and by `bear-den-tv dev --dev-plex-fake`
 // (docs/operations.md). It serves the handful of endpoints the connector
 // calls, on loopback only, with fictional DEMO-titled items and generated
-// DEMO posters. Nothing here talks to the real plex.tv or a real server.
+// DEMO posters, and the sessions a test sets (/status/sessions, SetSessions). Nothing here talks to the real plex.tv or a real server.
 package plexfake
 
 import (
@@ -63,6 +63,30 @@ type Resource struct {
 	Connections      []Connection `json:"connections"`
 }
 
+// Session is one playback the fake server lists at /status/sessions, in the
+// public API's shape (Metadata with a Player; see providers/plex/sessions.go).
+// Titles are fictional and carry "DEMO".
+type Session struct {
+	Kind       string // movie | episode | track
+	Title      string
+	Show       string // grandparentTitle: an episode's show, a track's artist
+	Season     string // parentTitle
+	OffsetMs   int64
+	DurationMs int64
+	Player     SessionPlayer
+}
+
+// SessionPlayer is a session's Player element.
+type SessionPlayer struct {
+	Address           string
+	MachineIdentifier string
+	Product           string // Plex HTPC reports "Plex HTPC" (UNVERIFIED)
+	Platform          string
+	Title             string
+	State             string // playing | paused | buffering
+	Local             bool
+}
+
 // Options configures a Fake. Zero values take the documented defaults.
 type Options struct {
 	// Token is issued when a PIN links; default DefaultToken.
@@ -102,6 +126,8 @@ type Fake struct {
 	down      bool
 	photo     http.HandlerFunc
 	requests  []Request
+	sessions  []Session
+	sessCode  int // non-zero: /status/sessions answers this status
 }
 
 // Request is one request the fake received: method, path, and whether the
@@ -199,6 +225,21 @@ func (f *Fake) SetPhotoHandler(h http.HandlerFunc) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.photo = h
+}
+
+// SetSessions replaces what /status/sessions lists.
+func (f *Fake) SetSessions(ss []Session) {
+	f.mu.Lock()
+	f.sessions = append([]Session(nil), ss...)
+	f.mu.Unlock()
+}
+
+// SetSessionsStatus makes /status/sessions answer code (403: a shared user,
+// who may not list the owner's sessions); 0 restores.
+func (f *Fake) SetSessionsStatus(code int) {
+	f.mu.Lock()
+	f.sessCode = code
+	f.mu.Unlock()
 }
 
 // Link marks the most recent PIN as linked by the account.
@@ -301,6 +342,8 @@ func (f *Fake) serve(w http.ResponseWriter, r *http.Request) {
 	case strings.HasPrefix(p, "/library/sections/") && strings.HasSuffix(p, "/recentlyAdded"):
 		key := strings.TrimSuffix(strings.TrimPrefix(p, "/library/sections/"), "/recentlyAdded")
 		f.recentlyAdded(w, r, key)
+	case p == "/status/sessions":
+		f.statusSessions(w)
 	case p == "/photo/:/transcode":
 		if photo != nil {
 			photo(w, r)
@@ -310,6 +353,30 @@ func (f *Fake) serve(w http.ResponseWriter, r *http.Request) {
 	default:
 		http.NotFound(w, r)
 	}
+}
+
+func (f *Fake) statusSessions(w http.ResponseWriter) {
+	f.mu.Lock()
+	ss, code := append([]Session(nil), f.sessions...), f.sessCode
+	f.mu.Unlock()
+	if code != 0 {
+		http.Error(w, http.StatusText(code), code)
+		return
+	}
+	md := make([]map[string]any, 0, len(ss))
+	for i, s := range ss {
+		md = append(md, map[string]any{
+			"sessionKey": strconv.Itoa(i + 1), "type": s.Kind, "title": s.Title, "grandparentTitle": s.Show, "parentTitle": s.Season,
+			"viewOffset": s.OffsetMs, "duration": s.DurationMs,
+			"Player": map[string]any{
+				"address": s.Player.Address, "machineIdentifier": s.Player.MachineIdentifier, "product": s.Player.Product,
+				"platform": s.Player.Platform, "title": s.Player.Title, "state": s.Player.State, "local": s.Player.Local,
+			},
+			"Session": map[string]any{"id": fmt.Sprintf("demo-session-%d", i+1), "location": "lan"},
+			"User":    map[string]any{"id": "1", "title": "DEMO Owner"},
+		})
+	}
+	writeJSON(w, map[string]any{"MediaContainer": map[string]any{"size": len(md), "Metadata": md}})
 }
 
 func (f *Fake) authorized(r *http.Request) bool {

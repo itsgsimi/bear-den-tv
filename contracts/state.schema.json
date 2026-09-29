@@ -273,7 +273,8 @@
       "properties": {
         "app_id": {"type": "string", "minLength": 1, "description": "The application (state.applications[].id) whose player this is: the app in front, or with foreground false the app behind Home."},
         "foreground": {"type": "boolean", "description": "true (absent from older coordinators means the same): app_id is in front. false: Bear Den's shell is in front and app_id plays or is paused behind Home (status is then never stopped); media.play, media.pause and media.seek_relative for it name app_id as their target, never \"active\"."},
-        "title": {"type": "string", "minLength": 1, "maxLength": 200, "description": "xesam:title, cut to 200 characters. Private media: shown to phones only."},
+        "source": {"enum": ["mpris", "plex_server"], "description": "Where the reading comes from (absent from older coordinators means mpris): the app's own MPRIS player, or, for Plex HTPC (which has none), what the owner's Plex server lists for this TV's Plex HTPC (GET /status/sessions). plex_server readings are read-only: media actions are never offered for them."},
+        "title": {"type": "string", "minLength": 1, "maxLength": 200, "description": "xesam:title (or the Plex item's title), cut to 200 characters. Private media: shown to phones only."},
         "subtitle": {"type": "string", "minLength": 1, "maxLength": 200, "description": "xesam:artist joined with ', ', else xesam:album; absent when the player reports neither."},
         "status": {"enum": ["playing", "paused", "stopped"]},
         "length_ms": {"type": "integer", "minimum": 1, "description": "mpris:length; absent when unknown (live streams, players that omit it)."},

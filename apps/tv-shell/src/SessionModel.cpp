@@ -395,6 +395,9 @@ bool SessionModel::validateSnapshot(const QJsonObject &snapshot, QString *error)
         // foreground (optional): false while the app plays behind Home.
         if (np.contains(QStringLiteral("foreground")) && !requireType(np, QStringLiteral("foreground"), QJsonValue::Bool, where, error))
             return false;
+        // source (optional): mpris or plex_server.
+        if (np.contains(QStringLiteral("source")) && !requireEnum(np, QStringLiteral("source"), {QStringLiteral("mpris"), QStringLiteral("plex_server")}, where, error))
+            return false;
     }
     if (snapshot.contains(QStringLiteral("power"))) {
         // state.power (optional): sleep_at_ms (integer or null), warning, display on|off.

@@ -245,10 +245,16 @@ func (b *PhoneBackend) Diagnostics(ctx context.Context, v remote.Viewer) (map[st
 	if !v.Has(contract.PermOwner) {
 		return nil, remote.ErrForbidden
 	}
-	if b.c.opts.Diagnostics == nil {
-		return map[string]any{}, nil
+	out := map[string]any{}
+	if b.c.opts.Diagnostics != nil {
+		out = b.c.opts.Diagnostics(ctx)
 	}
-	return b.c.opts.Diagnostics(ctx), nil
+	if b.c.opts.PlexPlaying != nil {
+		// Whether this TV's Plex HTPC could be found on the Plex server
+		// (status and reason only, never a title).
+		out["plex_now_playing"] = b.c.plexDiagnostics()
+	}
+	return out, nil
 }
 
 // askConfirm shows the TV's timed Keep/Revert dialog for a pending change.

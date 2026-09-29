@@ -362,15 +362,17 @@ func runSession(f sessionFlags) error {
 		log.Info("dev: some apps start missing; a pretend Flathub installs them (DEMO)")
 	}
 	var plexOpt session.PlexLink // stays nil without a connector (a nil *Manager would not)
+	var plexPlaying session.PlexPlaying
 	if plexLink != nil {
 		plexOpt = plexLink
+		plexPlaying = plexLink // Now playing for Plex HTPC from the server (session/plexplaying.go)
 	}
 	iconFinder := appicons.DefaultFinder() // phones: the apps' own icons
 	coord = session.New(session.Options{
 		Themes: themeReg, Tuner: tuner,
 		Logger: log, Desktop: desk, Lock: lockObs, Audio: audioB, Media: media, Display: display, TV: tv, Suspend: suspendR,
 		Launcher: launcher, Adapters: adapters.NewRegistry(), Config: store, Pairing: pair,
-		Supervisor: sup, DevMode: f.dev && (f.devFixtures || f.devPlexFake || f.devInstalls), Feed: feed, Weather: wx, Plex: plexOpt, Web: webApps,
+		Supervisor: sup, DevMode: f.dev && (f.devFixtures || f.devPlexFake || f.devInstalls), Feed: feed, Weather: wx, Plex: plexOpt, PlexPlaying: plexPlaying, Web: webApps,
 		Installer: appInstaller, DRM: webDRM, IconFinder: &iconFinder,
 		// Den badges: local counters in state.db; nothing counted while
 		// config achievements.enabled is false (docs/security.md#den-badges).

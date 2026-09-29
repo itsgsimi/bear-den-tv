@@ -3,7 +3,9 @@
 // optional subtitle, play/pause state and a progress bar. With
 // `foreground: false` the app plays (or is paused) behind Home: the card says
 // "Playing in YouTube · behind Home" and the playback buttons name that app
-// as their target (behindHomeApp, used by tap() in app.ts).
+// as their target (behindHomeApp, used by tap() in app.ts). With
+// `source: "plex_server"` the reading comes from the owner's Plex server and
+// the card says it is read-only.
 // Contract: the coordinator sends a reading, not a stream; the position is
 // extrapolated here from position_ms + rate × (generated_at_ms − position_at +
 // time since the snapshot arrived), only while playing. The card re-renders
@@ -85,6 +87,7 @@ export function NowPlayingCard({ np, appLabel, positionMs }: NowPlayingCardProps
       data-testid="now-playing"
       data-status={np.status}
       data-behind={behind ? 'true' : 'false'}
+      data-source={np.source ?? 'mpris'}
       aria-label={behind ? t.remote.nowPlayingBehind(np.status, appLabel) : t.remote.nowPlayingIn(appLabel)}
       role="group"
     >
@@ -104,6 +107,11 @@ export function NowPlayingCard({ np, appLabel, positionMs }: NowPlayingCardProps
       <p class="np-title" title={np.title} data-testid="now-playing-title">
         {np.title}
       </p>
+      {np.source === 'plex_server' ? (
+        <p class="np-source small" data-testid="now-playing-source">
+          {t.remote.nowPlayingFromPlex}
+        </p>
+      ) : null}
       {np.subtitle ? (
         <p class="np-subtitle small" title={np.subtitle}>
           {np.subtitle}

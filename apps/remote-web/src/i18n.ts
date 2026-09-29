@@ -146,6 +146,8 @@ export const t = {
     nowPlayingStatus: (status: NowPlayingStatus): string => (status === 'playing' ? 'Playing' : status === 'paused' ? 'Paused' : 'Stopped'),
     nowPlayingProgress: (position: string, length: string) => `${position} of ${length}`,
     /** The card of an app still playing (or paused) with Bear Den in front: "Playing in YouTube · behind Home". */
+    /** A reading from the owner's Plex server (Plex HTPC has no player Bear Den can control). */
+    nowPlayingFromPlex: 'From your Plex server · read-only',
     nowPlayingBehind: (status: NowPlayingStatus, app: string): string => `${status === 'playing' ? 'Playing' : 'Paused'} in ${app} · behind Home`,
     pcVolume: 'PC volume',
     tvVolume: 'TV volume',

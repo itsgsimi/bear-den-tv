@@ -40,6 +40,8 @@ Canonical messages consumed by contract tests in Go ([`tests/contract/fixtures_t
 | `state.phone-now-playing-behind-home.valid.json` | `state.schema.json` (phone view: the shell in front, YouTube paused behind Home: `now_playing.foreground: false`, media controls available for it) |
 | `state.now-playing-behind-home-stopped.invalid.json` | rejected: with `foreground: false` the status must be `playing` or `paused` |
 | `state.now-playing-foreground-not-bool.invalid.json` | rejected: `now_playing.foreground` must be a boolean |
+| `state.phone-now-playing-plex-server.valid.json` | `state.schema.json` (phone view: Plex HTPC playing behind Home, read from the Plex server: `source: "plex_server"`, media actions unavailable with the read-only reason) |
+| `state.now-playing-bad-source.invalid.json` | rejected: `now_playing.source` must be `mpris` or `plex_server` |
 | `state.phone-sleep-warning.valid.json` | `state.schema.json` (phone view: a 45-minute sleep timer in its last minute, `power.suspend` unavailable) |
 | `state.power-bad-display.invalid.json` | rejected: `power.display` must be `on` or `off` |
 | `state.phone-cec.valid.json` | `state.schema.json` (phone view: HDMI-CEC enabled, TV on, volume buttons driving the TV) |

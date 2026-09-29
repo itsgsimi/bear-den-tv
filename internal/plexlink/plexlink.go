@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"net/netip"
 	"sort"
 	"strings"
 	"sync"
@@ -97,6 +98,9 @@ type Options struct {
 	FeedTimeout time.Duration
 	// ClientOptions tune the server client (tests: Retries -1).
 	ClientOptions plex.ClientOptions
+	// LocalAddrs lists this machine's own addresses, to tell this TV's Plex
+	// HTPC session apart (NowPlaying); default LocalAddrs.
+	LocalAddrs func() ([]netip.Addr, error)
 	// OnPass, when set, is called (never under the manager's lock) after
 	// each decision of Run's loop about the rows, so tests can wait for the
 	// loop instead of sleeping. Production leaves it nil.
@@ -183,6 +187,9 @@ func New(opts Options) (*Manager, error) {
 	}
 	if len(opts.Backoff) == 0 {
 		opts.Backoff = DefaultBackoff
+	}
+	if opts.LocalAddrs == nil {
+		opts.LocalAddrs = LocalAddrs
 	}
 	if opts.ClientIdentifier == "" {
 		return nil, errors.New("plexlink: client identifier is required")

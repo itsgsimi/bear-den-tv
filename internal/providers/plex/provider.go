@@ -243,6 +243,28 @@ func (p *Provider) Connect(ctx context.Context) error {
 	return nil
 }
 
+// Sessions is what the connected server says is playing (sessions.go). The
+// token comes from the keyring when the rows have not connected yet; a
+// failure is returned redacted.
+func (p *Provider) Sessions(ctx context.Context) ([]Session, error) {
+	p.mu.Lock()
+	connected := p.connected
+	p.mu.Unlock()
+	if !connected {
+		token, err := p.opts.Secrets.Get(ctx, p.opts.ConnectionRef)
+		if err != nil {
+			return nil, p.redactor.Error(fmt.Errorf("plex token could not be read: %w", err))
+		}
+		p.redactor.AddSecret(token)
+		p.client.SetToken(token)
+	}
+	ss, err := p.client.Sessions(ctx)
+	if err != nil {
+		return nil, p.redactor.Error(err)
+	}
+	return ss, nil
+}
+
 // selectLibraries keeps the configured ids (all of which must exist) or, when
 // none are configured, every movie and show library.
 func selectLibraries(all []Library, ids []string) ([]Library, error) {

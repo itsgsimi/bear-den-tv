@@ -46,12 +46,14 @@ type npState struct {
 	iterations   atomic.Int64 // completed loop passes (tests wait on it)
 }
 
-// kickNowPlaying asks the watcher to re-evaluate and re-read now.
+// kickNowPlaying asks the watchers (MPRIS and the Plex server's) to
+// re-evaluate and re-read now.
 func (c *Coordinator) kickNowPlaying() {
 	select {
 	case c.np.kick <- struct{}{}:
 	default:
 	}
+	c.kickPlexPlaying()
 }
 
 // clearNowPlayingLocked forgets the reading at once (retarget, lock); the
@@ -115,7 +117,7 @@ func (c *Coordinator) behindControlLocked() (*mediaProbe, string) {
 		return nil, ""
 	}
 	cur := c.np.cur
-	if cur == nil || cur.foreground || cur.appID != b.appID || c.nowPlayingLocked() == nil {
+	if cur == nil || cur.foreground || cur.appID != b.appID || c.mprisNowPlayingLocked() == nil {
 		return nil, ""
 	}
 	label := b.appID
@@ -246,10 +248,20 @@ func sameMedia(a, b platform.MediaInfo) bool {
 		a.Length == b.Length && a.HasPosition == b.HasPosition && a.Position == b.Position && a.Rate == b.Rate
 }
 
-// nowPlayingLocked is state.now_playing for the current target, or nil when
-// there is nothing honest to show (no title, an unknown status, a reading
-// for another app, a stopped player behind Home).
+// nowPlayingLocked is state.now_playing for the current target: the app's
+// own MPRIS player, else (Plex HTPC, which has none) the Plex server's
+// reading (plexplaying.go), else nil.
 func (c *Coordinator) nowPlayingLocked() *contract.NowPlaying {
+	if np := c.mprisNowPlayingLocked(); np != nil {
+		return np
+	}
+	return c.plexNowPlayingLocked()
+}
+
+// mprisNowPlayingLocked is the MPRIS reading for the current target, or nil
+// when there is nothing honest to show (no title, an unknown status, a
+// reading for another app, a stopped player behind Home).
+func (c *Coordinator) mprisNowPlayingLocked() *contract.NowPlaying {
 	cur := c.np.cur
 	if cur == nil || c.locked {
 		return nil
@@ -278,7 +290,8 @@ func (c *Coordinator) nowPlayingLocked() *contract.NowPlaying {
 		return nil
 	}
 	fg := cur.foreground
-	np := &contract.NowPlaying{AppID: cur.appID, Foreground: &fg, Title: title, Status: status, PositionAt: cur.readAt, Rate: info.Rate}
+	src := contract.NowPlayingSourceMPRIS
+	np := &contract.NowPlaying{AppID: cur.appID, Foreground: &fg, Source: &src, Title: title, Status: status, PositionAt: cur.readAt, Rate: info.Rate}
 	if np.Rate < 0 {
 		np.Rate = 0
 	}

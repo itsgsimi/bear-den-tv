@@ -85,6 +85,9 @@ type Options struct {
 	// Plex is the Plex sign-in flow and rows (state.plex, state.content,
 	// plex.* IPC); nil when the session has no Plex connector.
 	Plex PlexLink
+	// PlexPlaying reads what this TV's Plex HTPC plays from the owner's
+	// Plex server, for Now playing (plexplaying.go); nil never asks.
+	PlexPlaying PlexPlaying
 	// IconFinder finds the apps' own icons for phones (appicons.go,
 	// GET /api/v1/apps/{adapter}/icon); nil serves none, so phones draw
 	// Bear Den's.
@@ -161,9 +164,10 @@ type Coordinator struct {
 	// its player if one was found: it may keep playing behind Home
 	// (nowplaying.go). Cleared when another app comes to the front.
 	behind        *mediaProbe
-	np            npState    // now playing for phones (nowplaying.go); memory only
-	pw            powerState // sleep timer and display (power.go)
-	cec           cecState   // TV control over HDMI-CEC (cec.go)
+	np            npState     // now playing for phones (nowplaying.go); memory only
+	plexNP        plexNPState // Plex HTPC playback from the Plex server (plexplaying.go); memory only
+	pw            powerState  // sleep timer and display (power.go)
+	cec           cecState    // TV control over HDMI-CEC (cec.go)
 	notifications []contract.Notification
 	previewing    bool
 	remote        contract.RemoteState
@@ -231,6 +235,7 @@ func New(opts Options) *Coordinator {
 	}
 	c.holds = actions.NewHolds(opts.Clock, c.limits, c.holdTap, c.publish)
 	c.np.kick = make(chan struct{}, 1)
+	c.plexNP.kick = make(chan struct{}, 1)
 	if opts.Web != nil {
 		opts.Web.Watch(c.publish) // page status changes capabilities (text field, video)
 	}
@@ -307,6 +312,9 @@ func (c *Coordinator) Run(ctx context.Context) error {
 	}
 	go c.watchApps(ctx)
 	go c.watchNowPlaying(ctx)
+	if c.opts.PlexPlaying != nil {
+		go c.watchPlexPlaying(ctx)
+	}
 	if c.opts.TV != nil {
 		go c.watchCEC(ctx)
 	}

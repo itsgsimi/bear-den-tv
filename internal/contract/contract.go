@@ -707,6 +707,10 @@ type SuspendReport struct {
 
 // Now-playing statuses (state.schema.json#/properties/now_playing/status).
 const (
+	// now_playing.source: where the reading comes from.
+	NowPlayingSourceMPRIS      = "mpris"
+	NowPlayingSourcePlexServer = "plex_server"
+
 	NowPlayingPlaying = "playing"
 	NowPlayingPaused  = "paused"
 	NowPlayingStopped = "stopped"
@@ -725,7 +729,10 @@ type NowPlaying struct {
 	AppID string `json:"app_id"`
 	// Foreground is false while AppID plays (or is paused) behind Home with
 	// the shell in front; the coordinator always sets it.
-	Foreground *bool   `json:"foreground,omitempty"`
+	Foreground *bool `json:"foreground,omitempty"`
+	// Source is NowPlayingSourceMPRIS (the app's own player) or
+	// NowPlayingSourcePlexServer (read-only, from the owner's Plex server).
+	Source     *string `json:"source,omitempty"`
 	Title      string  `json:"title"`
 	Subtitle   string  `json:"subtitle,omitempty"`
 	Status     string  `json:"status"` // playing | paused | stopped

@@ -70,6 +70,8 @@ const SCHEMA_FOR: Record<string, string> = {
   'state.phone-now-playing-behind-home.valid.json': 'state.schema.json',
   'state.now-playing-behind-home-stopped.invalid.json': 'state.schema.json',
   'state.now-playing-foreground-not-bool.invalid.json': 'state.schema.json',
+  'state.phone-now-playing-plex-server.valid.json': 'state.schema.json',
+  'state.now-playing-bad-source.invalid.json': 'state.schema.json',
   'state.shell-plex-linking.valid.json': 'state.schema.json',
   'state.shell-plex-libraries.valid.json': 'state.schema.json',
   'state.plex-bad-status.invalid.json': 'state.schema.json',

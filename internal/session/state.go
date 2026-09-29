@@ -326,6 +326,8 @@ func (c *Coordinator) capabilitiesLocked() map[string]contract.Capability {
 		switch {
 		case c.media == nil || strOr(c.target.AppID) != c.media.appID:
 			media = unavailable("Checking media controls for " + c.target.Label + "…")
+		case c.media.player == nil && c.plexMediaReasonLocked(c.media.appID, c.target.Label) != "":
+			media = unavailable(c.plexMediaReasonLocked(c.media.appID, c.target.Label))
 		case c.media.player == nil || !c.media.canCtl:
 			media = unavailable(c.target.Label + " does not expose verified media controls.")
 		default:
@@ -340,6 +342,12 @@ func (c *Coordinator) capabilitiesLocked() map[string]contract.Capability {
 			media = available(backendMPRIS)
 		} else if why != "" {
 			media = unavailable(why)
+		} else if b := c.behind; b != nil && b.player == nil {
+			if app, ok := c.opts.Config.Current().Application(b.appID); ok {
+				if why := c.plexMediaReasonLocked(b.appID, app.Label); why != "" {
+					media = unavailable(why)
+				}
+			}
 		}
 	}
 	caps[contract.ActionMediaPlay] = media
