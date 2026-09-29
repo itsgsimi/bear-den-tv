@@ -60,6 +60,10 @@ type Options struct {
 	// OnChange is called after the invitation state changes (issue, cancel,
 	// expiry, redemption) or a device list change so the coordinator republishes.
 	OnChange func()
+	// OnPaired is called after a phone paired successfully (a family phone
+	// or a guest pass), before OnChange; the coordinator counts it for Den
+	// badges. Nil does nothing.
+	OnPaired func()
 	// Location is the local time zone for guest passes that end "tonight"
 	// (04:00 the next morning); nil selects time.Local.
 	Location *time.Location
@@ -353,6 +357,9 @@ func (s *Service) Claim(ctx context.Context, token, code, deviceName, sourceAddr
 	s.opts.Logger.Info("pairing: device paired", "device_id", deviceID, "permissions", permText)
 	if passEndMs != nil {
 		s.sweepPasses() // arm the timer for the new pass
+	}
+	if s.opts.OnPaired != nil {
+		s.opts.OnPaired()
 	}
 	s.notify()
 	return remote.ClaimResult{DeviceID: deviceID, DeviceName: name, Permissions: perms, SessionToken: sessionToken, CSRFToken: csrf}, nil

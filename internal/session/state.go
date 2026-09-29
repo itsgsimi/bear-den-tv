@@ -100,6 +100,10 @@ func (c *Coordinator) buildStateFor(view viewKind, v *remote.Viewer) contract.St
 		p := c.opts.Pairing.State()
 		st.Pairing = &p
 		if !locked {
+			if c.opts.Achievements != nil {
+				a := c.opts.Achievements.Snapshot()
+				st.Achievements = &a
+			}
 			st.Devices = c.devices()
 			l := cfg.Layout()
 			st.Layout = &l
@@ -134,6 +138,12 @@ func (c *Coordinator) buildStateFor(view viewKind, v *remote.Viewer) contract.St
 				if v.Has(contract.PermLayoutEditor) {
 					l := cfg.Layout()
 					st.Layout = &l
+				}
+				// Den badges: controller phones, never guest passes
+				// (contracts/http.md#den-badges-stateachievements).
+				if !v.Guest() && v.Has(contract.PermController) && c.opts.Achievements != nil {
+					a := c.opts.Achievements.Phone()
+					st.Achievements = &a
 				}
 				// What is playing names private media: controller phones
 				// and guests (they watch the same screen) only, never while

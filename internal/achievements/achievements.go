@@ -115,6 +115,24 @@ type Tracker struct {
 	universes map[string][]string
 	cached    *contract.Achievements // last Snapshot; nil after a write
 	lastHome  string                 // HomeShown's last key: repeats within it count nothing
+	onChange  func()
+}
+
+// SetOnChange replaces Options.OnChange (the coordinator wires its publish
+// once it exists).
+func (t *Tracker) SetOnChange(f func()) {
+	t.mu.Lock()
+	t.onChange = f
+	t.mu.Unlock()
+}
+
+func (t *Tracker) changed() {
+	t.mu.Lock()
+	f := t.onChange
+	t.mu.Unlock()
+	if f != nil {
+		f()
+	}
 }
 
 // New builds a tracker with the fixed sets (seasons, styles).
@@ -128,7 +146,7 @@ func New(o Options) *Tracker {
 	if o.Logger == nil {
 		o.Logger = slog.Default()
 	}
-	t := &Tracker{o: o, universes: map[string][]string{}}
+	t := &Tracker{o: o, universes: map[string][]string{}, onChange: o.OnChange}
 	t.universes[PrefixSeason] = append([]string(nil), Seasons...)
 	t.universes[PrefixStyle] = append([]string(nil), Styles...)
 	return t
@@ -172,9 +190,7 @@ func (t *Tracker) update(change func(ctx context.Context, day string) error) {
 	if earned > 0 {
 		t.o.Logger.Info("achievements: badge earned", "count", earned)
 	}
-	if t.o.OnChange != nil {
-		t.o.OnChange()
-	}
+	t.changed()
 }
 
 // bump adds one to a counter.
@@ -356,9 +372,7 @@ func (t *Tracker) Celebrated(ids []string) {
 	if err != nil {
 		t.o.Logger.Warn("achievements: could not mark badges celebrated", "err", err)
 	}
-	if t.o.OnChange != nil {
-		t.o.OnChange()
-	}
+	t.changed()
 }
 
 // Reset deletes every counter and earned badge.
@@ -371,9 +385,7 @@ func (t *Tracker) Reset() error {
 	t.cached = nil
 	t.lastHome = ""
 	t.mu.Unlock()
-	if t.o.OnChange != nil {
-		t.o.OnChange()
-	}
+	t.changed()
 	return err
 }
 
@@ -463,6 +475,23 @@ func (t *Tracker) HomeShown(h Home) {
 			}
 		}
 		return nil
+	})
+}
+
+// LookSeen: the owner chose an art style or theme in Settings (the change
+// shows at once), so it counts as tried without a visit to Home.
+func (t *Tracker) LookSeen(style, theme string) {
+	t.update(func(ctx context.Context, day string) error {
+		if style == "" {
+			style = contract.ArtPixel
+		}
+		if err := t.mark(ctx, PrefixStyle+style, day); err != nil {
+			return err
+		}
+		if theme == "" {
+			return nil
+		}
+		return t.mark(ctx, PrefixTheme+theme, day)
 	})
 }
 

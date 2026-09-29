@@ -418,6 +418,7 @@ func (c *Coordinator) doLaunch(ctx context.Context, s sender, req contract.Actio
 				return c.fail(req, contract.CodeTargetUnfocused, app.Label+" is running but could not be brought forward.")
 			}
 			c.setLaunch(appID, "running", "", nil)
+			c.noteLaunched(app)
 			c.finish(s, req, c.result(req, contract.OutcomeDelivered, map[string]any{"app_id": appID, "activated": true}))
 			if c.waitTarget(ctx, ActivateObserveTimeout, isApp) {
 				return c.result(req, contract.OutcomeObserved, map[string]any{"app_id": appID})
@@ -446,6 +447,7 @@ func (c *Coordinator) doLaunch(ctx context.Context, s sender, req contract.Actio
 		// a failure because no window was seen. Liveness then comes from
 		// the launcher's instance list (reconcileApps).
 		c.setLaunch(appID, "running", "", &inst)
+		c.noteLaunched(app)
 		res := c.result(req, contract.OutcomeDelivered, map[string]any{"app_id": appID, "observed": false})
 		res.Message = app.Label + " was started; this desktop cannot confirm it came to the front."
 		return res
@@ -454,6 +456,7 @@ func (c *Coordinator) doLaunch(ctx context.Context, s sender, req contract.Actio
 	c.finish(s, req, c.result(req, contract.OutcomeDelivered, map[string]any{"app_id": appID}))
 	if c.waitTarget(ctx, LaunchObserveTimeout, isApp) {
 		c.setLaunch(appID, "running", "", nil)
+		c.noteLaunched(app)
 		return c.result(req, contract.OutcomeObserved, map[string]any{"app_id": appID})
 	}
 	c.setLaunch(appID, "failed", app.Label+" started but its window was not seen.", nil)

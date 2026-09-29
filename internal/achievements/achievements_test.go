@@ -276,6 +276,19 @@ func TestSetsNeedEveryMember(t *testing.T) {
 	}
 }
 
+// Choosing a look in Settings counts as trying it.
+func TestLookSeenMarksStyleAndTheme(t *testing.T) {
+	r := newRig(t, 2026, time.September, 28, 15, 0)
+	r.tr.LookSeen("classic", "midnight")
+	r.tr.LookSeen("", "")
+	if r.count(PrefixStyle+"classic") != 1 || r.count(PrefixTheme+"midnight") != 1 || r.count(PrefixStyle+"pixel") != 1 || r.count(CounterDays) != 0 {
+		t.Fatalf("classic %d midnight %d pixel %d days %d", r.count(PrefixStyle+"classic"), r.count(PrefixTheme+"midnight"), r.count(PrefixStyle+"pixel"), r.count(CounterDays))
+	}
+	if _, ok := r.earned()["style-switcher"]; !ok {
+		t.Fatal("style switcher not earned")
+	}
+}
+
 // Off counts nothing at all; reset clears everything.
 func TestOffCountsNothingAndResetClears(t *testing.T) {
 	r := newRig(t, 2026, time.September, 28, 23, 30)

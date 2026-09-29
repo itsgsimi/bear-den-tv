@@ -50,7 +50,7 @@ Graphical checks on the target need `DISPLAY=:0 XAUTHORITY=$HOME/.Xauthority DBU
 | Purpose | Path |
 |---|---|
 | Configuration | `$XDG_CONFIG_HOME/bear-den-tv/config.json` (+ `config.last-known-good.json`, `config.history/`) |
-| State (devices, sessions, focus memory) | `$XDG_DATA_HOME/bear-den-tv/state.db` |
+| State (devices, sessions, focus memory, Den badge counters) | `$XDG_DATA_HOME/bear-den-tv/state.db` |
 | Artwork cache | `$XDG_CACHE_HOME/bear-den-tv/artwork/` (icons), `$XDG_CACHE_HOME/bear-den-tv/plex-artwork/` (Plex posters, deleted on sign-out) |
 | Plex client id | `$XDG_DATA_HOME/bear-den-tv/plex-client-id` (32 hex characters; not a secret, but Plex ties the sign-in to it) |
 | IPC socket, instance lock | `$XDG_RUNTIME_DIR/bear-den-tv/` |
@@ -433,6 +433,25 @@ Den was restarted in between. Settings → Paired phones and `bear-den-tv device
 show each guest with the time it ends; remove one early like any phone.
 A guest pass cannot be turned into a family phone: pair that phone again as a
 family phone instead. Details: [`contracts/http.md`](../contracts/http.md#guest-passes).
+
+## Den badges
+
+Bear Den awards playful badges ("Den badges") from a few local counters: apps
+opened, days Home was shown, rainy days, guest passes, sleep timers and the
+like. Everything stays in `state.db` on the TV and only ids, counts and days
+are kept, never titles or times ([`docs/security.md`](security.md#den-badges)).
+Controller phones can look at the shelf; guests cannot.
+
+```sh
+build/bin/bear-den-tv badges status   # counting on/off, earned badges with their day, progress
+build/bin/bear-den-tv badges off      # stop counting at once (earned badges stay)
+build/bin/bear-den-tv badges on
+build/bin/bear-den-tv badges reset    # delete every counter and earned badge
+```
+
+Off is stored as `achievements.enabled: false` in `config.json`
+([`contracts/config.md`](../contracts/config.md)); nothing is counted while it
+is off. Reset cannot be undone.
 
 ## Further reading
 

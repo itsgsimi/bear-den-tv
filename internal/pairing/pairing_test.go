@@ -175,6 +175,31 @@ func TestClaimSucceedsOnceAndAuthenticates(t *testing.T) {
 	}
 }
 
+// OnPaired (Den badges count paired phones) runs once per successful claim,
+// never for a wrong code or a reused token.
+func TestOnPairedOnlyOnSuccess(t *testing.T) {
+	s, _ := newService(t)
+	paired := 0
+	s.opts.OnPaired = func() { paired++ }
+	ctx := context.Background()
+	inv, _ := s.Issue(ctx, nil)
+	if _, err := s.Claim(ctx, "", "000000", "p", "10.0.0.2:1"); err == nil {
+		t.Fatal("wrong code claimed")
+	}
+	if paired != 0 {
+		t.Fatal("OnPaired after a wrong code")
+	}
+	if _, err := s.Claim(ctx, inv.Token, "", "p", "10.0.0.2:1"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Claim(ctx, inv.Token, "", "p", "10.0.0.2:1"); err == nil {
+		t.Fatal("token reused")
+	}
+	if paired != 1 {
+		t.Fatalf("OnPaired ran %d times, want 1", paired)
+	}
+}
+
 func TestRevocationKillsAuthenticate(t *testing.T) {
 	s, _ := newService(t)
 	ctx, cancel := context.WithCancel(context.Background())

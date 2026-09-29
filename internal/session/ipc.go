@@ -97,6 +97,9 @@ func (h *ShellHandler) Receive(cl *shellipc.Client, m shellipc.Message) {
 			out.Revision = c.opts.Config.Revision()
 		}
 		_ = cl.Send(out)
+		if err == nil {
+			c.noteLookChosen() // Style Switcher, Theme Tourist
+		}
 		if err == nil && res.Pending {
 			c.askConfirm(res.Revision)
 		}
@@ -132,6 +135,9 @@ func (h *ShellHandler) Receive(cl *shellipc.Client, m shellipc.Message) {
 			data = d
 		}
 		h.reply(cl, msg.RequestID, err, data)
+		if err == nil && msg.Pass != "" && c.opts.Achievements != nil {
+			c.opts.Achievements.PassIssued() // Good Host
+		}
 	case shellipc.PairCancel:
 		h.reply(cl, msg.RequestID, c.opts.Pairing.Cancel(ctx), nil)
 	case shellipc.DevicesRevoke:
@@ -173,6 +179,8 @@ func (h *ShellHandler) Receive(cl *shellipc.Client, m shellipc.Message) {
 		h.reply(cl, msg.RequestID, c.configureWeather(&msg), nil)
 	case shellipc.PlexSignIn, shellipc.PlexCancel, shellipc.PlexChooseServer, shellipc.PlexChooseLibraries, shellipc.PlexSignOut:
 		h.handlePlex(cl, m)
+	case shellipc.AchievementsConfigure, shellipc.AchievementsReset, shellipc.AchievementsCelebrated, shellipc.AchievementsEvent:
+		h.receiveAchievements(cl, m, isShell)
 	case shellipc.InstallRequest:
 		h.reply(cl, msg.RequestID, errors.New("guided installation is not available yet; install from Flathub on the TV"), nil)
 	case shellipc.PowerActivity:
@@ -206,6 +214,9 @@ func (c *Coordinator) onShellFocus(screen string, sectionID, itemID *string, tex
 	c.shellFocus = contract.ShellState{Screen: screen, Focus: contract.Focus{SectionID: sectionID, ItemID: itemID}}
 	c.shellTextField = textField
 	c.mu.Unlock()
+	if screen == "home" {
+		c.noteHome()
+	}
 	c.publish()
 }
 

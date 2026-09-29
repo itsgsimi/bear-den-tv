@@ -115,11 +115,11 @@ func TestAchievementTablesHoldOnlyIdsCountsAndDays(t *testing.T) {
 	ctx := context.Background()
 	day, when := "2026-09-28", "2026-09-28T23:14:00Z"
 	for _, c := range []Counter{
-		{Name: "launch:DEMO Movie Night", Count: 1},     // a title as a name
-		{Name: "app:plex htpc", Count: 1},               // a space
-		{Name: "Launches", Count: 1},                    // capitals
-		{Name: "launches", Count: 1, LastDay: &when},    // a time
-		{Name: "launches", Count: -1},                   // a negative count
+		{Name: "launch:DEMO Movie Night", Count: 1},  // a title as a name
+		{Name: "app:plex htpc", Count: 1},            // a space
+		{Name: "Launches", Count: 1},                 // capitals
+		{Name: "launches", Count: 1, LastDay: &when}, // a time
+		{Name: "launches", Count: -1},                // a negative count
 		{Name: "launches-launches-launches-launches-lau", Count: 1, FirstDay: &when},
 	} {
 		if err := db.SaveCounter(ctx, c); err == nil {

@@ -37,6 +37,10 @@ const Fallback = "den"
 // builtInOrder is the display order of the built-in themes; others follow by id.
 var builtInOrder = []string{"den", "forest", "midnight", "campfire", "winter"}
 
+// BuiltIn returns the built-in theme ids in display order (the Theme Tourist
+// badge asks for every one of them).
+func BuiltIn() []string { return append([]string(nil), builtInOrder...) }
+
 var (
 	idPattern       = regexp.MustCompile(`^[a-z][a-z0-9-]{1,31}$`)
 	ornamentPattern = regexp.MustCompile(`^[a-z][a-z0-9-]{0,31}$`)

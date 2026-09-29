@@ -12,7 +12,7 @@ Wire shapes come from [`contracts/`](../contracts/AGENTS.md) and nowhere else.
 
 | Package | Owns | Key files |
 |---|---|---|
-| [`session`](session/coordinator.go) | the core: epoch, target, state snapshot, action routing; implements `remote.Backend` (phones) and `shellipc.Handler` (shell) | `coordinator.go` (Options, `retargetLocked`, `publish`), `route.go` (`route`, `doLaunch`, `doHome`, `doClose`), `state.go` (`buildStateFor`, `capabilitiesLocked`), `backend.go`, `ipc.go`, `tuning.go`, `nowplaying.go` (`state.now_playing`: the foreground player's reading, memory only), `power.go` (sleep timer, display off and wake: `state.power`) |
+| [`session`](session/coordinator.go) | the core: epoch, target, state snapshot, action routing; implements `remote.Backend` (phones) and `shellipc.Handler` (shell) | `coordinator.go` (Options, `retargetLocked`, `publish`), `route.go` (`route`, `doLaunch`, `doHome`, `doClose`), `state.go` (`buildStateFor`, `capabilitiesLocked`), `backend.go`, `ipc.go`, `tuning.go`, `nowplaying.go` (`state.now_playing`: the foreground player's reading, memory only), `power.go` (sleep timer, display off and wake: `state.power`), `achievements.go` (Den badges: the event points, `achievements.*` IPC, `state.achievements`) |
 | [`contract`](contract/contract.go) | Go types for protocol 1 and JSON Schema validation of the embedded `contracts/*.json` | `contract.go`, `validate.go` |
 | [`achievements`](achievements/achievements.go) | Den badges: the badge catalogue (`Badges`, data), events that move named counters (`Launched`, `HomeShown`, `Paired`, `PassIssued`, `SleepTimerSet`, `Parade`) on local calendar days of the injected clock, awards once, `Snapshot`/`Phone` for `state.achievements`, `Reset`; nothing counted while config `achievements.enabled` is false | `achievements.go` |
 | [`actions`](actions/dedup.go) | request de-duplication and server-side hold leases, on an injected clock | `dedup.go`, `holds.go` |
@@ -231,6 +231,7 @@ keep its header comment and `usage()` text in step with it.
 | `themes list\|validate DIR\|path` | `themes.go` |
 | `weather status\|search Q\|set Q [INDEX]\|off` | `weather.go` |
 | `plex status\|sign-in\|server ID\|libraries ID...\|cancel\|sign-out` | `plex.go` (also `newPlexLink`, the session wiring and `--dev-plex-fake`) |
+| `badges status\|on\|off\|reset` | `badges.go` |
 | `version` | `main.go` |
 
 Commands that act on the running coordinator send one typed `shellipc`

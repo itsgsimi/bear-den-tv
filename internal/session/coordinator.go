@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"bear-den-tv/internal/achievements"
 	"bear-den-tv/internal/actions"
 	"bear-den-tv/internal/applications"
 	"bear-den-tv/internal/applications/adapters"
@@ -80,6 +81,9 @@ type Options struct {
 	// Plex is the Plex sign-in flow and rows (state.plex, state.content,
 	// plex.* IPC); nil when the session has no Plex connector.
 	Plex PlexLink
+	// Achievements counts Den badges (state.achievements, achievements.*
+	// IPC; achievements.go); nil omits them.
+	Achievements *achievements.Tracker
 	// Supervisor restarts the shell for shell.restart; nil when --no-shell.
 	Supervisor *shellipc.Supervisor
 	DevMode    bool
@@ -187,6 +191,7 @@ func New(opts Options) *Coordinator {
 	}
 	c.holds = actions.NewHolds(opts.Clock, c.limits, c.holdTap, c.publish)
 	c.np.kick = make(chan struct{}, 1)
+	c.initAchievements()
 	return c
 }
 
@@ -498,6 +503,7 @@ func (c *Coordinator) discoverApps(ctx context.Context) {
 		}
 		c.mu.Unlock()
 	}
+	c.setInstalledApps()
 	c.publish()
 }
 
@@ -568,6 +574,9 @@ func (c *Coordinator) onForeground(fg platform.Foreground) {
 	}
 	if c.Target().Kind == "app" && fg.Known {
 		c.ensureFullscreen(fg.Window)
+	}
+	if changed {
+		c.noteHome() // Home back in front (counts only when it is on Home)
 	}
 	c.publish()
 }

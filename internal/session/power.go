@@ -400,6 +400,9 @@ func (c *Coordinator) doSleepTimer(req contract.ActionRequest) contract.ActionRe
 		return c.fail(req, contract.CodeInvalid, "Choose 15, 30, 45, 60, 90 or 120 minutes, or 0 to cancel.")
 	}
 	at := c.setSleep(m)
+	if m > 0 && c.opts.Achievements != nil {
+		c.opts.Achievements.SleepTimerSet() // Sleepy Bear
+	}
 	detail := map[string]any{"sleep_at_ms": nil, "minutes": m}
 	if at != nil {
 		detail["sleep_at_ms"] = *at

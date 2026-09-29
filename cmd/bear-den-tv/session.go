@@ -20,6 +20,7 @@ import (
 	"syscall"
 	"time"
 
+	"bear-den-tv/internal/achievements"
 	"bear-den-tv/internal/applications"
 	"bear-den-tv/internal/applications/adapters"
 	"bear-den-tv/internal/applications/flatpak"
@@ -189,6 +190,7 @@ func runSession(f sessionFlags) error {
 		},
 		BaseURL:  host.baseURL,
 		OnChange: func() { host.publish() },
+		OnPaired: func() { host.paired() },
 	})
 	if err != nil {
 		return err
@@ -296,6 +298,9 @@ func runSession(f sessionFlags) error {
 		Logger: log, Desktop: desk, Lock: lockObs, Audio: audioB, Media: media, Display: display, Suspend: suspendR,
 		Launcher: launcher, Adapters: adapters.NewRegistry(), Config: store, Pairing: pair,
 		Supervisor: sup, DevMode: f.dev && (f.devFixtures || f.devPlexFake), Feed: feed, Weather: wx, Plex: plexOpt,
+		// Den badges: local counters in state.db; nothing counted while
+		// config achievements.enabled is false (docs/security.md#den-badges).
+		Achievements: achievements.New(achievements.Options{DB: db, Logger: log, Enabled: func() bool { return store.Current().AchievementsEnabled() }}),
 		Diagnostics: func(ctx context.Context) map[string]any {
 			return doctor.Report(ctx, doctor.Options{Paths: paths, Version: Version, ShellBinary: f.shellBinary})
 		},
@@ -498,6 +503,13 @@ func (h *remoteHost) baseURL() string {
 		return ""
 	}
 	return h.urls[0]
+}
+
+// paired counts a newly paired phone for Den badges.
+func (h *remoteHost) paired() {
+	if h.coord != nil {
+		h.coord.NotePaired()
+	}
 }
 
 func (h *remoteHost) publish() {

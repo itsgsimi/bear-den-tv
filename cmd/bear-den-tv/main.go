@@ -14,6 +14,7 @@
 //	bear-den-tv themes list|validate DIR|path     installed themes; check a theme; owner themes dir
 //	bear-den-tv weather status|search Q|set Q|off local weather on the running coordinator
 //	bear-den-tv plex status|sign-in|server ID|libraries ID...|cancel|sign-out  Plex sign-in on the running coordinator
+//	bear-den-tv badges status|on|off|reset         Den badges on the running coordinator
 //	bear-den-tv version              print the version
 package main
 
@@ -45,6 +46,7 @@ commands:
             "weather set [--units celsius|fahrenheit] [--no-scene] QUERY [INDEX]": local weather (Open-Meteo)
   plex      "plex status" | "plex sign-in" | "plex server ID" | "plex libraries ID..." | "plex cancel" |
             "plex sign-out": sign the TV in to Plex for the Home rows (the code also shows on the TV)
+  badges    "badges status" | "badges on" | "badges off" | "badges reset": Den badges (local counters only)
   version   print the version
 `)
 }
@@ -83,6 +85,8 @@ func main() {
 		err = cmdWeather(args)
 	case "plex":
 		err = cmdPlex(args)
+	case "badges":
+		err = cmdBadges(args)
 	case "version", "--version":
 		fmt.Println(Version)
 	case "help", "-h", "--help":
