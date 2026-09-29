@@ -5,6 +5,10 @@ export PATH := $(BDTV_TOOLCHAIN)/env/bin:$(PATH)
 export CMAKE_PREFIX_PATH := $(BDTV_TOOLCHAIN)/env
 export GOTOOLCHAIN := local
 BUILD ?= build
+# Our Go packages: `./...` also walks into apps/*/node_modules, where npm
+# packages may ship Go code (flatted/golang) that is not ours to test or vet.
+# (make 4.3 does not pass the exported PATH to $(shell), hence PATH=.)
+GO_PKGS = $(shell PATH="$(PATH)" GOTOOLCHAIN=local go list ./... | grep -v '/node_modules/')
 
 .PHONY: help deps-check build go web check-web-dist webnav test-webnav shell shell-target package test test-go test-web test-shell lint shots perf dev doctor clean
 
@@ -77,7 +81,8 @@ package: ## Build the installable .deb into build/dist (packaging/build-deb.sh; 
 test: test-go test-web test-webnav test-shell ## Run all automated tests
 
 test-go: ## Go unit + contract tests with the race detector
-	go test -race -count=1 ./...
+	@test -n "$(GO_PKGS)" || (echo "go list found no packages" && exit 1)
+	go test -race -count=1 $(GO_PKGS)
 
 test-web: apps/remote-web/node_modules/.installed ## Phone remote unit tests (Playwright runs too, but no browser tests exist yet)
 	cd apps/remote-web && npm test
@@ -93,7 +98,8 @@ test-shell: ## QML/C++ shell tests (offscreen)
 
 lint: apps/remote-web/node_modules/.installed apps/web-nav/node_modules/.installed ## gofmt/vet, eslint/tsc, qmllint (toolchain qmllint via the shell build dir)
 	test -z "$$(gofmt -l cmd internal tests embed.go | tee /dev/stderr)"
-	go vet ./...
+	@test -n "$(GO_PKGS)" || (echo "go list found no packages" && exit 1)
+	go vet $(GO_PKGS)
 	cd apps/remote-web && npm run lint
 	cd apps/web-nav && npm run lint
 	@if [ -f $(BUILD)/tv-shell/build.ninja ]; then \

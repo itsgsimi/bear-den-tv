@@ -290,10 +290,15 @@ Done when: `build/bin/bear-den-tv` with no arguments lists it (after
 ```sh
 . scripts/env.sh
 gofmt -l cmd internal          # must print nothing
-go vet ./...
-go test -race ./...            # or: make test-go
+make lint                      # includes go vet over our packages
+make test-go                   # go test -race over our packages
 go test ./tests/contract ./tests/docs
 ```
+
+Prefer the make targets to a bare `go test ./...` or `go vet ./...`: those
+also walk into `apps/*/node_modules`, where an npm package may ship Go code
+(`flatted/golang`) that is not ours. The Makefile's `GO_PKGS` is `go list
+./...` without `node_modules`.
 
 `tests/e2e` needs `-tags e2e` and a live TV session
 ([`docs/operations.md`](../docs/operations.md#working-against-the-tv-machine)).
