@@ -39,7 +39,7 @@ type fakeChromium struct {
 	wmu    sync.Mutex
 }
 
-func (f *fakeChromium) Start(_ context.Context, args []string, extra []*os.File) (Process, error) {
+func (f *fakeChromium) Start(_ context.Context, _ adapters.BrowserInfo, args []string, extra []*os.File) (Process, error) {
 	f.passed = extra
 	// The child's own copies (what fork/exec would give Chromium).
 	r, err := syscall.Dup(int(extra[0].Fd()))

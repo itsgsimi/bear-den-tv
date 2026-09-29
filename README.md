@@ -20,7 +20,8 @@ Bear Den TV turns a small Linux box into a TV that you drive with your phone.
   press by the owner, per user and without root.
 - **Streaming sites.** Netflix, Disney+ and Hulu (off until you turn them on)
   and a Browser tile run full screen in Chromium from Flathub, driven by the
-  remote. A Linux browser caps them at about 720p.
+  remote (Brave from Flathub is a choice in Settings; for the streaming sites
+  it is marked unverified). A Linux browser caps them at about 720p.
 - **Plex rows on Home.** Sign the TV in to Plex once and Home shows Continue
   Watching and Recently Added from your own server.
 - **Optional extras.** Turn the TV on and off over HDMI-CEC (needs a CEC

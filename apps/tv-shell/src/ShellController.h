@@ -129,6 +129,9 @@ public:
     Q_INVOKABLE void cancelInstall(const QString &appId);
     // Settings → Keep apps up to date (apps.configure).
     Q_INVOKABLE void setAutoUpdate(bool enabled);
+    // Settings → Streaming sites: the Browser tile's and the streaming
+    // sites' browsers (apps.browser; ids from Session.apps.browsers).
+    Q_INVOKABLE void setBrowsers(const QString &browser, const QString &streamingBrowser);
     // Settings → TV control over HDMI (CEC) and its volume row
     // (cec.configure): on/off, and whether the phone's volume buttons drive
     // the PC ("pc") or the TV ("tv").
@@ -164,11 +167,14 @@ public:
     Q_INVOKABLE void answerConfirm(const QString &confirmId, bool accepted);
     Q_INVOKABLE void exitShell();
     // Flatpak id for a registered adapter ("" when unknown); the closed set
-    // mirrors internal/applications/adapters.
+    // mirrors internal/applications/adapters. A web adapter's is its
+    // browser's: Session.apps.browser (the Browser tile) or
+    // streaming_browser (the streaming sites) looked up in
+    // Session.apps.browsers, Chromium when the snapshot has none.
     Q_INVOKABLE QString flatpakIdFor(const QString &adapter) const;
     // The Flatpak whose exported icon is this adapter's own icon: the app's
-    // Flatpak, or "" for the streaming sites (they run in Chromium and never
-    // show its icon; the Browser tile is Chromium and does). Mirrors
+    // Flatpak, or "" for the streaming sites (they run in a browser and never
+    // show its icon; the Browser tile is its browser and does). Mirrors
     // adapters.OwnFlatpakIcon in Go.
     Q_INVOKABLE QString ownIconFlatpakIdFor(const QString &adapter) const;
     // An app's artwork: {icon, logo, background, iconSource} (URLs, "" when

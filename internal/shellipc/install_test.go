@@ -1,4 +1,4 @@
-// Tests that the app install IPC messages (install.go, contracts/ipc.md)
+// Tests that the app install IPC messages and apps.browser (install.go, contracts/ipc.md)
 // decode to their typed values and round-trip through Encode.
 
 package shellipc
@@ -10,10 +10,11 @@ import (
 
 func TestInstallMessagesDecode(t *testing.T) {
 	cases := map[string]Message{
-		`{"type":"app.install","request_id":"r1","app_id":"moonlight"}`:        AppInstall{Type: TypeAppInstall, RequestID: "r1", AppID: "moonlight"},
-		`{"type":"app.install_info","request_id":"r2","app_id":"netflix"}`:     AppInstallInfo{Type: TypeAppInstallInfo, RequestID: "r2", AppID: "netflix"},
-		`{"type":"app.install_cancel","request_id":"r3","app_id":"moonlight"}`: AppInstallCancel{Type: TypeAppInstallCancel, RequestID: "r3", AppID: "moonlight"},
-		`{"type":"apps.configure","request_id":"r4","auto_update":true}`:       AppsConfigure{Type: TypeAppsConfigure, RequestID: "r4", AutoUpdate: true},
+		`{"type":"app.install","request_id":"r1","app_id":"moonlight"}`:                              AppInstall{Type: TypeAppInstall, RequestID: "r1", AppID: "moonlight"},
+		`{"type":"app.install_info","request_id":"r2","app_id":"netflix"}`:                           AppInstallInfo{Type: TypeAppInstallInfo, RequestID: "r2", AppID: "netflix"},
+		`{"type":"app.install_cancel","request_id":"r3","app_id":"moonlight"}`:                       AppInstallCancel{Type: TypeAppInstallCancel, RequestID: "r3", AppID: "moonlight"},
+		`{"type":"apps.configure","request_id":"r4","auto_update":true}`:                             AppsConfigure{Type: TypeAppsConfigure, RequestID: "r4", AutoUpdate: true},
+		`{"type":"apps.browser","request_id":"r6","browser":"brave","streaming_browser":"chromium"}`: AppsBrowser{Type: TypeAppsBrowser, RequestID: "r6", Browser: "brave", StreamingBrowser: "chromium"},
 		// The older reserved name is an alias of app.install.
 		`{"type":"applications.install_request","request_id":"r5","app_id":"spotify"}`: InstallRequest{Type: TypeInstallRequest, RequestID: "r5", AppID: "spotify"},
 	}

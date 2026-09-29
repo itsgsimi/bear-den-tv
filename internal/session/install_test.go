@@ -45,8 +45,8 @@ func (f *fakeInstaller) Available() (bool, string) {
 	return f.available, f.reason
 }
 func (f *fakeInstaller) Allowed(id string) bool {
-	for _, a := range adapters.NewRegistry().All() {
-		if a.FlatpakID() == id {
+	for _, a := range adapters.NewRegistry().InstallableFlatpakIDs() {
+		if a == id {
 			return true
 		}
 	}

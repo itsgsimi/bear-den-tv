@@ -405,6 +405,19 @@ type Install struct {
 // AppsState is state.schema.json#/properties/apps (shell and owner phones).
 type AppsState struct {
 	AutoUpdate bool `json:"auto_update"`
+	// Browser and StreamingBrowser are config apps.browser and
+	// apps.streaming_browser; Browsers is the adapter table's browsers.
+	Browser          string          `json:"browser,omitempty"`
+	StreamingBrowser string          `json:"streaming_browser,omitempty"`
+	Browsers         []BrowserOption `json:"browsers,omitempty"`
+}
+
+// BrowserOption is state.schema.json#/properties/apps/properties/browsers/items.
+type BrowserOption struct {
+	ID                  string `json:"id"`
+	Label               string `json:"label"`
+	FlatpakID           string `json:"flatpak_id"`
+	StreamingUnverified bool   `json:"streaming_unverified"`
 }
 
 // HoldState is state.schema.json#/properties/remote/properties/hold.

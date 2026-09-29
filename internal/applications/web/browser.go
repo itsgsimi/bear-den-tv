@@ -1,4 +1,5 @@
-// The web app manager: starts Chromium for a web app with the DevTools pipe,
+// The web app manager: starts a web app's browser (Chromium or Brave, the
+// app's config row says which) with the DevTools pipe,
 // attaches to every page it opens, injects the navigation script into the
 // "bearden" isolated world, tracks what each page reports (video, text
 // field, visibility), and turns the coordinator's named actions into script
@@ -104,16 +105,16 @@ type Process interface {
 	Done() <-chan struct{}
 }
 
-// Starter starts Chromium with its argument list and the two pipe ends as
+// Starter starts browser b with its argument list and the two pipe ends as
 // fds 3 and 4.
 type Starter interface {
-	Start(ctx context.Context, chromiumArgs []string, extra []*os.File) (Process, error)
+	Start(ctx context.Context, b adapters.BrowserInfo, chromiumArgs []string, extra []*os.File) (Process, error)
 }
 
-// ExecStarter runs Prefix + Chromium's arguments through the Flatpak
-// launcher's runner (fixed argv, filtered environment, own session). The
-// production prefix is FlatpakArgv(nil); `dev --dev-browser PATH` and the
-// end-to-end test use a Chromium binary directly.
+// ExecStarter runs Prefix + the browser's arguments through the Flatpak
+// launcher's runner (fixed argv, filtered environment, own session), the
+// same binary whichever browser is asked for: `dev --dev-browser PATH` and
+// the end-to-end tests use a Chromium binary directly.
 type ExecStarter struct {
 	Runner flatpak.Runner
 	Env    []string
@@ -121,21 +122,41 @@ type ExecStarter struct {
 }
 
 // Start implements Starter.
-func (s ExecStarter) Start(ctx context.Context, args []string, extra []*os.File) (Process, error) {
+func (s ExecStarter) Start(ctx context.Context, _ adapters.BrowserInfo, args []string, extra []*os.File) (Process, error) {
 	if len(s.Prefix) == 0 {
 		return nil, errors.New("web: no browser command")
 	}
-	argv := append(append([]string{}, s.Prefix...), args...)
-	run := s.Runner
+	return startArgv(ctx, s.Runner, append(append([]string{}, s.Prefix...), args...), s.Env, extra)
+}
+
+func startArgv(ctx context.Context, run flatpak.Runner, argv, env []string, extra []*os.File) (Process, error) {
 	if run == nil {
 		run = flatpak.ExecRunner{}
 	}
-	return run.Start(ctx, flatpak.Command{Argv: argv, Env: s.Env, ExtraFiles: extra}, flatpak.NewRing(flatpak.RingSize), flatpak.NewRing(flatpak.RingSize))
+	return run.Start(ctx, flatpak.Command{Argv: argv, Env: env, ExtraFiles: extra}, flatpak.NewRing(flatpak.RingSize), flatpak.NewRing(flatpak.RingSize))
 }
 
-// FlatpakStarter starts Flathub Chromium through `flatpak run`.
-func FlatpakStarter() ExecStarter {
-	return ExecStarter{Env: flatpak.PassthroughEnv(os.Environ()), Prefix: FlatpakArgv(nil)}
+// FlatpakRunStarter starts the asked-for browser from Flathub through
+// `flatpak run` (FlatpakArgv): the production Starter.
+type FlatpakRunStarter struct {
+	Runner   flatpak.Runner
+	Env      []string
+	DataHome string
+}
+
+// Start implements Starter.
+func (s FlatpakRunStarter) Start(ctx context.Context, b adapters.BrowserInfo, args []string, extra []*os.File) (Process, error) {
+	argv, err := FlatpakArgv(s.DataHome, b, args)
+	if err != nil {
+		return nil, err
+	}
+	return startArgv(ctx, s.Runner, argv, s.Env, extra)
+}
+
+// FlatpakStarter starts Flathub browsers through `flatpak run`; dataHome is
+// $XDG_DATA_HOME, where their profiles live.
+func FlatpakStarter(dataHome string) FlatpakRunStarter {
+	return FlatpakRunStarter{Env: flatpak.PassthroughEnv(os.Environ()), DataHome: dataHome}
 }
 
 // Options configures NewManager.
@@ -188,11 +209,12 @@ func (m *Manager) changed() {
 
 // Browser is one running web app.
 type Browser struct {
-	m      *Manager
-	appID  string
-	proc   Process
-	conn   *Conn
-	source string
+	m         *Manager
+	appID     string
+	flatpakID string // the browser it runs in
+	proc      Process
+	conn      *Conn
+	source    string
 
 	mu      sync.Mutex
 	pages   map[string]*page // by session id
@@ -229,24 +251,27 @@ func (m *Manager) get(appID string) *Browser {
 	}
 }
 
-// Launch starts Chromium for app, or returns the running one.
+// Launch starts app's browser, or returns the running one.
 func (m *Manager) Launch(ctx context.Context, app config.Application, spec adapters.WebSpec) (applications.Instance, error) {
 	if b := m.get(app.ID); b != nil {
-		return applications.Instance{FlatpakID: adapters.ChromiumFlatpakID, PID: b.proc.PID()}, nil
+		return applications.Instance{FlatpakID: b.flatpakID, PID: b.proc.PID()}, nil
 	}
 	if m.opts.Starter == nil {
 		return applications.Instance{}, errors.New("web: no browser starter")
+	}
+	browser, err := BrowserOf(app)
+	if err != nil {
+		return applications.Instance{}, err
 	}
 	url, err := StartURL(app)
 	if err != nil {
 		return applications.Instance{}, err
 	}
-	profile, err := ProfileDir(m.opts.DataHome, app.ID)
+	// The profile (made if missing) with the browser's own prefs, in Bear
+	// Den's profiles only (prefs.go).
+	profile, err := SeedPrefs(m.opts.DataHome, browser, app.ID)
 	if err != nil {
 		return applications.Instance{}, err
-	}
-	if err := os.MkdirAll(profile, 0o700); err != nil {
-		return applications.Instance{}, fmt.Errorf("web: profile: %w", err)
 	}
 	source, err := Source(spec.Hints)
 	if err != nil {
@@ -263,7 +288,7 @@ func (m *Manager) Launch(ctx context.Context, app config.Application, spec adapt
 		toW.Close()
 		return applications.Instance{}, err
 	}
-	proc, err := m.opts.Starter.Start(ctx, ChromiumArgs(spec, profile, url), []*os.File{toR, fromW})
+	proc, err := m.opts.Starter.Start(ctx, browser, ChromiumArgs(spec, profile, url), []*os.File{toR, fromW})
 	// The child has its own copies now; the coordinator keeps only its ends,
 	// so the pipe has exactly two holders.
 	toR.Close()
@@ -273,7 +298,7 @@ func (m *Manager) Launch(ctx context.Context, app config.Application, spec adapt
 		fromR.Close()
 		return applications.Instance{}, err
 	}
-	b := &Browser{m: m, appID: app.ID, proc: proc, source: source, pages: map[string]*page{}}
+	b := &Browser{m: m, appID: app.ID, flatpakID: browser.FlatpakID, proc: proc, source: source, pages: map[string]*page{}}
 	b.conn = NewConn(fromR, toW, b.onEvent)
 	m.mu.Lock()
 	m.running[app.ID] = b
@@ -291,7 +316,7 @@ func (m *Manager) Launch(ctx context.Context, app config.Application, spec adapt
 		return applications.Instance{}, fmt.Errorf("web: devtools auto-attach: %w", err)
 	}
 	m.changed()
-	return applications.Instance{FlatpakID: adapters.ChromiumFlatpakID, PID: proc.PID()}, nil
+	return applications.Instance{FlatpakID: browser.FlatpakID, PID: proc.PID()}, nil
 }
 
 func (b *Browser) watch(w, r *os.File) {

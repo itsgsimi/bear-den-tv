@@ -123,7 +123,7 @@ Item {
           value: Session.achievements.enabled === false ? qsTr("Off") : qsTr("%1 of %2").arg((Session.achievements.earned || []).length).arg((Session.achievements.progress || []).length) },
         // Settings → Streaming sites (web apps with state.applications[].enabled);
         // after Badges so the rows tests walk to keep their places.
-        { id: "streaming", kind: "link", label: qsTr("Streaming sites"), description: qsTr("Netflix, Disney+, Hulu and the Browser, in Chromium"),
+        { id: "streaming", kind: "link", label: qsTr("Streaming sites"), description: qsTr("Netflix, Disney+, Hulu and the Browser, and the browsers they open in"),
           value: qsTr("%1 on").arg(Session.applications.filter(a => a.enabled === true).length) },
         // App installs (ADR 0011); after Streaming sites, so the rows tests
         // that count from the top keep their places.

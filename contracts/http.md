@@ -84,7 +84,7 @@ An application whose config has `hide_when_missing: true` ([`config.md`](config.
 
 ## App installs (`state.applications[].install`)
 
-The shell and **owner** phones get `install` on every application and `state.apps` (`{"auto_update": true|false}`, config `apps.auto_update`). Family (`controller`) phones, layout editors, guest passes and anonymous viewers never do (the schema rejects it), so they draw no install controls. Apps that share a Flatpak share one install: the four web apps all show Chromium's.
+The shell and **owner** phones get `install` on every application and `state.apps` (`{"auto_update": true|false, "browser", "streaming_browser", "browsers": [{"id", "label", "flatpak_id", "streaming_unverified"}]}`: config `apps.auto_update`, the web apps' browsers, and the browser table; the last three are absent from older coordinators). Family (`controller`) phones, layout editors, guest passes and anonymous viewers never do (the schema rejects it), so they draw no install controls. Apps that share a Flatpak share one install: the web apps show their browser's (Chromium's by default).
 
 | `state` | Meaning |
 |---|---|

@@ -446,6 +446,14 @@ QString IpcClient::sendAppsConfigure(bool autoUpdate)
     return track(id, QStringLiteral("apps.configure"));
 }
 
+QString IpcClient::sendAppsBrowser(const QString &browser, const QString &streamingBrowser)
+{
+    const QString id = newRequestId();
+    send(QJsonObject{{QStringLiteral("type"), QStringLiteral("apps.browser")}, {QStringLiteral("request_id"), id},
+                     {QStringLiteral("browser"), browser}, {QStringLiteral("streaming_browser"), streamingBrowser}});
+    return track(id, QStringLiteral("apps.browser"));
+}
+
 QString IpcClient::sendWeatherSearch(const QString &query)
 {
     const QString id = newRequestId();

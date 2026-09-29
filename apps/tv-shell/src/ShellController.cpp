@@ -362,6 +362,11 @@ void ShellController::setAutoUpdate(bool enabled)
     m_ipc->sendAppsConfigure(enabled);
 }
 
+void ShellController::setBrowsers(const QString &browser, const QString &streamingBrowser)
+{
+    m_ipc->sendAppsBrowser(browser, streamingBrowser);
+}
+
 void ShellController::setSleepTimer(int minutes)
 {
     m_ipc->sendRequest(QStringLiteral("power.sleep_timer"), QJsonObject{{QStringLiteral("minutes"), minutes}});
@@ -449,13 +454,29 @@ QString ShellController::flatpakIdFor(const QString &adapter) const
         {QStringLiteral("spotify"), QStringLiteral("com.spotify.Client")},
         {QStringLiteral("jellyfin"), QStringLiteral("org.jellyfin.JellyfinDesktop")},
         {QStringLiteral("retroarch"), QStringLiteral("org.libretro.RetroArch")},
-        // Web apps all run in Flathub Chromium (internal/applications/web).
-        {QStringLiteral("netflix"), QStringLiteral("org.chromium.Chromium")},
-        {QStringLiteral("disney-plus"), QStringLiteral("org.chromium.Chromium")},
-        {QStringLiteral("hulu"), QStringLiteral("org.chromium.Chromium")},
-        {QStringLiteral("browser"), QStringLiteral("org.chromium.Chromium")},
     };
-    return ids.value(adapter);
+    // Web apps run in the browser the owner chose (config apps.browser for
+    // the Browser tile, apps.streaming_browser for the streaming sites;
+    // internal/applications/web), Flathub Chromium by default.
+    static const QHash<QString, QString> webSetting{
+        {QStringLiteral("netflix"), QStringLiteral("streaming_browser")},
+        {QStringLiteral("disney-plus"), QStringLiteral("streaming_browser")},
+        {QStringLiteral("hulu"), QStringLiteral("streaming_browser")},
+        {QStringLiteral("browser"), QStringLiteral("browser")},
+    };
+    const auto setting = webSetting.constFind(adapter);
+    if (setting == webSetting.constEnd())
+        return ids.value(adapter);
+    if (SessionModel *s = SessionModel::instance()) {
+        const QVariantMap apps = s->apps();
+        const QString chosen = apps.value(*setting).toString();
+        for (const QVariant &b : apps.value(QStringLiteral("browsers")).toList()) {
+            const QVariantMap browser = b.toMap();
+            if (!chosen.isEmpty() && browser.value(QStringLiteral("id")).toString() == chosen)
+                return browser.value(QStringLiteral("flatpak_id")).toString();
+        }
+    }
+    return QStringLiteral("org.chromium.Chromium");
 }
 
 QString ShellController::ownIconFlatpakIdFor(const QString &adapter) const
@@ -495,7 +516,9 @@ QVariantMap ShellController::appArt(const QString &adapter, bool classic, const 
     // apps are installed or brand files added, so cache it for a minute.
     const bool appsOwn = icons != QLatin1String("bear_den"); // missing means app
     const qint64 now = QDateTime::currentMSecsSinceEpoch();
-    const QString key = adapter + (classic ? QStringLiteral("|classic") : QStringLiteral("|pixel")) + (appsOwn ? QStringLiteral("|app") : QStringLiteral("|bear_den"));
+    // The Flatpak is in the key: the Browser tile's changes with the owner's browser.
+    const QString key = adapter + (classic ? QStringLiteral("|classic") : QStringLiteral("|pixel")) + (appsOwn ? QStringLiteral("|app") : QStringLiteral("|bear_den"))
+                        + QLatin1Char('|') + flatpakIdFor(adapter);
     auto hit = m_artCache.constFind(key);
     if (hit != m_artCache.constEnd() && now - hit->first < 60000)
         return hit->second;

@@ -137,13 +137,10 @@ func installHere(appID string) error {
 		return fmt.Errorf("%q is not an app in config.json", appID)
 	}
 	ad, ok := adapters.ForName(app.Adapter)
-	if !ok || ad.FlatpakID() != app.Launch.AppID {
+	if !ok || !adapters.RunsIn(ad, app.Launch.AppID) {
 		return fmt.Errorf("Bear Den can't install %s", app.Label)
 	}
-	var ids []string
-	for _, a := range adapters.NewRegistry().All() {
-		ids = append(ids, a.FlatpakID())
-	}
+	ids := adapters.NewRegistry().InstallableFlatpakIDs()
 	done := make(chan struct{}, 1)
 	in := install.New(install.Options{Allowed: ids, OnChange: func() {
 		select {
@@ -154,7 +151,7 @@ func installHere(appID string) error {
 	if ok, why := in.Available(); !ok {
 		return errors.New(why)
 	}
-	fid := ad.FlatpakID()
+	fid := app.Launch.AppID
 	if in.Installed(context.Background(), fid) {
 		fmt.Println("Already installed.")
 		return nil

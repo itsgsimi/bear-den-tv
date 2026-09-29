@@ -81,7 +81,7 @@ Graphical checks on the target need `DISPLAY=:0 XAUTHORITY=$HOME/.Xauthority DBU
 | State (devices, sessions, focus memory, Den badge counters) | `$XDG_DATA_HOME/bear-den-tv/state.db` |
 | Artwork cache | `$XDG_CACHE_HOME/bear-den-tv/artwork/` (the DEMO pictures of `dev --dev-fixtures`), `$XDG_CACHE_HOME/bear-den-tv/plex-artwork/` (Plex posters, deleted on sign-out) |
 | Plex client id | `$XDG_DATA_HOME/bear-den-tv/plex-client-id` (32 hex characters; not a secret, but Plex ties the sign-in to it) |
-| Web app profiles (Chromium, one per app: cookies, sign-ins, Widevine) | `$XDG_DATA_HOME/bear-den-tv/web/<app-id>/` ([Streaming sites and the Browser](#streaming-sites-and-the-browser)) |
+| Web app profiles (one per app and browser: cookies, sign-ins, Widevine) | `$XDG_DATA_HOME/bear-den-tv/web/<app-id>/` (Chromium), `$XDG_DATA_HOME/bear-den-tv/web-brave/<app-id>/` (Brave) ([Streaming sites and the Browser](#streaming-sites-and-the-browser)) |
 | IPC socket, instance lock | `$XDG_RUNTIME_DIR/bear-den-tv/` |
 | Connector tokens | Desktop Secret Service (never files) |
 
@@ -607,11 +607,31 @@ An existing `config.json` keeps its own app list: copy the four rows from
 [`contracts/fixtures/config.default.valid.json`](../contracts/fixtures/config.default.valid.json)
 to add them.
 
-**How Bear Den controls Chromium:** it starts
+5. **Brave instead of Chromium** (optional,
+   [ADR 0013](decisions/0013-brave-as-a-browser-choice.md)): TV Settings →
+   Streaming sites, "Browser tile uses" and "Streaming sites use" (◀ ▶).
+   Both start on Chromium. Brave comes from Flathub (`com.brave.Browser`,
+   published by Brave Software) with the same one-press install. Brave
+   itself recommends its native packages over the Flatpak, whose sandbox it
+   has not vetted; those need root, so Bear Den does not install them. For
+   the streaming sites Brave is **unverified** and the row says so: its
+   Flatpak may not load Widevine from Bear Den's profile. Each browser has
+   its own profiles (`web/` and `web-brave/`), so switching starts signed
+   out and switching back finds the old sign-ins. Before each start Bear Den
+   writes Brave's Widevine opt-in (`brave.widevine_opted_in`) and turns its
+   welcome page, full-screen reminder, VPN, Wallet, Leo, Rewards and News
+   buttons off, in its own profiles only. In config: `apps.browser` and
+   `apps.streaming_browser` ([`contracts/config.md`](../contracts/config.md)).
+
+**How Bear Den controls the browser:** it starts
 `flatpak run org.chromium.Chromium --user-data-dir=… --remote-debugging-pipe
 --no-first-run --no-default-browser-check --class=BearDenWeb-<adapter>
 --start-fullscreen --app=<url>` (the Browser: `--start-maximized <url>`) and
 talks to it over that private pipe only; nothing listens on the network.
+Brave gets the same arguments, as `flatpak run
+--filesystem=$XDG_DATA_HOME/bear-den-tv/web-brave com.brave.Browser …`
+(its Flatpak cannot see your data folder otherwise; the grant is for that
+folder and that run only).
 Home pauses a playing video with the site's own pause key first. If Bear Den
 was restarted while a web app was open, the phone says it is not connected:
 close the app and open it again.

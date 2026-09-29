@@ -200,6 +200,8 @@ func (h *ShellHandler) Receive(cl *shellipc.Client, m shellipc.Message) {
 			data, err := c.installInfo(ctx, msg.AppID)
 			h.reply(cl, msg.RequestID, err, data)
 		}()
+	case shellipc.AppsBrowser:
+		h.reply(cl, msg.RequestID, c.setBrowsers(msg.Browser, msg.StreamingBrowser), nil)
 	case shellipc.AppsConfigure:
 		h.reply(cl, msg.RequestID, c.configureApps(msg.AutoUpdate), nil)
 	case shellipc.PowerActivity:

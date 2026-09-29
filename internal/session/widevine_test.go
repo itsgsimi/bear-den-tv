@@ -18,24 +18,32 @@ import (
 )
 
 // fakeDRM's quiet runs wait until the test lets them finish (release) or
-// they are cancelled.
+// they are cancelled. Readiness is per app and browser ("netflix@<flatpak
+// id>"): a profile in one browser is not a profile in another.
 type fakeDRM struct {
 	mu        sync.Mutex
 	ready     map[string]bool
 	prepared  []string
+	browsers  []string // the browser of each prepared run
 	cancelled []string
 	release   chan string
+	current   map[string]string // app → browser of its run in progress
 }
 
-func (f *fakeDRM) Ready(id string) bool {
+func (f *fakeDRM) Ready(id, browser string) bool {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	return f.ready[id]
+	return f.ready[id+"@"+browser]
 }
 
-func (f *fakeDRM) Prepare(ctx context.Context, id string) (bool, error) {
+func (f *fakeDRM) Prepare(ctx context.Context, id, browser string) (bool, error) {
 	f.mu.Lock()
 	f.prepared = append(f.prepared, id)
+	f.browsers = append(f.browsers, browser)
+	if f.current == nil {
+		f.current = map[string]string{}
+	}
+	f.current[id] = browser
 	f.mu.Unlock()
 	select {
 	case <-ctx.Done():
@@ -45,7 +53,7 @@ func (f *fakeDRM) Prepare(ctx context.Context, id string) (bool, error) {
 		return false, ctx.Err()
 	case got := <-f.release:
 		f.mu.Lock()
-		f.ready[got] = true
+		f.ready[got+"@"+f.current[got]] = true
 		f.mu.Unlock()
 		return true, nil
 	}

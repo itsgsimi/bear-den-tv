@@ -28,5 +28,5 @@
   "onboarding": {"completed": false, "lan_consent": false},
   "weather": {"enabled": false, "place": null, "units": "celsius", "scene": true},
   "achievements": {"enabled": true},
-  "apps": {"auto_update": true}
+  "apps": {"auto_update": true, "browser": "chromium", "streaming_browser": "chromium"}
 }

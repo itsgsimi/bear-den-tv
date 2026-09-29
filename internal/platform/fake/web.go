@@ -38,7 +38,7 @@ func (w *Web) Launch(_ context.Context, app config.Application, spec adapters.We
 	w.windows[app.ID] = win
 	w.mu.Unlock()
 	time.AfterFunc(300*time.Millisecond, func() { w.Desk.SetActive(win) })
-	return applications.Instance{FlatpakID: adapters.ChromiumFlatpakID, PID: 30000}, nil
+	return applications.Instance{FlatpakID: app.Launch.AppID, PID: 30000}, nil
 }
 
 // Running reports whether the app's pretend window still exists.

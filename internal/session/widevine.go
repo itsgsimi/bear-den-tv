@@ -1,7 +1,9 @@
-// Playback support for the streaming sites: once Chromium is installed, and
-// when a streaming site is turned on, the coordinator runs each enabled
-// site's profile once, headless, so Flathub Chromium's component updater
-// fetches Widevine into it (web.Widevine), and reports
+// Playback support for the streaming sites: once their browser (Chromium,
+// or Brave by the owner's choice, config apps.streaming_browser) is
+// installed, when a streaming site is turned on, and when the streaming
+// sites move to another browser, the coordinator runs each enabled site's
+// profile once, headless, so the browser's component updater fetches
+// Widevine into it (web.Widevine), and reports
 // state.applications[].install.drm: ready, preparing or pending ("Still
 // setting up playback support"). Opening the site stops its quiet run
 // (Chromium allows one process per profile; the real run fetches the CDM
@@ -17,15 +19,24 @@ import (
 )
 
 // WebDRM is the seam to web.Widevine (a fake in tests).
+// browserID is the Flatpak id of the browser the app runs in (its
+// launch.app_id).
 type WebDRM interface {
-	Ready(appID string) bool
-	Prepare(ctx context.Context, appID string) (bool, error)
+	Ready(appID, browserID string) bool
+	Prepare(ctx context.Context, appID, browserID string) (bool, error)
 }
 
 // drmState is the playback-support bookkeeping (c.mu).
 type drmState struct {
-	ready     map[string]bool               // last check per streaming app
-	preparing map[string]context.CancelFunc // quiet runs in progress
+	ready     map[string]bool    // last check per streaming app
+	preparing map[string]*drmRun // quiet runs in progress
+}
+
+// drmRun is one quiet run: cancel ends it, done closes once it has ended
+// and left preparing.
+type drmRun struct {
+	cancel context.CancelFunc
+	done   chan struct{}
 }
 
 // isStreaming reports whether a config app is a streaming site (a web app
@@ -63,7 +74,7 @@ func (c *Coordinator) refreshDRM() {
 	now := map[string]bool{}
 	for _, a := range c.opts.Config.Current().Applications {
 		if c.isStreaming(a) {
-			now[a.ID] = c.opts.DRM.Ready(a.ID)
+			now[a.ID] = c.opts.DRM.Ready(a.ID, a.Launch.AppID)
 		}
 	}
 	c.mu.Lock()
@@ -78,36 +89,40 @@ func (c *Coordinator) refreshDRM() {
 	}
 }
 
-// prepareDRM runs the quiet first run for each app in turn, skipping apps
-// that are ready or already preparing.
+// prepareDRM runs the quiet first run for each app in turn (in the browser
+// its config row names at that moment), skipping apps that are ready or
+// already preparing.
 func (c *Coordinator) prepareDRM(appIDs []string) {
 	if c.opts.DRM == nil || len(appIDs) == 0 {
 		return
 	}
 	go func() {
 		for _, id := range appIDs {
-			if c.opts.DRM.Ready(id) {
+			app, ok := c.opts.Config.Current().Application(id)
+			if !ok || c.opts.DRM.Ready(id, app.Launch.AppID) {
 				continue
 			}
 			ctx, cancel := context.WithCancel(context.Background())
 			c.mu.Lock()
 			if c.drm.preparing == nil {
-				c.drm.preparing = map[string]context.CancelFunc{}
+				c.drm.preparing = map[string]*drmRun{}
 			}
 			if c.drm.preparing[id] != nil {
 				c.mu.Unlock()
 				cancel()
 				continue
 			}
-			c.drm.preparing[id] = cancel
+			run := &drmRun{cancel: cancel, done: make(chan struct{})}
+			c.drm.preparing[id] = run
 			c.mu.Unlock()
 			c.publish()
 			c.log.Info("session: preparing playback support", "app", id)
-			ok, err := c.opts.DRM.Prepare(ctx, id)
+			ok, err := c.opts.DRM.Prepare(ctx, id, app.Launch.AppID)
 			cancel()
 			c.mu.Lock()
 			delete(c.drm.preparing, id)
 			c.mu.Unlock()
+			close(run.done)
 			c.log.Info("session: playback support", "app", id, "ready", ok, "err", err)
 			c.refreshDRM()
 			c.publish()
@@ -115,14 +130,19 @@ func (c *Coordinator) prepareDRM(appIDs []string) {
 	}()
 }
 
-// stopDRMPrep ends appID's quiet run (the site is opening for real).
-func (c *Coordinator) stopDRMPrep(appID string) {
+// stopDRMPrep ends appID's quiet run (the site is opening for real, or
+// moving to another browser); the channel closes once it has ended.
+func (c *Coordinator) stopDRMPrep(appID string) <-chan struct{} {
 	c.mu.Lock()
-	cancel := c.drm.preparing[appID]
+	run := c.drm.preparing[appID]
 	c.mu.Unlock()
-	if cancel != nil {
-		cancel()
+	if run == nil {
+		done := make(chan struct{})
+		close(done)
+		return done
 	}
+	run.cancel()
+	return run.done
 }
 
 // prepareEnabledStreaming prepares the enabled streaming sites that use

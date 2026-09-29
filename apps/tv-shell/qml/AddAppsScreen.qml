@@ -1,6 +1,6 @@
 // Settings → Add apps: every app Bear Den knows (the adapter table's apps in
 // state.applications) that is not installed, core and optional, one row per
-// Flatpak, so the four web apps are one row for Chromium ("Browser for
+// Flatpak, so the web apps are one row per browser ("Browser for
 // Netflix, Disney+, Hulu"). OK opens the install card (InstallCard.qml);
 // each row shows its install's progress from state.applications[].install.
 // Optional apps appear on Home once installed (hide_when_missing).

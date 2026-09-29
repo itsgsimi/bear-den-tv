@@ -35,9 +35,10 @@ appear only when installed). A missing one installs per user from Flathub
 on one press by the owner, without root
 ([ADR 0011](docs/decisions/0011-per-user-flathub-installs.md)). Bear Den launches them, brings them to the front, tunes their settings and returns
 Home. It never wraps, embeds or patches them. Netflix, Disney+, Hulu and a
-Browser tile are web apps: Flathub Chromium, one profile each, driven over the
-DevTools pipe with Bear Den's navigation script
-([ADR 0010](docs/decisions/0010-web-apps-over-cdp-pipe.md)); the streaming
+Browser tile are web apps: Flathub Chromium (or Brave, the owner's choice),
+one profile each, driven over the DevTools pipe with Bear Den's navigation
+script ([ADR 0010](docs/decisions/0010-web-apps-over-cdp-pipe.md),
+[ADR 0013](docs/decisions/0013-brave-as-a-browser-choice.md)); the streaming
 sites are off until the owner turns them on.
 
 ## Read first

@@ -10,10 +10,13 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"syscall"
 	"testing"
 	"time"
+
+	"bear-den-tv/internal/applications/adapters"
 )
 
 type wvProc struct {
@@ -28,15 +31,20 @@ func (p *wvProc) end()                  { p.once.Do(func() { close(p.done) }) }
 // wvStarter is a Chromium whose component updater writes the CDM after
 // `after` (never when zero).
 type wvStarter struct {
-	after time.Duration
-	mu    sync.Mutex
-	args  [][]string
-	proc  *wvProc
+	after    time.Duration
+	mu       sync.Mutex
+	args     [][]string
+	browsers []string
+	proc     *wvProc
 }
 
-func (s *wvStarter) Start(_ context.Context, args []string, extra []*os.File) (Process, error) {
+// cr is Chromium's Flatpak id, the default browser.
+const cr = adapters.ChromiumFlatpakID
+
+func (s *wvStarter) Start(_ context.Context, b adapters.BrowserInfo, args []string, extra []*os.File) (Process, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	s.browsers = append(s.browsers, b.FlatpakID)
 	if len(extra) != 0 {
 		return nil, fmt.Errorf("the quiet run got %d extra fds", len(extra))
 	}
@@ -75,12 +83,12 @@ func newWidevine(t *testing.T, s *wvStarter, timeout time.Duration) (*Widevine, 
 func TestPrepareRunsHeadlessUntilWidevineAppears(t *testing.T) {
 	s := &wvStarter{after: 30 * time.Millisecond}
 	w, sigs := newWidevine(t, s, 5*time.Second)
-	if w.Ready("netflix") {
+	if w.Ready("netflix", cr) {
 		t.Fatal("ready before anything ran")
 	}
-	ok, err := w.Prepare(context.Background(), "netflix")
-	if err != nil || !ok || !w.Ready("netflix") {
-		t.Fatalf("Prepare = %v, %v; ready %v", ok, err, w.Ready("netflix"))
+	ok, err := w.Prepare(context.Background(), "netflix", cr)
+	if err != nil || !ok || !w.Ready("netflix", cr) {
+		t.Fatalf("Prepare = %v, %v; ready %v", ok, err, w.Ready("netflix", cr))
 	}
 	profile := filepath.Join(w.DataHome, "bear-den-tv", "web", "netflix")
 	want := fmt.Sprint([][]string{{"--user-data-dir=" + profile, "--headless=new", "--no-first-run", "--no-default-browser-check", "about:blank"}})
@@ -94,11 +102,11 @@ func TestPrepareRunsHeadlessUntilWidevineAppears(t *testing.T) {
 		t.Fatalf("profile %v %v", st, err)
 	}
 	// Ready already: nothing runs again.
-	if ok, _ := w.Prepare(context.Background(), "netflix"); !ok || len(s.args) != 1 {
+	if ok, _ := w.Prepare(context.Background(), "netflix", cr); !ok || len(s.args) != 1 {
 		t.Fatalf("ran again: %v", s.args)
 	}
 	// Other profiles are separate.
-	if w.Ready("hulu") {
+	if w.Ready("hulu", cr) {
 		t.Fatal("hulu shares netflix's profile")
 	}
 }
@@ -106,7 +114,7 @@ func TestPrepareRunsHeadlessUntilWidevineAppears(t *testing.T) {
 func TestPrepareGivesUpAndStops(t *testing.T) {
 	s := &wvStarter{} // never fetches
 	w, sigs := newWidevine(t, s, 40*time.Millisecond)
-	ok, err := w.Prepare(context.Background(), "hulu")
+	ok, err := w.Prepare(context.Background(), "hulu", cr)
 	if ok || err != nil {
 		t.Fatalf("Prepare = %v, %v", ok, err)
 	}
@@ -117,13 +125,40 @@ func TestPrepareGivesUpAndStops(t *testing.T) {
 	w2, sigs2 := newWidevine(t, s2, time.Minute)
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() { time.Sleep(20 * time.Millisecond); cancel() }()
-	if ok, err := w2.Prepare(ctx, "disney-plus"); ok || err == nil {
+	if ok, err := w2.Prepare(ctx, "disney-plus", cr); ok || err == nil {
 		t.Fatalf("cancelled Prepare = %v, %v", ok, err)
 	}
 	if len(*sigs2) == 0 {
 		t.Fatal("Chromium left running after a cancel")
 	}
-	if _, err := w2.Prepare(context.Background(), "../escape"); err == nil {
+	if _, err := w2.Prepare(context.Background(), "../escape", cr); err == nil {
 		t.Fatal("a bad app id reached a path")
+	}
+}
+
+// Brave: the quiet run uses Brave's own profile root (never Chromium's
+// profile) and finds its Widevine opt-in already in Local State, which
+// Bear Den wrote there first; a browser outside the table never starts.
+func TestPrepareInBraveSeedsTheOptInFirst(t *testing.T) {
+	s := &wvStarter{after: 30 * time.Millisecond}
+	w, _ := newWidevine(t, s, 5*time.Second)
+	br := adapters.BraveFlatpakID
+	ok, err := w.Prepare(context.Background(), "netflix", br)
+	if err != nil || !ok || !w.Ready("netflix", br) {
+		t.Fatalf("Prepare = %v, %v", ok, err)
+	}
+	if w.Ready("netflix", cr) {
+		t.Fatal("Chromium's profile counted as Brave's")
+	}
+	profile := filepath.Join(w.DataHome, "bear-den-tv", "web-brave", "netflix")
+	if fmt.Sprint(s.browsers) != "["+br+"]" || s.args[0][0] != "--user-data-dir="+profile {
+		t.Fatalf("browsers %v args %v", s.browsers, s.args)
+	}
+	raw, err := os.ReadFile(filepath.Join(profile, "Local State"))
+	if err != nil || !strings.Contains(string(raw), `"widevine_opted_in":true`) {
+		t.Fatalf("Local State %s %v", raw, err)
+	}
+	if _, err := w.Prepare(context.Background(), "hulu", "org.example.Browser"); err == nil || len(s.args) != 1 {
+		t.Fatalf("an unknown browser ran: %v %v", err, s.args)
 	}
 }

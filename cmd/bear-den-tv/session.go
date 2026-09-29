@@ -311,7 +311,7 @@ func runSession(f sessionFlags) error {
 	dataHome := filepath.Dir(paths.DataDir) // $XDG_DATA_HOME; profiles in bear-den-tv/web/<app-id>
 	switch {
 	case !f.dev:
-		webApps = web.NewManager(web.Options{DataHome: dataHome, Starter: web.FlatpakStarter(), Logger: log})
+		webApps = web.NewManager(web.Options{DataHome: dataHome, Starter: web.FlatpakStarter(dataHome), Logger: log})
 	case f.devBrowser != "":
 		fd := desk.(*fake.Desktop)
 		webApps = devBrowser{Manager: web.NewManager(web.Options{DataHome: dataHome, Logger: log,
@@ -325,13 +325,12 @@ func runSession(f sessionFlags) error {
 	var appInstaller session.AppInstaller
 	var webDRM session.WebDRM // the streaming sites' Widevine (on the TV only)
 	if !f.dev {
-		webDRM = &web.Widevine{DataHome: dataHome, Starter: web.FlatpakStarter()}
+		webDRM = &web.Widevine{DataHome: dataHome, Starter: web.FlatpakStarter(dataHome)}
 	}
 	var onInstallChange func()
-	var tableIDs []string
-	for _, a := range adapters.NewRegistry().All() {
-		tableIDs = append(tableIDs, a.FlatpakID())
-	}
+	// Every Flatpak the adapter table names: each app's own and each
+	// browser the web apps may run in (adapters.Browsers).
+	tableIDs := adapters.NewRegistry().InstallableFlatpakIDs()
 	switch {
 	case !f.dev:
 		appInstaller = install.New(install.Options{Allowed: tableIDs, OnChange: func() {

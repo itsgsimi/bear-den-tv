@@ -1,7 +1,9 @@
-// App install messages (contracts/ipc.md, app.install*, apps.configure): the
-// TV's install card and Settings → Add apps start, size and cancel a per-user
-// Flathub install of one registered app, and Settings → Keep apps up to date
-// stores config apps.auto_update. Every one is answered with Result. The
+// App install messages (contracts/ipc.md, app.install*, apps.configure,
+// apps.browser): the TV's install card and Settings → Add apps start, size
+// and cancel a per-user Flathub install of one registered app, Settings →
+// Keep apps up to date stores config apps.auto_update, and Settings →
+// Streaming sites stores the web apps' browsers (config apps.browser and
+// apps.streaming_browser). Every one is answered with Result. The
 // shell and the cli (`bear-den-tv apps install`) are the trusted senders;
 // phones use the owner-only actions app.install and app.install_cancel.
 
@@ -13,6 +15,7 @@ const (
 	TypeAppInstallInfo   = "app.install_info"
 	TypeAppInstallCancel = "app.install_cancel"
 	TypeAppsConfigure    = "apps.configure"
+	TypeAppsBrowser      = "apps.browser"
 )
 
 // AppInstall starts installing the Flatpak of a registered application
@@ -60,6 +63,19 @@ type AppsConfigure struct {
 // Kind implements Message.
 func (AppsConfigure) Kind() string { return TypeAppsConfigure }
 
+// AppsBrowser stores the web apps' browsers: Browser for the Browser tile
+// and StreamingBrowser for the streaming sites, each a browser name from
+// the adapter table (state.apps.browsers[].id). Both are sent every time.
+type AppsBrowser struct {
+	Type             string `json:"type"`
+	RequestID        string `json:"request_id"`
+	Browser          string `json:"browser"`
+	StreamingBrowser string `json:"streaming_browser"`
+}
+
+// Kind implements Message.
+func (AppsBrowser) Kind() string { return TypeAppsBrowser }
+
 // decodeInstall returns an empty message for an app install type, or nil.
 func decodeInstall(t string) Message {
 	switch t {
@@ -71,6 +87,8 @@ func decodeInstall(t string) Message {
 		return &AppInstallCancel{}
 	case TypeAppsConfigure:
 		return &AppsConfigure{}
+	case TypeAppsBrowser:
+		return &AppsBrowser{}
 	}
 	return nil
 }
@@ -85,6 +103,8 @@ func derefInstall(m Message) Message {
 	case *AppInstallCancel:
 		return *t
 	case *AppsConfigure:
+		return *t
+	case *AppsBrowser:
 		return *t
 	}
 	return nil

@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"fmt"
 
+	"bear-den-tv/internal/applications/adapters"
 	"bear-den-tv/internal/contract"
 	"bear-den-tv/internal/platform"
 	"bear-den-tv/internal/remote"
@@ -96,7 +97,10 @@ func (c *Coordinator) buildStateFor(view viewKind, v *remote.Viewer) contract.St
 		st.Shell.Focus = contract.Focus{}
 		st.LayoutPending = nil
 	}
-	apps := &contract.AppsState{AutoUpdate: cfg.AutoUpdate()}
+	apps := &contract.AppsState{AutoUpdate: cfg.AutoUpdate(), Browser: cfg.BrowserName(), StreamingBrowser: cfg.StreamingBrowserName()}
+	for _, b := range adapters.Browsers() {
+		apps.Browsers = append(apps.Browsers, contract.BrowserOption{ID: b.Name, Label: b.Label, FlatpakID: b.FlatpakID, StreamingUnverified: b.StreamingUnverified})
+	}
 	switch view {
 	case viewShell:
 		st.Apps = apps

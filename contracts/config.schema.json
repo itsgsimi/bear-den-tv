@@ -134,8 +134,12 @@
     },
     "apps": {
       "type": "object",
-      "description": "Optional; absent means auto_update on. App installs from Flathub (contracts/config.md).",
-      "properties": {"auto_update": {"type": "boolean", "description": "Keep apps up to date: update the apps installed for this user while the TV is idle."}},
+      "description": "Optional; absent means auto_update on and Chromium for every web app. App installs from Flathub and the web apps' browser (contracts/config.md).",
+      "properties": {
+        "auto_update": {"type": "boolean", "description": "Keep apps up to date: update the apps installed for this user while the TV is idle."},
+        "browser": {"enum": ["chromium", "brave"], "description": "The Browser tile's browser (absent = chromium). Rule 3: the browser row's launch.app_id is this browser's Flatpak id."},
+        "streaming_browser": {"enum": ["chromium", "brave"], "description": "The streaming sites' browser (absent = chromium; brave is unverified for streaming). Rule 3: their rows' launch.app_id is this browser's Flatpak id."}
+      },
       "required": ["auto_update"],
       "additionalProperties": false
     },

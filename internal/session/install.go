@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"time"
 
+	"bear-den-tv/internal/applications/adapters"
 	"bear-den-tv/internal/applications/install"
 	"bear-den-tv/internal/config"
 	"bear-den-tv/internal/contract"
@@ -189,7 +190,7 @@ func (c *Coordinator) startInstall(appID string) (map[string]any, error) {
 	}
 	fid := app.Launch.AppID
 	ad, known := c.opts.Adapters.ForName(app.Adapter)
-	if !known || ad.FlatpakID() != fid || !in.Allowed(fid) {
+	if !known || !adapters.RunsIn(ad, fid) || !in.Allowed(fid) {
 		return nil, &installError{contract.CodeUnsupported, "Bear Den can't install " + app.Label + "."}
 	}
 	c.mu.Lock()
@@ -290,7 +291,12 @@ func (c *Coordinator) installInfo(ctx context.Context, appID string) (map[string
 // configureApps is IPC apps.configure (Settings → Keep apps up to date).
 func (c *Coordinator) configureApps(autoUpdate bool) error {
 	if _, err := c.opts.Config.Update(func(cfg *config.Config) error {
-		cfg.Apps = &config.Apps{AutoUpdate: autoUpdate}
+		apps := config.Apps{}
+		if cfg.Apps != nil {
+			apps = *cfg.Apps // the browser choices stay
+		}
+		apps.AutoUpdate = autoUpdate
+		cfg.Apps = &apps
 		return nil
 	}); err != nil {
 		return err

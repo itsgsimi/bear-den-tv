@@ -12,6 +12,7 @@ import (
 	"io/fs"
 
 	bdtv "bear-den-tv"
+	"bear-den-tv/internal/applications/adapters"
 	"bear-den-tv/internal/contract"
 )
 
@@ -50,11 +51,43 @@ type Apps struct {
 	// AutoUpdate keeps the apps installed for this user up to date while
 	// the TV is idle (internal/applications/install).
 	AutoUpdate bool `json:"auto_update"`
+	// Browser is the Browser tile's browser and StreamingBrowser the
+	// streaming sites' (adapters.Browsers names; "" = chromium). Rule 3
+	// ties each web row's launch.app_id to it.
+	Browser          string `json:"browser,omitempty"`
+	StreamingBrowser string `json:"streaming_browser,omitempty"`
 }
 
 // AutoUpdate reports config apps.auto_update; an absent block means on.
 func (c Config) AutoUpdate() bool {
 	return c.Apps == nil || c.Apps.AutoUpdate
+}
+
+// BrowserName is config apps.browser, the Browser tile's browser
+// (adapters.DefaultBrowser when absent).
+func (c Config) BrowserName() string {
+	if c.Apps == nil || c.Apps.Browser == "" {
+		return adapters.DefaultBrowser
+	}
+	return c.Apps.Browser
+}
+
+// StreamingBrowserName is config apps.streaming_browser, the streaming
+// sites' browser (adapters.DefaultBrowser when absent).
+func (c Config) StreamingBrowserName() string {
+	if c.Apps == nil || c.Apps.StreamingBrowser == "" {
+		return adapters.DefaultBrowser
+	}
+	return c.Apps.StreamingBrowser
+}
+
+// WebBrowserFor is the browser name for a web spec: the streaming sites'
+// or the Browser tile's.
+func (c Config) WebBrowserFor(spec adapters.WebSpec) string {
+	if spec.IsStreaming() {
+		return c.StreamingBrowserName()
+	}
+	return c.BrowserName()
 }
 
 // Achievements is config.achievements: whether Den badges count anything.

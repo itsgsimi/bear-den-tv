@@ -259,6 +259,21 @@ export interface Install {
 /** state.apps: owner phones and the shell only. */
 export interface AppsSettings {
   auto_update: boolean;
+  /** config apps.browser: the Browser tile's browser (a browsers[].id). */
+  browser?: string;
+  /** config apps.streaming_browser: the streaming sites' browser. */
+  streaming_browser?: string;
+  /** The browsers web apps may run in (the adapter table's). */
+  browsers?: BrowserOption[];
+}
+
+/** state.apps.browsers[]: one browser web apps may run in. */
+export interface BrowserOption {
+  id: string;
+  label: string;
+  flatpak_id: string;
+  /** Nothing shows the streaming sites' Widevine works in this browser's Flatpak. */
+  streaming_unverified: boolean;
 }
 
 export interface RemoteLimits {

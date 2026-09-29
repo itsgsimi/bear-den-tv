@@ -15,22 +15,39 @@ import (
 	"bear-den-tv/internal/config"
 )
 
-func TestProfileDirIsPerApp(t *testing.T) {
-	got, err := ProfileDir("/home/u/.local/share", "netflix")
+func browser(t *testing.T, name string) adapters.BrowserInfo {
+	t.Helper()
+	b, ok := adapters.BrowserNamed(name)
+	if !ok {
+		t.Fatal(name)
+	}
+	return b
+}
+
+func TestProfileDirIsPerAppAndBrowser(t *testing.T) {
+	chromium, brave := browser(t, "chromium"), browser(t, "brave")
+	got, err := ProfileDir("/home/u/.local/share", chromium, "netflix")
 	if err != nil || got != "/home/u/.local/share/bear-den-tv/web/netflix" {
 		t.Fatalf("got %q %v", got, err)
 	}
-	other, _ := ProfileDir("/home/u/.local/share", "hulu")
+	other, _ := ProfileDir("/home/u/.local/share", chromium, "hulu")
 	if other == got {
 		t.Fatal("two apps share a profile")
 	}
+	// Brave never opens a Chromium profile.
+	if b, err := ProfileDir("/home/u/.local/share", brave, "netflix"); err != nil || b != "/home/u/.local/share/bear-den-tv/web-brave/netflix" {
+		t.Fatalf("brave profile %q %v", b, err)
+	}
 	for _, bad := range []string{"", "../x", "Netflix", "a/b", "net flix", strings.Repeat("a", 65)} {
-		if _, err := ProfileDir("/d", bad); err == nil {
+		if _, err := ProfileDir("/d", chromium, bad); err == nil {
 			t.Errorf("app id %q accepted", bad)
 		}
 	}
-	if _, err := ProfileDir("relative", "netflix"); err == nil {
+	if _, err := ProfileDir("relative", chromium, "netflix"); err == nil {
 		t.Error("relative data dir accepted")
+	}
+	if _, err := ProfileDir("/d", adapters.BrowserInfo{FlatpakID: "org.example.Browser", ProfileRoot: "../x"}, "netflix"); err == nil {
+		t.Error("a browser outside the table got a profile root")
 	}
 }
 
@@ -61,9 +78,9 @@ func TestLaunchArgvExact(t *testing.T) {
 	if !reflect.DeepEqual(app, want) {
 		t.Fatalf("app mode argv\n got %q\nwant %q", app, want)
 	}
-	full := FlatpakArgv(app)
-	if !reflect.DeepEqual(full[:3], []string{"flatpak", "run", "org.chromium.Chromium"}) || !reflect.DeepEqual(full[3:], want) {
-		t.Fatalf("flatpak argv %q", full)
+	full, err := FlatpakArgv("/d", browser(t, "chromium"), app)
+	if err != nil || !reflect.DeepEqual(full[:3], []string{"flatpak", "run", "org.chromium.Chromium"}) || !reflect.DeepEqual(full[3:], want) {
+		t.Fatalf("flatpak argv %q %v", full, err)
 	}
 	browser := ChromiumArgs(spec(t, "browser"), "/d/bear-den-tv/web/browser", BlankPage)
 	wantB := []string{
@@ -210,5 +227,57 @@ func TestCheckEffectIsAClosedSet(t *testing.T) {
 		if err := checkEffect(c.action, &c.e, vp); err == nil {
 			t.Errorf("%s %+v accepted", c.action, c.e)
 		}
+	}
+}
+
+// Brave: the same browser switches (Brave's help center lists each one;
+// --remote-debugging-pipe reads fd 3 and writes fd 4 as in Chromium) on
+// Brave's own profile, and `flatpak run` grants the Brave Flatpak its
+// profile root and nothing else for this run: its finish-args give it
+// neither home nor xdg-data.
+func TestBraveArgvExact(t *testing.T) {
+	brave := browser(t, "brave")
+	profile, err := ProfileDir("/d", brave, "browser")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := FlatpakArgv("/d", brave, ChromiumArgs(spec(t, "browser"), profile, BlankPage))
+	want := []string{
+		"flatpak", "run", "--filesystem=/d/bear-den-tv/web-brave", "com.brave.Browser",
+		"--user-data-dir=/d/bear-den-tv/web-brave/browser",
+		"--remote-debugging-pipe",
+		"--no-first-run",
+		"--no-default-browser-check",
+		"--class=BearDenWeb-browser",
+		"--start-maximized",
+		"about:blank",
+	}
+	if err != nil || !reflect.DeepEqual(got, want) {
+		t.Fatalf("brave argv\n got %q\nwant %q (%v)", got, want, err)
+	}
+	stream, _ := ProfileDir("/d", brave, "netflix")
+	got, _ = FlatpakArgv("/d", brave, ChromiumArgs(spec(t, "netflix"), stream, "https://www.netflix.com/"))
+	want = []string{
+		"flatpak", "run", "--filesystem=/d/bear-den-tv/web-brave", "com.brave.Browser",
+		"--user-data-dir=/d/bear-den-tv/web-brave/netflix",
+		"--remote-debugging-pipe",
+		"--no-first-run",
+		"--no-default-browser-check",
+		"--class=BearDenWeb-netflix",
+		"--start-fullscreen",
+		"--app=https://www.netflix.com/",
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("brave app argv\n got %q\nwant %q", got, want)
+	}
+	// Only table browsers run, with the table's own settings.
+	if _, err := FlatpakArgv("/d", adapters.BrowserInfo{Name: "evil", FlatpakID: "org.example.Evil"}, nil); err == nil {
+		t.Error("a browser outside the table got an argv")
+	}
+	if _, err := FlatpakArgv("/d", adapters.BrowserInfo{Name: "chromium", FlatpakID: "com.brave.Browser"}, nil); err == nil {
+		t.Error("a mislabelled browser got an argv")
+	}
+	if _, err := FlatpakArgv("/d:rw", brave, nil); err == nil {
+		t.Error("a data dir with ':' reached --filesystem")
 	}
 }

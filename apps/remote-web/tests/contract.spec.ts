@@ -97,12 +97,18 @@ const SCHEMA_FOR: Record<string, string> = {
   'state.phone-web-app.valid.json': 'state.schema.json',
   'state.enabled-not-bool.invalid.json': 'state.schema.json',
   'config.web-apps.valid.json': 'config.schema.json',
+  'config.brave-browser.valid.json': 'config.schema.json',
+  'config.browser-unknown.invalid.json': 'config.schema.json',
+  'state.phone-owner-browsers.valid.json': 'state.schema.json',
+  'state.browser-no-note.invalid.json': 'state.schema.json',
   'config.web-http.invalid.json': 'config.schema.json',
   'config.web-no-url.invalid.json': 'config.schema.json',
 };
 const SEMANTIC_ONLY = new Set(['config.dangling-ref.invalid.json', 'config.token-leak.invalid.json', 'config.weather-precise.invalid.json',
   // Rule 11 (config.md): user info, another host and launch args are Go-only semantic checks.
-  'config.web-credentials.invalid.json', 'config.web-wrong-host.invalid.json', 'config.web-launch-args.invalid.json']);
+  'config.web-credentials.invalid.json', 'config.web-wrong-host.invalid.json', 'config.web-launch-args.invalid.json',
+  // Rule 3 (config.md): a web row's launch.app_id must be the browser config apps names for it.
+  'config.browser-mismatch.invalid.json']);
 
 describe('contracts/fixtures', () => {
   const files = readdirSync(fixtures).filter((f) => f.endsWith('.json'));

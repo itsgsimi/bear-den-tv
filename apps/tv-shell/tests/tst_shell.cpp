@@ -897,6 +897,108 @@ private slots:
         goHome();
     }
 
+    // Settings → Streaming sites: after the sites come the two browser rows
+    // (the Browser tile's, the streaming sites'), from state.apps.browsers;
+    // ◀ ▶ send apps.browser with both choices; a browser marked
+    // streaming_unverified says "Unverified for streaming" on the streaming
+    // row and nowhere else; the Browser tile's Flatpak (Add apps, icons)
+    // follows the choice while the streaming sites stay in theirs.
+    void streamingBrowserChoiceAndUnverifiedNote()
+    {
+        SessionModel *session = SessionModel::instance();
+        ShellController *shell = ShellController::instance();
+        const auto restore = qScopeGuard([session, this] { session->applySnapshot(fixture()); });
+        auto withBrowsers = [this](const QString &browser, const QString &streaming) {
+            QJsonObject snap = installSnapshot(QStringLiteral("available"));
+            QJsonArray apps = snap.value(QStringLiteral("applications")).toArray();
+            QJsonObject b = apps.last().toObject(); // hulu's shape, as the Browser
+            b.insert(QStringLiteral("id"), QStringLiteral("browser"));
+            b.insert(QStringLiteral("label"), QStringLiteral("Browser"));
+            b.insert(QStringLiteral("adapter"), QStringLiteral("browser"));
+            apps.append(b);
+            snap.insert(QStringLiteral("applications"), apps);
+            snap.insert(QStringLiteral("apps"), QJsonObject{
+                {QStringLiteral("auto_update"), true}, {QStringLiteral("browser"), browser}, {QStringLiteral("streaming_browser"), streaming},
+                {QStringLiteral("browsers"), QJsonArray{
+                    QJsonObject{{QStringLiteral("id"), QStringLiteral("chromium")}, {QStringLiteral("label"), QStringLiteral("Chromium")},
+                                {QStringLiteral("flatpak_id"), QStringLiteral("org.chromium.Chromium")}, {QStringLiteral("streaming_unverified"), false}},
+                    QJsonObject{{QStringLiteral("id"), QStringLiteral("brave")}, {QStringLiteral("label"), QStringLiteral("Brave")},
+                                {QStringLiteral("flatpak_id"), QStringLiteral("com.brave.Browser")}, {QStringLiteral("streaming_unverified"), true}}}}});
+            return snap;
+        };
+        auto rowTexts = [this]() {
+            QStringList out;
+            std::function<void(QQuickItem *)> find = [&](QQuickItem *item) {
+                if (!item->isVisible())
+                    return;
+                if (item->objectName() == QLatin1String("browserRow"))
+                    out << item->property("label").toString() + u'=' + item->property("value").toString() + u'|' + item->property("description").toString();
+                for (QQuickItem *child : item->childItems())
+                    find(child);
+            };
+            find(m_window->contentItem());
+            return out;
+        };
+        QVERIFY2(session->applySnapshot(withBrowsers(QStringLiteral("brave"), QStringLiteral("chromium"))), qPrintable(session->lastError()));
+        QCOMPARE(shell->flatpakIdFor(QStringLiteral("browser")), QStringLiteral("com.brave.Browser"));
+        QCOMPARE(shell->flatpakIdFor(QStringLiteral("netflix")), QStringLiteral("org.chromium.Chromium"));
+        QCOMPARE(shell->ownIconFlatpakIdFor(QStringLiteral("browser")), QStringLiteral("com.brave.Browser"));
+        IpcClient *ipc = shell->ipc();
+        goHome();
+        toHeader();
+        act(QStringLiteral("nav.right"));
+        act(QStringLiteral("select"));
+        for (int i = 0; i < 40 && m_nav->itemId() != QLatin1String("streaming"); ++i)
+            act(QStringLiteral("nav.down"));
+        act(QStringLiteral("select"));
+        QCOMPARE(m_nav->sectionId(), QStringLiteral("streaming"));
+        for (int i = 0; i < 8; ++i)
+            act(QStringLiteral("nav.down"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("browser-streaming"));
+        act(QStringLiteral("nav.up"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("browser-browser"));
+        QStringList rows = rowTexts();
+        QCOMPARE(rows.size(), 2);
+        QVERIFY2(rows.at(0).startsWith(QStringLiteral("Browser tile uses=Brave|")), qPrintable(rows.join(u'\n')));
+        QVERIFY2(rows.at(1).startsWith(QStringLiteral("Streaming sites use=Chromium|")) && !rows.join(u' ').contains(QStringLiteral("Unverified")), qPrintable(rows.join(u'\n')));
+        shot(QStringLiteral("settings-streaming-browser-brave"));
+        ipc->clearSent();
+        act(QStringLiteral("nav.right")); // Brave → Chromium (the table wraps)
+        QJsonObject sent = lastSent(QStringLiteral("apps.browser"));
+        QCOMPARE(sent.value(QStringLiteral("browser")).toString(), QStringLiteral("chromium"));
+        QCOMPARE(sent.value(QStringLiteral("streaming_browser")).toString(), QStringLiteral("chromium"));
+        act(QStringLiteral("nav.down"));
+        ipc->clearSent();
+        act(QStringLiteral("nav.left"));
+        sent = lastSent(QStringLiteral("apps.browser"));
+        QCOMPARE(sent.value(QStringLiteral("browser")).toString(), QStringLiteral("brave"));
+        QCOMPARE(sent.value(QStringLiteral("streaming_browser")).toString(), QStringLiteral("brave"));
+
+        // The coordinator's answer: streaming in Brave, with the note.
+        QVERIFY2(session->applySnapshot(withBrowsers(QStringLiteral("brave"), QStringLiteral("brave"))), qPrintable(session->lastError()));
+        rows = rowTexts();
+        QVERIFY2(rows.size() == 2 && rows.at(1).startsWith(QStringLiteral("Streaming sites use=Brave|Unverified for streaming")), qPrintable(rows.join(u'\n')));
+        QVERIFY2(!rows.at(0).contains(QStringLiteral("Unverified")), qPrintable(rows.at(0)));
+        QCOMPARE(shell->flatpakIdFor(QStringLiteral("netflix")), QStringLiteral("com.brave.Browser"));
+        shot(QStringLiteral("settings-streaming-unverified-note"));
+
+        // A browsers entry without its note is refused (contracts first).
+        QJsonObject bad = withBrowsers(QStringLiteral("brave"), QStringLiteral("brave"));
+        QJsonObject apps = bad.value(QStringLiteral("apps")).toObject();
+        QJsonArray list = apps.value(QStringLiteral("browsers")).toArray();
+        QJsonObject brave = list.at(1).toObject();
+        brave.remove(QStringLiteral("streaming_unverified"));
+        list.replace(1, brave);
+        apps.insert(QStringLiteral("browsers"), list);
+        bad.insert(QStringLiteral("apps"), apps);
+        QVERIFY(!session->applySnapshot(bad));
+
+        act(QStringLiteral("back"));
+        for (int i = 0; i < 40; ++i) // leave Settings at its first row for the tests after
+            act(QStringLiteral("nav.up"));
+        goHome();
+    }
+
     void installStateAcceptedAndChecked()
     {
         SessionModel *session = SessionModel::instance();

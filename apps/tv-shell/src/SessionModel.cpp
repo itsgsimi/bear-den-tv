@@ -231,11 +231,28 @@ bool SessionModel::validateSnapshot(const QJsonObject &snapshot, QString *error)
         }
     }
     if (snapshot.contains(QStringLiteral("apps"))) {
-        // state.apps (optional, shell and owner phones): install settings.
+        // state.apps (optional, shell and owner phones): install settings and
+        // the web apps' browsers (browser, streaming_browser, browsers[]).
         if (!requireType(snapshot, QStringLiteral("apps"), QJsonValue::Object, QStringLiteral("state"), error)
             || !requireKeys(snapshot.value(QStringLiteral("apps")).toObject(), {QStringLiteral("auto_update")}, QStringLiteral("state.apps"), error)
             || !requireType(snapshot.value(QStringLiteral("apps")).toObject(), QStringLiteral("auto_update"), QJsonValue::Bool, QStringLiteral("state.apps"), error))
             return false;
+        const QJsonObject apps = snapshot.value(QStringLiteral("apps")).toObject();
+        for (const QString &key : {QStringLiteral("browser"), QStringLiteral("streaming_browser")}) {
+            if (apps.contains(key) && !requireType(apps, key, QJsonValue::String, QStringLiteral("state.apps"), error))
+                return false;
+        }
+        if (apps.contains(QStringLiteral("browsers"))) {
+            if (!requireType(apps, QStringLiteral("browsers"), QJsonValue::Array, QStringLiteral("state.apps"), error))
+                return false;
+            for (const QJsonValue &b : apps.value(QStringLiteral("browsers")).toArray()) {
+                const QJsonObject browser = b.toObject();
+                const QString where = QStringLiteral("state.apps.browsers[]");
+                if (!requireKeys(browser, {QStringLiteral("id"), QStringLiteral("label"), QStringLiteral("flatpak_id"), QStringLiteral("streaming_unverified")}, where, error)
+                    || !requireType(browser, QStringLiteral("streaming_unverified"), QJsonValue::Bool, where, error))
+                    return false;
+            }
+        }
     }
     const QJsonObject remote = snapshot.value(QStringLiteral("remote")).toObject();
     if (!requireKeys(remote, {QStringLiteral("enabled"), QStringLiteral("transport"), QStringLiteral("listening"), QStringLiteral("addresses"), QStringLiteral("https"),

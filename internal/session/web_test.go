@@ -38,6 +38,7 @@ type fakeWeb struct {
 	applied  []string
 	pointers []string
 	pauses   int
+	launched []string // "<app id> <browser flatpak id>"
 	watch    func()
 	gate     chan struct{} // when set, Launch waits for it to close
 	fail     error         // when set, Launch returns it (after the gate)
@@ -58,6 +59,7 @@ func (f *fakeWeb) Launch(_ context.Context, app config.Application, spec adapter
 		return applications.Instance{}, fail
 	}
 	f.mu.Lock()
+	f.launched = append(f.launched, app.ID+" "+app.Launch.AppID)
 	f.running[app.ID] = true
 	f.status[app.ID] = web.Status{V: 1, Visible: true, Video: "none", Viewport: web.Viewport{W: 1280, H: 720}}
 	f.mu.Unlock()
@@ -66,7 +68,7 @@ func (f *fakeWeb) Launch(_ context.Context, app config.Application, spec adapter
 		time.Sleep(20 * time.Millisecond)
 		f.desk.SetActive(w)
 	}()
-	return applications.Instance{FlatpakID: adapters.ChromiumFlatpakID, PID: 7000}, nil
+	return applications.Instance{FlatpakID: app.Launch.AppID, PID: 7000}, nil
 }
 
 func (f *fakeWeb) Running(id string) bool {

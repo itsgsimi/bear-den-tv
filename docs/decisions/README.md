@@ -21,3 +21,4 @@ win.
 | [0010](0010-web-apps-over-cdp-pipe.md) | Web apps (Netflix, Disney+, Hulu, Browser): Flathub Chromium driven over the DevTools pipe | 2026-09-28 |
 | [0011](0011-per-user-flathub-installs.md) | One-press app installs: per user from Flathub, with the owner's consent | 2026-09-28 |
 | [0012](0012-app-icons-apps-own-by-default.md) | App icons: the app's own by default, Bear Den's as a choice, served safely to phones | 2026-09-29 |
+| [0013](0013-brave-as-a-browser-choice.md) | Brave from Flathub as a browser choice for the web apps; Chromium stays the default, streaming in Brave is marked unverified | 2026-09-29 |

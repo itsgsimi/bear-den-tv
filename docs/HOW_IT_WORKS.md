@@ -86,7 +86,10 @@ their Flatpak is installed (`hide_when_missing` in the config).
 
 Netflix, Disney+ and Hulu have no Linux apps, so Bear Den opens their websites
 in Chromium from Flathub, full screen, one profile per app, and a Browser tile
-opens ordinary Chromium. The coordinator starts Chromium itself with
+opens ordinary Chromium (the owner may choose Brave from Flathub instead, for
+the Browser tile or the streaming sites:
+[ADR 0013](decisions/0013-brave-as-a-browser-choice.md); the same flags and
+pipe, its own profiles). The coordinator starts Chromium itself with
 `--remote-debugging-pipe` (two private fds, nothing listening), injects its
 navigation script (`apps/web-nav`) into an isolated world of every page, and
 turns the phone's named actions into the script's moves plus trusted clicks

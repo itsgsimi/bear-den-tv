@@ -6,6 +6,7 @@
 
 pragma Singleton
 import QtQuick
+import BearDen
 
 QtObject {
     function tagline(adapter) {
@@ -34,7 +35,7 @@ QtObject {
         case "netflix": return qsTr("Netflix's website, full screen. Sign in once with a keyboard or your phone's touchpad.")
         case "disney-plus": return qsTr("Disney+'s website, full screen. Sign in once with a keyboard or your phone's touchpad.")
         case "hulu": return qsTr("Hulu's website, full screen. Sign in once with a keyboard or your phone's touchpad.")
-        case "browser": return qsTr("Chromium in its own profile. Use a keyboard and mouse, the remote, or your phone's touchpad.")
+        case "browser": return qsTr("%1 in its own profile. Use a keyboard and mouse, the remote, or your phone's touchpad.").arg(browserLabel(adapter))
         }
         return ""
     }
@@ -49,25 +50,38 @@ QtObject {
         }
         return ""
     }
-    // What an install of this app actually fetches, when it is not the app
-    // itself ("" = the app): the web apps all run in Flathub Chromium
-    // (internal/applications/adapters ChromiumFlatpakID), installed once.
-    function installName(adapter) {
-        switch (adapter) {
-        case "netflix":
-        case "disney-plus":
-        case "hulu":
-        case "browser": return qsTr("Chromium")
-        }
-        return ""
+    // The browser a web adapter runs in: its entry in Session.apps.browsers
+    // ({id, label, flatpak_id, streaming_unverified}; the Browser tile's is
+    // apps.browser, the streaming sites' apps.streaming_browser), or null for
+    // an app that is not a website. Data from the coordinator, never a name
+    // test here.
+    readonly property var webAdapters: ["netflix", "disney-plus", "hulu", "browser"]
+    function browserOf(adapter) {
+        if (webAdapters.indexOf(adapter) < 0) return null
+        const fid = Shell.flatpakIdFor(adapter)
+        const list = (Session.apps && Session.apps.browsers) || []
+        for (const b of list)
+            if (b.flatpak_id === fid) return b
+        return { id: "chromium", label: "Chromium", flatpak_id: fid, streaming_unverified: false }
     }
+    function browserLabel(adapter) {
+        const b = browserOf(adapter)
+        return b ? b.label : ""
+    }
+    // What an install of this app actually fetches, when it is not the app
+    // itself ("" = the app): the web apps run in a Flathub browser
+    // (internal/applications/adapters, the browser table), shared by every
+    // web app that uses it and installed once.
+    function installName(adapter) { return browserLabel(adapter) }
     // Why that shared install is needed (Settings → Add apps, the install card).
     function installWhy(adapter) {
         switch (adapter) {
         case "netflix":
         case "disney-plus":
-        case "hulu":
-        case "browser": return qsTr("Browser for Netflix, Disney+, Hulu")
+        case "hulu": return qsTr("Browser for Netflix, Disney+, Hulu")
+        case "browser":
+            return Shell.flatpakIdFor("browser") === Shell.flatpakIdFor("netflix")
+                ? qsTr("Browser for Netflix, Disney+, Hulu") : qsTr("The Browser tile's browser")
         }
         return ""
     }

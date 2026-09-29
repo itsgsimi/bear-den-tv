@@ -44,9 +44,10 @@ type WebRule struct {
 	URLRequired bool
 }
 
-// ChromiumFlatpakID is the only browser web adapters launch (Flathub's
+// ChromiumFlatpakID is the default browser of web adapters (Flathub's
 // Chromium; docs/decisions/0010-web-apps-over-cdp-pipe.md). Defined once, in
-// the adapter table.
+// the adapter table, beside the other browsers (adapters.Browsers); rule 3
+// takes a web row's Flatpak id from config apps instead (launchFlatpakID).
 const ChromiumFlatpakID = adapters.ChromiumFlatpakID
 
 // DefaultAdapters lists the adapters shipped with this build.
@@ -217,6 +218,7 @@ func ValidatePortable(c Config, rules Rules) error {
 	if c.Revision < 1 {
 		errs.add("revision must be >= 1")
 	}
+	validateBrowsers(errs, c)
 	appIDs := map[string]bool{}
 	webAdapters := map[string]bool{}
 	for _, a := range c.Applications {
@@ -232,8 +234,8 @@ func ValidatePortable(c Config, rules Rules) error {
 			errs.add("application %q uses unknown adapter %q", a.ID, a.Adapter)
 			continue
 		}
-		if a.Launch.AppID != spec.FlatpakID {
-			errs.add("application %q launch.app_id %q must be %q for adapter %s", a.ID, a.Launch.AppID, spec.FlatpakID, a.Adapter)
+		if want, why := launchFlatpakID(c, a.Adapter, spec); a.Launch.AppID != want {
+			errs.add("application %q launch.app_id %q must be %q for adapter %s%s", a.ID, a.Launch.AppID, want, a.Adapter, why)
 		}
 		for _, arg := range a.Launch.Args {
 			if !contains(spec.ApprovedArgs, arg) {
@@ -300,6 +302,46 @@ func ValidatePortable(c Config, rules Rules) error {
 		return errs
 	}
 	return nil
+}
+
+// launchFlatpakID is the Flatpak id rule 3 expects for an adapter: its own,
+// or for a web adapter the Flatpak of the browser config apps names for it
+// (apps.browser for the Browser tile, apps.streaming_browser for the
+// streaming sites), with the reason to show when the row disagrees.
+func launchFlatpakID(c Config, adapter string, spec AdapterSpec) (string, string) {
+	if spec.Web == nil {
+		return spec.FlatpakID, ""
+	}
+	ad, ok := adapters.ForName(adapter)
+	if !ok {
+		return spec.FlatpakID, ""
+	}
+	ws, ok := adapters.WebOf(ad)
+	if !ok {
+		return spec.FlatpakID, ""
+	}
+	name, setting := c.BrowserName(), "apps.browser"
+	if ws.IsStreaming() {
+		name, setting = c.StreamingBrowserName(), "apps.streaming_browser"
+	}
+	b, ok := adapters.BrowserNamed(name)
+	if !ok {
+		return spec.FlatpakID, ""
+	}
+	return b.FlatpakID, fmt.Sprintf(" (%s is %s)", setting, name)
+}
+
+// validateBrowsers checks config apps.browser and apps.streaming_browser
+// name browsers in the adapter table (the schema's enum says the same).
+func validateBrowsers(errs *Errors, c Config) {
+	if c.Apps == nil {
+		return
+	}
+	for _, s := range [][2]string{{"apps.browser", c.Apps.Browser}, {"apps.streaming_browser", c.Apps.StreamingBrowser}} {
+		if _, ok := adapters.BrowserNamed(s[1]); s[1] != "" && !ok {
+			errs.add("%s %q is not a browser Bear Den runs", s[0], s[1])
+		}
+	}
 }
 
 // validateWeb applies rule 11 to one application: only web adapters carry a

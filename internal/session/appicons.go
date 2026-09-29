@@ -46,7 +46,16 @@ func (c *Coordinator) AppIcon(_ context.Context, adapter string) ([]byte, error)
 		// export may linger; the owner's brand icon still wins.
 		choice = contract.AppIconsBearDen
 	}
-	app := appicons.App{Adapter: ad.Name(), FlatpakID: ad.FlatpakID(), OwnFlatpak: adapters.OwnFlatpakIcon(ad)}
+	// The Flatpak the app runs from: its row's (the Browser tile's browser
+	// is the owner's choice), when the adapter table allows it.
+	fid := ad.FlatpakID()
+	for _, a := range cfg.Applications {
+		if a.Adapter == adapter && adapters.RunsIn(ad, a.Launch.AppID) {
+			fid = a.Launch.AppID
+			break
+		}
+	}
+	app := appicons.App{Adapter: ad.Name(), FlatpakID: fid, OwnFlatpak: adapters.OwnFlatpakIcon(ad)}
 	png, err := c.icons.cache.PNG(app, choice)
 	if errors.Is(err, appicons.ErrNoIcon) {
 		return nil, remote.ErrNoIcon

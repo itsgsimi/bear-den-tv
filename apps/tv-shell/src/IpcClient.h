@@ -85,6 +85,9 @@ public:
     QString sendAppInstall(const QString &type, const QString &appId);
     /// apps.configure: Settings → Keep apps up to date.
     QString sendAppsConfigure(bool autoUpdate);
+    /// apps.browser: Settings → Streaming sites, the Browser tile's and the
+    /// streaming sites' browsers (state.apps.browsers[].id).
+    QString sendAppsBrowser(const QString &browser, const QString &streamingBrowser);
     /// One app's playback setting chosen by hand; value "" returns it to automatic.
     /// weather.search: a city query; the coordinator answers with `weather_places`.
     QString sendWeatherSearch(const QString &query);
