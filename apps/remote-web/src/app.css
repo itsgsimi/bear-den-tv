@@ -541,6 +541,7 @@ input[type='range'] { width: 100%; accent-color: var(--accent); min-height: 32px
 .sleep-chips { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; margin: 0.6rem 0 0; }
 .sleep-chip { font-variant-numeric: tabular-nums; }
 .sleep-chip.is-chosen { background: var(--sage); border-color: var(--sage); color: var(--accent-ink); }
+.tv-status { margin: 0 0 0.6rem; }
 .app-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 0.6rem; }
 .app-tile { flex-direction: column; min-height: 88px; border-radius: var(--r16, 0); }
 .app-tile.is-foreground { border-color: var(--accent); background: linear-gradient(180deg, rgba(var(--sage-rgb), 0.2), rgba(34, 39, 44, 0.92)); }

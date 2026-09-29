@@ -54,7 +54,7 @@ const PRUNE_AFTER_MS = 60_000;
 const DEFAULT_HOLD_RENEW_MS = 200;
 
 /** Actions whose target is the shell rather than whatever is in the foreground. */
-const SHELL_TARGETED: ReadonlySet<ActionName> = new Set<ActionName>(['home', 'app.launch', 'app.close', 'shell.restart', 'power.sleep_timer', 'display.off']);
+const SHELL_TARGETED: ReadonlySet<ActionName> = new Set<ActionName>(['home', 'app.launch', 'app.close', 'shell.restart', 'power.sleep_timer', 'display.off', 'tv.power']);
 
 export interface App {
   readonly store: Store;

@@ -20,7 +20,7 @@ and [`contracts/actions.md`](../../contracts/actions.md).
 | [`src/i18n.ts`](src/i18n.ts) | every user-facing string (`t`, `ACTION_NAMES`) |
 | [`src/uuid.ts`](src/uuid.ts) | UUID v4 from `crypto` only (works on plain-HTTP LAN pages) |
 | `src/device-name.ts`, `src/press-fx.ts`, `src/icons.tsx`, `src/vines.tsx` | default device name, press ripple, inline SVG icons and `Art` (Pixel: `static/art/pixel/*.png` at whole-number scales; Classic: `static/art/*.svg`), theme-styled tile vines drawn on a pixel grid or, in Classic, as smooth Bézier vines (`tests/unit/vines.spec.ts`, `tests/unit/art-style.spec.ts`) |
-| [`src/views/`](src/views/shell.tsx) | `shell.tsx` (frame, tabs), `remote.tsx` (D-pad, apps, playback, volume, text), `nowplaying.tsx` (the Now playing card: `state.now_playing`, position extrapolated from `position_at` + `rate` with a 1 s tick only while visible and playing; `snapshotAt` and `hidden` in the store), `sleep.tsx` (Sleep: timer chips, time left counted from `state.power.sleep_at_ms` with a 1 s tick only while a timer runs and the page is visible, Cancel, Screen off), `pair.tsx`, `editor.tsx` (layout), `devices.tsx` (owner), `about.tsx` |
+| [`src/views/`](src/views/shell.tsx) | `shell.tsx` (frame, tabs), `remote.tsx` (D-pad, apps, playback, volume, text), `nowplaying.tsx` (the Now playing card: `state.now_playing`, position extrapolated from `position_at` + `rate` with a 1 s tick only while visible and playing; `snapshotAt` and `hidden` in the store), `sleep.tsx` (Sleep: timer chips, time left counted from `state.power.sleep_at_ms` with a 1 s tick only while a timer runs and the page is visible, Cancel, Screen off), `tv.tsx` (TV on / standby over HDMI-CEC, drawn only while `tv.power` is available; the volume group's heading, "TV volume" while `state.cec` sends the volume buttons to the TV), `pair.tsx`, `editor.tsx` (layout), `devices.tsx` (owner), `about.tsx` |
 | `src/app.css`, `static/` | styles (Pixel by default: square corners, square particles, stepped motion, `html[data-pixel]` draws the backdrop unsmoothed; the Classic overrides at the end of the file, keyed on `html[data-art='classic']`, restore the rounded, smooth look); `index.html`, manifest, icons and art copied verbatim into `dist/` |
 | [`scripts/pixel-icons.mjs`](scripts/pixel-icons.mjs) | makes the PWA icons from `static/art/pixel/bear-mark.png` (nearest-neighbour); the pixel art itself comes from `tools/pixelart` |
 | [`scripts/build.mjs`](scripts/build.mjs) | esbuild bundle into `dist/`, deterministic (no hashes or timestamps) |
@@ -39,7 +39,7 @@ and [`contracts/actions.md`](../../contracts/actions.md).
   was drawn from; a `stale_epoch` result refetches state and shows a toast.
   `target` is `shell` for the actions in `SHELL_TARGETED` (`home`,
   `app.launch`, `app.close`, `shell.restart`, `power.sleep_timer`,
-  `display.off`), otherwise `active`. A `failed/display_off` result (the
+  `display.off`, `tv.power`), otherwise `active`. A `failed/display_off` result (the
   press only woke the TV's screen) is shown as an info toast.
 - **Holds** go over the socket (`hold.*`), only for `nav.*`.
 - **Capabilities gate every control.** A listed but unavailable capability

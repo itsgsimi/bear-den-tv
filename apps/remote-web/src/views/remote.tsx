@@ -1,6 +1,7 @@
 // Remote screen: D-pad with Select, Back, Bear Den Home and Close app, app shortcuts from
 // `snapshot.applications`, playback with the Now playing card above its buttons
-// (nowplaying.tsx), PC volume, Sleep (sleep.tsx: timer and screen off), and text entry. Contract: every
+// (nowplaying.tsx), volume (PC or, with HDMI-CEC, the TV: tv.tsx), TV power (tv.tsx, drawn only while
+// available), Sleep (sleep.tsx: timer and screen off), and text entry. Contract: every
 // control is gated by `snapshot.capabilities[action]`; a listed-but-unavailable
 // capability renders disabled with the server's reason, an unlisted optional one
 // is not rendered. Directions call `pressStart`/`pressEnd` on pointer down/up so
@@ -16,6 +17,7 @@ import { Art, artStyleOf, Icon, type IconName } from '../icons.tsx';
 import { Vines } from '../vines.tsx';
 import { NowPlayingPanel, nowPlayingOf } from './nowplaying.tsx';
 import { SleepPanel } from './sleep.tsx';
+import { TvPanel, volumeHeading } from './tv.tsx';
 import { type AppState, type PendingAction, capabilityFor, closableApp, isSecureTransport, permissionsOf } from '../state.ts';
 
 const TEXT_MAX = 256;
@@ -124,7 +126,7 @@ export function RemoteView({ app, state }: { app: App; state: AppState }): JSX.E
 
       {listed(state, 'audio.volume_delta') || listed(state, 'audio.mute') ? (
         <div class="group" aria-labelledby="volume-heading">
-          <h3 id="volume-heading">{t.remote.pcVolume}</h3>
+          <h3 id="volume-heading">{volumeHeading(snapshot)}</h3>
           <div class="button-row">
             {listed(state, 'audio.volume_delta') ? (
               <>
@@ -141,6 +143,8 @@ export function RemoteView({ app, state }: { app: App; state: AppState }): JSX.E
           </div>
         </div>
       ) : null}
+
+      <TvPanel app={app} state={state} />
 
       <SleepPanel app={app} state={state} />
 
