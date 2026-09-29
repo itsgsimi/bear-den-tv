@@ -30,6 +30,7 @@ func TestVersionMapping(t *testing.T) {
 	debian := regexp.MustCompile(`^[0-9][A-Za-z0-9.+~]*$`)
 	for describe, want := range map[string]string{
 		"v1.2.0":                  "1.2.0",
+		"v0.2.0":                  "0.2.0", // a release tag (.github/workflows/release.yml)
 		"1.2.0":                   "1.2.0",
 		"v1.2.0-dirty":            "1.2.0+dirty",
 		"v1.2.0-3-gabc1234":       "1.2.0+git3.gabc1234",

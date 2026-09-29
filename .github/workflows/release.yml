@@ -1,0 +1,145 @@
+# Release: builds the .deb on GitHub's runner and publishes it
+# (docs/operations.md → Cutting a release).
+#
+# Why here and not on a workstation: conda patches the toolchain's install
+# prefix into five bundled libraries (`make package` lists them). On a
+# workstation that prefix contains the builder's user name; on the runner it is
+# /home/runner/.bdtv-toolchain, which names nobody. packaging/check-home-paths.sh
+# fails the run if any other /home/<name> ends up in the package.
+#
+#   push of a tag v*    make test, make package, install smoke tests, the
+#                       /home guard, then a GitHub Release with the .deb and
+#                       SHA256SUMS (created, or its files replaced on a re-run)
+#   workflow_dispatch   the same build as a dry run: the .deb and SHA256SUMS
+#                       are uploaded as a workflow artifact only
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    # No BDTV_SKIP_SYSROOT: `make package` builds the shell against the glibc
+    # 2.28 sysroot. No apt step: Docker, dpkg-deb, curl, bzip2, make, git and
+    # binutils are on the runner image.
+    steps:
+      # Full history and tags, so packaging/version.sh's `git describe` sees the tag.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Same key scheme as ci.yml plus "-sysroot": CI's cache has no sysroot.
+      # A miss falls back to CI's cache; the bootstrap then only adds the
+      # sysroot (it skips completed steps) and saves under this key.
+      - name: Restore toolchain
+        id: toolchain
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.bdtv-toolchain
+          key: bdtv-toolchain-${{ runner.os }}-${{ hashFiles('toolchain/environment.yml', 'scripts/bootstrap-toolchain.sh') }}-sysroot
+          restore-keys: bdtv-toolchain-${{ runner.os }}-${{ hashFiles('toolchain/environment.yml', 'scripts/bootstrap-toolchain.sh') }}
+
+      - name: Bootstrap toolchain (with the glibc 2.28 sysroot)
+        if: steps.toolchain.outputs.cache-hit != 'true'
+        run: |
+          scripts/bootstrap-toolchain.sh
+          MAMBA_ROOT_PREFIX="$HOME/.bdtv-toolchain/mamba" "$HOME/.bdtv-toolchain/bin/micromamba" clean --all --yes
+
+      - name: Save toolchain
+        if: steps.toolchain.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.bdtv-toolchain
+          key: ${{ steps.toolchain.outputs.cache-primary-key }}
+
+      - name: Cache npm downloads
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: npm-${{ runner.os }}-${{ hashFiles('apps/remote-web/package-lock.json') }}
+          restore-keys: npm-${{ runner.os }}-
+
+      - name: make test
+        run: . scripts/env.sh && make test
+
+      - name: make package
+        run: . scripts/env.sh && make package
+
+      # A tag build must carry exactly the tag's version (no +git, no dirty).
+      - name: Version matches the tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          want="$(packaging/version.sh "$TAG")"
+          got="$(packaging/version.sh)"
+          echo "tag $TAG → $want; build → $got"
+          [ "$got" = "$want" ]
+          test -f "build/dist/bear-den-tv_${want}_amd64.deb"
+
+      - name: Smoke test in ubuntu:22.04
+        run: packaging/smoke-deb.sh ubuntu:22.04
+
+      - name: Smoke test in ubuntu:24.04
+        run: packaging/smoke-deb.sh ubuntu:24.04
+
+      - name: No home directory but /home/runner and /home/conda in the package
+        run: packaging/check-home-paths.sh
+
+      - name: SHA256SUMS
+        working-directory: build/dist
+        run: |
+          sha256sum bear-den-tv_*_amd64.deb >SHA256SUMS
+          cat SHA256SUMS
+
+      - name: Upload the .deb as a workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bear-den-tv-deb
+          path: |
+            build/dist/bear-den-tv_*_amd64.deb
+            build/dist/SHA256SUMS
+          if-no-files-found: error
+          retention-days: 14
+
+  release:
+    needs: build
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: bear-den-tv-deb
+          path: dist
+
+      - name: Create or update the GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          cd dist
+          sha256sum -c SHA256SUMS
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" bear-den-tv_*_amd64.deb SHA256SUMS --clobber
+          else
+            flags=()
+            # v1.2.0-rc1 and the like are marked as pre-releases.
+            if [[ "$TAG" == *-* ]]; then flags+=(--prerelease); fi
+            gh release create "$TAG" bear-den-tv_*_amd64.deb SHA256SUMS \
+              --verify-tag --generate-notes --title "Bear Den TV ${TAG#v}" "${flags[@]}"
+          fi
