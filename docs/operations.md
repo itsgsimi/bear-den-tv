@@ -395,6 +395,27 @@ groups or udev rules. `cec-ctl` from v4l-utils, if installed, is a handy
 second opinion (`cec-ctl -d0 --playback -S` lists what is on the bus) but
 Bear Den does not need it.
 
+**Turn it on** in TV Settings → **TV control over HDMI (CEC)**. Without an
+adapter the row says why ("No HDMI-CEC device (/dev/cec*) — most PCs need a
+USB CEC adapter"); it can still be turned on and applies once an adapter
+appears (checked once a minute). While it is on
+([`contracts/actions.md`](../contracts/actions.md#tv-control-over-hdmi-cec)):
+
+- the sleep timer and Screen off put the TV in standby after the display
+  goes off;
+- the press that wakes the display, a TV key while it was off, any press
+  after Bear Den put the TV in standby, and Home turn the TV on and switch
+  it to Bear Den's input;
+- the phone shows a **TV** section (TV on, TV standby, what the TV last
+  reported), and **Phone volume buttons** in TV Settings chooses whether
+  the phone's volume buttons change the PC's volume (the default) or press
+  the TV's (the heading then reads "TV volume"). Mute uses the explicit
+  Mute Function / Restore Volume Function keys; some TVs ignore them.
+
+The coordinator logs each HDMI-CEC failure (`msg="session: ... HDMI-CEC"`).
+Turning the setting off gives the bus address back. None of this has been
+tried on a real adapter or TV.
+
 ## Phone remote
 
 ```sh
