@@ -19,8 +19,9 @@ It has three processes that talk through shared contracts:
 | **Contracts** | `contracts/` | JSON Schemas + specs + fixtures, validated in all three languages | [`contracts/AGENTS.md`](contracts/AGENTS.md) |
 | **Themes** | `themes/` | theme packages (manifest + art, no code) | [`themes/AGENTS.md`](themes/AGENTS.md) |
 
-Plex HTPC, VacuumTube (YouTube) and Moonlight are independent Flatpak apps. Bear
-Den launches them, brings them to the front, tunes their settings and returns
+Plex HTPC, VacuumTube (YouTube) and Moonlight are independent Flatpak apps,
+and so are the optional Spotify, Jellyfin Desktop and RetroArch (their tiles
+appear only when installed). Bear Den launches them, brings them to the front, tunes their settings and returns
 Home. It never wraps, embeds or patches them.
 
 ## Read first
