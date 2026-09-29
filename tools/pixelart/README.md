@@ -1,8 +1,9 @@
 # tools/pixelart: the pixel-art generator
 
 All of Bear Den's built-in pixel art is drawn by Python code in this folder:
-the worlds (wallpapers), the bears, the ornaments, the corner scenes, the
-featured-panel rooms and the weather icons. It uses only the Python standard
+the worlds (wallpapers), the bears, the ornaments, the corner scenes and their
+weather props, the featured-panel rooms, the weather icons, Bear Den's own app
+icons and the Den badge medals. It uses only the Python standard
 library (no Pillow, no image editor). Why: [ADR 0005](../../docs/decisions/0005-pixel-art.md).
 
 - The output is **deterministic**: running it twice changes nothing.
@@ -24,7 +25,7 @@ library (no Pillow, no image editor). Why: [ADR 0005](../../docs/decisions/0005-
 | [`scenes.py`](scenes.py) | the props of Home's corner scenes (bears are placed by QML) | `apps/tv-shell/assets/pixel/scene-*.png` |
 | [`hero.py`](hero.py) | the featured panel's rooms: cinema, cabin, arcade, nook (Spotify), theatre (Jellyfin), retro (RetroArch) | `apps/tv-shell/assets/pixel/hero-<scene>.png`, `apps/tv-shell/qml/HeroRig.js` |
 | [`weather.py`](weather.py) | ten weather icons | `apps/tv-shell/assets/pixel/weather-<name>.png` |
-| [`appicons.py`](appicons.py) | Bear Den's own app icons: one 32×32 badge per adapter (bear ears, brand colours, a motif; never an official logo; [`docs/THEMES.md` → App icons](../../docs/THEMES.md#app-icons)) | `apps/tv-shell/assets/pixel/app-<adapter>.png`; phone copies in `apps/remote-web/static/art/pixel/` |
+| [`appicons.py`](appicons.py) | Bear Den's own app icons: one 32×32 badge per adapter (bear ears, brand colours, a motif; never an official logo; shown with Settings → App icons → Bear Den style, or when an app's own icon is not available; [`docs/THEMES.md` → App icons](../../docs/THEMES.md#app-icons)) | `apps/tv-shell/assets/pixel/app-<adapter>.png`; phone copies in `apps/remote-web/static/art/pixel/` |
 | [`badges.py`](badges.py) | the Den badge medals and their silhouettes ([`docs/THEMES.md` → Den badges](../../docs/THEMES.md#den-badges)) | `apps/tv-shell/assets/pixel/badge-<id>[-locked].png`; phone copies in `apps/remote-web/static/art/pixel/` |
 | [`weatherprops.py`](weatherprops.py) | the props of the weather in the corner scene: a tarp on poles, the startled "!", a leaf umbrella ([`docs/THEMES.md` → Weather in the corner scene](../../docs/THEMES.md#weather-in-the-corner-scene)) | `apps/tv-shell/assets/pixel/scene-wx-{tarp,startle,umbrella}.png` |
 
