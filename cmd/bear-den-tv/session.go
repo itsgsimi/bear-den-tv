@@ -45,6 +45,7 @@ import (
 	"bear-den-tv/internal/providers"
 	"bear-den-tv/internal/providers/fixtures"
 	"bear-den-tv/internal/remote"
+	"bear-den-tv/internal/remote/mdns"
 	"bear-den-tv/internal/session"
 	"bear-den-tv/internal/shellipc"
 	"bear-den-tv/internal/storage"
@@ -424,7 +425,10 @@ func runSession(f sessionFlags) error {
 
 // remoteHost owns the phone-remote listener and keeps it in line with the
 // configuration: nothing listens on the LAN until remote.enabled and
-// onboarding.lan_consent are both true. `dev` binds loopback only.
+// onboarding.lan_consent are both true. `dev` binds loopback only. While
+// the LAN listener is up and remote.mdns is on, it is advertised over mDNS
+// on the selected interfaces only (mdnsPlan, internal/remote/mdns), and the
+// advertisement stops with the listener.
 type remoteHost struct {
 	themeAssets fs.FS // theme art for phones (/themes/)
 	log         *slog.Logger
@@ -433,6 +437,12 @@ type remoteHost struct {
 	pair        *pairing.Service
 	dev         bool
 	devListen   string
+
+	// mdns advertises the LAN listener (nil: a real Avahi advertiser).
+	mdns interface {
+		Start(svc mdns.Service, ifaces []string) error
+		Stop()
+	}
 
 	mu      sync.Mutex
 	desired any
@@ -449,6 +459,24 @@ type listenSpec struct {
 	LayoutHTTP   bool
 	AllowedHosts []string
 	Cert, Key    string
+	// MDNS and Name: advertise the listener (config remote.mdns) under the
+	// device's display name.
+	MDNS bool
+	Name string
+}
+
+// mdnsPlan is the advertisement for a listener: the service and the
+// interfaces to publish it on, or false. Never for the dev loopback
+// listener or with remote.mdns off; only the selected LAN interfaces.
+func mdnsPlan(s listenSpec) (mdns.Service, []string, bool) {
+	if s.Dev != "" || !s.MDNS || len(s.Interfaces) == 0 || s.Port <= 0 || s.Port > 65535 {
+		return mdns.Service{}, nil, false
+	}
+	typ := mdns.ServiceTypeHTTP
+	if s.Transport == remote.TransportHTTPS {
+		typ = mdns.ServiceTypeHTTPS
+	}
+	return mdns.Service{Name: s.Name, Type: typ, Port: uint16(s.Port), TXT: []string{"protocol=1"}}, append([]string(nil), s.Interfaces...), true
 }
 
 func (h *remoteHost) spec() (listenSpec, string) {
@@ -464,7 +492,8 @@ func (h *remoteHost) spec() (listenSpec, string) {
 	if reason := h.store.RemoteBlocked(); reason != "" {
 		return listenSpec{}, reason
 	}
-	s := listenSpec{Interfaces: append([]string(nil), r.Interfaces...), Port: r.Port, Transport: r.Transport, LayoutHTTP: r.HTTPLayoutEditing, AllowedHosts: append([]string(nil), r.AllowedHosts...)}
+	s := listenSpec{Interfaces: append([]string(nil), r.Interfaces...), Port: r.Port, Transport: r.Transport, LayoutHTTP: r.HTTPLayoutEditing, AllowedHosts: append([]string(nil), r.AllowedHosts...),
+		MDNS: r.MDNS, Name: cfg.Device.DisplayName}
 	if r.HTTPS.CertificateFile != nil && r.HTTPS.PrivateKeyFile != nil {
 		s.Cert, s.Key = *r.HTTPS.CertificateFile, *r.HTTPS.PrivateKeyFile
 	}
@@ -541,10 +570,31 @@ func (h *remoteHost) reconcile(ctx context.Context) {
 		_ = srv.Close()
 	}()
 	h.log.Info("remote: listening", "urls", h.urls, "transport", want.Transport)
+	if svc, ifaces, ok := mdnsPlan(want); ok {
+		if err := h.advertiser().Start(svc, ifaces); err != nil {
+			h.log.Warn("remote: mDNS advertisement", "err", err)
+		} else {
+			h.log.Info("remote: advertised over mDNS", "interfaces", ifaces, "type", svc.Type)
+		}
+	}
 	go h.coord.SetRemoteStatus(true, append([]string(nil), h.urls...))
 }
 
+func (h *remoteHost) advertiser() interface {
+	Start(svc mdns.Service, ifaces []string) error
+	Stop()
+} {
+	if h.mdns == nil {
+		h.mdns = &mdns.Advertiser{}
+	}
+	return h.mdns
+}
+
 func (h *remoteHost) stopLocked() {
+	// The advertisement never outlives the listener.
+	if h.mdns != nil {
+		h.mdns.Stop()
+	}
 	if h.cancel != nil {
 		h.cancel()
 		<-h.done

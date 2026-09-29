@@ -94,7 +94,6 @@ the TV):
 - Browser (Playwright) tests for the phone remote (the web apps' navigation
   script has them), negative tests for the phone-facing HTTP/WebSocket server,
   and tests for `bear-den-tv doctor`.
-- mDNS: the remote is not advertised on the network yet.
 - Remote keys into apps on Wayland.
 - A kid mode (deferred).
 
