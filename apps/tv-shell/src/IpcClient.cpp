@@ -481,6 +481,16 @@ void IpcClient::sendPowerActivity()
     send(QJsonObject{{QStringLiteral("type"), QStringLiteral("power.activity")}});
 }
 
+QString IpcClient::sendPlex(const QString &type, const QJsonObject &fields)
+{
+    const QString id = newRequestId();
+    QJsonObject message = fields;
+    message.insert(QStringLiteral("type"), type);
+    message.insert(QStringLiteral("request_id"), id);
+    send(message);
+    return track(id, type);
+}
+
 void IpcClient::sendShellExit(const QString &reason)
 {
     send(QJsonObject{{QStringLiteral("type"), QStringLiteral("shell.exit")}, {QStringLiteral("reason"), reason}});

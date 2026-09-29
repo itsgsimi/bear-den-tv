@@ -1,5 +1,6 @@
 // Provider item (Plex continue watching / recently added). Missing artwork
-// falls back to a tinted panel; DEMO items are labeled.
+// falls back to a tinted panel; DEMO items are labeled. Posters are
+// pixelated in the Pixel art style and smooth in Classic (see the Image).
 
 import QtQuick
 import BearDen
@@ -28,12 +29,22 @@ Item {
                 GradientStop { position: 1; color: Qt.darker(Theme.tintFor(root.item.itemId || root.item.title || ""), 3.2) }
             }
         }
+        // Artwork from the coordinator's local cache. Pixel: decoded once at a
+        // coarse size (one texel per World.px screen pixels; Qt's pixmap cache
+        // keeps it) and drawn with nearest-neighbour scaling, so posters look
+        // like pixel art at no per-frame cost. Classic: decoded at card size,
+        // drawn smooth.
         Image {
+            id: art
+            objectName: "contentArt"
             anchors.fill: parent
             visible: status === Image.Ready
             source: root.item.artwork ? root.item.artwork : ""
             fillMode: Image.PreserveAspectCrop
             asynchronous: true
+            smooth: World.classic
+            sourceSize: World.pixel ? Qt.size(Math.ceil(root.width / World.px), Math.ceil(root.height / World.px))
+                                    : Qt.size(Math.ceil(root.width), Math.ceil(root.height))
         }
         Rectangle {
             anchors.fill: parent

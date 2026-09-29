@@ -504,16 +504,36 @@ void SessionModel::rebuildSections()
                 section.items.append(item);
             }
             if (section.items.isEmpty()) {
-                if (def.value(QStringLiteral("hide_when_empty")).toBool())
+                // An empty row that is loading or failing says so, even when it
+                // would otherwise hide: an honest "Can't reach your Plex server"
+                // beats rows that silently vanish.
+                const QJsonObject content = m_snapshot.value(QStringLiteral("content")).toObject();
+                const QString status = content.value(QStringLiteral("status")).toString();
+                const bool failing = contentReady && status == QLatin1String("error");
+                const bool loading = contentReady && status == QLatin1String("connecting");
+                if (def.value(QStringLiteral("hide_when_empty")).toBool() && !failing && !loading)
                     continue;
                 section.isEmpty = true;
-                section.emptyMessage = contentReady && m_snapshot.value(QStringLiteral("content")).toObject().value(QStringLiteral("status")).toString() != QLatin1String("disabled")
-                    ? QStringLiteral("Nothing here yet")
-                    : QStringLiteral("Connect Plex to see %1").arg(section.title);
+                QString title;
+                if (failing) {
+                    title = QStringLiteral("Can't load right now");
+                    section.emptyMessage = content.value(QStringLiteral("message")).toString();
+                    if (section.emptyMessage.isEmpty())
+                        section.emptyMessage = QStringLiteral("%1 could not be loaded").arg(section.title);
+                } else if (loading) {
+                    title = QStringLiteral("Loading…");
+                    section.emptyMessage = QStringLiteral("Asking your Plex server");
+                } else if (contentReady && status != QLatin1String("disabled")) {
+                    title = QStringLiteral("Nothing here yet");
+                    section.emptyMessage = title;
+                } else {
+                    title = QStringLiteral("Connect Plex");
+                    section.emptyMessage = QStringLiteral("Connect Plex to see %1").arg(section.title);
+                }
                 ItemsModel::Item setup;
                 setup.id = QStringLiteral("%1--setup").arg(section.id);
                 setup.kind = QStringLiteral("setup");
-                setup.title = contentReady ? QStringLiteral("Nothing here yet") : QStringLiteral("Connect Plex");
+                setup.title = title;
                 setup.subtitle = section.emptyMessage;
                 setup.tint = theme ? theme->accent() : QColor(Qt::gray);
                 section.items.append(setup);

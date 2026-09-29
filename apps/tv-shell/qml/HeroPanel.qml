@@ -74,11 +74,14 @@ PixelBox {
     // Artwork on the right, rounded and fading into the text side.
     RoundedImage {
         id: backdropImage
+        objectName: "heroBackdrop"
         anchors.fill: parent
         radius: root.radius
         coverage: 0.68
         fade: 0.55
         source: root.backdrop
+        // Pixel: poster art in whole art pixels (composed once, cached).
+        pixelSize: World.pixel ? World.px : 1
     }
     PixelBox {
         anchors.fill: parent
@@ -367,7 +370,10 @@ PixelBox {
                               ? (root.item.installed === false ? qsTr("How to install")
                                  : (root.item.running ? qsTr("Switch to %1").arg(root.item.title) : qsTr("Open %1").arg(root.item.title)))
                               : (root.item.kind === "setup" ? qsTr("Open Settings")
-                                 : (root.item.progress !== undefined && root.item.progress > 0 ? qsTr("Resume in Plex") : qsTr("Open in Plex")))
+                                 // Only a verified exact-item handoff (open_action play_exact)
+                                 // may promise the item; open_app just opens Plex HTPC.
+                                 : root.item.openAction !== "play_exact" ? qsTr("Open Plex")
+                                 : (root.item.progress !== undefined && root.item.progress > 0 ? qsTr("Resume in Plex") : qsTr("Play in Plex")))
                         color: Theme.pillActiveText
                         font.family: Theme.fontFamily
                         font.pixelSize: 25 * Theme.fontUnit

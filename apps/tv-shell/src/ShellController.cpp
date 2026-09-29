@@ -233,6 +233,11 @@ void ShellController::onReply(const QString &requestId, const QString &type, con
             emit requestFailed(tr("Weather"), error);
         return;
     }
+    if (type.startsWith(QLatin1String("plex."))) {
+        // Settings → Plex shows the reason itself (state.plex.message and this reply).
+        emit plexReplied(type, payload.value(QStringLiteral("ok")).toBool(), payload.value(QStringLiteral("error")).toString());
+        return;
+    }
     if (payload.value(QStringLiteral("ok")).toBool(true))
         return;
     const QString error = payload.value(QStringLiteral("error")).toString();
@@ -327,6 +332,18 @@ void ShellController::powerActivity()
 {
     m_ipc->sendPowerActivity();
 }
+
+void ShellController::plexSignIn() { m_ipc->sendPlex(QStringLiteral("plex.sign_in")); }
+void ShellController::plexCancel() { m_ipc->sendPlex(QStringLiteral("plex.cancel")); }
+void ShellController::plexChooseServer(const QString &serverId)
+{
+    m_ipc->sendPlex(QStringLiteral("plex.choose_server"), QJsonObject{{QStringLiteral("server_id"), serverId}});
+}
+void ShellController::plexChooseLibraries(const QStringList &libraryIds)
+{
+    m_ipc->sendPlex(QStringLiteral("plex.choose_libraries"), QJsonObject{{QStringLiteral("library_ids"), QJsonArray::fromStringList(libraryIds)}});
+}
+void ShellController::plexSignOut() { m_ipc->sendPlex(QStringLiteral("plex.sign_out")); }
 
 void ShellController::answerConfirm(const QString &confirmId, bool accepted)
 {
