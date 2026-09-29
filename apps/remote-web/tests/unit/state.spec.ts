@@ -159,10 +159,13 @@ describe('selectors', () => {
 
   it('shows tabs by permission', () => {
     const s = online();
+    // Without Den badges in the snapshot, so only permissions decide.
     const withPerms = (permissions: NonNullable<StateSnapshot['me']>['permissions']) =>
-      reduce(s, { type: 'state_received', snapshot: { ...snapshot, me: { ...snapshot.me!, permissions } }, at: 3 });
+      reduce(s, { type: 'state_received', snapshot: { ...snapshot, achievements: undefined, me: { ...snapshot.me!, permissions } }, at: 3 });
     expect(visibleTabs(withPerms(['controller']))).toEqual(['remote', 'about']);
     expect(visibleTabs(withPerms(['controller', 'layout_editor', 'owner']))).toEqual(['remote', 'editor', 'devices', 'about']);
+    // The Badges tab follows state.achievements (tests/unit/badges.spec.ts).
+    expect(visibleTabs(reduce(s, { type: 'state_received', snapshot, at: 3 }))).toEqual(['remote', 'badges', 'about']);
   });
 
   it('refuses layout writes over trusted-LAN HTTP unless the TV allows it', () => {
