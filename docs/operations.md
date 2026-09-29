@@ -406,6 +406,64 @@ display goes dark for a moment and its settings are put back):
 Without it the live test starts a throwaway Xvfb, which has no DPMS extension,
 and skips.
 
+## TV control over HDMI-CEC
+
+Optional and off by default ([ADR 0008](decisions/0008-hdmi-cec.md)). HDMI-CEC
+is a slow control bus inside the HDMI cable: the box can turn the TV on and
+off, make the TV switch to its input, and press the TV's volume keys, with the
+TV still never on the network.
+
+**Hardware.** Most mini PCs cannot do CEC on their HDMI port (the reference TV
+box cannot). You need one of:
+
+- a USB CEC adapter placed between the box and the TV, such as Pulse-Eight's
+  USB-CEC Adapter (the kernel's `pulse8-cec` driver). On most distributions
+  it only appears as `/dev/cecN` after `inputattach --pulse8-cec /dev/ttyACM0`
+  (package `inputattach` or `linuxconsoletools`); that is a system change for
+  the owner to make, Bear Den never runs it;
+- a board whose HDMI port has CEC wired up and a kernel driver for it (some
+  NUC boards with an on-board Pulse-Eight chip, Raspberry Pi and many ARM
+  boards).
+
+libcec-only setups (no `/dev/cec*`) are not supported. None of this has been
+seen on hardware yet: it is tested against a fake device only.
+
+**Check** (read-only, on the TV):
+
+```sh
+ls -l /dev/cec*          # nothing: no CEC device, Settings says so
+id -nG                   # the session user needs read/write access to /dev/cecN
+```
+
+The device usually belongs to the `video` group (`crw-rw---- root video`). If
+the session user is not in it, TV Settings shows "cannot open /dev/cec0:
+permission denied". Adding the user to `video` (`sudo usermod -aG video
+<user>`, then log out and in) is the owner's decision; Bear Den never changes
+groups or udev rules. `cec-ctl` from v4l-utils, if installed, is a handy
+second opinion (`cec-ctl -d0 --playback -S` lists what is on the bus) but
+Bear Den does not need it.
+
+**Turn it on** in TV Settings → **TV control over HDMI (CEC)**. Without an
+adapter the row says why ("No HDMI-CEC device (/dev/cec*) — most PCs need a
+USB CEC adapter"); it can still be turned on and applies once an adapter
+appears (checked once a minute). While it is on
+([`contracts/actions.md`](../contracts/actions.md#tv-control-over-hdmi-cec)):
+
+- the sleep timer and Screen off put the TV in standby after the display
+  goes off;
+- the press that wakes the display, a TV key while it was off, any press
+  after Bear Den put the TV in standby, and Home turn the TV on and switch
+  it to Bear Den's input;
+- the phone shows a **TV** section (TV on, TV standby, what the TV last
+  reported), and **Phone volume buttons** in TV Settings chooses whether
+  the phone's volume buttons change the PC's volume (the default) or press
+  the TV's (the heading then reads "TV volume"). Mute uses the explicit
+  Mute Function / Restore Volume Function keys; some TVs ignore them.
+
+The coordinator logs each HDMI-CEC failure (`msg="session: ... HDMI-CEC"`).
+Turning the setting off gives the bus address back. None of this has been
+tried on a real adapter or TV.
+
 ## Phone remote
 
 ```sh

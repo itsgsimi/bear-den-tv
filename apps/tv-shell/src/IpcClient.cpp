@@ -484,6 +484,18 @@ void IpcClient::sendPowerActivity()
     send(QJsonObject{{QStringLiteral("type"), QStringLiteral("power.activity")}});
 }
 
+QString IpcClient::sendCECConfigure(bool enabled, const QString &volumeTarget)
+{
+    const QString id = newRequestId();
+    send(QJsonObject{
+        {QStringLiteral("type"), QStringLiteral("cec.configure")},
+        {QStringLiteral("request_id"), id},
+        {QStringLiteral("enabled"), enabled},
+        {QStringLiteral("volume_target"), volumeTarget},
+    });
+    return track(id, QStringLiteral("cec.configure"));
+}
+
 QString IpcClient::sendPlex(const QString &type, const QJsonObject &fields)
 {
     const QString id = newRequestId();

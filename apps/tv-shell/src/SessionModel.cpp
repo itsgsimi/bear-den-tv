@@ -355,6 +355,22 @@ bool SessionModel::validateSnapshot(const QJsonObject &snapshot, QString *error)
             return false;
         }
     }
+    if (snapshot.contains(QStringLiteral("cec"))) {
+        // state.cec (optional): available, enabled, volume_target pc|tv,
+        // tv_power on|standby|unknown; reason (string) when unavailable.
+        const QString where = QStringLiteral("state.cec");
+        if (!requireType(snapshot, QStringLiteral("cec"), QJsonValue::Object, QStringLiteral("state"), error))
+            return false;
+        const QJsonObject cec = snapshot.value(QStringLiteral("cec")).toObject();
+        if (!requireKeys(cec, {QStringLiteral("available"), QStringLiteral("enabled"), QStringLiteral("volume_target"), QStringLiteral("tv_power")}, where, error)
+            || !requireType(cec, QStringLiteral("available"), QJsonValue::Bool, where, error)
+            || !requireType(cec, QStringLiteral("enabled"), QJsonValue::Bool, where, error)
+            || !requireEnum(cec, QStringLiteral("volume_target"), {QStringLiteral("pc"), QStringLiteral("tv")}, where, error)
+            || !requireEnum(cec, QStringLiteral("tv_power"), {QStringLiteral("on"), QStringLiteral("standby"), QStringLiteral("unknown")}, where, error))
+            return false;
+        if (cec.contains(QStringLiteral("reason")) && !requireType(cec, QStringLiteral("reason"), QJsonValue::String, where, error))
+            return false;
+    }
     if (snapshot.contains(QStringLiteral("plex"))) {
         // state.plex (optional, shell view only): the Plex sign-in flow.
         const QString where = QStringLiteral("state.plex");

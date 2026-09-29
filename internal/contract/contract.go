@@ -64,6 +64,8 @@ const (
 	ActionShellRestart = "shell.restart"
 	ActionSleepTimer   = "power.sleep_timer"
 	ActionDisplayOff   = "display.off"
+	// ActionTVPower turns the TV on or to standby over HDMI-CEC (cec.go).
+	ActionTVPower = "tv.power"
 )
 
 // AllActions lists every action name in protocol 1, in contract order.
@@ -71,7 +73,7 @@ var AllActions = []string{
 	ActionNavUp, ActionNavDown, ActionNavLeft, ActionNavRight, ActionSelect, ActionBack, ActionHome,
 	ActionAppLaunch, ActionAppClose, ActionMediaPlay, ActionMediaPause, ActionMediaSeek,
 	ActionAudioVolume, ActionAudioMute, ActionTextSubmit, ActionShellRestart,
-	ActionSleepTimer, ActionDisplayOff,
+	ActionSleepTimer, ActionDisplayOff, ActionTVPower,
 }
 
 // SleepChoices are the power.sleep_timer minutes a timer may be set to
@@ -93,7 +95,7 @@ func IsNav(action string) bool {
 // in front when the button was drawn does not matter to them.
 func IgnoresStaleEpoch(action string) bool {
 	switch action {
-	case ActionHome, ActionAppLaunch, ActionShellRestart, ActionSleepTimer, ActionDisplayOff:
+	case ActionHome, ActionAppLaunch, ActionShellRestart, ActionSleepTimer, ActionDisplayOff, ActionTVPower:
 		return true
 	}
 	return false
@@ -536,6 +538,7 @@ type State struct {
 	Weather        *Weather              `json:"weather,omitempty"`
 	NowPlaying     *NowPlaying           `json:"now_playing,omitempty"`
 	Power          *Power                `json:"power,omitempty"`
+	CEC            *CEC                  `json:"cec,omitempty"`
 	Plex           *Plex                 `json:"plex,omitempty"`
 	Achievements   *Achievements         `json:"achievements,omitempty"`
 }

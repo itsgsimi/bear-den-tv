@@ -75,6 +75,9 @@ type Options struct {
 	// Display turns the display off and on (display.off, the sleep timer);
 	// nil reports display.off unavailable (power.go).
 	Display platform.DisplayPower
+	// TV drives the TV over HDMI-CEC (cec.go, ADR 0008); nil reports it
+	// unavailable. Used only while config cec.enabled is true.
+	TV platform.TVControl
 	// Suspend is what logind said about suspending (state.power.suspend);
 	// nil omits it. Bear Den never suspends.
 	Suspend *platform.Capability
@@ -135,6 +138,7 @@ type Coordinator struct {
 	media          *mediaProbe
 	np             npState    // now playing for phones (nowplaying.go); memory only
 	pw             powerState // sleep timer and display (power.go)
+	cec            cecState   // TV control over HDMI-CEC (cec.go)
 	notifications  []contract.Notification
 	previewing     bool
 	remote         contract.RemoteState
@@ -191,6 +195,7 @@ func New(opts Options) *Coordinator {
 	}
 	c.holds = actions.NewHolds(opts.Clock, c.limits, c.holdTap, c.publish)
 	c.np.kick = make(chan struct{}, 1)
+	c.cec.kick = make(chan struct{}, 1)
 	c.initAchievements()
 	return c
 }
@@ -263,6 +268,9 @@ func (c *Coordinator) Run(ctx context.Context) error {
 	}
 	go c.watchApps(ctx)
 	go c.watchNowPlaying(ctx)
+	if c.opts.TV != nil {
+		go c.watchCEC(ctx)
+	}
 	go c.watchRevocations(ctx)
 	// Subscribe before the initial read so a change between the two is never lost.
 	fgCh, err := c.opts.Desktop.WatchForeground(ctx)

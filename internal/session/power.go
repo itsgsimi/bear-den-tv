@@ -6,7 +6,9 @@
 // doHome, then turns the display off (while locked: the display only).
 // While the display is off, any action or TV key turns it on again and the
 // press that woke it is swallowed. The display's own settings are restored
-// when it comes back on and when the coordinator stops.
+// when it comes back on and when the coordinator stops. With HDMI-CEC on
+// (cec.go) the TV also goes to standby after the display step and comes on
+// again with the display.
 
 package session
 
@@ -53,6 +55,7 @@ type sleepOutcome struct {
 	Pause   string
 	Home    string
 	Display string
+	TV      string // HDMI-CEC standby; empty while HDMI-CEC is off
 	Reasons map[string]string
 }
 
@@ -228,10 +231,15 @@ func (c *Coordinator) fireSleep(gen uint64) {
 	if already {
 		out.Reasons["display"] = "it was already off"
 	}
+	// HDMI-CEC (cec.go): the TV to standby after the display step.
+	if c.cecActive() {
+		out.Steps = append(out.Steps, "tv")
+		out.TV, out.Reasons["tv"] = c.sleepTV(ctx)
+	}
 	c.mu.Lock()
 	c.pw.last = out
 	c.mu.Unlock()
-	c.log.Info("session: sleep timer fired", "locked", locked, "pause", out.Pause, "home", out.Home, "display", out.Display,
+	c.log.Info("session: sleep timer fired", "locked", locked, "pause", out.Pause, "home", out.Home, "display", out.Display, "tv", out.TV,
 		"pause_reason", out.Reasons["pause"], "home_reason", out.Reasons["home"], "display_reason", out.Reasons["display"])
 }
 
@@ -358,6 +366,9 @@ func (c *Coordinator) wakeDisplay(why string) bool {
 	cancel()
 	c.log.Info("session: display on", "by", why)
 	c.publish()
+	if why != "shutdown" {
+		c.tvWake(why) // HDMI-CEC: the TV on and on Bear Den's input (cec.go)
+	}
 	return true
 }
 
@@ -377,10 +388,13 @@ func (c *Coordinator) powerGate(action string) (swallow bool) {
 		return false // an off display stays off
 	}
 	woke := c.opts.Display != nil && c.wakeDisplay("action "+action)
+	if !woke {
+		c.wakeTVAfterStandby(action)
+	}
 	c.cancelSleepWarning("action " + action)
 	// While locked the press is refused as locked anyway, which says more.
 	_, _, locked := c.current()
-	return woke && !locked && action != contract.ActionSleepTimer
+	return woke && !locked && action != contract.ActionSleepTimer && action != contract.ActionTVPower
 }
 
 // doSleepTimer is the power.sleep_timer action.
@@ -420,6 +434,9 @@ func (c *Coordinator) doDisplayOff(ctx context.Context, req contract.ActionReque
 	detail := map[string]any{}
 	if already {
 		detail["already_off"] = true
+	}
+	if outcome == stepObserved || outcome == stepDelivered {
+		c.standbyAfterDisplayOff() // HDMI-CEC, in the background (cec.go)
 	}
 	switch outcome {
 	case stepObserved:

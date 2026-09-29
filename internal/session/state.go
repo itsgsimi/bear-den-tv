@@ -74,6 +74,7 @@ func (c *Coordinator) buildStateFor(view viewKind, v *remote.Viewer) contract.St
 	playback := c.playback // an immutable snapshot, replaced whole by the tuner
 	nowPlaying := c.nowPlayingLocked()
 	st.Power = c.powerLocked() // also while locked: the shell swallows the waking key
+	st.CEC = c.cecStateLocked(cfg.CECSettings())
 	c.mu.Unlock()
 	showNowPlaying := cfg.Remote.ShowNowPlaying()
 	st.Remote.NowPlaying = &showNowPlaying
@@ -157,6 +158,7 @@ func (c *Coordinator) buildStateFor(view viewKind, v *remote.Viewer) contract.St
 		}
 	case viewAnonymous:
 		st.Power = nil
+		st.CEC = nil
 		st.Shell.Focus = contract.Focus{}
 		st.Applications = []contract.AppState{}
 		st.Notifications = []contract.Notification{}
@@ -323,6 +325,7 @@ func (c *Coordinator) capabilitiesLocked() map[string]contract.Capability {
 		caps[contract.ActionShellRestart] = available("supervisor")
 	}
 	c.powerCapsLocked(caps)
+	c.cecCapsLocked(caps)
 	return caps
 }
 

@@ -45,6 +45,7 @@ const (
 	TypeDevicesGrant     = "devices.grant"
 	TypeRemoteConfigure  = "remote.configure"
 	TypeRemoteNowPlaying = "remote.now_playing"
+	TypeCECConfigure     = "cec.configure"
 	TypeInstallRequest   = "applications.install_request"
 	TypePlaybackSet      = "playback.set"
 	TypeWeatherSearch    = "weather.search"
@@ -349,6 +350,18 @@ type RemoteNowPlaying struct {
 // Kind implements Message.
 func (RemoteNowPlaying) Kind() string { return TypeRemoteNowPlaying }
 
+// CECConfigure stores config cec (TV Settings → TV control over HDMI (CEC)
+// and its volume row). Answered with Result.
+type CECConfigure struct {
+	Type         string `json:"type"`
+	RequestID    string `json:"request_id"`
+	Enabled      bool   `json:"enabled"`
+	VolumeTarget string `json:"volume_target"`
+}
+
+// Kind implements Message.
+func (CECConfigure) Kind() string { return TypeCECConfigure }
+
 // InstallRequest asks for a guided Flatpak install.
 type InstallRequest struct {
 	Type      string `json:"type"`
@@ -432,9 +445,9 @@ type ShellExit struct {
 func (ShellExit) Kind() string { return TypeShellExit }
 
 // Result is the generic terminal reply to request_id-bearing administrative
-// messages (pair.*, devices.*, remote.configure, remote.now_playing,
-// applications.install_request, playback.set, weather.configure, achievements.configure,
-// achievements.reset).
+// messages (pair.*, devices.*, remote.configure, remote.now_playing, cec.configure,
+// applications.install_request, playback.set, weather.configure,
+// achievements.configure, achievements.reset).
 // Data carries an operation-specific payload, for example the issued
 // invitation for pair.issue. contracts/ipc.md does not list this message yet.
 type Result struct {
@@ -514,6 +527,8 @@ func Decode(frame []byte) (Message, error) {
 		m = &RemoteConfigure{}
 	case TypeRemoteNowPlaying:
 		m = &RemoteNowPlaying{}
+	case TypeCECConfigure:
+		m = &CECConfigure{}
 	case TypeInstallRequest:
 		m = &InstallRequest{}
 	case TypePlaybackSet:
@@ -610,6 +625,8 @@ func deref(m Message) Message {
 	case *WeatherConfigure:
 		return *t
 	case *RemoteNowPlaying:
+		return *t
+	case *CECConfigure:
 		return *t
 	case *ShellExit:
 		return *t

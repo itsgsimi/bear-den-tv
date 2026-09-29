@@ -25,6 +25,7 @@ const ACTION_NAMES: Record<string, string> = {
   'shell.restart': 'Restart shell',
   'power.sleep_timer': 'Sleep timer',
   'display.off': 'Screen off',
+  'tv.power': 'TV power',
 };
 
 export const t = {
@@ -125,6 +126,7 @@ export const t = {
     nowPlayingStatus: (status: NowPlayingStatus): string => (status === 'playing' ? 'Playing' : status === 'paused' ? 'Paused' : 'Stopped'),
     nowPlayingProgress: (position: string, length: string) => `${position} of ${length}`,
     pcVolume: 'PC volume',
+    tvVolume: 'TV volume',
     volumeDown: 'Volume down',
     volumeUp: 'Volume up',
     mute: 'Mute',
@@ -192,6 +194,16 @@ export const t = {
     chipLabel: (minutes: number) => `Sleep in ${minutes} minutes`,
     cancel: 'Cancel timer',
     screenOff: 'Screen off',
+  },
+
+  // TV over HDMI-CEC (views/tv.tsx).
+  tv: {
+    heading: 'TV',
+    isOn: 'The TV is on.',
+    isStandby: 'The TV is in standby.',
+    isUnknown: 'The TV did not say whether it is on.',
+    on: 'TV on',
+    standby: 'TV standby',
   },
 
   // Layout editor.

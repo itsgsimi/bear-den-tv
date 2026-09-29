@@ -106,6 +106,7 @@ func (c *Coordinator) route(ctx context.Context, s sender, req contract.ActionRe
 		contract.ActionSelect, contract.ActionBack, contract.ActionTextSubmit:
 		return c.routeInput(ctx, req, target)
 	case contract.ActionHome:
+		c.tvWake("home") // HDMI-CEC: the TV on and on Bear Den's input (cec.go)
 		return c.async(s, req, c.doHome)
 	case contract.ActionAppLaunch:
 		return c.async(s, req, c.doLaunch)
@@ -119,6 +120,8 @@ func (c *Coordinator) route(ctx context.Context, s sender, req contract.ActionRe
 		return c.doSleepTimer(req)
 	case contract.ActionDisplayOff:
 		return c.doDisplayOff(ctx, req)
+	case contract.ActionTVPower:
+		return c.doTVPower(ctx, req)
 	case contract.ActionShellRestart:
 		if c.opts.Supervisor == nil {
 			return c.fail(req, contract.CodeUnsupported, "The shell is not supervised by this coordinator.")
@@ -683,6 +686,9 @@ func (c *Coordinator) doMedia(ctx context.Context, req contract.ActionRequest, t
 }
 
 func (c *Coordinator) doAudio(ctx context.Context, req contract.ActionRequest) contract.ActionResult {
+	if c.cecSettings().TVVolume() {
+		return c.doTVVolume(ctx, req) // cec.volume_target tv (cec.go)
+	}
 	cp, _ := c.capability(req.Action)
 	if !cp.Available {
 		return c.fail(req, contract.CodeUnsupported, cp.Reason)

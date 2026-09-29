@@ -680,6 +680,38 @@ func TestRemoteNowPlaying(t *testing.T) {
 	}
 }
 
+// cec is optional (absent = off, PC volume), its volume_target is pc or tv
+// (also on the Update path, which skips the schema), and Clone copies it.
+func TestCECBlock(t *testing.T) {
+	base := defaultRaw(t)
+	cfg, err := Parse(base, testRules())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s := cfg.CECSettings(); s.Enabled || s.VolumeTarget != "pc" || s.TVVolume() {
+		t.Fatalf("absent cec must be off with PC volume: %+v", s)
+	}
+	on, err := Parse(mutateJSON(t, base, func(m map[string]any) { m["cec"] = map[string]any{"enabled": true, "volume_target": "tv"} }), testRules())
+	if err != nil || !on.CECSettings().TVVolume() {
+		t.Fatalf("cec on, tv: err=%v %+v", err, on.CECSettings())
+	}
+	if _, err := Parse(mutateJSON(t, base, func(m map[string]any) { m["cec"] = map[string]any{"enabled": true, "volume_target": "soundbar"} }), testRules()); err == nil {
+		t.Fatal("volume_target soundbar was accepted")
+	}
+	bad := on.Clone()
+	bad.CEC.VolumeTarget = "soundbar"
+	if err := ValidatePortable(bad, testRules()); err == nil || !strings.Contains(err.Error(), "cec.volume_target") {
+		t.Fatalf("ValidatePortable accepted volume_target soundbar: %v", err)
+	}
+	if on.CEC.VolumeTarget != "tv" {
+		t.Fatal("Clone aliases the cec block")
+	}
+	off := CEC{Enabled: false, VolumeTarget: "tv"}
+	if off.TVVolume() {
+		t.Fatal("volume_target tv must not apply while CEC is off")
+	}
+}
+
 // achievements is optional (absent = on), written on in the product default,
 // off when enabled is false, and deep-copied by Clone.
 func TestAchievementsSwitch(t *testing.T) {

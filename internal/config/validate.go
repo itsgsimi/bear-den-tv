@@ -268,6 +268,7 @@ func ValidatePortable(c Config, rules Rules) error {
 			}
 		}
 	}
+	validateCEC(c, errs)
 	if len(errs.Items) > 0 {
 		return errs
 	}

@@ -471,10 +471,8 @@ private slots:
         act(QStringLiteral("nav.right"));
         act(QStringLiteral("select"));
         QCOMPARE(m_nav->screen(), QStringLiteral("settings"));
-        for (int i = 0; i < 30; ++i)
+        for (int i = 0; i < 40 && m_nav->itemId() != QLatin1String("badges"); ++i)
             act(QStringLiteral("nav.down"));
-        act(QStringLiteral("nav.up"));
-        act(QStringLiteral("nav.up")); // Exit, Plex, then Badges
         QCOMPARE(m_nav->itemId(), QStringLiteral("badges"));
         act(QStringLiteral("select"));
         QCOMPARE(m_nav->screen(), QStringLiteral("settings")); // the contract's name for it
@@ -944,6 +942,52 @@ private slots:
         QCOMPARE(cw->get(0).value(QStringLiteral("subtitle")).toString(), QStringLiteral("Can't reach your Plex server"));
     }
 
+    // state.cec (TV control over HDMI-CEC) is accepted, exposed as
+    // Session.cec, and a malformed one is rejected while the previous state stays.
+    void cecAcceptedAndChecked()
+    {
+        SessionModel *session = SessionModel::instance();
+        const int epoch = session->contextEpoch();
+        QJsonObject snap = fixture();
+        snap.insert(QStringLiteral("context_epoch"), epoch + 600);
+        QJsonObject cec{{QStringLiteral("available"), false},
+                        {QStringLiteral("reason"), QStringLiteral("No HDMI-CEC device (/dev/cec*) — most PCs need a USB CEC adapter")},
+                        {QStringLiteral("enabled"), false}, {QStringLiteral("volume_target"), QStringLiteral("pc")},
+                        {QStringLiteral("tv_power"), QStringLiteral("unknown")}};
+        snap.insert(QStringLiteral("cec"), cec);
+        QVERIFY2(session->applySnapshot(snap), qPrintable(session->lastError()));
+        QCOMPARE(session->cec().value(QStringLiteral("available")).toBool(), false);
+        QVERIFY(session->cec().value(QStringLiteral("reason")).toString().contains(QStringLiteral("/dev/cec")));
+        cec.insert(QStringLiteral("available"), true);
+        cec.remove(QStringLiteral("reason"));
+        cec.insert(QStringLiteral("enabled"), true);
+        cec.insert(QStringLiteral("volume_target"), QStringLiteral("tv"));
+        cec.insert(QStringLiteral("tv_power"), QStringLiteral("standby"));
+        snap.insert(QStringLiteral("cec"), cec);
+        QVERIFY2(session->applySnapshot(snap), qPrintable(session->lastError()));
+        QCOMPARE(session->cec().value(QStringLiteral("tv_power")).toString(), QStringLiteral("standby"));
+
+        snap.insert(QStringLiteral("context_epoch"), epoch + 700);
+        for (const auto &[key, bad] : std::initializer_list<std::pair<QString, QJsonValue>>{
+                 {QStringLiteral("tv_power"), QStringLiteral("off")},
+                 {QStringLiteral("volume_target"), QStringLiteral("soundbar")},
+                 {QStringLiteral("enabled"), QStringLiteral("yes")},
+                 {QStringLiteral("reason"), 3}}) {
+            QJsonObject broken = cec;
+            broken.insert(key, bad);
+            snap.insert(QStringLiteral("cec"), broken);
+            QVERIFY2(!session->applySnapshot(snap), qPrintable(key));
+            QVERIFY2(session->lastError().contains(QStringLiteral("state.cec")), qPrintable(session->lastError()));
+        }
+        QJsonObject missing = cec;
+        missing.remove(QStringLiteral("tv_power"));
+        snap.insert(QStringLiteral("cec"), missing);
+        QVERIFY(!session->applySnapshot(snap));
+        QCOMPARE(session->contextEpoch(), epoch + 600); // the previous state stays
+        QVERIFY(session->applySnapshot(fixture()));
+        QVERIFY(session->cec().isEmpty());
+    }
+
     // Settings → Now playing on phones: a toggle showing state.remote.now_playing
     // (missing means on), OK sends remote.now_playing with the opposite value.
     void nowPlayingRowTogglesTheSetting()
@@ -976,7 +1020,7 @@ private slots:
         act(QStringLiteral("nav.right"));
         act(QStringLiteral("select"));
         QCOMPARE(m_nav->screen(), QStringLiteral("settings"));
-        for (int i = 0; i < 30; ++i)
+        for (int i = 0; i < 40; ++i) // to the top from wherever Settings kept focus
             act(QStringLiteral("nav.up"));
         for (int i = 0; i < 3; ++i) // remote, pairing, devices
             act(QStringLiteral("nav.down"));
@@ -1085,6 +1129,93 @@ private slots:
         act(QStringLiteral("select"));
         QTest::qWait(1200);
         QVERIFY(lastRequest(QStringLiteral("display.off")).isEmpty());
+
+        QVERIFY(session->applySnapshot(fixture()));
+        goHome();
+    }
+
+    // Settings → TV control over HDMI (CEC): a toggle that shows why it is
+    // unavailable (state.cec.reason) and sends cec.configure; while it is on
+    // with an adapter, a "Phone volume buttons" row (◀ ▶ or OK) switches the
+    // volume target between the PC and the TV.
+    void cecRowsShowTheReasonAndConfigure()
+    {
+        SessionModel *session = SessionModel::instance();
+        IpcClient *ipc = ShellController::instance()->ipc();
+        auto focused = [this](const char *property) {
+            QString value;
+            std::function<void(QQuickItem *)> find = [&](QQuickItem *item) {
+                if (!item->isVisible() || item->opacity() == 0)
+                    return;
+                if (item->objectName() == QLatin1String("settingsRow") && item->property("focused").toBool())
+                    value = item->property(property).toString();
+                for (QQuickItem *child : item->childItems())
+                    find(child);
+            };
+            find(m_window->contentItem());
+            return value;
+        };
+        auto lastConfigure = [ipc]() {
+            const QList<QJsonObject> sent = ipc->sentMessages();
+            for (auto it = sent.crbegin(); it != sent.crend(); ++it)
+                if (it->value(QStringLiteral("type")).toString() == QLatin1String("cec.configure"))
+                    return *it;
+            return QJsonObject{};
+        };
+        auto withCec = [this](const QJsonObject &cec) {
+            QJsonObject snap = fixture();
+            snap.insert(QStringLiteral("cec"), cec);
+            return snap;
+        };
+        const QString reason = QStringLiteral("No HDMI-CEC device (/dev/cec*) — most PCs need a USB CEC adapter");
+        const QJsonObject none{{QStringLiteral("available"), false}, {QStringLiteral("reason"), reason}, {QStringLiteral("enabled"), false},
+                               {QStringLiteral("volume_target"), QStringLiteral("pc")}, {QStringLiteral("tv_power"), QStringLiteral("unknown")}};
+
+        QVERIFY2(session->applySnapshot(withCec(none)), qPrintable(session->lastError()));
+        goHome();
+        toHeader();
+        act(QStringLiteral("nav.right"));
+        act(QStringLiteral("select"));
+        QCOMPARE(m_nav->screen(), QStringLiteral("settings"));
+        for (int i = 0; i < 40 && m_nav->itemId() != QLatin1String("cec"); ++i)
+            act(QStringLiteral("nav.down"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("cec"));
+        QCOMPARE(focused("value"), QStringLiteral("off"));
+        QCOMPARE(focused("description"), reason);
+        shot(QStringLiteral("settings-cec-unavailable"));
+        // No adapter: no volume row; the next row is Plex.
+        act(QStringLiteral("nav.down"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("plex"));
+        act(QStringLiteral("nav.up"));
+        // Turning it on is stored anyway (it applies when an adapter appears).
+        ipc->clearSent();
+        act(QStringLiteral("select"));
+        QCOMPARE(lastConfigure().value(QStringLiteral("enabled")), QJsonValue(true));
+        QCOMPARE(lastConfigure().value(QStringLiteral("volume_target")).toString(), QStringLiteral("pc"));
+
+        QJsonObject on{{QStringLiteral("available"), true}, {QStringLiteral("enabled"), true},
+                       {QStringLiteral("volume_target"), QStringLiteral("pc")}, {QStringLiteral("tv_power"), QStringLiteral("on")}};
+        QVERIFY2(session->applySnapshot(withCec(on)), qPrintable(session->lastError()));
+        QTRY_COMPARE(focused("value"), QStringLiteral("on"));
+        QVERIFY2(focused("description").contains(QStringLiteral("TV is on")), qPrintable(focused("description")));
+        act(QStringLiteral("nav.down"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("cec-volume"));
+        QCOMPARE(focused("value"), QStringLiteral("PC"));
+        ipc->clearSent();
+        act(QStringLiteral("nav.right"));
+        QCOMPARE(lastConfigure().value(QStringLiteral("volume_target")).toString(), QStringLiteral("tv"));
+        QCOMPARE(lastConfigure().value(QStringLiteral("enabled")), QJsonValue(true));
+        on.insert(QStringLiteral("volume_target"), QStringLiteral("tv"));
+        QVERIFY(session->applySnapshot(withCec(on)));
+        QTRY_COMPARE(focused("value"), QStringLiteral("TV"));
+        shot(QStringLiteral("settings-cec-on"));
+        act(QStringLiteral("select"));
+        QCOMPARE(lastConfigure().value(QStringLiteral("volume_target")).toString(), QStringLiteral("pc"));
+        act(QStringLiteral("nav.up"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("cec"));
+        act(QStringLiteral("select"));
+        QCOMPARE(lastConfigure().value(QStringLiteral("enabled")), QJsonValue(false));
+        QCOMPARE(lastConfigure().value(QStringLiteral("volume_target")).toString(), QStringLiteral("tv"));
 
         QVERIFY(session->applySnapshot(fixture()));
         goHome();

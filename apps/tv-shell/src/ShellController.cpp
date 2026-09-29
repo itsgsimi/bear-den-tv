@@ -249,6 +249,8 @@ void ShellController::onReply(const QString &requestId, const QString &type, con
         emit requestFailed(tr("Paired phones"), error);
     else if (type == QLatin1String("remote.now_playing"))
         emit requestFailed(tr("Now playing on phones"), error);
+    else if (type == QLatin1String("cec.configure"))
+        emit requestFailed(tr("TV control over HDMI"), error);
     else if (type == QLatin1String("playback.set"))
         emit requestFailed(tr("Advanced playback"), error);
     else if (type.startsWith(QLatin1String("achievements.")))
@@ -346,6 +348,11 @@ void ShellController::achievementsCelebrated(const QStringList &ids)
         m_ipc->sendAchievementsCelebrated(ids);
 }
 void ShellController::achievementEvent(const QString &event) { m_ipc->sendAchievementsEvent(event); }
+
+void ShellController::setCEC(bool enabled, const QString &volumeTarget)
+{
+    m_ipc->sendCECConfigure(enabled, volumeTarget == QLatin1String("tv") ? QStringLiteral("tv") : QStringLiteral("pc"));
+}
 
 void ShellController::plexSignIn() { m_ipc->sendPlex(QStringLiteral("plex.sign_in")); }
 void ShellController::plexCancel() { m_ipc->sendPlex(QStringLiteral("plex.cancel")); }

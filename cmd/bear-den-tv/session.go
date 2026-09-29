@@ -31,6 +31,7 @@ import (
 	"bear-den-tv/internal/pairing"
 	"bear-den-tv/internal/platform"
 	"bear-den-tv/internal/platform/audio"
+	"bear-den-tv/internal/platform/cec"
 	"bear-den-tv/internal/platform/dbusx"
 	"bear-den-tv/internal/platform/detect"
 	"bear-den-tv/internal/platform/fake"
@@ -204,6 +205,7 @@ func runSession(f sessionFlags) error {
 		media    platform.MediaLocator
 		launcher applications.Launcher
 		display  platform.DisplayPower // sleep timer and display.off
+		tv       platform.TVControl    // HDMI-CEC, used only while config cec.enabled
 		suspendR *platform.Capability  // what logind says about suspending
 	)
 	if f.dev {
@@ -212,6 +214,7 @@ func runSession(f sessionFlags) error {
 		fd.SetActive(shellWin)
 		desk, launcher = fd, fake.NewLauncher(fd)
 		display = fake.NewDisplay()
+		tv = fake.NewTV() // a pretend HDMI-CEC TV; nothing touches a real bus
 		suspendR = &platform.Capability{Backend: "dev", Reason: "Development session: suspend is never offered."}
 		log.Info("dev: fake desktop with a synthetic shell window; nothing touches the real display")
 		if f.devFixtures {
@@ -226,6 +229,11 @@ func runSession(f sessionFlags) error {
 		desk = detect.NewDesktopAdapter(ctx, detect.Options{Lock: lo})
 		launcher = flatpak.New(flatpak.Options{})
 		audioB = audio.New(audio.ExecRunner)
+		// HDMI-CEC through the kernel API (ADR 0008): nothing is sent unless
+		// an adapter exists and the owner turned on cec.enabled.
+		cecA := cec.New(cec.Options{})
+		defer cecA.Close()
+		tv = cecA
 		if bus, err := dbusx.ConnectSession(ctx); err == nil {
 			media = mpris.NewLocator(bus)
 		} else {
@@ -295,7 +303,7 @@ func runSession(f sessionFlags) error {
 	}
 	coord = session.New(session.Options{
 		Themes: themeReg, Tuner: tuner,
-		Logger: log, Desktop: desk, Lock: lockObs, Audio: audioB, Media: media, Display: display, Suspend: suspendR,
+		Logger: log, Desktop: desk, Lock: lockObs, Audio: audioB, Media: media, Display: display, TV: tv, Suspend: suspendR,
 		Launcher: launcher, Adapters: adapters.NewRegistry(), Config: store, Pairing: pair,
 		Supervisor: sup, DevMode: f.dev && (f.devFixtures || f.devPlexFake), Feed: feed, Weather: wx, Plex: plexOpt,
 		// Den badges: local counters in state.db; nothing counted while
