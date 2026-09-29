@@ -3,7 +3,8 @@
 // face, assets/bear-mark.svg / bear-sleep.svg) on a smooth SVG body with arms
 // and legs (assets/bear-body, bear-arm, bear-leg.svg), posed by the numbers
 // on `puppet` (the BearPuppet: walk, walking, wave, wavePhase, squash, facing,
-// sitting, reach, asleep, blink, stickLength, hat, carry). Rotations and
+// sitting, reach, asleep, blink, stickLength, and the dressed wornHat, held
+// and dress: assets/classic/umbrella-leaf.svg in the rain). Rotations and
 // scales are continuous; nothing animates on its own.
 
 import QtQuick
@@ -86,14 +87,14 @@ Item {
             smooth: true
             // What the bear carries in this paw.
             Ornament {
-                visible: puppet.carry !== "" && puppet.carry !== "stick" && puppet.kind !== "mama"
-                url: puppet.carry !== "stick" ? puppet.carry : ""
+                visible: puppet.held !== "" && puppet.held !== "stick" && puppet.kind !== "mama"
+                url: puppet.held !== "stick" ? puppet.held : ""
                 width: 18 * root.u; height: width
                 x: rightArm.width / 2 - width / 2
                 y: rightArm.height * 0.78 - height / 2
             }
             Item {
-                visible: puppet.carry === "stick" && puppet.kind !== "mama"
+                visible: puppet.held === "stick" && puppet.kind !== "mama"
                 x: rightArm.width / 2
                 y: rightArm.height * 0.78
                 Rectangle {
@@ -109,6 +110,19 @@ Item {
                 }
             }
         }
+        // A leaf umbrella in the rain: the stem rises from the resting right
+        // paw to a leaf canopy over the head.
+        Item {
+            visible: puppet.dress === "umbrella"
+            Rectangle { x: 66 * root.u; y: -8 * root.u; width: 2.6 * root.u; height: 80 * root.u; radius: width / 2; color: "#5E7A3A" }
+            Image {
+                source: parent.visible ? "qrc:/qt/qml/BearDen/assets/classic/umbrella-leaf.svg" : ""
+                width: 84 * root.u; height: width * 44 / 104
+                x: 67 * root.u - width / 2; y: -40 * root.u
+                sourceSize: Qt.size(width * 2, height * 2)
+                smooth: true
+            }
+        }
         Image {
             id: headImage
             source: "qrc:/qt/qml/BearDen/assets/" + (puppet.blink || puppet.asleep ? root.sleepyHead : root.head) + ".svg"
@@ -120,8 +134,8 @@ Item {
             sourceSize: Qt.size(width * 2, height * 2)
             smooth: true
             Ornament {
-                visible: puppet.hat.toString().length > 0
-                url: puppet.hat
+                visible: puppet.wornHat.toString().length > 0
+                url: puppet.wornHat
                 width: headImage.width * 0.66; height: width * 0.72
                 x: headImage.width / 2 - width / 2
                 y: headImage.height * 0.08

@@ -4,6 +4,12 @@
 // This is the Classic art style's version (World.classic; ADR 0006): smooth
 // SVG art laid out in 300 design units across `size`. CampScene.qml is the
 // pixel one; HomeScreen picks between them.
+// Local weather (SceneWeather.qml, docs/THEMES.md → Weather in the corner
+// scene), as in the pixel scene: puddles and drips in the rain, snow on the
+// tent's peak and the lantern arm, fog fading the camp (as one layer, so the
+// bears never show through the tent), mama and the cub startled by
+// lightning, stars on a clear night; the fireflies stay in out of the rain,
+// snow and fog.
 
 import QtQuick
 import BearDen
@@ -16,34 +22,51 @@ Item {
     height: size * 0.75
     readonly property real u: width / 300
 
-    Ornament { name: "pine"; width: 46 * root.u; height: 58 * root.u; x: 196 * root.u; y: 50 * root.u }
-    // The tent's lit interior, seen through the open door.
-    Canvas {
-        x: 94 * root.u; y: 100 * root.u
-        width: 112 * root.u; height: 114 * root.u
-        antialiasing: true
-        onWidthChanged: requestPaint()
-        onPaint: {
-            const ctx = getContext("2d"), w = width, h = height
-            ctx.reset()
-            ctx.beginPath()
-            ctx.moveTo(w * 0.5, h * 0.02); ctx.lineTo(w, h); ctx.lineTo(0, h); ctx.closePath()
-            ctx.fillStyle = "#2A2118"
-            ctx.fill()
-            const g = ctx.createRadialGradient(w * 0.5, h * 0.8, 0, w * 0.5, h * 0.8, h * 0.7)
-            g.addColorStop(0, "rgba(255, 196, 110, 0.55)")
-            g.addColorStop(1, "rgba(255, 196, 110, 0)")
-            ctx.fillStyle = g
-            ctx.fill()
-        }
+    readonly property real hop: weatherFront.startled ? 5 : 0
+    SceneWeather {
+        side: "back"
+        unit: root.u
+        anchors.fill: parent
+        reactions: ({
+            wet: { puddles: [ { x: 6, y: 216, w: 34 }, { x: 196, y: 218, w: 40 } ] },
+            night: { stars: [ { x: 20, y: 16 }, { x: 64, y: 44 }, { x: 110, y: 10 }, { x: 170, y: 24 }, { x: 272, y: 12 }, { x: 290, y: 64 } ] }
+        })
     }
-    BearHead { alive: root.alive; kind: "mama"; width: 56 * root.u; x: 112 * root.u; y: 150 * root.u }
-    BearHead { alive: root.alive; kind: "cub"; width: 46 * root.u; x: 148 * root.u; y: 168 * root.u }
-    Ornament { name: "tent"; width: 220 * root.u; height: 158.4 * root.u; x: 40 * root.u; y: 63 * root.u }
-    Ornament { name: "paw-grip"; width: 16 * root.u; height: 11 * root.u; x: 150 * root.u; y: 204 * root.u }
-    Ornament { name: "paw-grip"; width: 16 * root.u; height: 11 * root.u; x: 178 * root.u; y: 204 * root.u }
-    Ornament { name: "pine"; width: 64 * root.u; height: 80 * root.u; x: -8 * root.u; y: 140 * root.u }
-    Ornament { name: "pine"; width: 50 * root.u; height: 62 * root.u; x: 250 * root.u; y: 160 * root.u }
+    // The camp: in fog it fades as one picture (a layer, only then), so the
+    // bears never show through the tent.
+    Item {
+        anchors.fill: parent
+        opacity: 1 - weatherFront.fade
+        layer.enabled: weatherFront.fade > 0
+        Ornament { name: "pine"; width: 46 * root.u; height: 58 * root.u; x: 196 * root.u; y: 50 * root.u }
+        // The tent's lit interior, seen through the open door.
+        Canvas {
+            x: 94 * root.u; y: 100 * root.u
+            width: 112 * root.u; height: 114 * root.u
+            antialiasing: true
+            onWidthChanged: requestPaint()
+            onPaint: {
+                const ctx = getContext("2d"), w = width, h = height
+                ctx.reset()
+                ctx.beginPath()
+                ctx.moveTo(w * 0.5, h * 0.02); ctx.lineTo(w, h); ctx.lineTo(0, h); ctx.closePath()
+                ctx.fillStyle = "#2A2118"
+                ctx.fill()
+                const g = ctx.createRadialGradient(w * 0.5, h * 0.8, 0, w * 0.5, h * 0.8, h * 0.7)
+                g.addColorStop(0, "rgba(255, 196, 110, 0.55)")
+                g.addColorStop(1, "rgba(255, 196, 110, 0)")
+                ctx.fillStyle = g
+                ctx.fill()
+            }
+        }
+        BearHead { alive: root.alive; kind: "mama"; width: 56 * root.u; x: 112 * root.u; y: (150 - root.hop) * root.u }
+        BearHead { alive: root.alive; kind: "cub"; width: 46 * root.u; x: 148 * root.u; y: (168 - root.hop) * root.u }
+        Ornament { name: "tent"; width: 220 * root.u; height: 158.4 * root.u; x: 40 * root.u; y: 63 * root.u }
+        Ornament { name: "paw-grip"; width: 16 * root.u; height: 11 * root.u; x: 150 * root.u; y: 204 * root.u }
+        Ornament { name: "paw-grip"; width: 16 * root.u; height: 11 * root.u; x: 178 * root.u; y: 204 * root.u }
+        Ornament { name: "pine"; width: 64 * root.u; height: 80 * root.u; x: -8 * root.u; y: 140 * root.u }
+        Ornament { name: "pine"; width: 50 * root.u; height: 62 * root.u; x: 250 * root.u; y: 160 * root.u }
+    }
 
     // Lantern on its post.
     Rectangle { x: 270 * root.u; y: 112 * root.u; width: 4 * root.u; height: 110 * root.u; radius: width / 2; color: "#6B4A32" }
@@ -65,9 +88,9 @@ Item {
     Rectangle { x: 249 * root.u; y: 114 * root.u; width: 1.5 * root.u; height: 12 * root.u; color: "#3B424A" }
     Ornament { name: "lantern"; width: 34 * root.u; height: 34 * root.u; x: 233 * root.u; y: 122 * root.u }
 
-    // Fireflies drifting by the tent.
+    // Fireflies drifting by the tent (they stay in out of the rain, snow and fog).
     Repeater {
-        model: 3
+        model: weatherFront.look === "" || weatherFront.look === "night" ? 3 : 0
         Rectangle {
             required property int index
             width: 5 * root.u; height: width; radius: width / 2
@@ -89,5 +112,18 @@ Item {
                 NumberAnimation { to: 0.9; duration: 1200 + index * 200; easing.type: Easing.InOutSine }
             }
         }
+    }
+    SceneWeather {
+        id: weatherFront
+        side: "front"
+        unit: root.u
+        anchors.fill: parent
+        reactions: ({
+            wet: { drips: [ { x: 252, y: 118 }, { x: 44, y: 204 } ] },
+            storm: { startle: [ { x: 128, y: 126 }, { x: 170, y: 146 } ] },
+            snow: { caps: [ { x: 143, y: 69, w: 14 }, { x: 136, y: 75, w: 10 }, { x: 154, y: 75, w: 10 }, { x: 126, y: 89, w: 10 },
+                            { x: 164, y: 89, w: 10 }, { x: 244, y: 106, w: 30 } ] },
+            fog: { fade: 0.4, mist: [ { y: 120, h: 10 }, { y: 186, h: 12 } ] }
+        })
     }
 }

@@ -6,6 +6,10 @@
 // This is the Classic art style's version (World.classic; ADR 0006): smooth
 // SVG art laid out in 300 design units across `size`. MoonScene.qml is the
 // pixel one; HomeScreen picks between them.
+// Local weather (SceneWeather.qml, docs/THEMES.md → Weather in the corner
+// scene), as in the pixel scene: drips from the crescent and the stars in
+// the rain, snow on the crescent's rim, fog fading the mobile, the cub
+// startled by lightning, more stars on a clear night.
 
 import QtQuick
 import BearDen
@@ -36,6 +40,14 @@ Item {
             origin.y: -40 * root.u
             angle: 2.5 * root.wave(10.4, 0)
         }
+        SceneWeather {
+            side: "back"
+            unit: root.u
+            anchors.fill: parent
+            reactions: ({
+                night: { stars: [ { x: 90, y: 14 }, { x: 214, y: 20 }, { x: 290, y: 150 }, { x: 236, y: 196 }, { x: 60, y: 196 }, { x: 110, y: 204 } ] }
+            })
+        }
         BrandBackdrop {
             x: 40 * root.u; y: 30 * root.u
             width: 220 * root.u; height: 190 * root.u
@@ -48,11 +60,11 @@ Item {
         Rectangle { x: 52 * root.u; y: -40 * root.u; width: 1 * root.u; height: 74 * root.u; color: "#9DB2DD"; opacity: 0.6 }
         Rectangle { x: 262 * root.u; y: -40 * root.u; width: 1 * root.u; height: 112 * root.u; color: "#9DB2DD"; opacity: 0.6 }
         Rectangle { x: 26 * root.u; y: -40 * root.u; width: 1 * root.u; height: 170 * root.u; color: "#9DB2DD"; opacity: 0.5 }
-        Ornament { name: "moon"; width: 150 * root.u; height: 150 * root.u; x: 70 * root.u; y: 40 * root.u }
+        Ornament { name: "moon"; width: 150 * root.u; height: 150 * root.u; x: 70 * root.u; y: 40 * root.u; opacity: 1 - weatherFront.fade }
         BearPuppet {
             kind: "cub"; size: 78 * root.u; facing: -1; sitting: true; asleep: true
             carry: ""
-            x: 136 * root.u; y: 150 * root.u - height
+            x: 136 * root.u; y: 150 * root.u - height - (weatherFront.startled ? 5 * root.u : 0)
             transformOrigin: Item.Bottom
             rotation: -14 + 1.5 * root.wave(5.2, 0.3)   // leaning back into the moon, breathing
         }
@@ -65,7 +77,21 @@ Item {
                 width: modelData.w * root.u; height: width
                 x: modelData.x * root.u; y: modelData.y * root.u
                 scale: 1.09 + 0.09 * root.wave(1.8, index * 0.39)
+                opacity: 1 - weatherFront.fade
             }
+        }
+        SceneWeather {
+            id: weatherFront
+            side: "front"
+            unit: root.u
+            anchors.fill: parent
+            reactions: ({
+                wet: { drips: [ { x: 118, y: 176 }, { x: 150, y: 186 }, { x: 52, y: 58 }, { x: 262, y: 92 } ] },
+                storm: { startle: [ { x: 160, y: 50 } ] },
+                snow: { caps: [ { x: 98, y: 60, w: 11, a: -32 }, { x: 108, y: 54, w: 11, a: -18 }, { x: 118, y: 52, w: 11, a: -11 },
+                                { x: 128, y: 50, w: 11, a: -6 }, { x: 138, y: 49, w: 11, a: 0 }, { x: 148, y: 50, w: 11, a: 13 } ] },
+                fog: { fade: 0.4, mist: [ { y: 100, h: 10 }, { y: 160, h: 12 } ] }
+            })
         }
     }
     // Sleep "z"s.

@@ -334,6 +334,94 @@ overrides what components read, and nothing branches on a theme id:
   icons `assets/pixel/weather-*.png` from
   [`tools/pixelart/weather.py`](../tools/pixelart/weather.py).
 
+### Weather in the corner scene
+
+With "Weather in the scene" on, the corner scene and the visiting bears
+react too. [`World.qml`](../apps/tv-shell/qml/World.qml) turns the reading
+into one **look**, `World.weatherLook`:
+
+| Look | Conditions |
+|---|---|
+| `wet` | `drizzle`, `rain` |
+| `storm` | `thunder` (everything `wet` has, plus the startle) |
+| `snow` | `snow` |
+| `fog` | `fog` |
+| `night` | `clear` or `partly-cloudy` with `is_day` false |
+| `""` (unchanged) | no weather in the scene, `cloudy`, or a clear day |
+
+**How a scene declares its reactions.** The building block is
+[`SceneWeather.qml`](../apps/tv-shell/qml/SceneWeather.qml). A scene places
+two of them, `side: "back"` (behind its bears) and `side: "front"` (over
+them), and gives each the pieces it wants per look, in its own units (art
+pixels in Pixel, the 300-unit design grid in Classic). It is data; the engine
+never branches on a theme or a scene:
+
+```qml
+SceneWeather {
+    side: "back"
+    unit: root.p                        // screen pixels per scene unit
+    anchors.fill: parent
+    reactions: ({
+        wet: { shelter: { x: 30, y: 23 }, puddles: [ { x: 8, y: 80, w: 10 } ] },
+        night: { stars: [ { x: 8, y: 6 }, { x: 47, y: 4 } ] }
+    })
+}
+```
+
+| Piece | Side | What it draws | Moves |
+|---|---|---|---|
+| `puddles: [{x, y, w}]` | back | wet ground | a glint runs along it |
+| `shelter: {x, y, w}` | back | a tarp on two poles (`scene-wx-tarp.png`; in Classic `assets/classic/scene-tarp.svg`, `w` wide) | no |
+| `stars: [{x, y}]` | back | stars over the scene | twinkle |
+| `caps: [{x, y, w, a}]` | front | snow lying on a prop; `a` tilts it in Classic to follow a slope | no |
+| `drips: [{x, y}]` | front | drops falling from an edge | fall a few pixels |
+| `fade: 0.4` | front | nothing itself: the scene binds its props' opacity to `1 - fade` | no |
+| `mist: [{y, h}]` | front | wisps of mist | drift |
+| `startle: [{x, y}]` | front | a "!" (`scene-wx-startle.png` / `startle.svg`) over a bear on a lightning flash, for 1.5 s | shown on the flash |
+
+The scene may also change its own art from `wet` and `startled` (the
+campfire smoulders under its tarp; bears hop two pixels when startled).
+What the built-in scenes do:
+
+| Scene | Rain | Snow | Fog | Thunder | Clear night |
+|---|---|---|---|---|---|
+| campfire | tarp over the fire, which smoulders (dimmer, slower, one spark); puddles; drips from the tarp | on the log ends and the ground | logs and stones fade, mist | dad and the cub startle | stars |
+| den | drips off the arch, puddles | along the arch | the rock fades, mist | dad and mama startle | stars |
+| camp | puddles, drips from the lantern arm; no fireflies | on the tent's peak, a pine and the lantern arm; no fireflies | the camp fades as one layer (so the bears never show through the tent), mist; no fireflies | mama and the cub startle | stars |
+| moon | drips from the crescent and the hanging stars | on the crescent's rim | the mobile fades, mist | the cub startles | more stars |
+
+**Visiting bears** ([`BearVisitors.qml`](../apps/tv-shell/qml/BearVisitors.qml))
+set `weatherDress` on their `BearPuppet`s: in `wet`/`storm` they hold a leaf
+umbrella (`scene-wx-umbrella.png`, the stem drawn from the paw; Classic
+`assets/classic/umbrella-leaf.svg`) instead of what they carry, and walk 1.4×
+faster; in `snow` they wear the `hat-beanie` ornament. The bears inside the
+corner scenes and the featured panel keep their own dress.
+
+**Motion and cost.** A handful of `Rectangle`s and `Image`s, only for the
+current look. Glints, drips, twinkles and mist move on `World.beat` while the
+piece is `alive` (not resting, on the screensaver, behind apps or with
+reduced motion); reduced motion shows the still version (the same pieces, a
+drop hanging at each edge, no startle). The startle follows `World.flashing`,
+which `WeatherSky` sets only while its own flash is alive. No Canvas. The
+camp's fog layer (`layer.enabled`) exists only in fog.
+
+**Checking it.** `scripts/sandbox.sh shot --theme campfire --apps-only
+--weather rain` (conditions `clear`, `partly-cloudy`, `cloudy`, `fog`,
+`drizzle`, `rain`, `snow`, `thunder`; add `:night` and `:light`/`:heavy`);
+`--apps-only` leaves room for the corner scene; `--lightning` with
+`--weather thunder` flashes every second (`BDTV_LIGHTNING_SECONDS=1`) so the
+startle shows; `--reduced-motion` shows the still version. Tests:
+`sceneWeatherPicksVariant`, `sceneWeatherEveryScene`,
+`sceneWeatherMotionAndStill` in
+[`tst_shell.cpp`](../apps/tv-shell/tests/tst_shell.cpp).
+
+**A new scene** declares its own `reactions` (both art styles; ADR 0006).
+**A new piece** is added to `SceneWeather.qml` for every scene: draw it in
+both styles, put its sprite in
+[`tools/pixelart/weatherprops.py`](../tools/pixelart/weatherprops.py) and its
+SVG in [`tools/classicart/extras.py`](../tools/classicart/extras.py), move it
+only on the heartbeat while `alive`, and list it in the table above.
+
 ### Corner scenes (`scene`)
 
 | Scene | Component | What happens |
@@ -346,7 +434,8 @@ overrides what components read, and nothing branches on a theme id:
 Scenes are pixel art, 110×82 art pixels (440×330 on a 1080p TV), drawn on
 their own sprites (`apps/tv-shell/assets/pixel/scene-*.png`, made by
 `tools/pixelart/scenes.py`) with the pixel bears in front; small props
-(`paw-grip`, `paw`) are ornaments a theme can override.
+(`paw-grip`, `paw`) are ornaments a theme can override. Every scene reacts
+to local weather ([Weather in the corner scene](#weather-in-the-corner-scene)).
 
 ### Built-in ornaments
 
@@ -413,7 +502,7 @@ on the screensaver.
 | Step | How |
 |---|---|
 | Validate | `build/bin/bear-den-tv themes validate <dir>`: schema, id = folder, files present, every ornament resolvable. `bear-den-tv themes list` shows what loaded and why anything was skipped. |
-| One screenshot | `BDTV_THEMES_DIR=<parent of your theme> scripts/sandbox.sh shot --theme <id>` (prints the PNG path). Options: `--screen`, `--no-weather`, `--plain`, `--bears walk\|peek\|hop\|parade\|chase`, `--size 3840x2160`, `--fixture`, `--out`. See the header of [`scripts/sandbox.sh`](../scripts/sandbox.sh). |
+| One screenshot | `BDTV_THEMES_DIR=<parent of your theme> scripts/sandbox.sh shot --theme <id>` (prints the PNG path). Options: `--screen`, `--no-weather`, `--weather rain[:night]`, `--apps-only` (room for the corner scene), `--lightning`, `--reduced-motion`, `--plain`, `--classic`, `--bears walk\|peek\|hop\|parade\|chase`, `--size 3840x2160`, `--fixture`, `--out`. See the header of [`scripts/sandbox.sh`](../scripts/sandbox.sh). |
 | Every theme × main screens | `make shots` (built-in themes; PNGs in `build/shots/gallery/`). |
 | Is it cheap enough? | `scripts/sandbox.sh perf --theme <id>` ([Performance rules](#performance-rules)). |
 | Watch it animate | Run the shell with `--dev --screenshot-every 400` and reopen the file in a loop. |
@@ -518,6 +607,7 @@ Change the code, rebuild, look. Full guide:
    | Corner scenes | `tools/pixelart/scenes.py` | `apps/tv-shell/assets/pixel/scene-*.png` |
    | Featured-panel rooms | `tools/pixelart/hero.py` | `apps/tv-shell/assets/pixel/hero-*.png`, `qml/HeroRig.js` |
    | Weather icons | `tools/pixelart/weather.py` | `apps/tv-shell/assets/pixel/weather-*.png` |
+   | Weather props (tarp, startle, leaf umbrella) | `tools/pixelart/weatherprops.py` | `apps/tv-shell/assets/pixel/scene-wx-*.png` |
 
 2. Edit it. An ornament is a grid of letters, one letter per colour from
    `PAL`; `.` is transparent.
@@ -528,7 +618,7 @@ Change the code, rebuild, look. Full guide:
    ```
 
    Names: `den forest midnight campfire winter bears ornaments scenes hero
-   weather`.
+   weather weatherprops`.
 4. Look at `build/pixel-preview/` (for example `ornaments.png`).
 5. Built-in art is compiled into the shell: `make shell`, then
    `scripts/sandbox.sh shot` and look.

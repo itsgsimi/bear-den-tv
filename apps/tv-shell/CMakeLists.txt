@@ -61,6 +61,7 @@ set(BDTV_QML_FILES
   qml/CampScene.qml
   qml/MoonScene.qml
   qml/CampfireScene.qml
+  qml/SceneWeather.qml
   qml/HeroDecor.qml
   qml/BearPuppet.qml
   qml/BearRig.js

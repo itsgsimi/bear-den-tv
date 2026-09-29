@@ -5,6 +5,10 @@
 // Shown only while a single rail leaves room. Laid out in art pixels (110×82)
 // at World.px each; all motion stops while resting, behind apps and with
 // reduced motion.
+// Local weather (SceneWeather.qml, docs/THEMES.md → Weather in the corner
+// scene): rain drips off the arch into puddles, snow lies along its top, fog
+// fades the rock and drifts mist past, thunder startles dad and mama, a clear
+// night has stars.
 
 import QtQuick
 import BearDen
@@ -21,15 +25,25 @@ Item {
     height: 82 * p
 
     // The hollow (behind), the family, then the rock arch in front.
-    PixelSprite { name: "scene-den-back" }
+    PixelSprite { name: "scene-den-back"; opacity: 1 - weatherFront.fade }
+    SceneWeather {
+        side: "back"
+        unit: root.p
+        anchors.fill: parent
+        reactions: ({
+            wet: { puddles: [ { x: 1, y: 80, w: 8 }, { x: 99, y: 80, w: 9 } ] },
+            night: { stars: [ { x: 4, y: 6 }, { x: 14, y: 16 }, { x: 30, y: 4 }, { x: 78, y: 4 }, { x: 96, y: 9 }, { x: 104, y: 20 } ] }
+        })
+    }
     Item {
         anchors.fill: parent
+        anchors.topMargin: -weatherFront.hop
         clip: true
         BearHead { alive: root.alive; night: root.night; kind: "dad"; width: 26 * root.p; x: 20 * root.p; y: 83 * root.p - height }
         BearHead { alive: root.alive; night: root.night; kind: "mama"; width: 25 * root.p; x: 62 * root.p; y: 84 * root.p - height }
         BearHead { alive: root.alive; night: root.night; kind: "cub"; width: 21 * root.p; x: 43 * root.p; y: 86 * root.p - height }
     }
-    PixelSprite { name: "scene-den" }
+    PixelSprite { name: "scene-den"; opacity: 1 - weatherFront.fade }
     Repeater {
         model: [ 24, 38, 60, 76 ]
         Ornament {
@@ -60,6 +74,24 @@ Item {
             running: root.alive && !root.night
             onTriggered: { paw.step = 0; waving.restart(); interval = 11000 + Math.random() * 7000 }
         }
+    }
+    SceneWeather {
+        id: weatherFront
+        readonly property int hop: startled ? 2 * root.p : 0
+        side: "front"
+        unit: root.p
+        anchors.fill: parent
+        reactions: ({
+            wet: { drips: [ { x: 5, y: 56 }, { x: 104, y: 56 } ] },
+            storm: { startle: [ { x: 30, y: 49 }, { x: 72, y: 51 } ] },
+            snow: { caps: [ { x: 13, y: 33, w: 3 }, { x: 16, y: 29, w: 3 }, { x: 19, y: 25, w: 3 }, { x: 22, y: 23, w: 3 },
+                            { x: 25, y: 20, w: 3 }, { x: 28, y: 18, w: 3 }, { x: 30, y: 15, w: 5 }, { x: 35, y: 13, w: 5 },
+                            { x: 40, y: 11, w: 5 }, { x: 45, y: 10, w: 5 }, { x: 50, y: 10, w: 5 }, { x: 55, y: 10, w: 5 },
+                            { x: 60, y: 10, w: 5 }, { x: 65, y: 11, w: 5 }, { x: 70, y: 13, w: 5 }, { x: 75, y: 15, w: 5 },
+                            { x: 80, y: 18, w: 3 }, { x: 83, y: 20, w: 3 }, { x: 86, y: 23, w: 3 }, { x: 89, y: 25, w: 3 },
+                            { x: 92, y: 29, w: 3 }, { x: 95, y: 33, w: 3 } ] },
+            fog: { fade: 0.4, mist: [ { y: 50, h: 3 }, { y: 70, h: 4 } ] }
+        })
     }
     Repeater {
         model: root.night ? 3 : 0

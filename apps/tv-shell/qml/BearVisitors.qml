@@ -10,6 +10,8 @@
 //  - A visit is a short plan of steps (walk, wave, jump, dance, rise, sink, …)
 //    played by one 25 fps Timer that sets a few numbers on BearPuppets, so the
 //    screen redraws at 25 fps only while a bear is on it, never 60–120.
+//  - They dress for the local weather (BearPuppet.weatherDress: a leaf
+//    umbrella in the rain, a beanie in the snow) and hurry in the rain.
 //  - It stops at once (bears vanish) when the screen changes, a dialog or the
 //    launch overlay opens, an app comes to the front, the screensaver starts,
 //    with reduced motion, and in the Plain style.
@@ -29,6 +31,8 @@ Item {
                                      && Session.target.kind === "shell" && width > 0
     readonly property real ground: height - 2 * s            // feet on the bottom edge
     readonly property var actors: [cub, mama, dad]
+    // In the rain (World.weatherLook) the bears hurry: every walk is faster.
+    readonly property real pace: World.weatherLook === "wet" || World.weatherLook === "storm" ? 1.4 : 1
 
     // --- Scheduling --------------------------------------------------------
     property bool busy: false
@@ -129,7 +133,7 @@ Item {
             dur: 1,
             start() {
                 from = a.x
-                this.dur = Math.max(200, Math.abs(to - from) / (speed * s) * 1000)
+                this.dur = Math.max(200, Math.abs(to - from) / (speed * root.pace * s) * 1000)
                 a.facing = to >= from ? 1 : -1
                 a.walking = true
                 if (feetY !== undefined) a.y = feetY - a.height
@@ -254,7 +258,7 @@ Item {
         return [
             { dur: 1, run() { enter(dad, "dad", fromLeft); enter(mama, "mama", fromLeft); enter(cub, "cub", fromLeft) } },
             {
-                dur: span / (120 * s) * 1000,
+                dur: span / (120 * root.pace * s) * 1000,
                 run(p, dt) {
                     for (let k = 0; k < order.length; ++k) {
                         const a = order[k]
@@ -296,9 +300,9 @@ Item {
     }
 
     // --- Cast ---------------------------------------------------------------
-    BearPuppet { id: dad; kind: "dad"; size: 168 * Theme.scale; visible: false }
-    BearPuppet { id: mama; kind: "mama"; size: 150 * Theme.scale; visible: false }
-    BearPuppet { id: cub; kind: "cub"; size: 112 * Theme.scale; visible: false }
+    BearPuppet { id: dad; kind: "dad"; size: 168 * Theme.scale; visible: false; weatherDress: true }
+    BearPuppet { id: mama; kind: "mama"; size: 150 * Theme.scale; visible: false; weatherDress: true }
+    BearPuppet { id: cub; kind: "cub"; size: 112 * Theme.scale; visible: false; weatherDress: true }
     // What the cub chases (manifest bears.chase): "firefly", "ember", "leaf",
     // "star", or any ornament.
     Item {

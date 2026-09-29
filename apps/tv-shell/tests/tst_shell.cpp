@@ -112,6 +112,46 @@ private:
         QVERIFY(rows > 3);
     }
 
+    // Local weather in the corner scene (SceneWeather.qml, World.weatherLook;
+    // docs/THEMES.md → Weather in the corner scene). Applies the demo snapshot
+    // with `condition` (empty: no weather at all), day or night, reduced
+    // motion and art style.
+    void applyWeather(const QString &condition, bool day = true, bool still = false, const QString &art = QStringLiteral("pixel"))
+    {
+        QJsonObject snap = fixture();
+        QJsonObject layout = snap.value(QStringLiteral("layout")).toObject();
+        QJsonObject ui = layout.value(QStringLiteral("ui")).toObject();
+        ui.insert(QStringLiteral("reduced_motion"), still);
+        ui.insert(QStringLiteral("art_style"), art);
+        layout.insert(QStringLiteral("ui"), ui);
+        snap.insert(QStringLiteral("layout"), layout);
+        if (condition.isEmpty()) {
+            snap.remove(QStringLiteral("weather"));
+        } else {
+            QJsonObject w = snap.value(QStringLiteral("weather")).toObject();
+            QJsonObject cur = w.value(QStringLiteral("current")).toObject();
+            cur.insert(QStringLiteral("condition"), condition);
+            cur.insert(QStringLiteral("is_day"), day);
+            w.insert(QStringLiteral("current"), cur);
+            w.insert(QStringLiteral("scene"), true);
+            snap.insert(QStringLiteral("weather"), w);
+        }
+        QVERIFY2(SessionModel::instance()->applySnapshot(snap), qPrintable(SessionModel::instance()->lastError()));
+        QCoreApplication::processEvents();
+    }
+    // The scene's SceneWeather for `side` ("back" or "front").
+    static QObject *weatherSide(QObject *scene, const QString &side)
+    {
+        for (QObject *o : scene->findChildren<QObject *>(QStringLiteral("sceneWeather")))
+            if (o->property("side").toString() == side)
+                return o;
+        return nullptr;
+    }
+    static QString drawn(QObject *wx)
+    {
+        return wx ? wx->property("drawn").toStringList().join(QLatin1Char(',')) : QStringLiteral("<none>");
+    }
+
 private slots:
     void initTestCase()
     {
@@ -941,6 +981,14 @@ Item {
         }
         for (const QString &name : names)
             QVERIFY2(QFile::exists(dir + name + QStringLiteral(".svg")), qPrintable(name));
+        // The weather props (tools/classicart/extras.py) must also decode: Qt's SVG
+        // reader rejects a file with a repeated attribute, and the prop vanishes.
+        for (const char *prop : {"classic/scene-tarp", "classic/startle", "classic/umbrella-leaf"}) {
+            const QString path = dir + QLatin1String(prop) + QStringLiteral(".svg");
+            QVERIFY2(!QImage(path).isNull(), prop);
+        }
+        for (const char *prop : {"tarp", "startle", "umbrella"})
+            QVERIFY2(!QImage(dir + QStringLiteral("pixel/scene-wx-%1.png").arg(QLatin1String(prop))).isNull(), prop);
 
         auto withArt = [&](const char *art) {
             QJsonObject snap = fixture();
@@ -1033,6 +1081,138 @@ Item {
         QCOMPARE(m_nav->sectionId(), QStringLiteral("plex-continue"));
         shot(QStringLiteral("home-large-text"));
         QVERIFY(SessionModel::instance()->applySnapshot(fixture()));
+    }
+
+    // The campfire scene picks the pieces its data declares for each
+    // condition; no weather, or a clear or cloudy day, leaves it unchanged.
+    void sceneWeatherPicksVariant()
+    {
+        const auto restore = qScopeGuard([&] { QVERIFY(SessionModel::instance()->applySnapshot(fixture())); });
+        QQmlComponent c(m_engine);
+        c.setData("import QtQuick\nimport BearDen\nCampfireScene {}", QUrl(QStringLiteral("qrc:/test/Campfire.qml")));
+        std::unique_ptr<QObject> scene(c.create());
+        QVERIFY2(scene, qPrintable(c.errorString()));
+        QObject *back = weatherSide(scene.get(), QStringLiteral("back"));
+        QObject *front = weatherSide(scene.get(), QStringLiteral("front"));
+        QVERIFY(back && front);
+        QObject *flame = scene->findChild<QObject *>(QStringLiteral("campfireFlame"));
+        QVERIFY(flame);
+
+        struct Case { const char *condition; bool day; const char *look, *back, *front; };
+        const Case cases[] = {
+            {"", true, "", "", ""},
+            {"clear", true, "", "", ""},
+            {"cloudy", false, "", "", ""},
+            {"drizzle", true, "wet", "puddles,shelter", "drips"},
+            {"rain", false, "wet", "puddles,shelter", "drips"},
+            {"thunder", true, "storm", "puddles,shelter", "drips,startle"},
+            {"snow", true, "snow", "", "caps"},
+            {"fog", true, "fog", "", "fade,mist"},
+            {"clear", false, "night", "stars", ""},
+            {"partly-cloudy", false, "night", "stars", ""},
+        };
+        for (const Case &k : cases) {
+            applyWeather(QString::fromLatin1(k.condition), k.day);
+            const QString what = QStringLiteral("%1 %2").arg(QLatin1String(k.condition), k.day ? QStringLiteral("day") : QStringLiteral("night"));
+            QCOMPARE(front->property("look").toString(), QString::fromLatin1(k.look));
+            QVERIFY2(drawn(back) == QLatin1String(k.back), qPrintable(what + QStringLiteral(": back ") + drawn(back)));
+            QVERIFY2(drawn(front) == QLatin1String(k.front), qPrintable(what + QStringLiteral(": front ") + drawn(front)));
+            // The fire smoulders only in the rain; fog fades the props.
+            const bool wet = QByteArray(k.look) == "wet" || QByteArray(k.look) == "storm";
+            QCOMPARE(flame->property("opacity").toReal() < 1.0, wet);
+            QCOMPARE(front->property("fade").toReal() > 0, QByteArray(k.look) == "fog");
+        }
+    }
+
+    // Every corner scene, in both art styles, reacts to every look (ADR 0006:
+    // Classic matches pixel art); visiting bears dress for rain and snow.
+    void sceneWeatherEveryScene()
+    {
+        const auto restore = qScopeGuard([&] { QVERIFY(SessionModel::instance()->applySnapshot(fixture())); });
+        const struct { const char *condition; bool day; const char *look; } looks[] = {
+            {"rain", true, "wet"}, {"thunder", true, "storm"}, {"snow", true, "snow"}, {"fog", true, "fog"}, {"clear", false, "night"}};
+        for (const char *art : {"pixel", "classic"}) {
+            for (const char *name : {"DenFamily", "CampScene", "MoonScene", "CampfireScene"}) {
+                const QByteArray type = QByteArray(name) + (QByteArray(art) == "classic" ? "Classic" : "");
+                applyWeather(QString(), true, false, QString::fromLatin1(art));
+                QQmlComponent c(m_engine);
+                c.setData("import QtQuick\nimport BearDen\n" + type + " {}", QUrl(QStringLiteral("qrc:/test/Scene.qml")));
+                std::unique_ptr<QObject> scene(c.create());
+                QVERIFY2(scene, qPrintable(c.errorString()));
+                QObject *back = weatherSide(scene.get(), QStringLiteral("back"));
+                QObject *front = weatherSide(scene.get(), QStringLiteral("front"));
+                QVERIFY2(back && front, type.constData());
+                QVERIFY2(drawn(back).isEmpty() && drawn(front).isEmpty(), type.constData());
+                for (const auto &l : looks) {
+                    applyWeather(QString::fromLatin1(l.condition), l.day, false, QString::fromLatin1(art));
+                    QCOMPARE(front->property("look").toString(), QString::fromLatin1(l.look));
+                    QVERIFY2(!(drawn(back) + drawn(front)).isEmpty(), qPrintable(QString::fromLatin1(type) + QLatin1Char(' ') + QLatin1String(l.look)));
+                    if (QByteArray(l.look) == "storm")
+                        QVERIFY2(drawn(front).contains(QStringLiteral("startle")), type.constData());
+                }
+            }
+        }
+
+        QQmlComponent c(m_engine);
+        c.setData("import QtQuick\nimport BearDen\nItem {\n"
+                  "  property var visitor: BearPuppet { kind: \"cub\"; weatherDress: true }\n"
+                  "  property var scenery: BearPuppet { kind: \"cub\" } }",
+                  QUrl(QStringLiteral("qrc:/test/Dress.qml")));
+        std::unique_ptr<QObject> probe(c.create());
+        QVERIFY2(probe, qPrintable(c.errorString()));
+        auto *visitor = probe->property("visitor").value<QObject *>();
+        auto *scenery = probe->property("scenery").value<QObject *>();
+        applyWeather(QStringLiteral("rain"));
+        QCOMPARE(visitor->property("dress").toString(), QStringLiteral("umbrella"));
+        QVERIFY(visitor->findChild<QQuickItem *>(QStringLiteral("bearUmbrella"))->isVisible());
+        QCOMPARE(scenery->property("dress").toString(), QString());   // scene bears keep their own dress
+        applyWeather(QStringLiteral("snow"));
+        QVERIFY2(visitor->property("wornHat").toUrl().toString().endsWith(QStringLiteral("hat-beanie.png")),
+                 qPrintable(visitor->property("wornHat").toUrl().toString()));
+        applyWeather(QString());
+        QCOMPARE(visitor->property("dress").toString(), QString());
+        QVERIFY(!visitor->findChild<QQuickItem *>(QStringLiteral("bearUmbrella"))->isVisible());
+    }
+
+    // Motion: the pieces move on World's heartbeat and the bears startle on a
+    // lightning flash; with reduced motion the scene shows its still version
+    // (same pieces, nothing moves, no startle).
+    void sceneWeatherMotionAndStill()
+    {
+        Theme::instance()->setForceNoAnimations(false);
+        const auto restore = qScopeGuard([&] {
+            Theme::instance()->setForceNoAnimations(true);
+            QVERIFY(SessionModel::instance()->applySnapshot(fixture()));
+        });
+        QQmlComponent c(m_engine);
+        c.setData("import QtQuick\nimport BearDen\nItem {\n"
+                  "  property var scene: CampfireScene {}\n"
+                  "  function flash(on) { World.flashing = on } }",
+                  QUrl(QStringLiteral("qrc:/test/Motion.qml")));
+        std::unique_ptr<QObject> probe(c.create());
+        QVERIFY2(probe, qPrintable(c.errorString()));
+        auto *scene = probe->property("scene").value<QObject *>();
+        QObject *front = weatherSide(scene, QStringLiteral("front"));
+        QVERIFY(front);
+        auto flash = [&](bool on) { QMetaObject::invokeMethod(probe.get(), "flash", Q_ARG(QVariant, on)); };
+
+        applyWeather(QStringLiteral("thunder"));
+        QVERIFY(front->property("alive").toBool());
+        QTRY_VERIFY_WITH_TIMEOUT(front->property("t").toReal() > 0, 2000);   // drips fall on the heartbeat
+        flash(true);
+        QVERIFY2(front->property("startled").toBool(), "a flash startles the bears");
+        flash(false);
+        QTRY_VERIFY_WITH_TIMEOUT(!front->property("startled").toBool(), 4000);   // and it passes
+
+        applyWeather(QStringLiteral("thunder"), true, true);   // reduced motion
+        QCOMPARE(drawn(front), QStringLiteral("drips,startle"));   // the still version keeps its pieces
+        QVERIFY(!front->property("alive").toBool());
+        const qreal t = front->property("t").toReal();
+        flash(true);
+        QVERIFY2(!front->property("startled").toBool(), "no startle with reduced motion");
+        flash(false);
+        QTest::qWait(300);
+        QCOMPARE(front->property("t").toReal(), t);
     }
 };
 

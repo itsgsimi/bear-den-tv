@@ -5,6 +5,10 @@
 // This is the Classic art style's version (World.classic; ADR 0006): smooth
 // SVG art laid out in 300 design units across `size`. CampfireScene.qml is the
 // pixel one; HomeScreen picks between them.
+// Local weather (SceneWeather.qml, docs/THEMES.md → Weather in the corner
+// scene), as in the pixel scene: a tarp over the smouldering fire and puddles
+// in the rain, snow on the log ends and the ground, fog fading the logs and
+// drifting mist, both bears startled by lightning, stars on a clear night.
 
 import QtQuick
 import BearDen
@@ -47,8 +51,20 @@ Item {
             Rectangle { anchors.centerIn: parent; width: parent.width * 0.45; height: width; radius: width / 2; color: "transparent"; border.color: "#A87B50"; border.width: 1.5 * parent.parent.u }
         }
     }
-    SitLog { u: root.u; x: -30 * root.u; y: 196 * root.u }
-    SitLog { u: root.u; x: 232 * root.u; y: 200 * root.u; transform: Scale { xScale: -1; origin.x: 37 * root.u } }
+    readonly property bool smoulder: weatherBack.wet
+    readonly property real hop: weatherFront.startled ? 5 * u : 0
+    SitLog { u: root.u; x: -30 * root.u; y: 196 * root.u; opacity: 1 - weatherFront.fade }
+    SitLog { u: root.u; x: 232 * root.u; y: 200 * root.u; opacity: 1 - weatherFront.fade; transform: Scale { xScale: -1; origin.x: 37 * root.u } }
+    SceneWeather {
+        id: weatherBack
+        side: "back"
+        unit: root.u
+        anchors.fill: parent
+        reactions: ({
+            wet: { shelter: { x: 62, y: 40, w: 176 }, puddles: [ { x: 34, y: 216, w: 34 }, { x: 116, y: 219, w: 50 }, { x: 226, y: 220, w: 34 } ] },
+            night: { stars: [ { x: 20, y: 20 }, { x: 70, y: 44 }, { x: 140, y: 12 }, { x: 210, y: 32 }, { x: 272, y: 16 }, { x: 250, y: 74 } ] }
+        })
+    }
 
     // Dad on the left, the cub on the right, both facing the fire.
     BearPuppet {
@@ -56,37 +72,43 @@ Item {
         carry: "stick"; hat: ""
         reach: 0.82 + 0.06 * root.wave(3.1, 0.2)
         blink: root.wave(4.7, 0) > 0.985
-        x: -18 * root.u; y: 200 * root.u - height
+        x: -18 * root.u; y: 200 * root.u - height - root.hop
     }
     BearPuppet {
         kind: "cub"; size: 74 * root.u; facing: -1; sitting: true; stickLength: 76
         carry: "stick"; hat: ""
         reach: 0.86 + 0.06 * root.wave(2.6, 0.6)
         blink: root.wave(5.3, 0.4) > 0.985
-        x: 252 * root.u; y: 204 * root.u - height
+        x: 252 * root.u; y: 204 * root.u - height - root.hop
     }
 
-    Ornament { name: "logs"; width: 140 * root.u; height: 79 * root.u; x: 80 * root.u; y: 146 * root.u }
-    // The flame: two layers flickering out of step.
-    Ornament {
-        name: "flame"
-        width: 92 * root.u; height: width
-        x: 104 * root.u; y: 76 * root.u
-        transformOrigin: Item.Bottom
-        scale: 1.01 + 0.06 * root.wave(0.84, 0)
-        rotation: 3 * root.wave(1.5, 0.3)
+    Ornament { name: "logs"; width: 140 * root.u; height: 79 * root.u; x: 80 * root.u; y: 146 * root.u; opacity: 1 - weatherFront.fade }
+    // The flame, two layers flickering out of step; smaller and dimmer while
+    // it smoulders in the rain.
+    Item {
+        anchors.fill: parent
+        opacity: root.smoulder ? 0.6 : 1
+        transform: Scale { origin.x: 150 * root.u; origin.y: 168 * root.u; xScale: root.smoulder ? 0.72 : 1; yScale: xScale }
+        Ornament {
+            name: "flame"
+            width: 92 * root.u; height: width
+            x: 104 * root.u; y: 76 * root.u
+            transformOrigin: Item.Bottom
+            scale: 1.01 + 0.06 * root.wave(0.84, 0)
+            rotation: 3 * root.wave(1.5, 0.3)
+        }
+        Ornament {
+            name: "flame"
+            width: 54 * root.u; height: width
+            x: 134 * root.u; y: 108 * root.u
+            opacity: 0.85
+            transformOrigin: Item.Bottom
+            scale: 1 + 0.1 * root.wave(0.72, 0.5)
+        }
     }
-    Ornament {
-        name: "flame"
-        width: 54 * root.u; height: width
-        x: 134 * root.u; y: 108 * root.u
-        opacity: 0.85
-        transformOrigin: Item.Bottom
-        scale: 1 + 0.1 * root.wave(0.72, 0.5)
-    }
-    // Sparks rising and fading.
+    // Sparks rising and fading (one in the rain).
     Repeater {
-        model: 5
+        model: root.smoulder ? 1 : 5
         Rectangle {
             required property int index
             readonly property real p: { const x = root.t / (1.8 + index * 0.15) + index * 0.23; return x - Math.floor(x) }
@@ -96,5 +118,18 @@ Item {
             y: (96 - 86 * (1 - (1 - p) * (1 - p))) * root.u
             opacity: 0.95 * (1 - p)
         }
+    }
+    SceneWeather {
+        id: weatherFront
+        side: "front"
+        unit: root.u
+        anchors.fill: parent
+        reactions: ({
+            wet: { drips: [ { x: 112, y: 76 }, { x: 150, y: 84 }, { x: 190, y: 76 } ] },
+            storm: { startle: [ { x: 12, y: 82 }, { x: 272, y: 112 } ] },
+            snow: { caps: [ { x: 232, y: 197, w: 22 }, { x: -10, y: 219, w: 44 }, { x: 70, y: 221, w: 30 },
+                            { x: 200, y: 221, w: 30 }, { x: 262, y: 218, w: 44 } ] },
+            fog: { fade: 0.45, mist: [ { y: 150, h: 10 }, { y: 196, h: 12 } ] }
+        })
     }
 }

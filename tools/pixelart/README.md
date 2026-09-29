@@ -24,6 +24,7 @@ library (no Pillow, no image editor). Why: [ADR 0005](../../docs/decisions/0005-
 | [`scenes.py`](scenes.py) | the props of Home's corner scenes (bears are placed by QML) | `apps/tv-shell/assets/pixel/scene-*.png` |
 | [`hero.py`](hero.py) | the featured panel's rooms: cinema, cabin, arcade | `apps/tv-shell/assets/pixel/hero-<scene>.png`, `apps/tv-shell/qml/HeroRig.js` |
 | [`weather.py`](weather.py) | ten weather icons | `apps/tv-shell/assets/pixel/weather-<name>.png` |
+| [`weatherprops.py`](weatherprops.py) | the props of the weather in the corner scene: a tarp on poles, the startled "!", a leaf umbrella ([`docs/THEMES.md` → Weather in the corner scene](../../docs/THEMES.md#weather-in-the-corner-scene)) | `apps/tv-shell/assets/pixel/scene-wx-{tarp,startle,umbrella}.png` |
 
 `BearRig.js` and `HeroRig.js` are generated. Do not edit them by hand.
 
@@ -38,9 +39,10 @@ python3 -B tools/pixelart/build.py --preview winter     # also write enlarged pr
 ```
 
 - Part names: `den`, `forest`, `midnight`, `campfire`, `winter`, `bears`,
-  `ornaments`, `scenes`, `hero`, `weather`.
+  `ornaments`, `scenes`, `hero`, `weather`, `weatherprops`.
 - `--preview` writes to `build/pixel-preview/` (for example `winter-f0.png`,
-  `bears.png`, `ornaments.png`, `scenes.png`, `hero.png`, `weather.png`).
+  `bears.png`, `ornaments.png`, `scenes.png`, `hero.png`, `weather.png`,
+  `weatherprops.png`).
 - `-B` stops Python writing `__pycache__` files into the tree.
 
 ## Recipes

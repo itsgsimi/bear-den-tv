@@ -46,6 +46,9 @@ class ShellController : public QObject {
     Q_PROPERTY(QString bearsAct READ bearsAct CONSTANT)
     // BDTV_MONTH (1–12) pretends it is that month, for checking seasonal art; 0 = the real date.
     Q_PROPERTY(int monthOverride READ monthOverride CONSTANT)
+    // BDTV_LIGHTNING_SECONDS fixes the gap between thunder's lightning flashes
+    // (0 = flash after flash), for checking the startled bears; -1 = the normal 14–30 s.
+    Q_PROPERTY(int lightningSeconds READ lightningSeconds CONSTANT)
     // The latest weather.search answer (weather_places): places [{name, region, country,
     // latitude, longitude}], ok, error; `weatherSearching` while a search is in flight.
     Q_PROPERTY(QVariantList weatherPlaces READ weatherPlaces NOTIFY weatherPlacesChanged)
@@ -88,6 +91,7 @@ public:
     int restSeconds() const { return m_restSeconds; }
     QString bearsAct() const { return m_bearsAct; }
     int monthOverride() const { return m_monthOverride; }
+    int lightningSeconds() const { return m_lightningSeconds; }
     QVariantList weatherPlaces() const { return m_weatherPlaces; }
     bool weatherSearchOk() const { return m_weatherOk; }
     QString weatherSearchError() const { return m_weatherError; }
@@ -161,6 +165,7 @@ private:
     int m_restSeconds = 45;
     QString m_bearsAct;
     int m_monthOverride = 0;
+    int m_lightningSeconds = -1;
     QString m_weatherSearchId;
     QVariantList m_weatherPlaces;
     bool m_weatherOk = true;
