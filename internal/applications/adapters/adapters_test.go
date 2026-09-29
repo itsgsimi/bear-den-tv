@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"testing"
 
+	"bear-den-tv/internal/applications"
 	"bear-den-tv/internal/platform"
 )
 
@@ -95,6 +96,34 @@ func TestMatchClass(t *testing.T) {
 	}
 	if !MatchClass([]string{"x", "PLEXhtpc"}, []string{"nope", "plex"}) {
 		t.Fatal("case-insensitive substring")
+	}
+}
+
+// Wayland windows carry an app_id instead of WM_CLASS
+// (docs/decisions/0007-wayland-profile.md).
+func TestMatchWaylandAppID(t *testing.T) {
+	cases := []struct {
+		adapter applications.Adapter
+		appID   string
+		want    bool
+	}{
+		{PlexHTPC(), "tv.plex.PlexHTPC", true},
+		{PlexHTPC(), "TV.PLEX.PLEXHTPC", true},
+		{VacuumTube(), "rocks.shy.VacuumTube", true},
+		{VacuumTube(), "vacuumtube", true}, // XWayland: the X11 class
+		{Moonlight(), "com.moonlight_stream.Moonlight", true},
+		{Moonlight(), "tv.plex.PlexHTPC", false},
+		{PlexHTPC(), "org.example.Terminal", false},
+		{PlexHTPC(), "", false},
+	}
+	for _, tc := range cases {
+		if got := tc.adapter.MatchWindow(platform.WindowInfo{AppID: tc.appID}); got != tc.want {
+			t.Errorf("app_id %q: match %v, want %v", tc.appID, got, tc.want)
+		}
+	}
+	// Exact Flatpak id, even with no fragment in common.
+	if !MatchAppID("org.example.App", "org.example.App", []string{"zzz"}) || MatchAppID("", "", []string{""}) {
+		t.Fatal("MatchAppID")
 	}
 }
 

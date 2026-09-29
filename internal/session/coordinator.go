@@ -29,7 +29,8 @@ import (
 // ShellLabel is the target label for the TV shell.
 const ShellLabel = "Bear Den TV"
 
-// ShellClassFragments identify the shell's top-level window by WM_CLASS.
+// ShellClassFragments identify the shell's top-level window by WM_CLASS, or
+// by app_id on Wayland (Qt uses the binary name for both).
 var ShellClassFragments = []string{"bear-den-tv-shell", "beardentvshell"}
 
 // Timeouts for asynchronous results (contracts/actions.md).
@@ -579,7 +580,7 @@ func (c *Coordinator) isShellWindow(w platform.WindowInfo) bool {
 	if c.shellPID > 0 && w.PID == c.shellPID {
 		return true
 	}
-	return adapters.MatchClass(w.Class, ShellClassFragments)
+	return adapters.MatchClass(w.Class, ShellClassFragments) || adapters.MatchAppID(w.AppID, "", ShellClassFragments)
 }
 
 func strOr(p *string) string {

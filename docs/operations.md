@@ -230,6 +230,37 @@ marked *shell* are passed on to the home screen):
 | `BDTV_THEMES_DIR=/path` | look for your own themes there instead of `$XDG_DATA_HOME/bear-den-tv/themes` (coordinator and shell) |
 | `BDTV_TIER=entry\|standard\|high` | override the box's tier for playback tuning ([`docs/APP_PERFORMANCE.md`](APP_PERFORMANCE.md)) |
 
+## Wayland
+
+The TV is expected to run X11. On Wayland, `bear-den-tv doctor --probe` says
+which compositor family it found (`probe.wayland.family`), lists windows by
+`app_id` where it can, and gives the reason for every unavailable capability
+([ADR 0007](decisions/0007-wayland-profile.md)). The shell runs through
+XWayland: its launcher sets `QT_QPA_PLATFORM=xcb`, so the session needs
+XWayland.
+
+Lock observation reads logind `LockedHint` and `org.freedesktop.ScreenSaver`.
+GNOME and KDE set `LockedHint` when they lock (not tested here); swaylock on
+its own sets neither, so on sway a locked screen may not be seen as locked.
+
+Test it without a Wayland desktop (Docker; nothing runs on your display):
+
+```sh
+. scripts/env.sh
+scripts/wayland-container-test.sh           # headless sway in ubuntu:24.04: adapter test + doctor --probe
+make shell && scripts/wayland-container-test.sh --shell   # also the coordinator with the real shell on XWayland
+```
+
+It builds a small image (`tests/wayland/Dockerfile`: sway, foot, XWayland),
+opens two `foot` windows with their own app_ids, runs
+[`tests/wayland/live_test.go`](../tests/wayland/live_test.go) (list, observe,
+activate, fullscreen and close, each checked against `swaymsg`) and
+`bear-den-tv doctor --probe`, then checks the capability report. `--shell`
+also starts `bear-den-tv session` with the shell, checks the shell is a
+fullscreen XWayland window in front, then puts another window in front and
+checks the target turns unknown while Home stays available. Output lands in
+`build/wayland-test/out/`. It is not part of `make test`.
+
 ## App playback settings
 
 The coordinator runs the playback detection test 20 s after it starts and

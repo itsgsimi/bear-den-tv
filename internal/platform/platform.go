@@ -37,9 +37,13 @@ const (
 // WindowInfo is what the backend can observe about a top-level window.
 // Title is redacted by the coordinator before it reaches phones.
 type WindowInfo struct {
-	ID         WindowID
-	PID        int      // 0 when unknown (Flatpak windows report sandbox pids)
-	Class      []string // WM_CLASS instance, class
+	ID    WindowID
+	PID   int      // 0 when unknown (Flatpak windows report sandbox pids)
+	Class []string // WM_CLASS instance, class (X11; nil on Wayland)
+	// AppID is the Wayland toplevel app_id (xdg_toplevel.set_app_id, or the
+	// X11 class for an XWayland window); empty on X11. Adapters match it the
+	// way they match WM_CLASS (docs/decisions/0007-wayland-profile.md).
+	AppID      string
 	Title      string
 	Mapped     bool
 	Fullscreen bool

@@ -1,7 +1,7 @@
 // Package adapters holds the per-application knowledge for the three approved
 // clients, Plex HTPC, VacuumTube and Moonlight: the only Flatpak id each may
-// launch, the closed list of launch arguments, WM_CLASS-based window
-// matching, the action → logical-key map, and the pause verification flag. Everything here
+// launch, the closed list of launch arguments, window matching by WM_CLASS
+// (X11) or app_id (Wayland), the action → logical-key map, and the pause verification flag. Everything here
 // is unverified against the target until the live probe records evidence in
 // tests/compatibility/; PauseVerified stays false until then.
 package adapters
@@ -72,10 +72,10 @@ func (a *app) FlatpakID() string { return a.flatpakID }
 // ApprovedArgs implements applications.Adapter; the returned slice is a copy.
 func (a *app) ApprovedArgs() []string { return append([]string(nil), a.args...) }
 
-// MatchWindow implements applications.Adapter on WM_CLASS only; titles are
-// never consulted (spec §6.2).
+// MatchWindow implements applications.Adapter on WM_CLASS (X11) or the
+// Wayland app_id; titles are never consulted (spec §6.2).
 func (a *app) MatchWindow(w platform.WindowInfo) bool {
-	return MatchClass(w.Class, a.fragments)
+	return MatchClass(w.Class, a.fragments) || MatchAppID(w.AppID, a.flatpakID, a.fragments)
 }
 
 // KeyFor implements applications.Adapter.
@@ -114,6 +114,22 @@ func MatchClass(class []string, fragments []string) bool {
 		}
 	}
 	return false
+}
+
+// MatchAppID reports whether a Wayland app_id names this app: exactly its
+// Flatpak id (the usual app_id of a Flatpak'd Wayland client), or, like
+// WM_CLASS, containing one of the fragments (an XWayland window's app_id is
+// its X11 class). Case-insensitive; an empty app_id never matches.
+// UNVERIFIED against the real clients on Wayland
+// (docs/decisions/0007-wayland-profile.md).
+func MatchAppID(appID, flatpakID string, fragments []string) bool {
+	if appID == "" {
+		return false
+	}
+	if flatpakID != "" && strings.EqualFold(appID, flatpakID) {
+		return true
+	}
+	return MatchClass([]string{appID}, fragments)
 }
 
 func merged(maps ...map[string]platform.Key) map[string]platform.Key {

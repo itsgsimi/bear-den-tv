@@ -1,6 +1,7 @@
 // Package detect classifies the display session from the process environment
 // and builds the matching desktop adapter: x11 when an X display answers,
-// wayland-limited under Wayland, and an "unavailable" adapter whose
+// the Wayland adapter under Wayland (wayland-wlr on wlroots compositors,
+// wayland-limited elsewhere; docs/decisions/0007-wayland-profile.md), and an "unavailable" adapter whose
 // capabilities carry the reason otherwise. Nothing here panics without a
 // display; a missing or unreachable display is an ordinary reduced profile.
 package detect
@@ -72,7 +73,8 @@ func Detect() (displaySession string, env map[string]string) {
 type Options struct {
 	// Env is the imported session environment; nil uses SessionEnv().
 	Env map[string]string
-	// Lock supplies the lock_observation capability to the X11 adapter.
+	// Lock supplies the lock_observation capability to the X11 and Wayland
+	// adapters.
 	Lock x11.LockCapability
 }
 
@@ -86,7 +88,7 @@ func NewDesktopAdapter(ctx context.Context, opts Options) platform.DesktopAdapte
 	}
 	switch Classify(env) {
 	case SessionWayland:
-		return wayland.New()
+		return wayland.New(ctx, wayland.Options{Env: env, Lock: opts.Lock})
 	case SessionX11:
 		a, err := x11.New(ctx, x11.Options{Display: env["DISPLAY"], Lock: opts.Lock})
 		if err != nil {
