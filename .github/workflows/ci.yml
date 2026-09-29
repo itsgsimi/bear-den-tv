@@ -74,7 +74,7 @@ jobs:
           key: playwright-${{ runner.os }}-${{ hashFiles('apps/web-nav/package-lock.json') }}
 
       - name: Install Playwright Chromium
-        run: . scripts/env.sh && make apps/web-nav/node_modules/.installed && cd apps/web-nav && npx playwright install chromium
+        run: . scripts/env.sh && make apps/web-nav/node_modules/.installed && cd apps/web-nav && npx playwright install --with-deps chromium
 
       - name: Test and lint
         run: . scripts/env.sh && make test && make lint

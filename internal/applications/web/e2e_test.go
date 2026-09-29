@@ -4,8 +4,9 @@
 // TV, on the local fixture pages of apps/web-nav/tests/fixtures served over
 // a loopback TLS server. It drives the page with the coordinator's named
 // actions and checks what landed where. Skips, saying why, when no
-// Playwright Chromium is installed (`npx playwright install chromium` in
-// apps/web-nav, or BDTV_TEST_CHROMIUM=/path/to/chrome).
+// Playwright Chromium is installed (`npx playwright install --with-deps
+// chromium` in apps/web-nav, or BDTV_TEST_CHROMIUM=/path/to/chrome); fails
+// with Chromium's own error when it is installed but cannot start (webtest).
 
 package web
 
@@ -18,29 +19,14 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 	"testing"
 	"time"
 
 	"bear-den-tv/internal/applications/adapters"
+	"bear-den-tv/internal/applications/web/webtest"
 	"bear-den-tv/internal/config"
 )
-
-// FindTestChromium finds a Chromium for tests: BDTV_TEST_CHROMIUM, else the
-// newest Playwright download (internal/session/web_e2e_test.go has its twin).
-func FindTestChromium() string {
-	if p := os.Getenv("BDTV_TEST_CHROMIUM"); p != "" {
-		return p
-	}
-	home, _ := os.UserHomeDir()
-	matches, _ := filepath.Glob(filepath.Join(home, ".cache", "ms-playwright", "chromium-*", "chrome-linux*", "chrome"))
-	sort.Strings(matches)
-	if len(matches) == 0 {
-		return ""
-	}
-	return matches[len(matches)-1]
-}
 
 // fixtureServer serves the navigation script's fixture pages over TLS.
 func fixtureServer(t *testing.T) *httptest.Server {
@@ -60,10 +46,7 @@ func fixtureServer(t *testing.T) *httptest.Server {
 // to the fixture server (test-only flags; the TV never gets them).
 func testStarter(t *testing.T, srv *httptest.Server) ExecStarter {
 	t.Helper()
-	bin := FindTestChromium()
-	if bin == "" {
-		t.Skip("no Playwright Chromium: run `npx playwright install chromium` in apps/web-nav or set BDTV_TEST_CHROMIUM (not a pass)")
-	}
+	bin := webtest.Require(t)
 	host := strings.TrimPrefix(srv.URL, "https://")
 	return ExecStarter{Env: os.Environ(), Prefix: []string{bin,
 		"--headless=new", "--no-sandbox", "--ignore-certificate-errors", "--window-size=1280,720",

@@ -4,7 +4,8 @@
 // and a phone drives it with named actions. The desktop is the fake one
 // (a window with the adapter's class stands in for Chromium's). Skips,
 // saying why, without a Playwright Chromium (BDTV_TEST_CHROMIUM or
-// `npx playwright install chromium` in apps/web-nav).
+// `npx playwright install --with-deps chromium` in apps/web-nav); fails
+// with Chromium's own error when it is installed but cannot start (webtest).
 
 package session
 
@@ -16,7 +17,6 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -24,24 +24,12 @@ import (
 	"bear-den-tv/internal/applications"
 	"bear-den-tv/internal/applications/adapters"
 	"bear-den-tv/internal/applications/web"
+	"bear-den-tv/internal/applications/web/webtest"
 	"bear-den-tv/internal/config"
 	"bear-den-tv/internal/contract"
 	"bear-den-tv/internal/platform"
 	"bear-den-tv/internal/platform/fake"
 )
-
-func testChromium() string {
-	if p := os.Getenv("BDTV_TEST_CHROMIUM"); p != "" {
-		return p
-	}
-	home, _ := os.UserHomeDir()
-	m, _ := filepath.Glob(filepath.Join(home, ".cache", "ms-playwright", "chromium-*", "chrome-linux*", "chrome"))
-	sort.Strings(m)
-	if len(m) == 0 {
-		return ""
-	}
-	return m[len(m)-1]
-}
 
 // windowedWeb is the real manager plus a fake window for the fake desktop.
 type windowedWeb struct {
@@ -59,10 +47,7 @@ func (w windowedWeb) Launch(ctx context.Context, app config.Application, spec ad
 }
 
 func TestE2ECoordinatorDrivesChromiumWithPhoneActions(t *testing.T) {
-	bin := testChromium()
-	if bin == "" {
-		t.Skip("no Playwright Chromium: run `npx playwright install chromium` in apps/web-nav or set BDTV_TEST_CHROMIUM (not a pass)")
-	}
+	bin := webtest.Require(t)
 	dir, _ := filepath.Abs("../../apps/web-nav/tests/fixtures")
 	srv := httptest.NewUnstartedServer(http.FileServer(http.Dir(dir)))
 	srv.Config.ErrorLog = log.New(io.Discard, "", 0)

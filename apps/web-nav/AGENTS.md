@@ -42,7 +42,7 @@ like the phone remote's `dist/`.
 ```sh
 . scripts/env.sh
 make webnav                                       # build dist/nav.js
-cd apps/web-nav && npx playwright install chromium   # once
+cd apps/web-nav && npx playwright install --with-deps chromium   # once; --with-deps adds Chromium's system libraries (needs sudo)
 make test-webnav                                  # Playwright, local fixtures only
 cd apps/web-nav && npm run lint                   # tsc + eslint (also in make lint)
 ```
