@@ -33,13 +33,17 @@ make test          # everything: Go (race), phone remote, web-nav (Playwright), 
 make lint          # gofmt/vet, eslint/tsc, qmllint
 ```
 
-`make test-webnav` needs Playwright's Chromium once:
-`cd apps/web-nav && npx playwright install chromium`.
+`make test-webnav` and the Go web-app end-to-end tests need Playwright's
+Chromium once: `cd apps/web-nav && npx playwright install chromium` (add
+`--with-deps` if Chromium cannot start for missing system libraries; that
+part needs sudo).
 
 CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs `make test`,
 `make lint` and `scripts/check-web-dist.sh` (the committed
 `apps/remote-web/dist` and `apps/web-nav/dist` match a fresh build; also
-`make check-web-dist`) on every push to `main` and every pull request.
+`make check-web-dist`) on every push to `main` and every pull request. When
+it fails, [`scripts/ci-annotate.sh`](scripts/ci-annotate.sh) turns the
+failing tests into annotations on the run, readable without signing in.
 
 Faster, one part at a time:
 

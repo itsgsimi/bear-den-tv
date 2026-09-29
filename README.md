@@ -77,7 +77,8 @@ the TV):
 - A Wayland profile (headless sway in a container only).
 - The installable `.deb` (install/remove smoke tests in clean Ubuntu 22.04
   and 24.04 containers) and the GitHub Actions CI and release workflows
-  (replayed step by step in a clean container).
+  (replayed step by step in a clean container; CI runs on GitHub but has not
+  passed there yet).
 
 **Not done yet:**
 
