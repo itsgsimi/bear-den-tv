@@ -1,4 +1,25 @@
-# Security model (LAN remote and desktop control)
+# Security model
+
+What Bear Den protects, from whom, and where each control is enforced. The
+surfaces, from the most exposed:
+
+1. **The LAN**: the phone remote's HTTP/WebSocket server, off until the owner
+   consents on the TV ([Controls](#controls-where-enforced): pairing, cookies,
+   CSRF, Host/Origin, guest passes, app icons).
+2. **Outbound traffic**, each only after the owner turns it on: Open-Meteo
+   (weather), plex.tv and the owner's Plex server (Plex rows), Flathub
+   (app installs and updates), the streaming sites inside Chromium.
+3. **The desktop**: keys, windows, DPMS and (on Wayland) the compositor's
+   window list, reached only through the coordinator's router.
+4. **Local channels**: the shell/CLI IPC socket, Chromium's DevTools pipe,
+   the HDMI-CEC device.
+5. **What is stored**: `config.json`, `state.db` (phones, guest passes, Den
+   badge counters), the keyring (Plex token), the web apps' browser profiles.
+6. **What is shipped**: the `.deb` and how releases are built.
+
+Each has a row in the table below; the longer notes for badges, installs and
+web apps follow it. This model has not been through a dedicated security
+review ([`VALIDATION_REPORT.md`](VALIDATION_REPORT.md#security-review)).
 
 ## Assets and trust boundaries
 
@@ -11,7 +32,9 @@
 - **TV control over HDMI-CEC**: off by default ([ADR 0008](decisions/0008-hdmi-cec.md)). HDMI-CEC is a slow control wire inside the HDMI cable between the box and the TV: nothing about it touches the network, and the TV stays off the network. Only when an adapter exists (`/dev/cecN`) and the owner turns it on (TV Settings → TV control over HDMI (CEC), config `cec`) does the coordinator send a fixed set of messages: Image View On, Standby (to the TV only, never broadcast), Active Source, volume keys, and Give Device Power Status. Phones send the named action `tv.power` or the existing volume actions, never CEC bytes, opcodes or device paths. Bear Den claims one playback-device address and answers only the core messages the kernel answers for it (it runs no CEC follower of its own). Opening `/dev/cecN` usually needs the `video` group; Bear Den never changes group membership or udev rules ([`operations.md`](operations.md#tv-control-over-hdmi-cec)). Any device on the same HDMI chain can also send CEC to the TV; that is HDMI's design, not something Bear Den adds.
 - **Web apps (Netflix, Disney+, Hulu, the Browser tile)**: see [Web apps](#web-apps) below. Flathub Chromium, one profile per app, controlled only over a private pipe; the streaming sites are off until the owner turns them on.
 - **App installs (outbound, on an owner press or the idle update only)**: see [App installs](#app-installs) below. Per user from Flathub, no root; the refs, the remote and its URL are fixed in the binary.
-- **LAN listener**: off until onboarding consent; bound only to the addresses of the selected interface; loopback-only in development mode.
+- **LAN listener**: off until onboarding consent; bound only to the addresses of the selected interface; loopback-only in development mode. mDNS advertisement is not wired yet, so nothing announces the TV on the network.
+- **Wayland**: on wlroots compositors the coordinator is a client of `zwlr_foreign_toplevel_manager_v1` (list, activate, close, fullscreen windows) and of nothing else; it sends no input there ([ADR 0007](decisions/0007-wayland-profile.md)).
+- **Packages and releases**: the `.deb` enables nothing by itself (no autostart, no service, no firewall rule). Published packages are built only by the release workflow on GitHub's runner, never on a workstation, because a local build carries the builder's home path.
 
 ## Controls (where enforced)
 
@@ -51,6 +74,11 @@
 | The screen-waking press acting on an app | the press that wakes a display Bear Den turned off is swallowed (`failed/display_off`); on the TV the shell swallows it when in front. A TV key with an app in front does reach that app (documented) | `internal/session/power.go`, `apps/tv-shell/qml/ShellRoot.qml` |
 | Desktop power settings left changed | DPMS enabled only while the display is off, with 0 timeouts; the exact previous state is restored on wake and on coordinator stop; a killed coordinator leaves DPMS enabled with no timeouts (nothing blanks) | `internal/platform/x11/dpms.go` |
 | Handling the session password to suspend | never: logind `CanSuspend` is only asked, and "challenge" is reported as unavailable | `internal/platform/suspend` |
+| A phone sends raw CEC, or the bus is used without the owner | phones send only `tv.power` and the ordinary volume actions; the coordinator builds a fixed set of frames (Image View On, Standby to the TV only, Active Source, volume keys, Give Device Power Status); nothing touches `/dev/cec*` unless config `cec.enabled` is on and a device exists, and `Probe` sends nothing on the bus; every call is bounded by the caller's deadline and Home never waits on it. Tests: `internal/platform/cec/cec_test.go` (no bus traffic on Probe, deadlines on a stuck adapter), `internal/session/cec_test.go` (setting off keeps the bus silent, volume never silently falls back to the PC) | `internal/platform/cec`, `internal/session/cec.go` |
+| Bear Den changes device access to reach CEC | never: it opens `/dev/cecN` with the session user's own rights; group membership, udev rules and `inputattach` are the owner's to change ([`operations.md`](operations.md#tv-control-over-hdmi-cec)) | `internal/platform/cec` |
+| The Widevine first run exposes a signed-in profile | the quiet run starts Chromium headless on that site's own profile with a blank page and no DevTools channel of any kind (`PrepareArgs`), only after Chromium is installed or a site is turned on, and stops it when the module is there or after 5 minutes; Bear Den never downloads or copies Widevine itself. Tests: `internal/applications/web/widevine_test.go` | `internal/applications/web/widevine.go`, `internal/session/widevine.go` |
+| Wayland window control reaches further than on X11 | the adapter only lists, activates, closes and fullscreens toplevels through the wlr protocol; no input is injected on Wayland (`Input` unavailable with a reason); an ambiguous or unknown foreground is `unknown` and refused like on X11. Tests: `internal/platform/wayland/wayland_test.go`, `TestLaunchOnBlindDesktopIsDeliveredNotObserved` | `internal/platform/wayland` |
+| A released package leaks the builder's details or was built elsewhere | releases are built by `.github/workflows/release.yml` on GitHub's runner only; `packaging/check-home-paths.sh` fails the release if any file mentions a home directory other than the runner's and conda-forge's; only the publishing job may write to the repository (`contents: write`), the rest read only; `SHA256SUMS` is published beside the .deb. No release has been published yet | `.github/workflows/release.yml`, `packaging/` |
 
 ## Den badges
 
