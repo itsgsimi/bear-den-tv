@@ -281,7 +281,7 @@ Then open the PNG. For a theme, see
 
 ```sh
 make test-shell     # configure build/tv-shell with tests, build, ctest offscreen
-make lint           # includes qmllint (all_qmllint) once build/tv-shell exists
+make lint           # includes qmllint (all_qmllint); configures build/tv-shell first if it is missing
 make shell          # release binary into build/bin/
 make perf           # frames and CPU per phase of Home, offscreen on two cores
 ```

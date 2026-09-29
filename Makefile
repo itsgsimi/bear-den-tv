@@ -96,17 +96,14 @@ test-shell: ## QML/C++ shell tests (offscreen)
 	cmake --build $(BUILD)/tv-shell
 	cd $(BUILD)/tv-shell && QT_QPA_PLATFORM=offscreen ctest --output-on-failure
 
-lint: apps/remote-web/node_modules/.installed apps/web-nav/node_modules/.installed ## gofmt/vet, eslint/tsc, qmllint (toolchain qmllint via the shell build dir)
+lint: apps/remote-web/node_modules/.installed apps/web-nav/node_modules/.installed ## gofmt/vet, eslint/tsc, qmllint (toolchain qmllint; configures the shell build dir if missing)
 	test -z "$$(gofmt -l cmd internal tests embed.go | tee /dev/stderr)"
 	@test -n "$(GO_PKGS)" || (echo "go list found no packages" && exit 1)
 	go vet $(GO_PKGS)
 	cd apps/remote-web && npm run lint
 	cd apps/web-nav && npm run lint
-	@if [ -f $(BUILD)/tv-shell/build.ninja ]; then \
-	  cmake --build $(BUILD)/tv-shell --target all_qmllint; \
-	else \
-	  echo "qmllint skipped: no $(BUILD)/tv-shell (run make shell or make test-shell first)"; \
-	fi
+	@test -f $(BUILD)/tv-shell/build.ninja || cmake -S apps/tv-shell -B $(BUILD)/tv-shell -G Ninja -DCMAKE_BUILD_TYPE=Debug -DBDTV_BUILD_TESTS=ON
+	cmake --build $(BUILD)/tv-shell --target all_qmllint
 
 DEV_ARGS ?=
 dev: go shell ## Run coordinator + shell locally with a fake desktop, loopback remote (DEMO rows and weather: make dev DEV_ARGS=--dev-fixtures)

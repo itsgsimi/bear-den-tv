@@ -47,7 +47,7 @@ Checked in the tree on 2026-09-29:
 - `internal/doctor` has no tests.
 - The shell supervisor's crash/restart path has no test; `internal/shellipc/supervisor_test.go` only checks the environment allow-list.
 - The phone remote has unit tests only (Vitest); no browser tests (`apps/remote-web/tests/e2e` does not exist). The web apps' navigation script, `apps/web-nav`, has Playwright tests on local fixture pages.
-- `make lint` runs qmllint only when `build/tv-shell` exists, and reports its warnings without failing.
+- `make lint` always runs qmllint (it configures `build/tv-shell` when missing) but reports its warnings without failing.
 - Not in `make test` (need Docker, a TV or a live display): `packaging/smoke-deb.sh`, `scripts/wayland-container-test.sh`, `scripts/e2e-target.sh`, the live DPMS test.
 
 ## Requirement status
