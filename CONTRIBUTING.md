@@ -33,6 +33,10 @@ make test          # everything: Go (race), phone remote, shell (offscreen)
 make lint          # gofmt/vet, eslint/tsc, qmllint
 ```
 
+CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs `make test`,
+`make lint` and `make check-web-dist` (committed `apps/remote-web/dist` matches a
+fresh `make web`) on every push to `main` and every pull request.
+
 Faster, one part at a time:
 
 | You changed | Run |

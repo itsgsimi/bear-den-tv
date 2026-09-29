@@ -79,6 +79,7 @@ Features outside the matrix:
 | Theme packages and pixel art (ADR 0005) | Yes. `themes/`, `ThemeRegistry`, `internal/themes`, `tools/pixelart` | `internal/themes/themes_test.go`; shell `themeWallpaperSprites`, `pixelArtBuildingBlocks`, `heroPanelLife`; Vitest `vines.spec.ts` | Not yet seen on the TV |
 | Autostart and desktop shortcut | Yes. `bear-den-tv autostart`, `bear-den-tv shortcut` | `cmd/bear-den-tv/autostart_test.go`, `shortcut_test.go` | Autostart and watchdog seen on the TV. The shortcut was installed but not yet double-clicked |
 | Close an app from the phone | Yes | `TestCloseAppFromPhone`; e2e close step | Close seen in the e2e run (2026-09-22) |
+| Continuous integration (GitHub Actions) | Yes. [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) on `ubuntu-24.04`, every push to `main` and pull request: cached toolchain (`BDTV_SKIP_SYSROOT=1`), `make test`, `make lint`, `scripts/check-web-dist.sh`. Pinned micromamba 2.9.0 and Qt 6.8.4 | Workflow passes `actionlint`. Replayed step by step in a clean `ubuntu:24.04` container as a non-root user from a fresh copy: bootstrap 13 s (network-dependent), `make test` + `make lint` + dist check 63 s, all passing. That replay found a nil-pointer panic in `internal/platform/lock` with no D-Bus (fixed, `TestRealDialersWithoutBusFailClosedAndClose`) and that CMake takes `ar` from the host's binutils, which the GitHub runner image has | Not applicable (not on the TV). Workflow written and replayed in a clean container; not yet run on GitHub |
 
 ## Blockers and permissions
 

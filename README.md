@@ -1,5 +1,7 @@
 # Bear Den TV
 
+[![CI](https://github.com/itsgsimi/bear-den-tv/actions/workflows/ci.yml/badge.svg)](https://github.com/itsgsimi/bear-den-tv/actions/workflows/ci.yml)
+
 Bear Den TV turns a small Linux box into a TV that you drive with your phone.
 
 - The TV shows a cosy home screen: your apps, big tiles, a pixel-art world and
