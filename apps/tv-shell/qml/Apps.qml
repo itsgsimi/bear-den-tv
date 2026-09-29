@@ -1,7 +1,8 @@
 // Human descriptions and brand colours of the supported client adapters
 // (closed set, mirrors internal/applications/adapters). Bear Den launches these
 // apps; it does not reproduce their interfaces. Tiles and the hero are drawn in
-// each app's own colours around its official icon, so they read as that app.
+// each app's own colours around Bear Den's own icon for it (never the official
+// logo; docs/THEMES.md → App icons), so they read as that app by label and colour.
 
 pragma Singleton
 import QtQuick

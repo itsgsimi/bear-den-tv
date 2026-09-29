@@ -897,6 +897,9 @@ private slots:
         QCoreApplication::processEvents();
         goHome();
         toFavorites();
+        for (int i = 0; i < 4; ++i)
+            act(QStringLiteral("nav.left"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("plex-htpc"));
         act(QStringLiteral("nav.right"));
         QCOMPARE(m_nav->itemId(), QStringLiteral("youtube"));
         act(QStringLiteral("nav.right")); // spotify is hidden: straight to retroarch
@@ -913,6 +916,67 @@ private slots:
         act(QStringLiteral("nav.right"));
         act(QStringLiteral("nav.right"));
         QCOMPARE(m_nav->itemId(), QStringLiteral("spotify"));
+    }
+
+    // App icons (docs/THEMES.md → App icons): every adapter has Bear Den's own
+    // icon in both art styles, and Shell.appArt picks the owner's brand folder
+    // first, then that bundled icon, and only then the Flatpak's exported icon.
+    void appArtResolutionOrder()
+    {
+        const QStringList adapters{QStringLiteral("plex-htpc"), QStringLiteral("vacuumtube"), QStringLiteral("moonlight"),
+                                   QStringLiteral("spotify"), QStringLiteral("jellyfin"), QStringLiteral("retroarch")};
+        ShellController *shell = ShellController::instance();
+        for (const QString &a : adapters) {
+            QVERIFY2(!shell->flatpakIdFor(a).isEmpty(), qPrintable(a));
+            const QImage px(QStringLiteral(":/qt/qml/BearDen/assets/pixel/app-%1.png").arg(a));
+            QVERIFY2(px.size() == QSize(32, 32), qPrintable(a + QStringLiteral(": pixel icon must be 32x32")));
+            QVERIFY2(!QImage(QStringLiteral(":/qt/qml/BearDen/assets/classic/app-%1.svg").arg(a)).isNull(), qPrintable(a));
+        }
+
+        QTemporaryDir data, home;
+        QVERIFY(data.isValid() && home.isValid());
+        const QByteArray oldData = qgetenv("XDG_DATA_HOME"), oldHome = qgetenv("HOME");
+        const auto restore = qScopeGuard([&] {
+            qputenv("XDG_DATA_HOME", oldData);
+            qputenv("HOME", oldHome);
+            ShellController::instance()->forgetArt();
+        });
+        qputenv("XDG_DATA_HOME", data.path().toUtf8());
+        qputenv("HOME", home.path().toUtf8());
+        // The installed Flatpak exports an icon: ours still wins.
+        const QString exported = home.filePath(QStringLiteral(".local/share/flatpak/exports/share/icons/hicolor/128x128/apps"));
+        QVERIFY(QDir().mkpath(exported));
+        QImage(8, 8, QImage::Format_ARGB32).save(exported + QStringLiteral("/tv.plex.PlexHTPC.png"));
+        shell->forgetArt();
+        QVariantMap art = shell->appArt(QStringLiteral("plex-htpc"));
+        QCOMPARE(art.value(QStringLiteral("iconSource")).toString(), QStringLiteral("bundled"));
+        QCOMPARE(art.value(QStringLiteral("icon")).toString(), QStringLiteral("qrc:/qt/qml/BearDen/assets/pixel/app-plex-htpc.png"));
+        art = shell->appArt(QStringLiteral("plex-htpc"), true);
+        QCOMPARE(art.value(QStringLiteral("icon")).toString(), QStringLiteral("qrc:/qt/qml/BearDen/assets/classic/app-plex-htpc.svg"));
+        // An adapter without a bundled icon falls back to nothing here (no Flatpak id).
+        QCOMPARE(shell->appArt(QStringLiteral("something-new")).value(QStringLiteral("iconSource")).toString(), QString());
+        // The owner's brand folder beats everything.
+        const QString brand = data.filePath(QStringLiteral("bear-den-tv/brand/plex-htpc"));
+        QVERIFY(QDir().mkpath(brand));
+        QImage(8, 8, QImage::Format_ARGB32).save(brand + QStringLiteral("/icon.png"));
+        shell->forgetArt();
+        for (bool classic : {false, true}) {
+            art = shell->appArt(QStringLiteral("plex-htpc"), classic);
+            QCOMPARE(art.value(QStringLiteral("iconSource")).toString(), QStringLiteral("brand"));
+            QCOMPARE(art.value(QStringLiteral("icon")).toString(), QUrl::fromLocalFile(brand + QStringLiteral("/icon.png")).toString());
+        }
+        // AppIcon draws our pixel icon unsmoothed at a whole-number scale.
+        shell->forgetArt();
+        QQmlComponent c(m_engine);
+        c.setData("import QtQuick\nimport BearDen\nAppIcon { adapter: \"spotify\"; label: \"Spotify\"; size: 70 }",
+                  QUrl(QStringLiteral("qrc:/test/Icon.qml")));
+        std::unique_ptr<QObject> icon(c.create());
+        QVERIFY2(icon, qPrintable(c.errorString()));
+        QVERIFY(icon->property("pixelArt").toBool());
+        QCOMPARE(icon->property("drawn").toReal(), 64.0);
+        QObject *image = icon->findChild<QObject *>(QStringLiteral("appIconImage"));
+        QVERIFY(image && !image->property("smooth").toBool());
+        QVERIFY(image->property("source").toUrl().toString().endsWith(QStringLiteral("/pixel/app-spotify.png")));
     }
 
     void lockedHidesEverything()

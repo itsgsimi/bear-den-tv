@@ -181,11 +181,18 @@ For a new app, after [`internal/AGENTS.md` → Add an app](../../internal/AGENTS
 | `ShellController::flatpakIdFor` in [`src/ShellController.cpp`](src/ShellController.cpp) | adapter → Flatpak id; used for the exported Flatpak icon and the install hint in `AppUnavailableDialog.qml` |
 | `Theme::tintFor` in [`src/Theme.cpp`](src/Theme.cpp) | a fixed hue per **application id** (`plex-htpc`, `youtube`, `moonlight`); other ids hash to a hue |
 
-Artwork: Bear Den bundles no brand art. `Shell.appArt(adapter)` returns
-`{icon, logo, background}` from, in order: the owner's brand folder
+Artwork: Bear Den bundles its own original app icons, never third-party
+logos ([`docs/THEMES.md` → App icons](../../docs/THEMES.md#app-icons)).
+`Shell.appArt(adapter, classic)` returns `{icon, logo, background,
+iconSource}`; the icon comes, in order, from the owner's brand folder
 `~/.local/share/bear-den-tv/brand/<adapter>/` (`icon|logo|background` +
-`.svg|.png|.jpg|.webp`), the icon the installed Flatpak exports, then icons
-cached by `bear-den-tv artwork fetch`. Results are cached for a minute.
+`.svg|.png|.jpg|.webp`; logo and background come only from there), Bear
+Den's own icon (`assets/pixel/app-<adapter>.png`, or with `classic`
+`assets/classic/app-<adapter>.svg`), the icon the installed Flatpak exports,
+then icons cached by `bear-den-tv artwork fetch`; `AppIcon` draws a monogram
+when there is none. Results are cached for a minute. A new app needs its icon
+in `tools/pixelart/appicons.py` and `tools/classicart/appicons.py`
+(`appArtResolutionOrder` checks every adapter has both).
 
 ## Change the look
 

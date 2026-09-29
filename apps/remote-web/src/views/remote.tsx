@@ -12,7 +12,7 @@ import type { ComponentChildren, JSX } from 'preact';
 import type { App } from '../app.ts';
 import type { ActionArgs, ActionName, Application, NavAction } from '../contract.ts';
 import { t } from '../i18n.ts';
-import { Art, artStyleOf, Icon, type IconName } from '../icons.tsx';
+import { AppArt, Art, artStyleOf, Icon, type IconName } from '../icons.tsx';
 import { Vines } from '../vines.tsx';
 import { NowPlayingPanel, nowPlayingOf } from './nowplaying.tsx';
 import { SleepPanel } from './sleep.tsx';
@@ -311,7 +311,7 @@ function AppButton({ app, state, application }: { app: App; state: AppState; app
         onClick={() => void app.tap('app.launch', { app_id: application.id })}
       >
         <span class="app-icon">
-          <Icon name="app" size={22} />
+          <AppArt adapter={application.adapter} size={32} art={artStyleOf(state.snapshot?.appearance)} />
           {live ? <span class="run-dot" aria-hidden="true" /> : null}
         </span>
         <span class="app-label">{application.label}</span>

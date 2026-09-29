@@ -1,5 +1,6 @@
 // Large panel describing the focused item: artwork backdrop for content; for
-// apps, the app's own colours with its official icon (or the owner's wordmark)
+// apps, the app's own colours with its icon (Bear Den's own, or the owner's
+// brand icon or wordmark)
 // and its state. It follows focus and never auto-advances (design §3.3).
 // In the Bear Den style it also has life, all pixel art on World's heartbeat
 // (docs/THEMES.md → Pixel art, "The featured panel"):
@@ -25,7 +26,7 @@ PixelBox {
     property string sectionTitle: ""
     readonly property bool isApp: item.kind === "app"
     readonly property var app: isApp && item.appId ? Session.application(item.appId) : ({})
-    readonly property var art: isApp ? Shell.appArt(app.adapter || "") : ({ icon: "", logo: "", background: "" })
+    readonly property var art: isApp ? Shell.appArt(app.adapter || "", World.classic) : ({ icon: "", logo: "", background: "" })
     readonly property string backdrop: isApp ? art.background : (item.artwork || "")
     readonly property bool hasBackdrop: backdropImage.ready
     readonly property color tint: item && item.tint ? item.tint : Theme.tintFor(item && item.itemId ? item.itemId : "bear")

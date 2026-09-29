@@ -28,6 +28,7 @@ standard library.
 | [`hero.py`](hero.py) | the featured panel's rooms: cinema, cabin (night, dawn, day, dusk), arcade; each room's light; the cabin TV's intro static | `apps/tv-shell/assets/classic/hero-<scene>[-<time>].svg`, `hero-<scene>-glow.svg`, `hero-static-0.svg`, `hero-static-1.svg` |
 | [`weather.py`](weather.py) | ten weather icons | `apps/tv-shell/assets/classic/weather-<name>.svg` |
 | [`layers.py`](layers.py) | every world's animated layers in Classic, placed on features of its Classic picture: den (light shafts in the cave mouth, floor mist, a lantern in the dark arch), forest (valley mist), midnight (moon path on the lake, shore mist, twinkling stars), campfire (rain, smoke wisps), winter (aurora rays, chimney smoke, window glow). Its own tiny antialiased RGBA canvas and PNG writer | `themes/<id>/classic-*.png` (frames side by side) and the `classic.wallpaper.sprites` list in each `themes/<id>/theme.json` |
+| [`appicons.py`](appicons.py) | Bear Den's own app icons, the smooth twins of `tools/pixelart/appicons.py` (same badge, motifs and palettes, a 32×32 view box) | `apps/tv-shell/assets/classic/app-<adapter>.svg`; phone copies `apps/remote-web/static/art/app-<adapter>.svg` |
 | [`extras.py`](extras.py) | the October pumpkin, December's snow on the panel, the "z" over a dozing bear, and the weather props of the corner scenes (a tarp, the startled "!", a leaf umbrella; twins of `tools/pixelart/weatherprops.py`) | `apps/tv-shell/assets/ornaments/pumpkin.svg`, `apps/tv-shell/assets/classic/snowcap.svg`, `sleep-z.svg`, `scene-tarp.svg`, `startle.svg`, `umbrella-leaf.svg` |
 
 Assets under `assets/classic/` and `assets/ornaments/` are globbed into the
@@ -70,7 +71,7 @@ python3 -B tools/classicart/build.py                  # everything
 python3 -B tools/classicart/build.py hero weather     # only these parts
 ```
 
-- Part names: `winter`, `hero`, `weather`, `extras`, `layers`.
+- Part names: `winter`, `hero`, `weather`, `extras`, `layers`, `appicons`.
 - `-B` stops Python writing `__pycache__` files into the tree.
 
 To look at a result, run `make shell`, then

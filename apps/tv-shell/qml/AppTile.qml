@@ -1,5 +1,5 @@
-// Application tile in the app's own colours: its official icon, a faint
-// oversized copy of that icon as texture, the name, what the app is for, and a
+// Application tile in the app's own colours: its icon (Bear Den's own, or the
+// owner's brand icon; AppIcon), a faint oversized copy of that icon as texture, the name, what the app is for, and a
 // status pill (Running / Starting / Not installed / Launch failed) so state is
 // never conveyed by colour alone.
 
@@ -14,8 +14,8 @@ Item {
     readonly property string adapter: app.adapter || ""
     readonly property var brand: Apps.brand(adapter)
     readonly property color tint: item.tint || Theme.accent
-    // Official artwork (owner brand folder / Flatpak icon); empty strings when absent.
-    readonly property var art: Shell.appArt(adapter)
+    // Artwork: the owner's logo and photo (brand folder), empty when absent.
+    readonly property var art: Shell.appArt(adapter, World.classic)
     readonly property bool hasLogo: art.logo.length > 0
     readonly property bool hasPhoto: art.background.length > 0
     readonly property var status: {
@@ -98,7 +98,7 @@ Item {
             fade: 0
             source: root.art.background
         }
-        // The app's own icon, oversized and faint, as the tile's texture.
+        // The app's icon, oversized and faint, as the tile's texture.
         Item {
             anchors.fill: parent
             clip: true
@@ -132,7 +132,7 @@ Item {
             borderWidth: 1
         }
 
-        // Official wordmark, when the owner provided one.
+        // The owner's wordmark (brand folder), when there is one.
         Image {
             visible: root.hasLogo
             anchors.centerIn: parent

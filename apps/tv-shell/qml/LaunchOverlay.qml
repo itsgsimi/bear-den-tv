@@ -23,7 +23,7 @@ Rectangle {
     Column {
         anchors.centerIn: parent
         spacing: 28 * Theme.scale
-        // The app's card in its own colours, with its official icon.
+        // The app's card in its own colours, with its icon (AppIcon).
         Item {
             id: card
             readonly property var brand: Apps.brand(root.app.adapter || "")
