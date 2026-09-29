@@ -4,26 +4,49 @@
 
 Bear Den TV turns a small Linux box into a TV that you drive with your phone.
 
-- The TV shows a cosy home screen: your apps, big tiles, a pixel-art world and
-  a few visiting bears.
-- Your phone is the remote. You pair it once with a code on the TV.
-- It opens **Plex HTPC**, **VacuumTube** (YouTube) and **Moonlight** (game
-  streaming), and Home always brings you back.
-- Those apps are ordinary Flatpaks. Bear Den launches them, brings them to the
-  front and tunes their playback settings. It never wraps, embeds or patches
-  them.
+- **A cosy home screen.** Big tiles for your apps on a pixel-art world (or a
+  smooth Classic look), visiting bears, corner scenes that react to your local
+  weather, and Den badges for little milestones. Five themes ship built in and
+  your own are a folder away.
+- **Your phone is the remote.** Pair it once with a code or QR on the TV; no
+  app to install. It has a D-pad, a keyboard, a Now playing card, a sleep
+  timer, and a touchpad for websites. Visitors get a guest pass that ends by
+  itself.
+- **Your apps, as they are.** Plex HTPC, VacuumTube (YouTube) and Moonlight,
+  plus Spotify, Jellyfin Desktop and RetroArch when you install them. They are
+  ordinary Flatpaks: Bear Den launches them, brings them to the front, tunes
+  their playback for your box and always brings you back with Home. It never
+  wraps, embeds or patches them. A missing app installs from Flathub with one
+  press by the owner, per user and without root.
+- **Streaming sites.** Netflix, Disney+ and Hulu (off until you turn them on)
+  and a Browser tile run full screen in Chromium from Flathub, driven by the
+  remote. A Linux browser caps them at about 720p.
+- **Plex rows on Home.** Sign the TV in to Plex once and Home shows Continue
+  Watching and Recently Added from your own server.
+- **Optional extras.** Turn the TV on and off over HDMI-CEC (needs a CEC
+  adapter), and turn the screen off with the sleep timer.
 
 ![Home in the Den theme](docs/screenshots/readme/home-den.png)
 
 | | |
 |---|---|
 | ![Home in the Campfire theme, with a bear parade](docs/screenshots/readme/home-campfire.png) | ![Home in the Winter theme](docs/screenshots/readme/home-winter.png) |
-| ![Settings in the Forest theme](docs/screenshots/readme/settings-forest.png) | Screenshots are rendered by the sandbox on demo data (the **DEMO** labels). The layout and colours match the TV. |
+| ![Settings in the Forest theme](docs/screenshots/readme/settings-forest.png) | ![Continue Watching and Recently Added from Plex, DEMO titles](docs/screenshots/2026-09-28-plex/home-rows-pixel.png) |
+| ![Netflix, Disney+, Hulu and Browser tiles](docs/screenshots/2026-09-28-web-apps/tv-home-web-tiles-pixel.png) | ![Den badges on the TV](docs/screenshots/2026-09-28-badges/tv-badges-pixel.png) |
+
+<img src="docs/screenshots/2026-09-28-now-playing/remote-pixel.png" alt="The phone remote with the Now playing card" width="260">
+
+Screenshots are rendered on a workstation on demo data (the **DEMO** labels):
+the TV pictures by the sandbox, the phone in a headless browser. None of them
+was taken on a TV. The sandbox has no apps installed, so its tiles show Bear
+Den's own icons; on a TV an installed app shows its own icon by default.
 
 ## Status: a working developer preview
 
 It runs every day on one reference TV box. It is not a finished product. The
 detailed, honest record is [`docs/IMPLEMENTATION_STATUS.md`](docs/IMPLEMENTATION_STATUS.md).
+*Implemented*, *automatically tested* and *seen on the TV* are separate
+claims there.
 
 **Works, and has been seen on the reference TV:**
 
@@ -35,14 +58,42 @@ detailed, honest record is [`docs/IMPLEMENTATION_STATUS.md`](docs/IMPLEMENTATION
 - Local weather fetched from Open-Meteo (the on-screen chip has not been checked
   by eye on the TV).
 
-**Built and tested here, not yet seen on the TV:** some themes, bear visits and
-corner scenes; the performance of several newer visuals.
+**Built and tested here, not yet seen on the TV** (automated tests, sandbox
+screenshots, containers or fakes; nothing added since 2026-09-23 has run on
+the TV):
 
-**Not done yet:** Plex rows checked against a real Plex account and server
-(sign-in on the TV and the Continue Watching and Recently Added rows are built
-and tested against a local fake, not yet with a real account), published release packages (the .deb below
-builds and passes clean-container install tests but has not been installed on
-the TV yet), and browser (Playwright) tests for the phone remote.
+- The pixel-art look and the Classic art style, the themes, bears, corner
+  scenes and their reactions to the weather, and the featured panel's rooms.
+- Plex sign-in on the TV and the Continue Watching and Recently Added rows
+  (against a local fake of plex.tv and a server).
+- Now playing on phones, the sleep timer and screen off, guest passes, Den
+  badges.
+- The optional apps (Spotify, Jellyfin Desktop, RetroArch), the app's own
+  icons by default with Bear Den's as a choice, and one-press installs from
+  Flathub with daily updates (tried in a container against real Flathub).
+- Netflix, Disney+, Hulu and the Browser in Chromium with the phone's
+  touchpad (against local test pages only, never a real streaming site).
+- TV control over HDMI-CEC (against a fake TV only).
+- A Wayland profile (headless sway in a container only).
+- The installable `.deb` (install/remove smoke tests in clean Ubuntu 22.04
+  and 24.04 containers) and the GitHub Actions CI and release workflows
+  (replayed step by step in a clean container).
+
+**Not done yet:**
+
+- Checking the Plex rows against a real Plex account and server; opening the
+  exact item in Plex HTPC (selecting a card opens Plex HTPC only).
+- Playing a real streaming site: whether Widevine works in Flathub Chromium on
+  the box, and the per-site navigation hints, are unverified.
+- HDMI-CEC with a real adapter and TV.
+- A published release: no release has been cut, and the package has not been
+  installed on the TV.
+- Browser (Playwright) tests for the phone remote (the web apps' navigation
+  script has them), negative tests for the phone-facing HTTP/WebSocket server,
+  and tests for `bear-den-tv doctor`.
+- mDNS: the remote is not advertised on the network yet.
+- Remote keys into apps on Wayland.
+- A kid mode (deferred).
 
 ## What it needs
 
@@ -50,18 +101,22 @@ the TV yet), and browser (Playwright) tests for the phone remote.
 |---|---|
 | **TV box** | Linux with an **X11** desktop session (the reference box runs Linux Mint 21.3 Xfce). Wayland works in part: on sway and other wlroots compositors apps launch and Home works but remote keys do not reach apps; on GNOME and KDE the phone drives the home screen only ([ADR 0007](docs/decisions/0007-wayland-profile.md)). Wayland has been tested in a container, never on a real TV. |
 | **Hardware floor** | A Celeron 2955U: 2 cores at 1.4 GHz, Haswell GT1 graphics, 7.6 GiB RAM, driving 1080p at 120 Hz. Faster boxes get more, from measured capability ([`docs/APP_PERFORMANCE.md`](docs/APP_PERFORMANCE.md)). |
-| **Apps** | Flatpak, plus any of Plex HTPC, VacuumTube and Moonlight (missing ones show as "Not installed"), and optionally Spotify, Jellyfin Desktop and RetroArch (shown only when installed). Tiles use Bear Den's own icons, never the apps' logos. |
+| **Apps** | Flatpak (the owner installs it once with the system's package manager; Bear Den never does). Then any of Plex HTPC, VacuumTube and Moonlight (a missing one shows "Not installed" and installs on one press), optionally Spotify, Jellyfin Desktop and RetroArch (hidden until installed), and Chromium from Flathub for Netflix, Disney+, Hulu and the Browser tile. App installs go to the TV user's own Flatpak folder from Flathub, no root. |
+| **Plex rows** (optional) | A Plex account and server, and a desktop keyring (Secret Service, for example gnome-keyring) for the TV's sign-in. |
+| **HDMI-CEC** (optional) | A CEC device (`/dev/cec*`), usually a USB CEC adapter; most mini PCs have none ([`docs/operations.md`](docs/operations.md#tv-control-over-hdmi-cec)). |
 | **Phone** | Any modern phone browser on the same network. No app to install. |
 | **Workstation** | A Linux machine to build on. The toolchain installs in your home folder; no root needed. |
 
 ## Install
 
 A `.deb` for Ubuntu 22.04 / Linux Mint 21.3 and newer (amd64, X11 desktop).
-Download `bear-den-tv_<version>_amd64.deb` (and `SHA256SUMS`) from the
-[Releases page](https://github.com/itsgsimi/bear-den-tv/releases); GitHub's runner builds and tests every
-release ([Cutting a release](docs/operations.md#cutting-a-release)). No release
-has been published yet; until then, build one yourself with the toolchain
-below (`make package` → `build/dist/`) for your own use only.
+**No release has been published yet**, and the package has not been installed
+on the reference TV. Until there is one, build a package yourself with the
+toolchain below (`make package` → `build/dist/`), for your own use only
+([why](docs/operations.md#cutting-a-release)). Releases will appear on the
+[Releases page](https://github.com/itsgsimi/bear-den-tv/releases) as
+`bear-den-tv_<version>_amd64.deb` with `SHA256SUMS`, built and tested by the
+release workflow on GitHub's runner.
 
 On the TV box:
 
@@ -79,8 +134,10 @@ bear-den-tv autostart disable
 sudo apt remove --purge bear-den-tv
 ```
 
-Your settings and paired phones stay in `~/.config/bear-den-tv` and
-`~/.local/share/bear-den-tv`; delete those to forget them. Details:
+Your settings, paired phones, Den badges and the streaming sites' browser
+profiles stay in `~/.config/bear-den-tv` and `~/.local/share/bear-den-tv`;
+delete those to forget them. Apps Bear Den installed stay in your Flatpak
+folder (`flatpak uninstall --user <id>` removes one). Details:
 [`docs/operations.md` → Packaging](docs/operations.md#packaging).
 
 ## Quick start (on a workstation)
@@ -90,7 +147,7 @@ git clone <this repo> bear-den-tv && cd bear-den-tv
 scripts/bootstrap-toolchain.sh      # once: Go, Qt 6.8, CMake, Node in ~/.bdtv-toolchain (no root)
 . scripts/env.sh                    # every new shell: put the toolchain on PATH
 make help                           # every make target
-make test                           # Go (race), phone remote unit tests, shell tests (offscreen)
+make test                           # Go (race), phone remote unit tests, web-nav browser tests, shell tests (offscreen)
 make dev DEV_ARGS=--dev-fixtures    # coordinator + home screen locally, fake desktop, DEMO data
 ```
 
@@ -128,6 +185,8 @@ A theme is a package: a `theme.json` plus art, no code. Five ship built in
 (Den, Forest, Campfire, Winter, Midnight). Your own go in
 `~/.local/share/bear-den-tv/themes/` and appear without a rebuild. The bears
 are the cast of the default style; **Settings → Style → Plain** turns them off.
+**Settings → Art style** switches between Pixel and Classic, and **Settings →
+App icons** between each app's own icon and Bear Den's drawings.
 Start with [`docs/THEMES.md`](docs/THEMES.md).
 
 ## Repository map
@@ -137,8 +196,11 @@ Start with [`docs/THEMES.md`](docs/THEMES.md).
 | **Coordinator** (Go) | `cmd/`, `internal/` | the session: which app is in front, launching and closing apps, routing input, pairing and permissions, configuration, the LAN service, playback tuning | [`internal/AGENTS.md`](internal/AGENTS.md) |
 | **TV shell** (Qt 6.8 QML/C++) | `apps/tv-shell/` | everything on the TV between apps: focus, screens, themes, bears | [`apps/tv-shell/AGENTS.md`](apps/tv-shell/AGENTS.md) |
 | **Phone remote** (TypeScript, Preact) | `apps/remote-web/` | the phone UI, served by (and embedded in) the coordinator | [`apps/remote-web/AGENTS.md`](apps/remote-web/AGENTS.md) |
+| **Web apps' navigation script** (TypeScript) | `apps/web-nav/` | D-pad control of websites in Chromium, injected by the coordinator | [`apps/web-nav/AGENTS.md`](apps/web-nav/AGENTS.md) |
 | **Contracts** | `contracts/` | JSON Schemas, specs and fixtures, validated in all three languages | [`contracts/AGENTS.md`](contracts/AGENTS.md) |
 | **Themes** | `themes/` | theme packages (manifest + art, no code) | [`themes/AGENTS.md`](themes/AGENTS.md) |
+| **Art tools** | `tools/pixelart/`, `tools/classicart/` | generate every bundled picture (worlds, bears, app icons, badges) | [`tools/pixelart/README.md`](tools/pixelart/README.md), [`tools/classicart/README.md`](tools/classicart/README.md) |
+| **Packaging** | `packaging/`, `.github/workflows/` | the `.deb`, CI and the release workflow | [`docs/operations.md` → Packaging](docs/operations.md#packaging) |
 | **Scripts** | `scripts/` | toolchain, sandbox, deploy, TV helpers | [`docs/operations.md`](docs/operations.md) |
 
 ## Docs map
@@ -147,12 +209,12 @@ Start with [`docs/THEMES.md`](docs/THEMES.md).
 |---|---|
 | How does it all work? | [`docs/HOW_IT_WORKS.md`](docs/HOW_IT_WORKS.md) |
 | What does this word mean? | [`docs/GLOSSARY.md`](docs/GLOSSARY.md) |
-| Everyday commands, deploying, the TV | [`docs/operations.md`](docs/operations.md) |
+| Owner tasks, everyday commands, deploying, the TV | [`docs/operations.md`](docs/operations.md) |
 | Themes and bears | [`docs/THEMES.md`](docs/THEMES.md) |
 | App playback settings, box tiers | [`docs/APP_PERFORMANCE.md`](docs/APP_PERFORMANCE.md) |
 | Security model | [`docs/security.md`](docs/security.md) |
 | What is built, tested, seen on the TV | [`docs/IMPLEMENTATION_STATUS.md`](docs/IMPLEMENTATION_STATUS.md) |
-| Why is it like this? | [`docs/decisions/`](docs/decisions/) |
+| Why is it like this? | [`docs/decisions/`](docs/decisions/README.md) (ADRs) |
 | Wire formats | [`contracts/README.md`](contracts/README.md) |
 | How to change the code | [`AGENTS.md`](AGENTS.md), [`CONTRIBUTING.md`](CONTRIBUTING.md) |
 
@@ -163,6 +225,7 @@ Contributions from people and AI coding agents are welcome. Read
 
 ## License
 
-MIT. See [`LICENSE`](LICENSE). Plex, YouTube, VacuumTube and Moonlight are
-independent projects and trademarks of their owners; Bear Den TV only launches
-them.
+MIT. See [`LICENSE`](LICENSE). Plex, YouTube, VacuumTube, Moonlight, Spotify,
+Jellyfin, RetroArch, Netflix, Disney+, Hulu and Chromium are independent
+projects and trademarks of their owners; Bear Den TV only launches them and
+bundles none of their logos.
