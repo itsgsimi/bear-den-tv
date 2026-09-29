@@ -1,0 +1,1 @@
+{"protocol":1,"request_id":"5d1f0c62-8a7e-4c1b-9f3e-2b6a4d8e0c14","outcome":"failed","code":"display_off","message":"The screen was off. This press turned it on; press again.","context_epoch":53,"target":{"kind":"shell","app_id":null,"label":"Bear Den TV"},"detail":{"display":"on"}}

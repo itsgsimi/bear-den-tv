@@ -308,6 +308,23 @@ bool SessionModel::validateSnapshot(const QJsonObject &snapshot, QString *error)
             || !requireType(np, QStringLiteral("rate"), QJsonValue::Double, where, error))
             return false;
     }
+    if (snapshot.contains(QStringLiteral("power"))) {
+        // state.power (optional): sleep_at_ms (integer or null), warning, display on|off.
+        const QString where = QStringLiteral("state.power");
+        if (!requireType(snapshot, QStringLiteral("power"), QJsonValue::Object, QStringLiteral("state"), error))
+            return false;
+        const QJsonObject power = snapshot.value(QStringLiteral("power")).toObject();
+        if (!requireKeys(power, {QStringLiteral("sleep_at_ms"), QStringLiteral("warning"), QStringLiteral("display")}, where, error)
+            || !requireEnum(power, QStringLiteral("display"), {QStringLiteral("on"), QStringLiteral("off")}, where, error)
+            || !requireType(power, QStringLiteral("warning"), QJsonValue::Bool, where, error))
+            return false;
+        const QJsonValue at = power.value(QStringLiteral("sleep_at_ms"));
+        if (!at.isNull() && !(at.isDouble() && at.toDouble() == std::floor(at.toDouble()))) {
+            if (error)
+                *error = QStringLiteral("state.power.sleep_at_ms must be an integer or null");
+            return false;
+        }
+    }
     return true;
 }
 

@@ -17,6 +17,6 @@ Rules that hold everywhere:
 
 - The browser sends **named intentions** only. No shell strings, keycodes, executable paths, URLs to fetch, or scripts. Unknown action names are rejected before any routing.
 - Every state-changing message carries `protocol`, `request_id`, and (for target-directed actions) `context_epoch`.
-- Only the explicit escapes `home`, `app.launch`, and `shell.restart` may ignore a stale `context_epoch` (`IgnoresStaleEpoch` in [`internal/contract/contract.go`](../internal/contract/contract.go)); they still require authorization and are refused while the session is locked.
+- Only the explicit escapes `home`, `app.launch`, and `shell.restart`, and the power actions `power.sleep_timer` and `display.off` (they never touch the window in front), may ignore a stale `context_epoch` (`IgnoresStaleEpoch` in [`internal/contract/contract.go`](../internal/contract/contract.go)); they still require authorization and are refused while the session is locked.
 - Results are honest: `delivered` means an input was injected or an IPC message was sent; `observed` means a state change was confirmed (shell focus report, window activation, MPRIS status). Never upgrade a result without evidence.
 - Unknown foreground window, locked session, or unverifiable focus ⇒ `failed` with a machine-readable `code` and a user-facing `message`.

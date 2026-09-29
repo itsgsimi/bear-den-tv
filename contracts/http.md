@@ -28,7 +28,7 @@ Trusted-LAN HTTP mode additionally refuses: `PUT /api/v1/layout*` unless `remote
 | `POST /api/v1/pair/claim` | none, rate limited | Body `{invitation:"<fragment-token>"|null, code:"123456"|null, device_name:"Alice's phone"}`. Redeems a TV-issued invitation. Success `200 {device_id, device_name, permissions, csrf_token}` and sets the cookie. Failure `401 invalid_invitation`, `410 invitation_expired`, `429 too_many_attempts`. |
 | `GET /api/v1/session` | cookie | `{device_id, device_name, permissions, csrf_token, transport_secure}`. `401` when unauthenticated or revoked. |
 | `POST /api/v1/logout` | cookie + CSRF | Ends this session (device record stays until revoked). |
-| `GET /api/v1/state` | cookie | `state.schema.json` snapshot redacted for the caller's permission: `devices` owner-only, `layout` for `layout_editor` and up, `now_playing` for `controller` and up (see [Now playing](#now-playing-statenow_playing)), `pairing`, `playback` and `weather` never (shell only). |
+| `GET /api/v1/state` | cookie | `state.schema.json` snapshot redacted for the caller's permission: `devices` owner-only, `layout` for `layout_editor` and up, `now_playing` for `controller` and up (see [Now playing](#now-playing-statenow_playing)), `power` for every authenticated phone (see [Sleep timer](#sleep-timer-and-screen-off-statepower)), `pairing`, `playback` and `weather` never (shell only). |
 | `GET /api/v1/capabilities` | cookie | `{context_epoch, target, capabilities}` for the current target. |
 | `POST /api/v1/actions` | cookie + CSRF | Body: action request. Returns the action result (`200` for any outcome including `failed`; HTTP errors only for transport/auth problems). |
 | `GET /api/v1/events` | cookie, Origin | WebSocket. Server → client: `{"type":"state", state}`, `{"type":"action_result", result}`, `{"type":"hold", …}`, `{"type":"revoked"}` then close 4001, `{"type":"pong"}`. Client → server: `{"type":"action", request}`, hold messages, `{"type":"visibility","hidden":true|false}`, `{"type":"ping"}`. |
@@ -56,6 +56,17 @@ While an app that exposes an MPRIS player is in front, phones with the `controll
 - **When it is omitted:** the session is locked; config `remote.now_playing` is `false` (TV Settings → Now playing on phones; `state.remote.now_playing` mirrors the setting); the foreground is not a configured app; that app's own player (matched by its adapter, exactly as media actions are) is missing or reports no title. Another app's player is never used. `null` means the same as absent.
 - **Position without a stream of pushes:** the coordinator re-reads the player when it signals a change (`PropertiesChanged`, `Seeked`), after a play, pause or seek, and every 5 s while a phone is connected and something is playing. Between snapshots the phone extrapolates `position_ms + rate × (generated_at_ms − position_at + time since the snapshot arrived)` while `status` is `playing`, capped at `length_ms`.
 - **Never stored or logged:** the title and subtitle live only in the coordinator's memory and in phone snapshots; they are not written to `config.json`, SQLite, logs, diagnostics or exports ([`docs/security.md`](../docs/security.md)).
+
+## Sleep timer and screen off (`state.power`)
+
+`state.power` is sent to the shell and to every authenticated phone (never to anonymous viewers), also while the session is locked: it names no media and the shell needs `display` to swallow the key that wakes the screen.
+
+- `sleep_at_ms`: when the sleep timer fires, in the same coordinator monotonic milliseconds as `generated_at_ms` (not wall-clock); `null` with no timer. Phones count down `sleep_at_ms − generated_at_ms − time since the snapshot arrived`. `sleep_minutes` is the choice that set it.
+- `warning`: true during the last 60 s. The TV shows "Going to sleep in 1 minute — press any key to stay awake"; any action or TV key cancels the timer.
+- `display`: `off` while Bear Den has turned the display off (`display.off`, or the timer); any action or TV key turns it on again ([`actions.md`](actions.md#sleep-screen-off-and-wake)).
+- `suspend`: whether the box could suspend. Bear Den never suspends today, and says why (for example "The system asks for a password to suspend.": logind `CanSuspend` answered `challenge`; Bear Den never handles passwords).
+
+Set it with the actions `power.sleep_timer` (`{"minutes": 0|15|30|45|60|90|120}`) and `display.off` ([`actions.md`](actions.md)). The timer lives in the coordinator's memory only: a coordinator restart forgets it and turns the display back on.
 
 ## Revocation and lock
 

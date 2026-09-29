@@ -374,6 +374,46 @@ private slots:
         QVERIFY(session->applySnapshot(fixture()));
     }
 
+    // state.power (sleep timer and display) is accepted with a timer or with
+    // null, exposed as Session.power, and a malformed one is rejected while
+    // the previous state stays.
+    void powerAcceptedAndChecked()
+    {
+        SessionModel *session = SessionModel::instance();
+        const int epoch = session->contextEpoch();
+        QJsonObject snap = fixture();
+        snap.insert(QStringLiteral("context_epoch"), epoch + 400);
+        QJsonObject power{{QStringLiteral("sleep_at_ms"), 2685000}, {QStringLiteral("sleep_minutes"), 45},
+                          {QStringLiteral("warning"), true}, {QStringLiteral("display"), QStringLiteral("on")},
+                          {QStringLiteral("suspend"), QJsonObject{{QStringLiteral("available"), false}, {QStringLiteral("reason"), QStringLiteral("The system asks for a password to suspend.")}}}};
+        snap.insert(QStringLiteral("power"), power);
+        QVERIFY2(session->applySnapshot(snap), qPrintable(session->lastError()));
+        QCOMPARE(session->power().value(QStringLiteral("warning")).toBool(), true);
+        QCOMPARE(session->power().value(QStringLiteral("sleep_minutes")).toInt(), 45);
+        power.insert(QStringLiteral("sleep_at_ms"), QJsonValue::Null);
+        power.insert(QStringLiteral("display"), QStringLiteral("off"));
+        snap.insert(QStringLiteral("power"), power);
+        QVERIFY2(session->applySnapshot(snap), qPrintable(session->lastError()));
+        QCOMPARE(session->power().value(QStringLiteral("display")).toString(), QStringLiteral("off"));
+
+        snap.insert(QStringLiteral("context_epoch"), epoch + 500);
+        power.insert(QStringLiteral("display"), QStringLiteral("dim"));
+        snap.insert(QStringLiteral("power"), power);
+        QVERIFY(!session->applySnapshot(snap));
+        QVERIFY2(session->lastError().contains(QStringLiteral("state.power")), qPrintable(session->lastError()));
+        power.insert(QStringLiteral("display"), QStringLiteral("on"));
+        power.insert(QStringLiteral("sleep_at_ms"), 12.5);
+        snap.insert(QStringLiteral("power"), power);
+        QVERIFY(!session->applySnapshot(snap));
+        power.insert(QStringLiteral("sleep_at_ms"), QJsonValue::Null);
+        power.remove(QStringLiteral("warning"));
+        snap.insert(QStringLiteral("power"), power);
+        QVERIFY(!session->applySnapshot(snap));
+        QCOMPARE(session->contextEpoch(), epoch + 400); // the previous state stays
+        QVERIFY(session->applySnapshot(fixture()));
+        QVERIFY(session->power().isEmpty());
+    }
+
     // Settings → Now playing on phones: a toggle showing state.remote.now_playing
     // (missing means on), OK sends remote.now_playing with the opposite value.
     void nowPlayingRowTogglesTheSetting()

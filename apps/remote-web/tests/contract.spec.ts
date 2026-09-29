@@ -38,6 +38,12 @@ const SCHEMA_FOR: Record<string, string> = {
   'action.request.extra-args.invalid.json': 'action.schema.json#/$defs/request',
   'action.result.observed.valid.json': 'action.schema.json#/$defs/result',
   'action.result.failed-stale.valid.json': 'action.schema.json#/$defs/result',
+  'action.request.power-sleep-timer.valid.json': 'action.schema.json#/$defs/request',
+  'action.request.sleep-timer-odd-minutes.invalid.json': 'action.schema.json#/$defs/request',
+  'action.request.display-off.valid.json': 'action.schema.json#/$defs/request',
+  'action.result.display-off-woke.valid.json': 'action.schema.json#/$defs/result',
+  'state.phone-sleep-warning.valid.json': 'state.schema.json',
+  'state.power-bad-display.invalid.json': 'state.schema.json',
   'state.shell-home.valid.json': 'state.schema.json',
   'state.phone-controller.valid.json': 'state.schema.json',
   'state.phone-now-playing.valid.json': 'state.schema.json',
@@ -87,6 +93,9 @@ describe('client-built messages', () => {
       { protocol: PROTOCOL, request_id: uuidV4(), context_epoch: 3, target: 'active', action: 'audio.volume_delta', args: { delta: 5 } },
       { protocol: PROTOCOL, request_id: uuidV4(), context_epoch: 3, target: 'active', action: 'audio.mute', args: { muted: true } },
       { protocol: PROTOCOL, request_id: uuidV4(), context_epoch: 3, target: 'active', action: 'text.submit', args: { text: 'hello' } },
+      { protocol: PROTOCOL, request_id: uuidV4(), context_epoch: 3, target: 'shell', action: 'power.sleep_timer', args: { minutes: 90 } },
+      { protocol: PROTOCOL, request_id: uuidV4(), context_epoch: 3, target: 'shell', action: 'power.sleep_timer', args: { minutes: 0 } },
+      { protocol: PROTOCOL, request_id: uuidV4(), context_epoch: 3, target: 'shell', action: 'display.off', args: {} },
     ];
     for (const request of requests) expect(validate(request), `${request.action}: ${JSON.stringify(validate.errors)}`).toBe(true);
   });

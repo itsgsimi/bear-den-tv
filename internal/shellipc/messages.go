@@ -51,6 +51,7 @@ const (
 	TypeWeatherPlaces    = "weather_places"
 	TypeWeatherConfigure = "weather.configure"
 	TypeShellExit        = "shell.exit"
+	TypePowerActivity    = "power.activity"
 	TypeResult           = "result"
 )
 
@@ -406,6 +407,17 @@ type WeatherConfigure struct {
 // Kind implements Message.
 func (WeatherConfigure) Kind() string { return TypeWeatherConfigure }
 
+// PowerActivity tells the coordinator that a key was pressed on the TV while
+// the display was off or the sleep warning was showing; the shell swallowed
+// that key. The coordinator turns the display on and cancels the timer
+// (contracts/ipc.md). Shell only; no reply.
+type PowerActivity struct {
+	Type string `json:"type"`
+}
+
+// Kind implements Message.
+func (PowerActivity) Kind() string { return TypePowerActivity }
+
 // ShellExit announces an intentional exit; the supervisor must not restart.
 type ShellExit struct {
 	Type   string `json:"type"`
@@ -509,6 +521,8 @@ func Decode(frame []byte) (Message, error) {
 		m = &WeatherConfigure{}
 	case TypeShellExit:
 		m = &ShellExit{}
+	case TypePowerActivity:
+		m = &PowerActivity{}
 	case TypeResult:
 		m = &Result{}
 	default:
@@ -587,6 +601,8 @@ func deref(m Message) Message {
 	case *RemoteNowPlaying:
 		return *t
 	case *ShellExit:
+		return *t
+	case *PowerActivity:
 		return *t
 	case *Result:
 		return *t

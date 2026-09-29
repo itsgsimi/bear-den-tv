@@ -52,6 +52,8 @@ class SessionModel : public QObject {
     Q_PROPERTY(QVariantMap playback READ playback NOTIFY snapshotChanged)
     /// Local weather (state.weather; empty when absent: off, locked or an older coordinator).
     Q_PROPERTY(QVariantMap weather READ weather NOTIFY snapshotChanged)
+    /// Sleep timer and display (state.power; empty when absent: an older coordinator).
+    Q_PROPERTY(QVariantMap power READ power NOTIFY snapshotChanged)
     Q_PROPERTY(SectionsModel *sections READ sections CONSTANT)
     Q_PROPERTY(QString lastError READ lastError NOTIFY snapshotRejected)
 
@@ -103,6 +105,7 @@ public:
     bool hasContent() const { return m_snapshot.contains(QStringLiteral("content")); }
     QVariantMap playback() const { return m_snapshot.value(QStringLiteral("playback")).toObject().toVariantMap(); }
     QVariantMap weather() const { return m_snapshot.value(QStringLiteral("weather")).toObject().toVariantMap(); }
+    QVariantMap power() const { return m_snapshot.value(QStringLiteral("power")).toObject().toVariantMap(); }
     SectionsModel *sections() const { return m_sections; }
     QString lastError() const { return m_lastError; }
 

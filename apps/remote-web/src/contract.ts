@@ -21,7 +21,12 @@ export type ActionName =
   | 'audio.volume_delta'
   | 'audio.mute'
   | 'text.submit'
-  | 'shell.restart';
+  | 'shell.restart'
+  | 'power.sleep_timer'
+  | 'display.off';
+
+/** power.sleep_timer minutes: 0 cancels, otherwise one of the fixed choices. */
+export type SleepMinutes = 0 | 15 | 30 | 45 | 60 | 90 | 120;
 
 /** Argument object per action; `{}` for argument-free actions. */
 export type ActionArgs = {
@@ -41,6 +46,8 @@ export type ActionArgs = {
   'audio.mute': { muted: boolean };
   'text.submit': { text: string };
   'shell.restart': Record<string, never>;
+  'power.sleep_timer': { minutes: SleepMinutes };
+  'display.off': Record<string, never>;
 };
 
 /** `"active"`, `"shell"`, or a registered application id. */
@@ -73,7 +80,8 @@ export type FailureCode =
   | 'busy'
   | 'launch_failed'
   | 'timeout'
-  | 'internal';
+  | 'internal'
+  | 'display_off';
 
 export type ResultCode = 'ok' | FailureCode;
 
@@ -315,6 +323,20 @@ export interface StateSnapshot {
   weather?: Weather;
   /** Controller phones only; absent (or null) while locked, when the owner turned it off, or when nothing is known. */
   now_playing?: NowPlaying | null;
+  /** The sleep timer and the display; absent for anonymous viewers and from older coordinators. */
+  power?: Power;
+}
+
+/**
+ * state.power (contracts/http.md, "Sleep timer and screen off"). sleep_at_ms is
+ * in the coordinator's clock (the one generated_at_ms uses), never the phone's.
+ */
+export interface Power {
+  sleep_at_ms: number | null;
+  sleep_minutes?: Exclude<SleepMinutes, 0>;
+  warning: boolean;
+  display: 'on' | 'off';
+  suspend?: { available: boolean; reason?: string };
 }
 
 export type NowPlayingStatus = 'playing' | 'paused' | 'stopped';
