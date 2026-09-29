@@ -68,6 +68,7 @@ type Player struct {
 	info       platform.MediaInfo // Position is the position at since
 	since      time.Time
 	canControl bool
+	stuck      bool // controls are recorded but change nothing
 	fail       error
 	reads      int
 	calls      []string
@@ -98,6 +99,14 @@ func (p *Player) Set(info platform.MediaInfo) {
 func (p *Player) SetCanControl(v bool) {
 	p.mu.Lock()
 	p.canControl = v
+	p.mu.Unlock()
+}
+
+// SetStuck makes Pause, Play and seeks accepted and recorded but without
+// effect, like a player that acknowledges and ignores a call.
+func (p *Player) SetStuck(v bool) {
+	p.mu.Lock()
+	p.stuck = v
 	p.mu.Unlock()
 }
 
@@ -175,6 +184,10 @@ func (p *Player) control(call, status string, seek time.Duration) error {
 		return errors.New("fake: player refuses control")
 	}
 	p.calls = append(p.calls, call)
+	if p.stuck {
+		p.mu.Unlock()
+		return nil
+	}
 	cur := p.nowLocked()
 	p.info.Position, p.since = cur.Position+seek, p.clock.Now()
 	if p.info.Position < 0 {

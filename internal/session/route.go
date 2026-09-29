@@ -346,6 +346,9 @@ func (c *Coordinator) doHome(ctx context.Context, _ sender, req contract.ActionR
 	if _, t, _ := c.current(); t.Kind != "shell" {
 		if t.Kind == "app" {
 			paused = c.pauseWebForHome(ctx, t)
+			if paused == nil {
+				paused = c.pauseAppForHome(ctx, t) // homepause.go: verified MPRIS only
+			}
 		}
 		win, ok := c.findShellWindow(ctx)
 		if !ok {

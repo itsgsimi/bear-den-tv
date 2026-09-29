@@ -98,11 +98,16 @@ var retroArchKeys = map[string]platform.Key{
 
 // HomePause says how Home may pause an app before bringing the shell forward
 // (config home_policy "pause-if-supported"; contracts/actions.md `home`). It
-// is data: the router may act on it only while PauseVerified is true, and no
-// adapter is verified yet, so today Home never pauses anything.
+// is data. The router (internal/session/homepause.go) acts only on a pause it
+// can check at run time: "mpris" is sent only when the app's own player
+// reports Playing, and claimed only when it then reports Paused. A "key" is
+// never sent (no readable state to check; a Toggle key could even resume a
+// paused app). "page" is the web apps' page pause (session/web.go).
+// PauseVerified is the separate, live-evidence flag and stays false.
 type HomePause struct {
 	// Kind: "none" (keep playing: music, game streams), "mpris" (MPRIS
-	// Pause, idempotent) or "key" (a documented pause key).
+	// Pause, idempotent), "key" (a documented pause key; recorded, not sent)
+	// or "page" (web apps).
 	Kind string
 	// Key is the pause key for Kind "key".
 	Key platform.Key
