@@ -143,7 +143,7 @@ without the field.
 
 | Suite | Where | Runs |
 |---|---|---|
-| Unit | [`tests/unit/`](tests/unit/state.spec.ts) (`state.spec.ts`, `hold.spec.ts`, `vines.spec.ts`, `nowplaying.spec.ts`, `sleep.spec.ts`, `guest.spec.ts`) | vitest under Node, fake timers, injected fakes |
+| Unit | [`tests/unit/`](tests/unit/state.spec.ts) (`state.spec.ts`, `hold.spec.ts`, `vines.spec.ts`, `nowplaying.spec.ts`, `sleep.spec.ts`, `guest.spec.ts`, `invitation.spec.ts`) | vitest under Node, fake timers, injected fakes |
 | Contract | [`tests/contract.spec.ts`](tests/contract.spec.ts) | Ajv 2020 loads the layout, action, state and config schemas; every `contracts/fixtures` file must be in `SCHEMA_FOR` or `SEMANTIC_ONLY`; client-built requests, holds and edited layouts must validate |
 | Browser | `tests/e2e/` (Playwright, `playwright.config.ts`, `serve-dist.mjs`) | **empty today**; `npm test` passes `--pass-with-no-tests` so the empty suite does not fail the run |
 

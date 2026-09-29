@@ -2,8 +2,9 @@
 // Contract: `createApp` wires the API client, the events socket, the hold
 // controller, and the store. Views call its methods; every outcome is reported
 // back through store events, never through return values views must interpret.
-// Boot order: `/api/v1/info`, then a `#invite=` fragment (stripped from the
-// address before the claim request), else `/api/v1/session`; a session starts the
+// Boot order: `/api/v1/info`, then a `#pair=` fragment (the TV's QR link;
+// `#invite=` is accepted too) stripped from the
+// address before the claim request, else `/api/v1/session`; a session starts the
 // socket, whose every open fetches `/api/v1/state`. Actions are one HTTP POST each
 // with the epoch of the last rendered snapshot; nothing is queued or replayed.
 // `revoked` (message or close 4001) and any 401 end the session and return to Pair.
@@ -550,12 +551,13 @@ function normalisePending(value: unknown): LayoutPending | null {
 }
 
 /**
- * Reads and strips a `#invite=<token>` fragment so the token never stays in the address bar.
+ * Reads and strips the invitation fragment so the token never stays in the address bar:
+ * `#pair=<token>` as the TV's QR link carries it (contracts/http.md), or the older `#invite=<token>`.
  * @param win Window-like location and history.
  * @returns The token, or null when the fragment carries none.
  */
 export function readInvitation(win: WindowEnvironment): string | null {
-  const match = /^#invite=([^&]+)/.exec(win.location.hash);
+  const match = /^#(?:pair|invite)=([^&]+)/.exec(win.location.hash);
   if (!match || !match[1]) return null;
   const token = decodeURIComponent(match[1]);
   win.history.replaceState(null, '', win.location.pathname + win.location.search);
