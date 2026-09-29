@@ -59,7 +59,7 @@ Embeds live in the repository root [`embed.go`](../embed.go): `contracts/`,
 Note: the session harness runs on `clock.Real` with short timeouts
 (`AppsRefresh: 30ms`, `eventually` polls up to 3 s); use `clock.Fake` for pure
 timing logic (as the `actions`, `pairing`, `config` and `providers` tests do).
-`internal/remote`, `internal/doctor` and `internal/providers/plex` have no tests yet, even though `remote/testutil` exists. Weather has its own tests: [`weather/weather_test.go`](weather/weather_test.go) (fake clock) and [`session/weather_test.go`](session/weather_test.go) (IPC search/configure and the snapshot).
+`internal/remote` and `internal/doctor` have no tests yet, even though `remote/testutil` exists. The Plex connector is tested against [`providers/plex/plexfake`](providers/plex/plexfake/plexfake.go), a loopback stand-in for plex.tv and one Plex Media Server (PIN linking, resources, libraries, hubs, onDeck, DEMO posters; `SetDown`, `SetPhotoHandler`, `Requests()` to assert the token only ever travels in the header). Weather has its own tests: [`weather/weather_test.go`](weather/weather_test.go) (fake clock) and [`session/weather_test.go`](session/weather_test.go) (IPC search/configure and the snapshot).
 
 ## How the coordinator fails closed
 

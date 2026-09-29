@@ -38,7 +38,6 @@ Checked in the tree on 2026-09-23:
 
 - `internal/remote` (HTTP/WebSocket server, auth, rate limits) has no tests. Only its subpackage `internal/remote/mdns` has `mdns_test.go`.
 - `internal/doctor` has no tests.
-- `internal/providers/plex` has no tests (it has a `testdata` folder but no `_test.go`).
 - The shell supervisor's crash/restart path has no test; `internal/shellipc/supervisor_test.go` only checks the environment allow-list.
 - The phone remote has unit tests only (Vitest); no browser tests.
 - `make lint` reports qmllint warnings without failing.
