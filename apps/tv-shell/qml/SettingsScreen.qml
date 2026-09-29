@@ -1,6 +1,8 @@
 // Settings: phone remote, pairing, devices, Now playing on phones
 // (remote.now_playing over IPC), appearance (sent to the coordinator as a
-// layout update), weather, playback, diagnostics, and a maintenance exit.
+// layout update), weather, playback, diagnostics, the sleep timer and Screen
+// off (the power.sleep_timer and display.off actions, state.power), and a
+// maintenance exit.
 
 import QtQuick
 import BearDen
@@ -30,6 +32,18 @@ Item {
     // Installed themes (built-in and the owner's), in display order.
     readonly property var backgrounds: Themes.list.map(t => t.id)
     readonly property var margins: [2, 3, 4, 5, 6]
+    // Sleep timer choices (contract.SleepChoices; 0 = off) and Screen off.
+    readonly property var sleepChoices: [0, 15, 30, 45, 60, 90, 120]
+    readonly property var power: Session.power
+    readonly property bool sleepRunning: power.sleep_at_ms !== undefined && power.sleep_at_ms !== null
+    readonly property var screenOffCap: Session.capabilities["display.off"] || ({})
+    function sleepLabel(minutes) {
+        if (!minutes) return qsTr("Off")
+        if (minutes === 60) return qsTr("1 hour")
+        if (minutes % 60 === 0) return qsTr("%1 hours").arg(minutes / 60)
+        if (minutes > 60) return qsTr("1 h %1 min").arg(minutes - 60)
+        return qsTr("%1 min").arg(minutes)
+    }
 
     readonly property var rows: [
         { id: "remote", kind: "link", label: qsTr("Phone remote"),
@@ -57,6 +71,13 @@ Item {
         { id: "playback", kind: "link", label: qsTr("Playback"), description: qsTr("What this TV can play smoothly, and the best settings for each app"), value: playbackValue },
         { id: "advanced-playback", kind: "link", label: qsTr("Advanced playback"), description: qsTr("Adjust each app's playback settings by hand"), value: manualValue },
         { id: "diagnostics", kind: "link", label: qsTr("Diagnostics"), description: qsTr("Connection, desktop, and app status"), value: "" },
+        { id: "sleep", kind: "choice", label: qsTr("Sleep timer"),
+          description: sleepRunning ? qsTr("Pauses, goes Home and turns the screen off when it runs out")
+                                    : qsTr("Pause, go Home and turn the screen off after a while"),
+          value: sleepRunning ? sleepLabel(power.sleep_minutes) : qsTr("Off") },
+        { id: "screen-off", kind: "link", label: qsTr("Turn the screen off"),
+          description: screenOffCap.available ? qsTr("Any key turns it back on") : (screenOffCap.reason || qsTr("Not available here")),
+          value: "" },
         { id: "exit", kind: "danger", label: qsTr("Exit Bear Den TV"), description: qsTr("For maintenance: returns to the desktop until the next start"), value: "" }
     ]
 
@@ -82,6 +103,7 @@ Item {
         case "style": editUi(u => u.theme = cycle(["den-dark", "plain-dark", "performance"], u.theme, delta)); return true
         case "art": editUi(u => u.art_style = cycle(["pixel", "classic"], u.art_style || "pixel", delta)); return true
         case "margin": editUi(u => u.safe_margin_percent = cycle(margins, u.safe_margin_percent, delta)); return true
+        case "sleep": Shell.setSleepTimer(cycle(sleepChoices, sleepRunning ? power.sleep_minutes : 0, delta)); return true
         }
         return false
     }
@@ -95,6 +117,8 @@ Item {
         case "playback": openScreen("playback"); break
         case "advanced-playback": openScreen("advanced-playback"); break
         case "diagnostics": openScreen("diagnostics"); break
+        // After a short pause, so the OK key's own release does not wake the display.
+        case "screen-off": if (screenOffCap.available) screenOffDelay.restart(); break
         case "motion": editUi(u => u.reduced_motion = !u.reduced_motion); break
         case "contrast": editUi(u => u.high_contrast_focus = !u.high_contrast_focus); break
         case "hero": editUi(u => u.hero_enabled = !u.hero_enabled); break
@@ -106,6 +130,8 @@ Item {
         default: change(row, 1)
         }
     }
+
+    Timer { id: screenOffDelay; objectName: "screenOffDelay"; interval: 800; onTriggered: Shell.screenOff() }
 
     function navigate(action) {
         switch (action) {
@@ -132,6 +158,10 @@ Item {
             spacing: 14 * Theme.scale
             model: root.rows
             currentIndex: root.focusIndex
+            // `rows` is rebuilt on every snapshot, and a new model sends the
+            // view back to the top: keep the focused row (the sleep timer
+            // row's value changes as it is set) in view.
+            onModelChanged: Qt.callLater(() => { currentIndex = Qt.binding(() => root.focusIndex); positionViewAtIndex(root.focusIndex, ListView.Contain) })
             interactive: false
             clip: true
             highlightMoveDuration: Theme.duration

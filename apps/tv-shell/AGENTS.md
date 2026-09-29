@@ -14,9 +14,9 @@ module, so tests exercise the shipped QML.
 
 | QML name | Class | Role |
 |---|---|---|
-| `Session` (singleton) | [`SessionModel`](src/SessionModel.h) | the latest state snapshot (incl. `weather`, empty when absent), validated by `validateSnapshot`/`validateLayout` then applied whole (rejected snapshots keep the previous state); `application(id)`, `layoutForEdit()`, rails as `sections` |
+| `Session` (singleton) | [`SessionModel`](src/SessionModel.h) | the latest state snapshot (incl. `weather` and `power`, empty when absent), validated by `validateSnapshot`/`validateLayout` then applied whole (rejected snapshots keep the previous state); `application(id)`, `layoutForEdit()`, rails as `sections` |
 | `Nav` (singleton) | [`Navigator`](src/Navigator.h) | the one input path: key events and coordinator `input` become named actions; `apply(action)` returns the `input_result`; `reportFocus(section, item, scrollX)`, `noteAtRoot()`, `screen`, `textFieldFocused`; `focusReported` carries `text_field` and is re-emitted when only that changes |
-| `Shell` (singleton) | [`ShellController`](src/ShellController.h) | the IPC bridge. Methods: `launchApp`, `closeApp`, `issuePairing`, `cancelPairing`, `revokeDevice`, `configureRemote(enabled, interface)`, `updateLayout(layout)`, `setPlayback(adapter, setting, value)`, `setNowPlaying(enabled)` (IPC `remote.now_playing`), `weatherSearch(query)` (answer in `weatherPlaces`/`weatherSearchOk`/`weatherSearchError`/`weatherSearching`), `weatherConfigure(enabled, place, units, scene)` (place `null` keeps the stored one; answer in `weatherConfigured(ok, error)`), `answerConfirm`, `exitShell`, `flatpakIdFor`, `appArt`, `lanInterfaces`. Properties: connection state (`connectionState`, `connected`, `rejectReason`, `attempt`), `offline`, `devBuild`, `version`, `startScreen`, `launchingAppId`, `screensaverSeconds`, and the check overrides `bearsSeconds`, `bearsAct`, `restSeconds`, `monthOverride`, `lightningSeconds` |
+| `Shell` (singleton) | [`ShellController`](src/ShellController.h) | the IPC bridge. Methods: `launchApp`, `closeApp`, `issuePairing`, `cancelPairing`, `revokeDevice`, `configureRemote(enabled, interface)`, `updateLayout(layout)`, `setPlayback(adapter, setting, value)`, `setNowPlaying(enabled)` (IPC `remote.now_playing`), `weatherSearch(query)` (answer in `weatherPlaces`/`weatherSearchOk`/`weatherSearchError`/`weatherSearching`), `weatherConfigure(enabled, place, units, scene)` (place `null` keeps the stored one; answer in `weatherConfigured(ok, error)`), `setSleepTimer(minutes)` (0 cancels) and `screenOff()` (the `power.sleep_timer` and `display.off` actions), `powerActivity()` (IPC `power.activity`), `answerConfirm`, `exitShell`, `flatpakIdFor`, `appArt`, `lanInterfaces`. Properties: connection state (`connectionState`, `connected`, `rejectReason`, `attempt`), `offline`, `devBuild`, `version`, `startScreen`, `launchingAppId`, `screensaverSeconds`, and the check overrides `bearsSeconds`, `bearsAct`, `restSeconds`, `monthOverride`, `lightningSeconds` |
 | `Theme` (singleton) | [`Theme`](src/Theme.h) | design tokens from `layout.ui` and window size: colours, `scale`, type and tile sizes, `ms()`/`duration`, `reducedMotion`, `resting`, `screensaver`, `tintFor(id)` |
 | `Themes` (singleton) | [`ThemeRegistry`](src/ThemeRegistry.h) | installed theme packages: `list`, `get(id)`, `canonical(id)`, `ornament()`, `reload()` ([`themes/AGENTS.md`](../../themes/AGENTS.md)) |
 | `FocusMemory` (singleton) | [`FocusMemory`](src/FocusMemory.h) | remembered item, index and scroll per section; `lastSectionId` |
@@ -59,7 +59,7 @@ plugin), and a wlroots compositor reports that class as its app_id
 |---|---|
 | Root and focus graph | `Main.qml` (window), [`ShellRoot.qml`](qml/ShellRoot.qml) (screen stack, dialogs, rest/screensaver timers, `handle(action)`) |
 | Screens | `HomeScreen`, `SettingsScreen`, `RemoteSetupScreen`, `PairingScreen`, `DevicesScreen`, `DiagnosticsScreen`, `PlaybackScreen`, `AdvancedPlaybackScreen`, `WeatherScreen` (Settings → Weather: toggles, search field, places; reports `settings`), `ConnectingScreen`, `LockedScreen`, `Screensaver` |
-| Dialogs and overlays | `ConfirmDialog`, `MessageDialog`, `AppUnavailableDialog`, `LaunchOverlay`, `ErrorBanner`, `Toast` |
+| Dialogs and overlays | `ConfirmDialog`, `MessageDialog`, `AppUnavailableDialog`, `LaunchOverlay`, `ErrorBanner`, `Toast`, `SleepWarning` (the sleep timer's last minute: "Going to sleep in 1 minute", the cub dozing; while it shows, or while `Session.power.display` is `off`, `ShellRoot.handle` swallows keys and calls `Shell.powerActivity()`) |
 | Home pieces | `Header` (brand, pills, status, weather chip, clock), `NavPill`, `StatusChip`, `HeroPanel`, `Rail`, `AppTile`, `AppIcon`, `ContentCard`, `SetupCard`, `BrandBackdrop`, `DemoBadge`, `ProgressBar`, `FocusFrame` |
 | Screen pieces | `ScreenFrame`, `SettingsRow`, `FocusButton`, `KeyHints` |
 | Theme engine | `World` (incl. the pixel grid `World.px` and the weather override `World.weather*`), `Wallpaper`, `WeatherSky` (weather veil + lightning, sets `World.flashing`), `SceneWeather` (a corner scene's reactions to the weather, declared as data per look), `Ambient`, `Ornament`, `CornerDecor`, `FocusDecor`, `HeroDecor`, `CampScene`, `MoonScene`, `CampfireScene` |
@@ -151,7 +151,13 @@ array of `{id, kind, label, description, value}` with `kind` one of `link`,
    that sends `remote.now_playing` through `Shell.setNowPlaying`, showing
    `Session.remote.now_playing`), `text`, `density`, `background` (Theme),
    `style`, `art`, `margin`, `motion`, `contrast`, `hero`, `clock`,
-   `weather`, `playback`, `advanced-playback`, `diagnostics`, `exit`.
+   `weather`, `playback`, `advanced-playback`, `diagnostics`, `sleep` (◀ ▶
+   over Off, 15 … 120 min through `Shell.setSleepTimer`, showing
+   `Session.power.sleep_minutes`), `screen-off` (`Shell.screenOff()` 0.8 s
+   after OK, so the key's release does not wake the display; only while
+   `display.off` is available), `exit`. A snapshot rebuilds `rows`; the
+   list keeps the focused row in view (`onModelChanged`).
+   `sleepRowSetsTheTimerAndScreenOff` walks 18 rows down to `sleep`.
    `headerPillsOpenScreensAndBackReturns` walks 17 rows down from `remote`
    to reach `diagnostics` (and 2 to `devices`),
    `advancedPlaybackSendsPlaybackSet` 16 to `advanced-playback`,
