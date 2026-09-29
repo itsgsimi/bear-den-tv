@@ -417,6 +417,41 @@ private slots:
         QVERIFY(session->power().isEmpty());
     }
 
+    // state.achievements (Den badges): the contract fixtures with badges are
+    // accepted and exposed as Session.achievements; an earned day carrying a
+    // time, or a progress entry without a goal, is rejected and the previous
+    // state stays.
+    void achievementsAcceptedAndChecked()
+    {
+        SessionModel *session = SessionModel::instance();
+        auto contractFixture = [](const QString &name) {
+            QFile f(QStringLiteral(BDTV_CONTRACT_FIXTURE_DIR "/") + name);
+            if (!f.open(QIODevice::ReadOnly))
+                return QJsonObject();
+            return QJsonDocument::fromJson(f.readAll()).object();
+        };
+        const QJsonObject shellView = contractFixture(QStringLiteral("state.shell-home.valid.json"));
+        QVERIFY(shellView.contains(QStringLiteral("achievements")));
+        QVERIFY2(session->applySnapshot(shellView), qPrintable(session->lastError()));
+        QCOMPARE(session->achievements().value(QStringLiteral("earned")).toList().size(), 4);
+        QCOMPARE(session->achievements().value(QStringLiteral("celebrate")).toList().value(0).toString(), QStringLiteral("parade-spotter"));
+        const int epoch = session->contextEpoch();
+        QVERIFY(!session->applySnapshot(contractFixture(QStringLiteral("state.achievements-time.invalid.json"))));
+        QVERIFY2(session->lastError().contains(QStringLiteral("state.achievements")), qPrintable(session->lastError()));
+        QJsonObject snap = shellView;
+        QJsonObject ach = snap.value(QStringLiteral("achievements")).toObject();
+        QJsonArray progress = ach.value(QStringLiteral("progress")).toArray();
+        QJsonObject first = progress.at(0).toObject();
+        first.remove(QStringLiteral("goal"));
+        progress.replace(0, first);
+        ach.insert(QStringLiteral("progress"), progress);
+        snap.insert(QStringLiteral("achievements"), ach);
+        snap.insert(QStringLiteral("context_epoch"), epoch + 1);
+        QVERIFY(!session->applySnapshot(snap));
+        QCOMPARE(session->contextEpoch(), epoch); // the previous state stays
+        QVERIFY(session->applySnapshot(fixture()));
+    }
+
     // Guest passes: pairing.guest/pass_expires_at_ms and devices[].guest/
     // expires_at_ms are accepted; guest with another permission is rejected.
     void guestPassFieldsAcceptedAndChecked()

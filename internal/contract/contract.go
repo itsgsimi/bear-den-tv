@@ -534,6 +534,30 @@ type State struct {
 	NowPlaying     *NowPlaying           `json:"now_playing,omitempty"`
 	Power          *Power                `json:"power,omitempty"`
 	Plex           *Plex                 `json:"plex,omitempty"`
+	Achievements   *Achievements         `json:"achievements,omitempty"`
+}
+
+// Achievements is state.schema.json#/properties/achievements: Den badges
+// (internal/achievements). Only ids, counts and local days; Celebrate is for
+// the shell view only.
+type Achievements struct {
+	Enabled   bool            `json:"enabled"`
+	Earned    []EarnedBadge   `json:"earned"`
+	Progress  []BadgeProgress `json:"progress"`
+	Celebrate []string        `json:"celebrate,omitempty"`
+}
+
+// EarnedBadge is one earned badge and the local day (YYYY-MM-DD) it was earned.
+type EarnedBadge struct {
+	ID  string `json:"id"`
+	Day string `json:"day"`
+}
+
+// BadgeProgress is how far one badge is: Count of Goal (Count <= Goal).
+type BadgeProgress struct {
+	ID    string `json:"id"`
+	Count int    `json:"count"`
+	Goal  int    `json:"goal"`
 }
 
 // Display power states (state.schema.json#/properties/power/display).

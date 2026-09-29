@@ -374,6 +374,44 @@ bool SessionModel::validateSnapshot(const QJsonObject &snapshot, QString *error)
                 return false;
         }
     }
+    if (snapshot.contains(QStringLiteral("achievements"))) {
+        // state.achievements (optional): Den badges. Only ids, counts and the
+        // local day each was earned; a time in `day` is rejected.
+        const QString where = QStringLiteral("state.achievements");
+        if (!requireType(snapshot, QStringLiteral("achievements"), QJsonValue::Object, QStringLiteral("state"), error))
+            return false;
+        const QJsonObject ach = snapshot.value(QStringLiteral("achievements")).toObject();
+        if (!requireKeys(ach, {QStringLiteral("enabled"), QStringLiteral("earned"), QStringLiteral("progress")}, where, error)
+            || !requireType(ach, QStringLiteral("enabled"), QJsonValue::Bool, where, error)
+            || !requireType(ach, QStringLiteral("earned"), QJsonValue::Array, where, error)
+            || !requireType(ach, QStringLiteral("progress"), QJsonValue::Array, where, error))
+            return false;
+        static const QRegularExpression dayRe(QStringLiteral("^[0-9]{4}-[0-9]{2}-[0-9]{2}$"));
+        for (const QJsonValue &ev : ach.value(QStringLiteral("earned")).toArray()) {
+            const QJsonObject e = ev.toObject();
+            const QString w = QStringLiteral("state.achievements.earned[]");
+            if (!requireKeys(e, {QStringLiteral("id"), QStringLiteral("day")}, w, error)
+                || !requireType(e, QStringLiteral("id"), QJsonValue::String, w, error)
+                || !requireType(e, QStringLiteral("day"), QJsonValue::String, w, error))
+                return false;
+            if (!dayRe.match(e.value(QStringLiteral("day")).toString()).hasMatch()) {
+                if (error)
+                    *error = QStringLiteral("state.achievements.earned[].day must be a calendar day (YYYY-MM-DD)");
+                return false;
+            }
+        }
+        for (const QJsonValue &pv : ach.value(QStringLiteral("progress")).toArray()) {
+            const QJsonObject p = pv.toObject();
+            const QString w = QStringLiteral("state.achievements.progress[]");
+            if (!requireKeys(p, {QStringLiteral("id"), QStringLiteral("count"), QStringLiteral("goal")}, w, error)
+                || !requireType(p, QStringLiteral("count"), QJsonValue::Double, w, error)
+                || !requireType(p, QStringLiteral("goal"), QJsonValue::Double, w, error))
+                return false;
+        }
+        if (ach.contains(QStringLiteral("celebrate"))
+            && !requireType(ach, QStringLiteral("celebrate"), QJsonValue::Array, where, error))
+            return false;
+    }
     return true;
 }
 

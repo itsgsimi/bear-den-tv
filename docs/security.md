@@ -39,3 +39,10 @@
 | The screen-waking press acting on an app | the press that wakes a display Bear Den turned off is swallowed (`failed/display_off`); on the TV the shell swallows it when in front. A TV key with an app in front does reach that app (documented) | `internal/session/power.go`, `apps/tv-shell/qml/ShellRoot.qml` |
 | Desktop power settings left changed | DPMS enabled only while the display is off, with 0 timeouts; the exact previous state is restored on wake and on coordinator stop; a killed coordinator leaves DPMS enabled with no timeouts (nothing blanks) | `internal/platform/x11/dpms.go` |
 | Handling the session password to suspend | never: logind `CanSuspend` is only asked, and "challenge" is reported as unavailable | `internal/platform/suspend` |
+
+## Den badges
+
+Den badges ([`contracts/http.md`](../contracts/http.md#den-badges-stateachievements)) are the one place Bear Den counts how it is used, so they are built to say as little as possible:
+
+- **What phones see:** badge ids, counts toward each badge (capped at its goal) and the local calendar day each badge was earned. Never a time of day, never titles or anything an app reports it is playing, never a per-day history. Only the shell and phones with `controller` get `state.achievements`; guest passes never do (the schema rejects it) and nobody does while the session is locked.
+- **Off switch:** config `achievements.enabled` (TV Settings → Badges, on by default). Off counts nothing at all.

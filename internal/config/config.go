@@ -36,6 +36,19 @@ type Config struct {
 	Playback *Playback `json:"playback,omitempty"`
 	// Weather is the local weather block; nil = off (contracts/config.md).
 	Weather *Weather `json:"weather,omitempty"`
+	// Achievements switches Den badges; nil = on (contracts/config.md).
+	Achievements *Achievements `json:"achievements,omitempty"`
+}
+
+// Achievements is config.achievements: whether Den badges count anything.
+type Achievements struct {
+	Enabled bool `json:"enabled"`
+}
+
+// AchievementsEnabled reports config achievements.enabled; an absent block
+// means on.
+func (c Config) AchievementsEnabled() bool {
+	return c.Achievements == nil || c.Achievements.Enabled
 }
 
 // Weather is config.weather: local weather for the Home header and scene.
@@ -275,6 +288,10 @@ func (c Config) Clone() Config {
 	if c.Weather != nil {
 		w := c.Weather.clone()
 		out.Weather = &w
+	}
+	if c.Achievements != nil {
+		a := *c.Achievements
+		out.Achievements = &a
 	}
 	if c.Playback != nil {
 		out.Playback = &Playback{}

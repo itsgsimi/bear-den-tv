@@ -18,8 +18,8 @@ Canonical messages consumed by contract tests in Go ([`tests/contract/fixtures_t
 | `action.result.observed.valid.json` | `action.schema.json#/$defs/result` |
 | `action.result.failed-stale.valid.json` | `action.schema.json#/$defs/result` |
 | `action.result.display-off-woke.valid.json` | `action.schema.json#/$defs/result` (`failed/display_off`: the press woke the screen and was not applied) |
-| `state.shell-home.valid.json` | `state.schema.json` (shell view, pairing shown) |
-| `state.phone-controller.valid.json` | `state.schema.json` (phone view, redacted) |
+| `state.shell-home.valid.json` | `state.schema.json` (shell view, pairing shown, Den badges with one to `celebrate`) |
+| `state.phone-controller.valid.json` | `state.schema.json` (phone view, redacted; Den badges without `celebrate`) |
 | `state.phone-now-playing.valid.json` | `state.schema.json` (phone view with DEMO `now_playing` and `remote.now_playing`) |
 | `state.now-playing-bad-status.invalid.json` | rejected: `now_playing.status` must be `playing`, `paused` or `stopped` |
 | `state.now-playing-no-title.invalid.json` | rejected: `now_playing.title` must not be empty (no title means no `now_playing`) |
@@ -33,7 +33,13 @@ Canonical messages consumed by contract tests in Go ([`tests/contract/fixtures_t
 | `state.shell-guest-pass.valid.json` | `state.schema.json` (shell view: a live guest-pass invitation, a family phone and a guest in `devices`) |
 | `state.guest-with-controller.invalid.json` | rejected: `guest` never comes with another permission |
 | `state.guest-no-expiry.invalid.json` | rejected: a guest `me` must carry `expires_at_ms` |
+| `state.achievements-time.invalid.json` | rejected: `achievements.earned[].day` is a calendar day (`YYYY-MM-DD`), never a time |
+| `state.achievements-title.invalid.json` | rejected: an earned badge carries only `id` and `day` (no `title` or anything else) |
+| `state.guest-achievements.invalid.json` | rejected: a guest pass never gets `achievements` |
+| `state.locked-achievements.invalid.json` | rejected: a locked session never carries `achievements` |
+| `state.phone-celebrate.invalid.json` | rejected: `achievements.celebrate` is for the shell only (a phone view has `me`) |
 | `config.default.valid.json` | `config.schema.json` (built-in defaults) |
+| `config.achievements-not-bool.invalid.json` | rejected structurally: `achievements.enabled` must be a boolean |
 | `config.now-playing-not-bool.invalid.json` | rejected structurally: `remote.now_playing` must be a boolean |
 | `config.dangling-ref.invalid.json` | rejected semantically: section references unknown app |
 | `config.token-leak.invalid.json` | rejected semantically: contains a `token` key |

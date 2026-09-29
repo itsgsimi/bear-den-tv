@@ -1,6 +1,6 @@
 {
   "protocol": 1, "context_epoch": 47, "generated_at_ms": 120345, "device_name": "Bear Den", "dev_mode": false, "config_revision": 3,
-  "session": {"locked": false, "display_session": "x11", "desktop_adapter": "x11-ewmh-xtest", "shell_connected": true, "shell_state": "running"},
+  "session": {"locked": true, "display_session": "x11", "desktop_adapter": "x11-ewmh-xtest", "shell_connected": true, "shell_state": "running"},
   "target": {"kind": "shell", "app_id": null, "label": "Bear Den TV", "observed": true, "window_title": "Bear Den TV"},
   "capabilities": {
     "nav.up": {"available": true, "backend": "shell-ipc", "holdable": true},

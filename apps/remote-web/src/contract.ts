@@ -356,6 +356,33 @@ export interface StateSnapshot {
   power?: Power;
   /** Shell view only: phones never receive it (the TV's Plex sign-in flow). */
   plex?: PlexSignIn;
+  /** Den badges: controller phones only; never guests, never while locked. */
+  achievements?: Achievements;
+}
+
+/**
+ * state.achievements (contracts/http.md, "Den badges"): badge ids, counts and
+ * the local day each was earned; never titles or times. Names, hints and art
+ * are the phone's own, keyed by id.
+ */
+export interface Achievements {
+  enabled: boolean;
+  earned: EarnedBadge[];
+  progress: BadgeProgress[];
+  /** Shell view only; phones never receive it. */
+  celebrate?: string[];
+}
+
+export interface EarnedBadge {
+  id: string;
+  /** Local calendar day, YYYY-MM-DD. */
+  day: string;
+}
+
+export interface BadgeProgress {
+  id: string;
+  count: number;
+  goal: number;
 }
 
 /**

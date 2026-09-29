@@ -118,6 +118,13 @@
       "required": ["completed", "lan_consent"],
       "additionalProperties": false
     },
+    "achievements": {
+      "type": "object",
+      "description": "Optional; absent means on. Den badges from local counters (contracts/config.md). false: nothing is counted.",
+      "properties": {"enabled": {"type": "boolean"}},
+      "required": ["enabled"],
+      "additionalProperties": false
+    },
     "weather": {
       "type": "object",
       "description": "Optional; absent means off. Local weather for the Home header and scene (contracts/config.md). Coordinates carry at most 2 decimals; never a URL, key or token.",

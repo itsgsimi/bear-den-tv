@@ -280,6 +280,47 @@
       "required": ["app_id", "title", "status", "position_at", "rate"],
       "additionalProperties": false
     },
+    "achievements": {
+      "type": "object",
+      "description": "Den badges (docs/security.md#den-badges): local counters turned into playful badges. Shell view, and phones with the controller permission; never guests, anonymous viewers or a locked session. Only badge ids, counts and the local day a badge was earned: never titles, apps' media, times of day or anything else about what was watched.",
+      "properties": {
+        "enabled": {"type": "boolean", "description": "config achievements.enabled (default true). False: nothing is counted; badges already earned stay until reset."},
+        "earned": {
+          "type": "array",
+          "description": "Badges earned, oldest first.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {"$ref": "#/$defs/badgeId"},
+              "day": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$", "description": "The local calendar day it was earned (YYYY-MM-DD); never a time."}
+            },
+            "required": ["id", "day"],
+            "additionalProperties": false
+          }
+        },
+        "progress": {
+          "type": "array",
+          "description": "Every badge in the catalogue, in display order: how far along it is. count never exceeds goal.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {"$ref": "#/$defs/badgeId"},
+              "count": {"type": "integer", "minimum": 0},
+              "goal": {"type": "integer", "minimum": 1}
+            },
+            "required": ["id", "count", "goal"],
+            "additionalProperties": false
+          }
+        },
+        "celebrate": {
+          "type": "array",
+          "description": "Shell view only: badges earned but not yet celebrated on Home (IPC achievements.celebrated clears them). Phones never get it.",
+          "items": {"$ref": "#/$defs/badgeId"}
+        }
+      },
+      "required": ["enabled", "earned", "progress"],
+      "additionalProperties": false
+    },
     "power": {
       "type": "object",
       "description": "The sleep timer and the display (contracts/actions.md power.sleep_timer, display.off; http.md \"Sleep timer and screen off\"). Not private: sent to the shell and to every authenticated phone, also while locked (the shell needs display to swallow the key that wakes it); never to anonymous viewers. Absent from older coordinators.",
@@ -340,5 +381,13 @@
     }
   },
   "required": ["protocol", "context_epoch", "generated_at_ms", "device_name", "dev_mode", "config_revision", "session", "target", "capabilities", "shell", "applications", "remote", "notifications"],
+  "allOf": [
+    {"description": "A guest pass never sees badges.", "if": {"properties": {"me": {"properties": {"permissions": {"contains": {"const": "guest"}}}, "required": ["permissions"]}}, "required": ["me"]}, "then": {"not": {"required": ["achievements"]}}},
+    {"description": "A locked session hides badges.", "if": {"properties": {"session": {"properties": {"locked": {"const": true}}, "required": ["locked"]}}, "required": ["session"]}, "then": {"not": {"required": ["achievements"]}}},
+    {"description": "celebrate is for the shell only.", "if": {"required": ["me"]}, "then": {"properties": {"achievements": {"not": {"required": ["celebrate"]}}}}}
+  ],
+  "$defs": {
+    "badgeId": {"type": "string", "pattern": "^[a-z][a-z0-9-]{1,31}$", "description": "A badge id from the catalogue in internal/achievements (for example first-night-in)."}
+  },
   "additionalProperties": false
 }

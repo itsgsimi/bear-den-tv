@@ -673,3 +673,31 @@ func TestRemoteNowPlaying(t *testing.T) {
 		t.Fatal("Clone aliases remote.now_playing")
 	}
 }
+
+// achievements is optional (absent = on), written on in the product default,
+// off when enabled is false, and deep-copied by Clone.
+func TestAchievementsSwitch(t *testing.T) {
+	if !Defaults().AchievementsEnabled() || Defaults().Achievements == nil {
+		t.Fatal("the product default must write achievements.enabled: true")
+	}
+	base := defaultRaw(t)
+	cfg, err := Parse(mutateJSON(t, base, func(m map[string]any) { delete(m, "achievements") }), testRules())
+	if err != nil {
+		t.Fatalf("a file without achievements must keep loading: %v", err)
+	}
+	if !cfg.AchievementsEnabled() {
+		t.Fatal("absent achievements must mean on")
+	}
+	off, err := Parse(mutateJSON(t, base, func(m map[string]any) { m["achievements"] = map[string]any{"enabled": false} }), testRules())
+	if err != nil || off.AchievementsEnabled() {
+		t.Fatalf("achievements off: err=%v enabled=%v", err, off.AchievementsEnabled())
+	}
+	if _, err := Parse(mutateJSON(t, base, func(m map[string]any) { m["achievements"] = map[string]any{"enabled": false, "counters": 3} }), testRules()); err == nil {
+		t.Fatal("an unknown achievements key was accepted")
+	}
+	clone := off.Clone()
+	clone.Achievements.Enabled = true
+	if off.AchievementsEnabled() {
+		t.Fatal("Clone aliases the achievements block")
+	}
+}
