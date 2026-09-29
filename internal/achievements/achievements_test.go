@@ -8,8 +8,11 @@ package achievements
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"log/slog"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -377,6 +380,20 @@ func TestCatalogue(t *testing.T) {
 	}
 	if len(Badges) != 16 || len(IDs()) != 16 {
 		t.Fatalf("%d badges", len(Badges))
+	}
+	// Every badge has its generated art in both styles, earned and not, on
+	// the TV and the phone (tools/pixelart/badges.py, tools/classicart/badges.py).
+	for _, id := range IDs() {
+		for _, f := range []string{
+			"apps/tv-shell/assets/pixel/badge-%s.png", "apps/tv-shell/assets/pixel/badge-%s-locked.png",
+			"apps/tv-shell/assets/classic/badge-%s.svg", "apps/tv-shell/assets/classic/badge-%s-locked.svg",
+			"apps/remote-web/static/art/pixel/badge-%s.png", "apps/remote-web/static/art/pixel/badge-%s-locked.png",
+			"apps/remote-web/static/art/badge-%s.svg", "apps/remote-web/static/art/badge-%s-locked.svg",
+		} {
+			if _, err := os.Stat(filepath.Join("..", "..", fmt.Sprintf(f, id))); err != nil {
+				t.Errorf("%s: no art: %v", id, err)
+			}
+		}
 	}
 	if Season(time.Date(2026, 12, 1, 0, 0, 0, 0, time.UTC)) != "winter" || Season(time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC)) != "autumn" {
 		t.Fatal("seasons")

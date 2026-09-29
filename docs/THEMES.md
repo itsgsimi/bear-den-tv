@@ -881,3 +881,46 @@ recognised by its label and colour.
 - Regenerate: `python3 -B tools/pixelart/build.py --preview appicons`
   (preview `build/pixel-preview/appicons.png`) and
   `python3 -B tools/classicart/build.py appicons`.
+
+## Den badges
+
+Each Den badge ([`docs/operations.md`](operations.md#den-badges)) has an
+original medal in both art styles: a round medallion with a gold rim, a pair
+of bear ears on top and two ribbon tails, in the badge's own colours, holding
+a motif. A badge not earned yet shows its silhouette: the same shape in one
+slate colour with a question mark.
+
+| Badge | Motif |
+|---|---|
+| `first-night-in` | a striped popcorn bucket |
+| `movie-night` | a film clapperboard |
+| `couch-explorer` | a little sofa |
+| `night-owl` | an owl's face under a crescent moon |
+| `early-cub` | the sun rising over a hill |
+| `rainy-day` | an umbrella in the rain |
+| `snow-day` | a snowflake |
+| `thunder-buddy` | a cloud with a lightning bolt |
+| `all-seasons` | a tree, one quarter per season |
+| `style-switcher` | a brush painting half a pixel, half a curve |
+| `theme-tourist` | a suitcase with travel stickers |
+| `family-den` | three bear heads, big to small |
+| `good-host` | a guest ticket |
+| `sleepy-bear` | a sleeping bear's head with a "z" |
+| `parade-spotter` | a drum with two sticks |
+| `loyal-den` | a calendar page with a heart |
+
+- **Pixel:** 32×32 art pixels, `tools/pixelart/badges.py`
+  (`apps/tv-shell/assets/pixel/badge-<id>.png` and `badge-<id>-locked.png`);
+  `BadgeMedal` draws one art pixel per world pixel (128 screen pixels at
+  1080p), unsmoothed.
+- **Classic:** the same medals smooth, `tools/classicart/badges.py`
+  (`apps/tv-shell/assets/classic/badge-<id>.svg`, `-locked.svg`, a 32×32 view
+  box). It reads the colours from the pixel module, so the styles never drift.
+- **Phones:** both tools copy the medals to `apps/remote-web/static/art/`
+  (`pixel/badge-<id>.png`, `badge-<id>.svg`, and the `-locked` twins).
+- A new badge is a row in `Badges` in `internal/achievements`, its name and
+  hint in `qml/Badges.qml` and in the phone's `i18n.ts`, and a motif in both
+  tools; `TestCatalogue` fails until its art exists in all eight places.
+- Regenerate: `python3 -B tools/pixelart/build.py --preview badges`
+  (preview `build/pixel-preview/badges.png`) and
+  `python3 -B tools/classicart/build.py badges`.

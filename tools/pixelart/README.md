@@ -25,6 +25,7 @@ library (no Pillow, no image editor). Why: [ADR 0005](../../docs/decisions/0005-
 | [`hero.py`](hero.py) | the featured panel's rooms: cinema, cabin, arcade, nook (Spotify), theatre (Jellyfin), retro (RetroArch) | `apps/tv-shell/assets/pixel/hero-<scene>.png`, `apps/tv-shell/qml/HeroRig.js` |
 | [`weather.py`](weather.py) | ten weather icons | `apps/tv-shell/assets/pixel/weather-<name>.png` |
 | [`appicons.py`](appicons.py) | Bear Den's own app icons: one 32×32 badge per adapter (bear ears, brand colours, a motif; never an official logo; [`docs/THEMES.md` → App icons](../../docs/THEMES.md#app-icons)) | `apps/tv-shell/assets/pixel/app-<adapter>.png`; phone copies in `apps/remote-web/static/art/pixel/` |
+| [`badges.py`](badges.py) | the Den badge medals and their silhouettes ([`docs/THEMES.md` → Den badges](../../docs/THEMES.md#den-badges)) | `apps/tv-shell/assets/pixel/badge-<id>[-locked].png`; phone copies in `apps/remote-web/static/art/pixel/` |
 | [`weatherprops.py`](weatherprops.py) | the props of the weather in the corner scene: a tarp on poles, the startled "!", a leaf umbrella ([`docs/THEMES.md` → Weather in the corner scene](../../docs/THEMES.md#weather-in-the-corner-scene)) | `apps/tv-shell/assets/pixel/scene-wx-{tarp,startle,umbrella}.png` |
 
 `BearRig.js` and `HeroRig.js` are generated. Do not edit them by hand.
@@ -40,10 +41,10 @@ python3 -B tools/pixelart/build.py --preview winter     # also write enlarged pr
 ```
 
 - Part names: `den`, `forest`, `midnight`, `campfire`, `winter`, `bears`,
-  `ornaments`, `scenes`, `hero`, `weather`, `weatherprops`, `appicons`.
+  `ornaments`, `scenes`, `hero`, `weather`, `weatherprops`, `appicons`, `badges`.
 - `--preview` writes to `build/pixel-preview/` (for example `winter-f0.png`,
   `bears.png`, `ornaments.png`, `scenes.png`, `hero.png`, `weather.png`,
-  `weatherprops.png`, `appicons.png`).
+  `weatherprops.png`, `appicons.png`, `badges.png`).
 - `-B` stops Python writing `__pycache__` files into the tree.
 
 ## Recipes
