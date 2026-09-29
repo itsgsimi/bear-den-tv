@@ -113,8 +113,10 @@ These are the habits this codebase was built with. Follow them.
      you actually look at.
    - After writing a test, break the code it protects and watch it fail.
      A test that can't fail documents nothing.
-   - Known gaps to close, not copy: `internal/remote`, `internal/doctor`
-     and `providers/plex` have no tests yet; `make lint` reports qmllint
+   - Known gaps to close, not copy: `internal/remote` has only a route-table
+     test (`routes_test.go`; the guest pass expiry drives the real server from
+     `internal/pairing/guest_remote_test.go`), `internal/doctor` and
+     `providers/plex` have no tests yet; `make lint` reports qmllint
      warnings without failing.
 7. **Plugins over patches.** Extend through data:
    - a theme is a package;

@@ -4,7 +4,7 @@
 //	bear-den-tv session              run the coordinator in the graphical session
 //	bear-den-tv dev                  run with a fake desktop on loopback (development)
 //	bear-den-tv doctor [--probe]     print diagnostics as JSON
-//	bear-den-tv pair                 show a pairing invitation (code + URL)
+//	bear-den-tv pair [--guest tonight|24h|7d]  show a pairing invitation (code + URL); --guest issues a guest pass
 //	bear-den-tv devices [revoke ID]  list or revoke paired phones
 //	bear-den-tv remote enable|disable --interface IF --accept-lan-exposure
 //	bear-den-tv artwork fetch        cache official app icons from Flathub
@@ -31,7 +31,7 @@ commands:
   session   run the coordinator (supervises the TV shell)
   dev       run with a fake desktop, loopback remote, and optional DEMO fixtures
   doctor    print diagnostics as JSON
-  pair      issue a pairing invitation on the running coordinator
+  pair      issue a pairing invitation on the running coordinator (--guest tonight|24h|7d: a guest pass)
   devices   list paired phones, or "devices revoke <id|*>"
   remote    "remote enable --interface IF --accept-lan-exposure" or "remote disable"
   artwork   "artwork fetch": cache the official Flathub icons of the registered apps
