@@ -121,7 +121,11 @@ profile runs once, headless, so Chromium fetches Widevine. Details:
 - The home screen restores focus to the tile you left.
 - Every 3 seconds the coordinator reconciles running apps against the
   window list and Flatpak instances. When an app closes (or crashes), it is
-  marked as exited and the home screen is brought back automatically.
+  marked as exited and the home screen is brought back automatically,
+  unless something Bear Den knows is in front by then (read again from the
+  desktop just before). While another app is starting (opening an app
+  closes the others), that waits: the new app comes to the front itself,
+  and the home screen comes back only if its launch fails.
 - **Close** on the phone closes the app in front, or the one left running
   behind Home.
 

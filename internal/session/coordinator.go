@@ -167,6 +167,7 @@ type Coordinator struct {
 	audioCap       platform.Capability
 	fullscreened   map[platform.WindowID]bool // app windows already asked to go fullscreen
 	closing        map[string]*closeWatch     // app id → watch for windows opened while closing
+	homeAfterExit  bool                       // an app exited; bring the shell back once no app is launching (reconcileApps)
 	playback       *contract.Playback         // latest playback detection summary (shell view)
 	tune           tuneState
 	lastShellJSON  []byte // last state sent to the shell (dedupe)
@@ -430,11 +431,12 @@ func (c *Coordinator) reconcileApps(ctx context.Context) {
 			return // no evidence either way; change nothing
 		}
 	}
-	changed, exited := false, false
+	changed, exited, launching := false, false, false
 	var exitedIDs []string
 	c.mu.Lock()
 	for _, a := range cfg.Applications {
 		rt := c.appLocked(a.ID)
+		launching = launching || rt.launchState == "launching"
 		running := hasWindow[a.ID] || live[a.Launch.AppID]
 		if c.isWebAdapter(a.Adapter) {
 			// Every web app is the same Chromium Flatpak: its own window or
@@ -458,8 +460,19 @@ func (c *Coordinator) reconcileApps(ctx context.Context) {
 	// bare desktop); bring Bear Den back unless something recognized is in front.
 	// (The target may still name the exited app if its foreground change has
 	// not been processed yet, so judge by whether that app still has a window.)
+	// While another app is launching (opening one closes the others) the
+	// decision waits: that launch brings its own window forward, and the
+	// shell raised meanwhile could land on top of it. A launch that fails
+	// leaves the decision to the next pass.
 	frontAlive := c.target.Kind == "app" && hasWindow[strOr(c.target.AppID)]
-	returnHome := exited && !c.locked && c.target.Kind != "shell" && !frontAlive
+	if exited {
+		c.homeAfterExit = true
+	}
+	returnHome := false
+	if c.homeAfterExit && !launching {
+		c.homeAfterExit = false
+		returnHome = !c.locked && c.target.Kind != "shell" && !frontAlive
+	}
 	// Forget fullscreen bookkeeping for windows that no longer exist.
 	if werr == nil {
 		present := map[platform.WindowID]bool{}
@@ -477,7 +490,7 @@ func (c *Coordinator) reconcileApps(ctx context.Context) {
 	if changed {
 		c.publish()
 	}
-	if returnHome {
+	if returnHome && !c.recognizedInFront(ctx) {
 		c.activateShell(ctx)
 	}
 	if len(exitedIDs) > 0 {
@@ -485,6 +498,27 @@ func (c *Coordinator) reconcileApps(ctx context.Context) {
 		// own settings on exit, so this runs after they are gone).
 		go c.tuneAfterExit(exitedIDs)
 	}
+}
+
+// recognizedInFront re-reads the desktop's foreground: the window list and
+// target the return-Home decision used may be older than an app that came
+// to the front since.
+func (c *Coordinator) recognizedInFront(ctx context.Context) bool {
+	fg, err := c.opts.Desktop.ObserveForeground(ctx)
+	if err != nil || !fg.Known {
+		return false
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.isShellWindow(fg.Window) {
+		return true
+	}
+	for _, a := range c.opts.Config.Current().Applications {
+		if ad, ok := c.opts.Adapters.ForName(a.Adapter); ok && ad.MatchWindow(fg.Window) {
+			return true
+		}
+	}
+	return false
 }
 
 // activateShell brings the shell window to the front (no-op when not found).

@@ -50,10 +50,17 @@ func (l *fakeLock) set(v bool) {
 // fakeLauncher maps a window for the launched app and activates it, like a
 // well-behaved client would.
 type fakeLauncher struct {
-	desk     *fake.Desktop
-	class    map[string]string
-	launches []string
-	mu       sync.Mutex
+	desk      *fake.Desktop
+	class     map[string]string
+	launches  []string
+	instances int // Instances calls: one per apps reconcile pass
+	mu        sync.Mutex
+}
+
+func (f *fakeLauncher) instanceCalls() int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.instances
 }
 
 func (f *fakeLauncher) Discover(_ context.Context, id string) (applications.Installation, error) {
@@ -72,8 +79,14 @@ func (f *fakeLauncher) Launch(_ context.Context, id string, _ []string) (applica
 	return applications.Instance{FlatpakID: id, InstanceID: "1", PID: 9000}, nil
 }
 
-func (f *fakeLauncher) Instances(context.Context) ([]applications.Instance, error) { return nil, nil } // liveness comes from windows
-func (f *fakeLauncher) Kill(context.Context, applications.Instance) error          { return nil }
+// Instances reports none (liveness comes from windows) and counts the call.
+func (f *fakeLauncher) Instances(context.Context) ([]applications.Instance, error) {
+	f.mu.Lock()
+	f.instances++
+	f.mu.Unlock()
+	return nil, nil
+}
+func (f *fakeLauncher) Kill(context.Context, applications.Instance) error { return nil }
 
 type harness struct {
 	t      *testing.T

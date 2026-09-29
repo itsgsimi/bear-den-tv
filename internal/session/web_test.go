@@ -10,6 +10,7 @@ package session
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"sync"
 	"testing"
@@ -38,6 +39,8 @@ type fakeWeb struct {
 	pointers []string
 	pauses   int
 	watch    func()
+	gate     chan struct{} // when set, Launch waits for it to close
+	fail     error         // when set, Launch returns it (after the gate)
 }
 
 func newFakeWeb(desk *fake.Desktop) *fakeWeb {
@@ -45,6 +48,15 @@ func newFakeWeb(desk *fake.Desktop) *fakeWeb {
 }
 
 func (f *fakeWeb) Launch(_ context.Context, app config.Application, spec adapters.WebSpec) (applications.Instance, error) {
+	f.mu.Lock()
+	gate, fail := f.gate, f.fail
+	f.mu.Unlock()
+	if gate != nil {
+		<-gate
+	}
+	if fail != nil {
+		return applications.Instance{}, fail
+	}
 	f.mu.Lock()
 	f.running[app.ID] = true
 	f.status[app.ID] = web.Status{V: 1, Visible: true, Video: "none", Viewport: web.Viewport{W: 1280, H: 720}}
@@ -139,17 +151,17 @@ func (d *lyingDesk) ObserveForeground(ctx context.Context) (platform.Foreground,
 	return d.Desktop.ObserveForeground(ctx)
 }
 
-func webHarness(t *testing.T) (*harness, *fakeWeb, *lyingDesk) {
+func webHarness(t *testing.T, configure ...func(*Options)) (*harness, *fakeWeb, *lyingDesk) {
 	t.Helper()
 	var fw *fakeWeb
 	var ld *lyingDesk
-	h := newHarness(t, func(o *Options) {
+	h := newHarness(t, append([]func(*Options){func(o *Options) {
 		fd := o.Desktop.(*fake.Desktop)
 		fw = newFakeWeb(fd)
 		ld = &lyingDesk{Desktop: fd}
 		o.Web = fw
 		o.Desktop = ld
-	})
+	}}, configure...)...)
 	return h, fw, ld
 }
 
@@ -337,6 +349,100 @@ func TestPointerOnlyForWebAppsAndNeverForGuests(t *testing.T) {
 	if res = h.submit(h.ctl, h.req(contract.ActionPointerScroll, map[string]any{"dy": 120.0})); res.Outcome != contract.OutcomeDelivered {
 		t.Fatalf("controller scroll: %+v", res)
 	}
+}
+
+// activations records every window the fake desktop activated.
+type activations struct {
+	mu  sync.Mutex
+	ids []platform.WindowID
+}
+
+func (a *activations) record(o *Options) {
+	o.Desktop.(*lyingDesk).OnActivate = func(w platform.WindowID) {
+		a.mu.Lock()
+		a.ids = append(a.ids, w)
+		a.mu.Unlock()
+	}
+}
+
+func (a *activations) of(w platform.WindowID) int {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	n := 0
+	for _, id := range a.ids {
+		if id == w {
+			n++
+		}
+	}
+	return n
+}
+
+// reconciled waits until the apps reconcile pass running now (or the last
+// one) has finished: passes run one after another and each starts by asking
+// the launcher for its instances.
+func (h *harness) reconciled() {
+	h.t.Helper()
+	fl := h.c.opts.Launcher.(*fakeLauncher)
+	n := fl.instanceCalls()
+	h.eventually("the next reconcile pass", func() bool { return fl.instanceCalls() > n })
+}
+
+// switchFromPlex has Plex in front, then opens the browser with its launch
+// held at the gate: Plex has been closed and its exit reconciled while the
+// browser is still starting.
+func switchFromPlex(t *testing.T, fail error) (*harness, *fakeWeb, *activations, chan struct{}) {
+	t.Helper()
+	acts := &activations{}
+	h, fw, _ := webHarness(t, acts.record)
+	res := h.submit(h.ctl, h.req(contract.ActionAppLaunch, map[string]any{"app_id": "plex-htpc"}))
+	if res.Outcome != contract.OutcomeAccepted {
+		t.Fatal(res)
+	}
+	h.eventually("plex in front", func() bool { t := h.c.Target(); return t.Kind == "app" && strOr(t.AppID) == "plex-htpc" })
+	gate := make(chan struct{})
+	fw.mu.Lock()
+	fw.gate, fw.fail = gate, fail
+	fw.mu.Unlock()
+	if res = h.submit(h.ctl, h.req(contract.ActionAppLaunch, map[string]any{"app_id": "browser"})); res.Outcome != contract.OutcomeAccepted {
+		t.Fatalf("launch browser: %+v", res)
+	}
+	h.eventually("plex exited", func() bool {
+		return h.windowsOf("plexhtpc") == 0 && appState(h.phones.Snapshot(context.Background(), &h.ctl), "plex-htpc").LaunchState == "exited"
+	})
+	h.reconciled()
+	return h, fw, acts, gate
+}
+
+// TestOpeningAnotherAppNeverRaisesTheShellInBetween: opening the browser
+// closes Plex; Plex's exit used to bring the shell forward while the browser
+// was starting, and on a busy machine that raise landed after the browser
+// came to the front ("Browser lost focus before the pointer moved", or the
+// browser never seen in front). The return to Home now waits for the launch.
+func TestOpeningAnotherAppNeverRaisesTheShellInBetween(t *testing.T) {
+	h, fw, acts, gate := switchFromPlex(t, nil)
+	if n := acts.of(h.shellW); n != 0 {
+		t.Fatalf("the shell was raised %d times while the browser was starting", n)
+	}
+	close(gate)
+	h.eventually("browser in front", func() bool { t := h.c.Target(); return t.Kind == "app" && strOr(t.AppID) == "browser" })
+	h.reconciled()
+	if n := acts.of(h.shellW); n != 0 {
+		t.Fatalf("the shell was raised %d times over the browser", n)
+	}
+	if res := h.submit(h.ctl, h.req(contract.ActionPointerScroll, map[string]any{"dy": 120.0})); res.Outcome != contract.OutcomeDelivered {
+		t.Fatalf("controller scroll: %+v", res)
+	}
+	if _, pointers := fw.counts(); pointers != 1 {
+		t.Fatalf("%d pointer actions reached the page, want 1", pointers)
+	}
+}
+
+// TestFailedLaunchAfterAnExitReturnsHome: the return to Home that waited for
+// a launch still happens when that launch fails.
+func TestFailedLaunchAfterAnExitReturnsHome(t *testing.T) {
+	h, _, _, gate := switchFromPlex(t, errors.New("chromium did not start"))
+	close(gate)
+	h.eventually("shell back in front", func() bool { return h.c.Target().Kind == "shell" })
 }
 
 func TestWebInputNeedsTheVerifiedForeground(t *testing.T) {
