@@ -94,6 +94,7 @@
         "https": {"type": "boolean"},
         "http_layout_editing": {"type": "boolean"},
         "paired_device_count": {"type": "integer", "minimum": 0},
+        "now_playing": {"type": "boolean", "description": "The owner's config remote.now_playing (default true): paired phones may see state.now_playing. Not sensitive; the TV Settings row reads it."},
         "hold": {
           "type": "object",
           "properties": {"active": {"type": "boolean"}, "device_id": {"type": ["string", "null"]}, "action": {"type": ["string", "null"]}},
@@ -209,6 +210,22 @@
         }
       },
       "required": ["status", "message", "place", "units", "scene", "current"],
+      "additionalProperties": false
+    },
+    "now_playing": {
+      "type": ["object", "null"],
+      "description": "Phones with the controller permission only: what the foreground app's own MPRIS player reports. Omitted for the shell, anonymous viewers and phones without controller, while the session is locked, when config remote.now_playing is false, and when nothing is known; null means the same as absent. Never logged, persisted or included in diagnostics (docs/security.md).",
+      "properties": {
+        "app_id": {"type": "string", "minLength": 1, "description": "The foreground application (state.applications[].id) whose player this is."},
+        "title": {"type": "string", "minLength": 1, "maxLength": 200, "description": "xesam:title, cut to 200 characters. Private media: shown to phones only."},
+        "subtitle": {"type": "string", "minLength": 1, "maxLength": 200, "description": "xesam:artist joined with ', ', else xesam:album; absent when the player reports neither."},
+        "status": {"enum": ["playing", "paused", "stopped"]},
+        "length_ms": {"type": "integer", "minimum": 1, "description": "mpris:length; absent when unknown (live streams, players that omit it)."},
+        "position_ms": {"type": "integer", "minimum": 0, "description": "Position when it was read; absent when the player does not report one."},
+        "position_at": {"type": "integer", "description": "When the player was read, in the same coordinator monotonic milliseconds as generated_at_ms. Phones extrapolate while status is playing: position_ms + rate x (generated_at_ms - position_at + time since the snapshot arrived)."},
+        "rate": {"type": "number", "minimum": 0, "description": "Playback rate (MPRIS Rate; 1 when the player does not report it)."}
+      },
+      "required": ["app_id", "title", "status", "position_at", "rate"],
       "additionalProperties": false
     },
     "content": {

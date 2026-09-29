@@ -119,6 +119,7 @@ type Coordinator struct {
 	shellState     string
 	apps           map[string]*appRuntime
 	media          *mediaProbe
+	np             npState // now playing for phones (nowplaying.go); memory only
 	notifications  []contract.Notification
 	previewing     bool
 	remote         contract.RemoteState
@@ -174,6 +175,7 @@ func New(opts Options) *Coordinator {
 		remote:       contract.RemoteState{Transport: "local-only", Addresses: []string{}, Limits: contract.DefaultLimits},
 	}
 	c.holds = actions.NewHolds(opts.Clock, c.limits, c.holdTap, c.publish)
+	c.np.kick = make(chan struct{}, 1)
 	return c
 }
 
@@ -244,6 +246,7 @@ func (c *Coordinator) Run(ctx context.Context) error {
 		go c.watchAudio(ctx)
 	}
 	go c.watchApps(ctx)
+	go c.watchNowPlaying(ctx)
 	// Subscribe before the initial read so a change between the two is never lost.
 	fgCh, err := c.opts.Desktop.WatchForeground(ctx)
 	if err != nil {
@@ -488,6 +491,7 @@ func (c *Coordinator) onLock(locked bool) {
 	if changed {
 		c.retargetLocked()
 		c.epoch++ // lock and unlock always invalidate what phones saw
+		c.clearNowPlayingLocked()
 	}
 	c.mu.Unlock()
 	if changed {
@@ -502,6 +506,11 @@ func (c *Coordinator) onLock(locked bool) {
 			c.log.Info("session: restarting shell after unlock to regain GPU rendering")
 			go func() { _ = c.opts.Supervisor.Restart() }()
 		}
+		if !locked {
+			// The app in front may have changed behind the lock screen.
+			go c.probeMedia(context.Background())
+		}
+		c.kickNowPlaying()
 		c.publish()
 	}
 }
@@ -515,10 +524,12 @@ func (c *Coordinator) onForeground(fg platform.Foreground) {
 	if changed {
 		c.epoch++
 		c.media = nil
+		c.clearNowPlayingLocked()
 	}
 	c.mu.Unlock()
 	if changed {
 		c.holds.CancelAll("target_changed")
+		c.kickNowPlaying()
 		go c.probeMedia(context.Background())
 	}
 	if c.Target().Kind == "app" && fg.Known {

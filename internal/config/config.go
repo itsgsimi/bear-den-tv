@@ -157,13 +157,16 @@ type HTTPSFiles struct {
 
 // Remote is config.remote: the LAN listener definition.
 type Remote struct {
-	Enabled              bool       `json:"enabled"`
-	Transport            string     `json:"transport"`
-	Port                 int        `json:"port"`
-	Interfaces           []string   `json:"interfaces"`
-	AllowedHosts         []string   `json:"allowed_hosts"`
-	MDNS                 bool       `json:"mdns"`
-	HTTPLayoutEditing    bool       `json:"http_layout_editing"`
+	Enabled           bool     `json:"enabled"`
+	Transport         string   `json:"transport"`
+	Port              int      `json:"port"`
+	Interfaces        []string `json:"interfaces"`
+	AllowedHosts      []string `json:"allowed_hosts"`
+	MDNS              bool     `json:"mdns"`
+	HTTPLayoutEditing bool     `json:"http_layout_editing"`
+	// NowPlaying: phones with the controller permission see what the app in
+	// front is playing (state.now_playing); nil = true.
+	NowPlaying           *bool      `json:"now_playing,omitempty"`
 	PairingExpirySeconds int        `json:"pairing_expiry_seconds"`
 	PairingMaxAttempts   int        `json:"pairing_max_attempts"`
 	HTTPS                HTTPSFiles `json:"https"`
@@ -174,6 +177,10 @@ type Remote struct {
 func (r Remote) LayoutEditingOverHTTP() bool {
 	return r.Transport == "trusted-lan-http" && r.HTTPLayoutEditing
 }
+
+// ShowNowPlaying reports whether phones may see state.now_playing
+// (remote.now_playing, default true).
+func (r Remote) ShowNowPlaying() bool { return r.NowPlaying == nil || *r.NowPlaying }
 
 // Cache is config.cache.
 type Cache struct {
@@ -260,6 +267,10 @@ func (c Config) Clone() Config {
 	if c.Startup.TuneApps != nil {
 		v := *c.Startup.TuneApps
 		out.Startup.TuneApps = &v
+	}
+	if c.Remote.NowPlaying != nil {
+		v := *c.Remote.NowPlaying
+		out.Remote.NowPlaying = &v
 	}
 	if c.Weather != nil {
 		w := c.Weather.clone()

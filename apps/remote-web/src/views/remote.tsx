@@ -1,5 +1,6 @@
 // Remote screen: D-pad with Select, Back, Bear Den Home and Close app, app shortcuts from
-// `snapshot.applications`, playback, PC volume, and text entry. Contract: every
+// `snapshot.applications`, playback with the Now playing card above its buttons
+// (nowplaying.tsx), PC volume, and text entry. Contract: every
 // control is gated by `snapshot.capabilities[action]`; a listed-but-unavailable
 // capability renders disabled with the server's reason, an unlisted optional one
 // is not rendered. Directions call `pressStart`/`pressEnd` on pointer down/up so
@@ -13,6 +14,7 @@ import type { ActionArgs, ActionName, Application, NavAction } from '../contract
 import { t } from '../i18n.ts';
 import { Art, artStyleOf, Icon, type IconName } from '../icons.tsx';
 import { Vines } from '../vines.tsx';
+import { NowPlayingPanel, nowPlayingOf } from './nowplaying.tsx';
 import { type AppState, type PendingAction, capabilityFor, closableApp, isSecureTransport, permissionsOf } from '../state.ts';
 
 const TEXT_MAX = 256;
@@ -90,9 +92,10 @@ export function RemoteView({ app, state }: { app: App; state: AppState }): JSX.E
         </div>
       ) : null}
 
-      {listed(state, 'media.play') || listed(state, 'media.pause') || listed(state, 'media.seek_relative') ? (
+      {listed(state, 'media.play') || listed(state, 'media.pause') || listed(state, 'media.seek_relative') || nowPlayingOf(snapshot) ? (
         <div class="group" aria-labelledby="playback-heading">
           <h3 id="playback-heading">{t.remote.playback}</h3>
+          <NowPlayingPanel state={state} />
           <div class="button-row">
             {listed(state, 'media.seek_relative') ? (
               <TapButton app={app} state={state} action="media.seek_relative" args={{ seconds: -SEEK_SECONDS }} icon="rewind" label={t.remote.seekBackLabel} gate={note(gate(state, 'media.seek_relative'))}>

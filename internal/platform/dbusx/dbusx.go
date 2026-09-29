@@ -172,6 +172,54 @@ func (c *Conn) Close() error {
 	return c.conn.Close()
 }
 
+// Unwrap returns the value inside a D-Bus variant (recursively), or v itself.
+func Unwrap(v any) any {
+	for {
+		vv, ok := v.(dbus.Variant)
+		if !ok {
+			return v
+		}
+		v = vv.Value()
+	}
+}
+
+// Dict turns an a{sv} value (as godbus decodes it, or a plain map from a
+// fake) into a map of unwrapped values; ok is false for anything else.
+func Dict(v any) (map[string]any, bool) {
+	switch m := Unwrap(v).(type) {
+	case map[string]dbus.Variant:
+		out := make(map[string]any, len(m))
+		for k, x := range m {
+			out[k] = Unwrap(x)
+		}
+		return out, true
+	case map[string]any:
+		out := make(map[string]any, len(m))
+		for k, x := range m {
+			out[k] = Unwrap(x)
+		}
+		return out, true
+	}
+	return nil, false
+}
+
+// OwnerOf returns the unique connection name (":1.42") that owns name.
+// Signals carry that unique name as their sender, never the well-known one.
+func OwnerOf(ctx context.Context, bus Bus, name string) (string, error) {
+	body, err := bus.Call(ctx, "org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus.GetNameOwner", name)
+	if err != nil {
+		return "", err
+	}
+	if len(body) != 1 {
+		return "", fmt.Errorf("dbusx: GetNameOwner %s returned %d values", name, len(body))
+	}
+	s, ok := body[0].(string)
+	if !ok || s == "" {
+		return "", fmt.Errorf("dbusx: GetNameOwner %s returned %T", name, body[0])
+	}
+	return s, nil
+}
+
 // IsNoOwner reports whether err says the destination name has no owner, which
 // is how an absent screensaver or player shows up.
 func IsNoOwner(err error) bool {

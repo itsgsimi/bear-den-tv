@@ -28,7 +28,7 @@ Trusted-LAN HTTP mode additionally refuses: `PUT /api/v1/layout*` unless `remote
 | `POST /api/v1/pair/claim` | none, rate limited | Body `{invitation:"<fragment-token>"|null, code:"123456"|null, device_name:"Alice's phone"}`. Redeems a TV-issued invitation. Success `200 {device_id, device_name, permissions, csrf_token}` and sets the cookie. Failure `401 invalid_invitation`, `410 invitation_expired`, `429 too_many_attempts`. |
 | `GET /api/v1/session` | cookie | `{device_id, device_name, permissions, csrf_token, transport_secure}`. `401` when unauthenticated or revoked. |
 | `POST /api/v1/logout` | cookie + CSRF | Ends this session (device record stays until revoked). |
-| `GET /api/v1/state` | cookie | `state.schema.json` snapshot redacted for the caller's permission: `devices` owner-only, `layout` for `layout_editor` and up, `pairing`, `playback` and `weather` never (shell only). |
+| `GET /api/v1/state` | cookie | `state.schema.json` snapshot redacted for the caller's permission: `devices` owner-only, `layout` for `layout_editor` and up, `now_playing` for `controller` and up (see [Now playing](#now-playing-statenow_playing)), `pairing`, `playback` and `weather` never (shell only). |
 | `GET /api/v1/capabilities` | cookie | `{context_epoch, target, capabilities}` for the current target. |
 | `POST /api/v1/actions` | cookie + CSRF | Body: action request. Returns the action result (`200` for any outcome including `failed`; HTTP errors only for transport/auth problems). |
 | `GET /api/v1/events` | cookie, Origin | WebSocket. Server → client: `{"type":"state", state}`, `{"type":"action_result", result}`, `{"type":"hold", …}`, `{"type":"revoked"}` then close 4001, `{"type":"pong"}`. Client → server: `{"type":"action", request}`, hold messages, `{"type":"visibility","hidden":true|false}`, `{"type":"ping"}`. |
@@ -48,6 +48,15 @@ Error body shape: `{"error":"<code>","message":"<human text>"}`.
 
 There is no HTTP route for playback settings or local weather: those are changed on the TV or with the local CLI over IPC ([`ipc.md`](ipc.md) `playback.set`, `weather.search`, `weather.configure`), and phones never receive `state.weather`.
 
+## Now playing (`state.now_playing`)
+
+While an app that exposes an MPRIS player is in front, phones with the `controller` permission get `state.now_playing`: the app id, the title, an optional subtitle (artist or album), `status` (`playing`, `paused`, `stopped`), optional `length_ms` and `position_ms`, `position_at` and `rate`. This is a deliberate exception to "phones never see external window titles" (`target.window_title` stays redacted): the owner shows what is playing to the devices they paired for control, and can turn it off.
+
+- **Who sees it:** authenticated phones with `controller` or higher. Never anonymous viewers, and never the shell or `cli` peers (so never `bear-den-tv doctor` or `/api/v1/diagnostics`).
+- **When it is omitted:** the session is locked; config `remote.now_playing` is `false` (TV Settings → Now playing on phones; `state.remote.now_playing` mirrors the setting); the foreground is not a configured app; that app's own player (matched by its adapter, exactly as media actions are) is missing or reports no title. Another app's player is never used. `null` means the same as absent.
+- **Position without a stream of pushes:** the coordinator re-reads the player when it signals a change (`PropertiesChanged`, `Seeked`), after a play, pause or seek, and every 5 s while a phone is connected and something is playing. Between snapshots the phone extrapolates `position_ms + rate × (generated_at_ms − position_at + time since the snapshot arrived)` while `status` is `playing`, capped at `length_ms`.
+- **Never stored or logged:** the title and subtitle live only in the coordinator's memory and in phone snapshots; they are not written to `config.json`, SQLite, logs, diagnostics or exports ([`docs/security.md`](../docs/security.md)).
+
 ## Revocation and lock
 
-On revocation the device's sessions are deleted, every WebSocket for that device receives `revoked` and is closed, and any hold lease it owned is cancelled. On session lock the coordinator bumps the epoch, sets `target.kind = locked`, cancels holds, and refuses every action with `failed/locked` until unlock; state snapshots while locked contain no `devices`, `layout`, `layout_pending`, `content`, `playback` or `weather` (they are omitted) and an empty `shell.focus`.
+On revocation the device's sessions are deleted, every WebSocket for that device receives `revoked` and is closed, and any hold lease it owned is cancelled. On session lock the coordinator bumps the epoch, sets `target.kind = locked`, cancels holds, and refuses every action with `failed/locked` until unlock; state snapshots while locked contain no `devices`, `layout`, `layout_pending`, `content`, `playback`, `weather` or `now_playing` (they are omitted) and an empty `shell.focus`.

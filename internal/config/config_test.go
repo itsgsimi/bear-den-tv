@@ -644,3 +644,32 @@ func TestWeatherBlock(t *testing.T) {
 		t.Fatal("Clone aliases the weather block")
 	}
 }
+
+// remote.now_playing is optional (absent = on), a boolean, on in the product
+// default, and deep-copied by Clone.
+func TestRemoteNowPlaying(t *testing.T) {
+	if !Defaults().Remote.ShowNowPlaying() || Defaults().Remote.NowPlaying == nil {
+		t.Fatal("the product default must write now_playing: true")
+	}
+	base := defaultRaw(t)
+	absent := mutateJSON(t, base, func(m map[string]any) { delete(m["remote"].(map[string]any), "now_playing") })
+	cfg, err := Parse(absent, testRules())
+	if err != nil {
+		t.Fatalf("a file without remote.now_playing must keep loading: %v", err)
+	}
+	if !cfg.Remote.ShowNowPlaying() {
+		t.Fatal("absent remote.now_playing must mean on")
+	}
+	off, err := Parse(mutateJSON(t, base, func(m map[string]any) { m["remote"].(map[string]any)["now_playing"] = false }), testRules())
+	if err != nil || off.Remote.ShowNowPlaying() {
+		t.Fatalf("now_playing false: err=%v show=%v", err, off.Remote.ShowNowPlaying())
+	}
+	if _, err := Parse(mutateJSON(t, base, func(m map[string]any) { m["remote"].(map[string]any)["now_playing"] = "yes" }), testRules()); err == nil {
+		t.Fatal("a non-boolean now_playing was accepted")
+	}
+	clone := off.Clone()
+	*clone.Remote.NowPlaying = true
+	if off.Remote.ShowNowPlaying() {
+		t.Fatal("Clone aliases remote.now_playing")
+	}
+}

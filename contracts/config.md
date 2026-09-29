@@ -47,3 +47,9 @@ Preview (`POST /api/v1/layout/preview`) sends a draft to the shell over IPC with
 - Written only by the trusted local `weather.configure` (`ipc.md`: TV Settings → Weather or `bear-den-tv weather set`), which rounds the coordinates to 2 decimals before storing (rule 10).
 - Never holds a URL, key or token: the Open-Meteo endpoints are constants in `internal/weather`, and Open-Meteo needs no key. The coordinator contacts it only while `enabled` is true ([`docs/security.md`](../docs/security.md)).
 - Additive: `schema_version` stays 1.
+
+## Now playing on phones (optional field)
+
+- `remote.now_playing` (boolean, default `true`; the built-in default file writes `true`, and a file without the key means `true`): paired phones with the `controller` permission see what the app in front reports it is playing (`state.now_playing`, [`http.md`](http.md#now-playing-statenow_playing)). `false` removes `now_playing` from every snapshot.
+- Written by the trusted local `remote.now_playing` (`ipc.md`: TV Settings → Now playing on phones). The titles themselves are never stored here or anywhere else.
+- Additive: `schema_version` stays 1.

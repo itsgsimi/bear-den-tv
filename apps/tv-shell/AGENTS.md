@@ -16,7 +16,7 @@ module, so tests exercise the shipped QML.
 |---|---|---|
 | `Session` (singleton) | [`SessionModel`](src/SessionModel.h) | the latest state snapshot (incl. `weather`, empty when absent), validated by `validateSnapshot`/`validateLayout` then applied whole (rejected snapshots keep the previous state); `application(id)`, `layoutForEdit()`, rails as `sections` |
 | `Nav` (singleton) | [`Navigator`](src/Navigator.h) | the one input path: key events and coordinator `input` become named actions; `apply(action)` returns the `input_result`; `reportFocus(section, item, scrollX)`, `noteAtRoot()`, `screen`, `textFieldFocused`; `focusReported` carries `text_field` and is re-emitted when only that changes |
-| `Shell` (singleton) | [`ShellController`](src/ShellController.h) | the IPC bridge. Methods: `launchApp`, `closeApp`, `issuePairing`, `cancelPairing`, `revokeDevice`, `configureRemote(enabled, interface)`, `updateLayout(layout)`, `setPlayback(adapter, setting, value)`, `weatherSearch(query)` (answer in `weatherPlaces`/`weatherSearchOk`/`weatherSearchError`/`weatherSearching`), `weatherConfigure(enabled, place, units, scene)` (place `null` keeps the stored one; answer in `weatherConfigured(ok, error)`), `answerConfirm`, `exitShell`, `flatpakIdFor`, `appArt`, `lanInterfaces`. Properties: connection state (`connectionState`, `connected`, `rejectReason`, `attempt`), `offline`, `devBuild`, `version`, `startScreen`, `launchingAppId`, `screensaverSeconds`, and the check overrides `bearsSeconds`, `bearsAct`, `restSeconds`, `monthOverride` |
+| `Shell` (singleton) | [`ShellController`](src/ShellController.h) | the IPC bridge. Methods: `launchApp`, `closeApp`, `issuePairing`, `cancelPairing`, `revokeDevice`, `configureRemote(enabled, interface)`, `updateLayout(layout)`, `setPlayback(adapter, setting, value)`, `setNowPlaying(enabled)` (IPC `remote.now_playing`), `weatherSearch(query)` (answer in `weatherPlaces`/`weatherSearchOk`/`weatherSearchError`/`weatherSearching`), `weatherConfigure(enabled, place, units, scene)` (place `null` keeps the stored one; answer in `weatherConfigured(ok, error)`), `answerConfirm`, `exitShell`, `flatpakIdFor`, `appArt`, `lanInterfaces`. Properties: connection state (`connectionState`, `connected`, `rejectReason`, `attempt`), `offline`, `devBuild`, `version`, `startScreen`, `launchingAppId`, `screensaverSeconds`, and the check overrides `bearsSeconds`, `bearsAct`, `restSeconds`, `monthOverride` |
 | `Theme` (singleton) | [`Theme`](src/Theme.h) | design tokens from `layout.ui` and window size: colours, `scale`, type and tile sizes, `ms()`/`duration`, `reducedMotion`, `resting`, `screensaver`, `tintFor(id)` |
 | `Themes` (singleton) | [`ThemeRegistry`](src/ThemeRegistry.h) | installed theme packages: `list`, `get(id)`, `canonical(id)`, `ornament()`, `reload()` ([`themes/AGENTS.md`](../../themes/AGENTS.md)) |
 | `FocusMemory` (singleton) | [`FocusMemory`](src/FocusMemory.h) | remembered item, index and scroll per section; `lastSectionId` |
@@ -143,15 +143,17 @@ array of `{id, kind, label, description, value}` with `kind` one of `link`,
    coordinator validates and persists. A new `ui` field is a contract change
    ([`contracts/AGENTS.md`](../../contracts/AGENTS.md#change-a-contract)).
 4. **Update [`tests/tst_shell.cpp`](tests/tst_shell.cpp).** The rows today,
-   from the top: `remote`, `pairing`, `devices`, `text`, `density`,
-   `background` (Theme), `style`, `margin`, `motion`, `contrast`, `hero`,
-   `clock`, `weather`, `playback`, `advanced-playback`, `diagnostics`,
-   `exit`.
-   `secondaryScreensRender` walks 15 rows down from `remote` to reach
-   `diagnostics`, `advancedPlaybackSendsPlaybackSet` 14 to
-   `advanced-playback`, `weatherScreenSearchesAndConfigures` 12 to `weather`,
-   and `headerPillsOpenScreensAndBackReturns` 2 to `devices`. A row inserted
-   above any of them shifts those counts.
+   from the top: `remote`, `pairing`, `devices`, `now-playing` (a toggle
+   that sends `remote.now_playing` through `Shell.setNowPlaying`, showing
+   `Session.remote.now_playing`), `text`, `density`, `background` (Theme),
+   `style`, `art`, `margin`, `motion`, `contrast`, `hero`, `clock`,
+   `weather`, `playback`, `advanced-playback`, `diagnostics`, `exit`.
+   `headerPillsOpenScreensAndBackReturns` walks 17 rows down from `remote`
+   to reach `diagnostics` (and 2 to `devices`),
+   `advancedPlaybackSendsPlaybackSet` 16 to `advanced-playback`,
+   `weatherScreenSearchesAndConfigures` 14 to `weather`, and
+   `nowPlayingRowTogglesTheSetting` 3 to `now-playing`. A row inserted above
+   any of them shifts those counts.
 
 Done when: `make test-shell` passes and
 `scripts/sandbox.sh shot --screen settings` shows the row (you looked).

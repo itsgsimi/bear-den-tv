@@ -33,6 +33,9 @@ func (b *PhoneBackend) Snapshot(_ context.Context, v *remote.Viewer) contract.St
 // Subscribe implements remote.Backend; snapshots are coalesced per wake-up.
 func (b *PhoneBackend) Subscribe(ctx context.Context, v *remote.Viewer) (<-chan contract.State, error) {
 	wake := b.c.subscribe(ctx)
+	if v != nil && v.Has(contract.PermController) {
+		b.c.phoneStreamOpened(ctx) // keeps a playing player's position fresh
+	}
 	out := make(chan contract.State, 1)
 	go func() {
 		defer close(out)

@@ -294,6 +294,20 @@ bool SessionModel::validateSnapshot(const QJsonObject &snapshot, QString *error)
             }
         }
     }
+    if (snapshot.contains(QStringLiteral("now_playing")) && !snapshot.value(QStringLiteral("now_playing")).isNull()) {
+        // state.now_playing (optional, phones only; the shell never shows it
+        // but accepts a snapshot that carries it): app_id/title/status/position_at/rate.
+        const QString where = QStringLiteral("state.now_playing");
+        if (!requireType(snapshot, QStringLiteral("now_playing"), QJsonValue::Object, QStringLiteral("state"), error))
+            return false;
+        const QJsonObject np = snapshot.value(QStringLiteral("now_playing")).toObject();
+        if (!requireKeys(np, {QStringLiteral("app_id"), QStringLiteral("title"), QStringLiteral("status"), QStringLiteral("position_at"), QStringLiteral("rate")}, where, error)
+            || !requireEnum(np, QStringLiteral("status"), {QStringLiteral("playing"), QStringLiteral("paused"), QStringLiteral("stopped")}, where, error)
+            || !requireType(np, QStringLiteral("title"), QJsonValue::String, where, error)
+            || !requireType(np, QStringLiteral("position_at"), QJsonValue::Double, where, error)
+            || !requireType(np, QStringLiteral("rate"), QJsonValue::Double, where, error))
+            return false;
+    }
     return true;
 }
 

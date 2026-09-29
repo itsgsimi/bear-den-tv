@@ -573,6 +573,7 @@ func (c *Coordinator) probeMedia(ctx context.Context) {
 		c.media = probe
 	}
 	c.mu.Unlock()
+	c.kickNowPlaying() // read the new player (or drop the old one) for phones
 	c.publish()
 }
 
@@ -607,6 +608,9 @@ func (c *Coordinator) doMedia(ctx context.Context, req contract.ActionRequest, t
 	if err != nil {
 		return c.fail(req, contract.CodeUnsupported, target.Label+" refused the media command.")
 	}
+	// The position and status changed: phones' Now playing re-reads them
+	// (not every player signals a seek).
+	defer c.kickNowPlaying()
 	if want != "" {
 		deadline := c.clock.Now().Add(MediaObserveTimeout)
 		for c.clock.Now().Before(deadline) {

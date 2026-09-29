@@ -195,6 +195,8 @@ export interface RemoteInfo {
   https: boolean;
   http_layout_editing: boolean;
   paired_device_count: number;
+  /** config remote.now_playing: whether phones may see state.now_playing (missing on older coordinators). */
+  now_playing?: boolean;
   hold: { active: boolean; device_id: string | null; action: string | null };
   limits: RemoteLimits;
 }
@@ -311,6 +313,26 @@ export interface StateSnapshot {
   playback?: Playback;
   content?: unknown;
   weather?: Weather;
+  /** Controller phones only; absent (or null) while locked, when the owner turned it off, or when nothing is known. */
+  now_playing?: NowPlaying | null;
+}
+
+export type NowPlayingStatus = 'playing' | 'paused' | 'stopped';
+
+/**
+ * state.now_playing: what the foreground app's own MPRIS player reports
+ * (contracts/http.md, "Now playing"). position_at is in the coordinator's
+ * clock (the one generated_at_ms uses), never the phone's.
+ */
+export interface NowPlaying {
+  app_id: string;
+  title: string;
+  subtitle?: string;
+  status: NowPlayingStatus;
+  length_ms?: number;
+  position_ms?: number;
+  position_at: number;
+  rate: number;
 }
 
 /** state.weather: local weather from Open-Meteo (shell view only; phones never receive it). */
