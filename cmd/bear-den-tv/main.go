@@ -11,6 +11,7 @@
 //	bear-den-tv autostart enable|disable|status   start Bear Den at every desktop login
 //	bear-den-tv shortcut enable|disable|status    add Bear Den TV to the desktop and app menu
 //	bear-den-tv apps detect|tune|probe            playback detection per app; best settings
+//	bear-den-tv apps install APP [--here]|install-cancel APP  install an app from Flathub for this user
 //	bear-den-tv themes list|validate DIR|path     installed themes; check a theme; owner themes dir
 //	bear-den-tv weather status|search Q|set Q|off local weather on the running coordinator
 //	bear-den-tv plex status|sign-in|server ID|libraries ID...|cancel|sign-out  Plex sign-in on the running coordinator
@@ -40,7 +41,9 @@ commands:
   autostart "autostart enable|disable|status": start Bear Den at desktop login
   shortcut  "shortcut enable|disable|status": Bear Den TV icon on the desktop and in the app menu
   apps      "apps detect [--apply] [--json] [--tier T]" (alias "apps tune"): playback detection and best settings;
-            "apps probe [--json]": only what each app decodes in hardware here
+            "apps probe [--json]": only what each app decodes in hardware here;
+            "apps install APP-ID [--here]": install the app from Flathub for this user (through the
+            running coordinator, or in this process with --here); "apps install-cancel APP-ID"
   themes    "themes list" | "themes validate <dir>" | "themes path": theme packages (docs/THEMES.md)
   weather   "weather status" | "weather search QUERY" | "weather off" |
             "weather set [--units celsius|fahrenheit] [--no-scene] QUERY [INDEX]": local weather (Open-Meteo)

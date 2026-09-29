@@ -24,6 +24,7 @@ type Launcher struct {
 	instances map[string]applications.Instance
 	windows   map[string]platform.WindowID
 	seq       int
+	missing   map[string]bool // --dev-installs (installer.go)
 }
 
 // NewLauncher returns a launcher that maps windows on desk.
@@ -37,8 +38,12 @@ func ClassFor(flatpakID string) string {
 	return strings.ToLower(parts[len(parts)-1])
 }
 
-// Discover implements applications.Launcher; every app is "installed".
-func (l *Launcher) Discover(context.Context, string) (applications.Installation, error) {
+// Discover implements applications.Launcher; every app is "installed"
+// unless SetMissing named it (installer.go).
+func (l *Launcher) Discover(_ context.Context, id string) (applications.Installation, error) {
+	if l.isMissing(id) {
+		return applications.Installation{Scope: "none"}, nil
+	}
 	return applications.Installation{Installed: true, Version: "dev", Scope: "user"}, nil
 }
 

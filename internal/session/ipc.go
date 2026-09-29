@@ -185,8 +185,23 @@ func (h *ShellHandler) Receive(cl *shellipc.Client, m shellipc.Message) {
 		h.handlePlex(cl, m)
 	case shellipc.AchievementsConfigure, shellipc.AchievementsReset, shellipc.AchievementsCelebrated, shellipc.AchievementsEvent:
 		h.receiveAchievements(cl, m, isShell)
-	case shellipc.InstallRequest:
-		h.reply(cl, msg.RequestID, errors.New("guided installation is not available yet; install from Flathub on the TV"), nil)
+	case shellipc.AppInstall:
+		data, err := c.startInstall(msg.AppID)
+		h.reply(cl, msg.RequestID, err, data)
+	case shellipc.InstallRequest: // the older name of app.install
+		data, err := c.startInstall(msg.AppID)
+		h.reply(cl, msg.RequestID, err, data)
+	case shellipc.AppInstallCancel:
+		h.reply(cl, msg.RequestID, c.cancelInstall(msg.AppID), nil)
+	case shellipc.AppInstallInfo:
+		// Flathub may take seconds: answer from a goroutine so the read
+		// loop keeps serving pings.
+		go func() {
+			data, err := c.installInfo(ctx, msg.AppID)
+			h.reply(cl, msg.RequestID, err, data)
+		}()
+	case shellipc.AppsConfigure:
+		h.reply(cl, msg.RequestID, c.configureApps(msg.AutoUpdate), nil)
 	case shellipc.PowerActivity:
 		if isShell {
 			c.onTVActivity()

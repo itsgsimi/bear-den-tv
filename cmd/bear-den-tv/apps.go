@@ -1,5 +1,6 @@
 // `bear-den-tv apps`: probe and apply playback tuning for the supported apps
-// (docs/APP_PERFORMANCE.md; CLI guide internal/AGENTS.md).
+// (docs/APP_PERFORMANCE.md; CLI guide internal/AGENTS.md); `apps install`
+// lives in appinstall.go.
 
 package main
 
@@ -31,6 +32,9 @@ import (
 // The coordinator runs the same test after startup and applies the settings
 // automatically unless config startup.tune_apps is false.
 func cmdApps(args []string) error {
+	if len(args) > 0 && (args[0] == "install" || args[0] == "install-cancel") {
+		return cmdAppsInstall(args) // appinstall.go
+	}
 	if len(args) == 0 || (args[0] != "probe" && args[0] != "tune" && args[0] != "detect") {
 		return errors.New("usage: bear-den-tv apps detect [--apply] [--json] [--tier entry|standard|high] | apps probe [--json]")
 	}

@@ -25,4 +25,4 @@ machine itself.
 | `update-uptodate.stdout` | `flatpak update --user --noninteractive -y com.moonlight_stream.Moonlight` | exit 0, nothing to do |
 
 The container recipe and the installer's own run through `bear-den-tv apps
-install --here` are in [`docs/operations.md`](../../../../docs/operations.md).
+install --here` are in [`docs/operations.md`](../../../../docs/operations.md#app-installs).

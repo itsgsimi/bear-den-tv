@@ -125,6 +125,14 @@ func (c *Coordinator) route(ctx context.Context, s sender, req contract.ActionRe
 		return c.doTVPower(ctx, req)
 	case contract.ActionPointerMove, contract.ActionPointerClick, contract.ActionPointerScroll:
 		return c.doPointer(ctx, s, req, target)
+	case contract.ActionAppInstall, contract.ActionAppInstallCancel:
+		if cp, _ := c.capability(req.Action); !cp.Available {
+			return c.fail(req, contract.CodeUnsupported, cp.Reason)
+		}
+		if req.Action == contract.ActionAppInstall {
+			return c.doInstall(req)
+		}
+		return c.doInstallCancel(req)
 	case contract.ActionShellRestart:
 		if c.opts.Supervisor == nil {
 			return c.fail(req, contract.CodeUnsupported, "The shell is not supervised by this coordinator.")
@@ -407,6 +415,7 @@ func (c *Coordinator) doLaunch(ctx context.Context, s sender, req contract.Actio
 		return c.fail(req, contract.CodeUnsupported, app.Label+" is turned off. Turn it on in Settings → Streaming sites.")
 	}
 	isApp := func(t contract.Target) bool { return t.Kind == "app" && strOr(t.AppID) == appID }
+	c.stopUpdateFor("an app is starting") // never update during an app session
 
 	// A second press while the app is still starting waits for that launch
 	// instead of starting another instance. Checking and claiming "launching"

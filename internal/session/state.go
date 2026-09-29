@@ -96,8 +96,10 @@ func (c *Coordinator) buildStateFor(view viewKind, v *remote.Viewer) contract.St
 		st.Shell.Focus = contract.Focus{}
 		st.LayoutPending = nil
 	}
+	apps := &contract.AppsState{AutoUpdate: cfg.AutoUpdate()}
 	switch view {
 	case viewShell:
+		st.Apps = apps
 		p := c.opts.Pairing.State()
 		st.Pairing = &p
 		if !locked {
@@ -130,6 +132,15 @@ func (c *Coordinator) buildStateFor(view viewKind, v *remote.Viewer) contract.St
 				st.Appearance = &contract.Appearance{Background: ui.Background, Theme: ui.Theme, Accent: ui.Accent, ArtStyle: contract.ArtPixel}
 				if ui.Classic() {
 					st.Appearance.ArtStyle = contract.ArtClassic
+				}
+			}
+			// Installs are the owner's: every other phone, a guest pass
+			// included, gets no install state and draws no controls.
+			if v.Has(contract.PermOwner) && !v.Guest() {
+				st.Apps = apps
+			} else {
+				for i := range st.Applications {
+					st.Applications[i].Install = nil
 				}
 			}
 			if !locked {
@@ -217,6 +228,7 @@ func (c *Coordinator) appStatesLocked(apps []configApp) []contract.AppState {
 			st.Enabled = &on
 			st.Hidden = st.Hidden || !on
 		}
+		st.Install = c.installForLocked(a, rt) // install.go; owner and shell views only
 		out = append(out, st)
 	}
 	return out
@@ -345,8 +357,7 @@ func (c *Coordinator) capabilitiesLocked() map[string]contract.Capability {
 	}
 	c.powerCapsLocked(caps)
 	c.cecCapsLocked(caps)
-	caps[contract.ActionAppInstall] = unavailable("App installs are not available in this session.")
-	caps[contract.ActionAppInstallCancel] = caps[contract.ActionAppInstall]
+	c.installCapsLocked(caps)
 	return caps
 }
 

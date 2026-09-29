@@ -12,7 +12,7 @@ Wire shapes come from [`contracts/`](../contracts/AGENTS.md) and nowhere else.
 
 | Package | Owns | Key files |
 |---|---|---|
-| [`session`](session/coordinator.go) | the core: epoch, target, state snapshot, action routing; implements `remote.Backend` (phones) and `shellipc.Handler` (shell) | `coordinator.go` (Options, `retargetLocked`, `publish`), `route.go` (`route`, `doLaunch`, `doHome`, `doClose`), `state.go` (`buildStateFor`, `capabilitiesLocked`), `web.go` (web apps: `WebApps` seam, routing to the page after a verified foreground, pointer capabilities and rate limits, Home's page pause, IPC `app.enable`), `backend.go`, `ipc.go`, `tuning.go`, `nowplaying.go` (`state.now_playing`: the foreground player's reading, memory only), `power.go` (sleep timer, display off and wake: `state.power`), `cec.go` (TV control over HDMI-CEC: `state.cec`, `tv.power`, standby/wake hooks, TV volume), `achievements.go` (Den badges: the event points, `achievements.*` IPC, `state.achievements`) |
+| [`session`](session/coordinator.go) | the core: epoch, target, state snapshot, action routing; implements `remote.Backend` (phones) and `shellipc.Handler` (shell) | `coordinator.go` (Options, `retargetLocked`, `publish`), `route.go` (`route`, `doLaunch`, `doHome`, `doClose`), `state.go` (`buildStateFor`, `capabilitiesLocked`), `web.go` (web apps: `WebApps` seam, routing to the page after a verified foreground, pointer capabilities and rate limits, Home's page pause, IPC `app.enable`), `backend.go`, `ipc.go`, `tuning.go`, `nowplaying.go` (`state.now_playing`: the foreground player's reading, memory only), `power.go` (sleep timer, display off and wake: `state.power`), `cec.go` (TV control over HDMI-CEC: `state.cec`, `tv.power`, standby/wake hooks, TV volume), `achievements.go` (Den badges: the event points, `achievements.*` IPC, `state.achievements`), `install.go` (app installs: `app.install`/`app.install_cancel` for owner phones, IPC `app.install*` and `apps.configure`, `state.applications[].install` and `state.apps`, rediscovery after an install, the idle daily update) |
 | [`contract`](contract/contract.go) | Go types for protocol 1 and JSON Schema validation of the embedded `contracts/*.json` | `contract.go`, `validate.go` |
 | [`achievements`](achievements/achievements.go) | Den badges: the badge catalogue (`Badges`, data), events that move named counters (`Launched`, `HomeShown`, `Paired`, `PassIssued`, `SleepTimerSet`, `Parade`) on local calendar days of the injected clock, awards once, `Snapshot`/`Phone` for `state.achievements`, `Reset`; nothing counted while config `achievements.enabled` is false | `achievements.go` |
 | [`actions`](actions/dedup.go) | request de-duplication and server-side hold leases, on an injected clock | `dedup.go`, `holds.go` |
@@ -53,6 +53,8 @@ Embeds live in the repository root [`embed.go`](../embed.go): `contracts/`,
 | `fakeShell` | same file | answers `input`/`home` like the real shell (`observed` with focus detail), records inputs in `h.inputs` |
 | `fakeLauncher`, `fakeLock`, `fakeTuner` | same file | launching maps a window on the fake desktop; lock pushes through `set`; the tuner returns a canned report and records apps it applied |
 | `fakeWeb`, `lyingDesk` | [`session/web_test.go`](session/web_test.go) | a web manager that maps a window with the adapter's class and records what reached the page; a desktop that names another window when the foreground is re-read |
+| `fakeInstaller`, `scopedLauncher` | [`session/install_test.go`](session/install_test.go) | an installer that records starts, cancels and updates (`calls()`) and whose statuses the test sets (`set`, which also publishes); a launcher whose discovery answers per Flatpak id (`setScope`) |
+| `fake.Installer` | [`platform/fake/installer.go`](platform/fake/installer.go) | the pretend Flathub behind `bear-den-tv dev --dev-installs`: `fake.DemoMissing` start missing, an install walks its states on a timer and then `SetInstalled` |
 | `fake.Web` | [`platform/fake/web.go`](platform/fake/web.go) | the pretend web manager behind `bear-den-tv dev` (a DEMO page, no Chromium); `dev --dev-browser PATH` runs the real manager on a Chromium binary instead |
 | `fakeChromium` | [`applications/web/pipe_test.go`](applications/web/pipe_test.go) | the other end of the DevTools pipe: scripted replies, events, and a record of every command |
 | `fake.Desktop`, `fake.Launcher` | [`platform/fake`](platform/fake/fake.go) | in-memory windows (`AddWindow`, `SetActive`, `RemoveWindow`), delivered keys (`Keys()`); also backs `bear-den-tv dev` |
@@ -244,11 +246,12 @@ keep its header comment and `usage()` text in step with it.
 
 | Command | File |
 |---|---|
-| `session`, `dev` | `session.go` (wires every package; `dev` uses `fake.Desktop`, loopback, DEMO weather, a pretend web app page; `--dev-fixtures` adds DEMO content; `--dev-browser PATH` runs web apps in a real Chromium binary, `webdev.go`) |
+| `session`, `dev` | `session.go` (wires every package; `dev` uses `fake.Desktop`, loopback, DEMO weather, a pretend web app page; `--dev-fixtures` adds DEMO content; `--dev-browser PATH` runs web apps in a real Chromium binary, `webdev.go`; `--dev-installs` a pretend Flathub, `fake.Installer`) |
 | `doctor`, `pair [--guest tonight\|24h\|7d]`, `devices`, `remote` | `cli.go` |
 | `artwork fetch` | `artwork.go` |
 | `autostart`, `shortcut` `enable\|disable\|status` | `autostart.go`, `shortcut.go` |
 | `apps detect\|tune\|probe` | `apps.go` |
+| `apps install APP-ID [--here]\|install-cancel APP-ID` | `appinstall.go` (IPC `app.install` and following `state`; `--here` runs `internal/applications/install` in-process) |
 | `themes list\|validate DIR\|path` | `themes.go` |
 | `weather status\|search Q\|set Q [INDEX]\|off` | `weather.go` |
 | `plex status\|sign-in\|server ID\|libraries ID...\|cancel\|sign-out` | `plex.go` (also `newPlexLink`, the session wiring and `--dev-plex-fake`) |

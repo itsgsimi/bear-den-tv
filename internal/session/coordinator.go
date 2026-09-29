@@ -91,8 +91,17 @@ type Options struct {
 	Supervisor *shellipc.Supervisor
 	// Web runs the web apps (streaming sites, the Browser tile) over the
 	// DevTools pipe (web.go); nil reports them unavailable.
-	Web     WebApps
-	DevMode bool
+	Web WebApps
+	// Installer installs the adapter table's apps from Flathub for this
+	// user on an owner press, and updates them while idle (install.go);
+	// nil reports installs unavailable.
+	Installer AppInstaller
+	// UpdateCheck is how often the idle update is considered (default
+	// DefaultUpdateCheck); UpdateEvery the least time between two updates
+	// (DefaultUpdateEvery).
+	UpdateCheck time.Duration
+	UpdateEvery time.Duration
+	DevMode     bool
 	// AppsRefresh overrides DefaultAppsRefresh (tests).
 	AppsRefresh time.Duration
 	// Diagnostics produces the redacted doctor report for owners.
@@ -158,6 +167,8 @@ type Coordinator struct {
 	shellStartedLocked bool
 	lockKnown          bool                      // the lock observer has reported at least once
 	pointerBuckets     map[string]*pointerBucket // pointer rate limits (web.go)
+	upd                updateState               // the idle app update (install.go)
+	rediscovering      map[string]bool           // Flatpak ids being discovered after an install
 
 	subs    map[chan struct{}]struct{}
 	results map[chan contract.ActionResult]string // channel → device id ("" = shell)
@@ -176,6 +187,12 @@ func New(opts Options) *Coordinator {
 	}
 	if opts.AppsRefresh <= 0 {
 		opts.AppsRefresh = DefaultAppsRefresh
+	}
+	if opts.UpdateCheck <= 0 {
+		opts.UpdateCheck = DefaultUpdateCheck
+	}
+	if opts.UpdateEvery <= 0 {
+		opts.UpdateEvery = DefaultUpdateEvery
 	}
 	c := &Coordinator{
 		opts:         opts,
@@ -279,6 +296,9 @@ func (c *Coordinator) Run(ctx context.Context) error {
 		go c.watchCEC(ctx)
 	}
 	go c.watchRevocations(ctx)
+	if c.opts.Installer != nil {
+		go c.watchUpdates(ctx)
+	}
 	// Subscribe before the initial read so a change between the two is never lost.
 	fgCh, err := c.opts.Desktop.WatchForeground(ctx)
 	if err != nil {
@@ -591,6 +611,9 @@ func (c *Coordinator) onForeground(fg platform.Foreground) {
 		c.holds.CancelAll("target_changed")
 		c.kickNowPlaying()
 		go c.probeMedia(context.Background())
+		if c.Target().Kind != "shell" {
+			c.stopUpdateFor("the TV is no longer idle")
+		}
 	}
 	if c.Target().Kind == "app" && fg.Known {
 		c.ensureFullscreen(fg.Window)

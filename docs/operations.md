@@ -572,6 +572,55 @@ front); `bear-den-tv dev --dev-browser ~/.cache/ms-playwright/chromium-*/chrome-
 runs web apps in a real Chromium binary. `make test-webnav` runs the
 navigation script against local fixture pages.
 
+## App installs
+
+Bear Den installs the apps it knows from Flathub, for the TV's user, with one
+press ([ADR 0011](decisions/0011-per-user-flathub-installs.md)): no sudo, no
+password, nothing system-wide.
+
+- **On the TV:** OK on a "Not installed" tile opens the install card (size,
+  "From Flathub", Install / Not now). Settings → Add apps lists every app
+  Bear Den knows that is not installed, including Chromium ("Browser for
+  Netflix, Disney+, Hulu"); turning a streaming site on while Chromium is
+  missing offers Chromium the same way. Back hides the card; the install
+  carries on and the tile shows its progress.
+- **From the owner's phone:** the Add apps section (owner phones only).
+- **From a terminal on the TV:** `bear-den-tv apps install moonlight` (asks the
+  running Bear Den; `--here` installs without it), `bear-den-tv apps
+  install-cancel moonlight`.
+- **Where they go:** `~/.local/share/flatpak` (per user), from the per-user
+  `flathub` remote Bear Den adds if it is missing
+  (`flatpak remotes --user` shows it). Free space is checked first: the app,
+  twice its runtime when that is new (GL drivers and codecs come with it),
+  and 512 MiB more.
+- **What it runs:** `flatpak remote-add --user --if-not-exists flathub
+  https://dl.flathub.org/repo/flathub.flatpakrepo`, `flatpak remote-info
+  --user flathub <id>`, `flatpak install --user --noninteractive -y flathub
+  <id>`, `flatpak info --user <id>`.
+- **Updates:** Settings → Keep apps up to date (on by default): once a day,
+  while Bear Den is in front with no app running, `flatpak update --user
+  --noninteractive -y` for the apps this user installed. Opening an app stops
+  it. Apps installed system-wide are updated by the system.
+- **Remove an app:** `flatpak uninstall --user <id>` (for example
+  `flatpak uninstall --user com.moonlight_stream.Moonlight`), then
+  `flatpak uninstall --user --unused` to drop runtimes nothing needs any
+  more. Its tile goes back to "Not installed" (or away, for optional apps)
+  the next time Bear Den starts.
+- **Flatpak missing:** the card says "Flatpak isn't installed on this box".
+  Bear Den never runs the system package manager; install it once yourself:
+  `sudo apt install flatpak` (Debian, Ubuntu), then restart Bear Den.
+
+**Tried in a container, not on the TV.** In `ubuntu:24.04` with `apt install
+flatpak dbus dbus-user-session`, as an unprivileged user,
+`bear-den-tv apps install moonlight --here` installed Moonlight and its KDE
+runtime (418 MB to download, 2.6 GB on disk) in 16 s on a fast line, then
+`flatpak uninstall --user` removed it; flatpak's real output is kept in
+[`internal/applications/install/testdata`](../internal/applications/install/testdata/README.md).
+flatpak needs a system D-Bus there (it asks malcontent before deploying an
+app), as on any desktop. Try the TV screens without Flathub:
+`bear-den-tv dev --dev-installs` (Moonlight, RetroArch, Jellyfin and Chromium
+start missing; a pretend DEMO install takes 20 s).
+
 ## Further reading
 
 - [`AGENTS.md`](../AGENTS.md): how the repository is organised and how to work in it.

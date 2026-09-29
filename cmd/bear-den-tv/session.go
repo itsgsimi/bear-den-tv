@@ -24,6 +24,7 @@ import (
 	"bear-den-tv/internal/applications"
 	"bear-den-tv/internal/applications/adapters"
 	"bear-den-tv/internal/applications/flatpak"
+	"bear-den-tv/internal/applications/install"
 	"bear-den-tv/internal/applications/tuning"
 	"bear-den-tv/internal/applications/web"
 	"bear-den-tv/internal/clock"
@@ -56,6 +57,7 @@ type sessionFlags struct {
 	devPlexFake bool
 	devListen   string
 	devBrowser  string
+	devInstalls bool
 	dataDir     string
 	noShell     bool
 	shellBinary string
@@ -74,6 +76,7 @@ func cmdSession(args []string, dev bool) error {
 		fs.StringVar(&f.devListen, "dev-listen", "127.0.0.1:8787", "loopback address for the phone remote (no LAN exposure)")
 		fs.StringVar(&f.dataDir, "data-dir", "", "isolated config/data root (default: a per-user temp directory)")
 		fs.StringVar(&f.devBrowser, "dev-browser", "", "run web apps in this Chromium binary (a real browser window; default: a pretend page on the fake desktop)")
+		fs.BoolVar(&f.devInstalls, "dev-installs", false, "Moonlight, RetroArch, Jellyfin and Chromium start missing and a pretend Flathub installs them (DEMO; no network)")
 	} else {
 		// Testing affordance: while set, the phone remote listens only on this
 		// loopback address (reached over an SSH tunnel) and the consent-gated
@@ -316,6 +319,33 @@ func runSession(f sessionFlags) error {
 	default:
 		webApps = fake.NewWeb(desk.(*fake.Desktop))
 	}
+	// App installs from Flathub, per user (ADR 0011): the real installer on
+	// the TV; with dev --dev-installs a pretend one; otherwise none.
+	var appInstaller session.AppInstaller
+	var onInstallChange func()
+	var tableIDs []string
+	for _, a := range adapters.NewRegistry().All() {
+		tableIDs = append(tableIDs, a.FlatpakID())
+	}
+	switch {
+	case !f.dev:
+		appInstaller = install.New(install.Options{Allowed: tableIDs, OnChange: func() {
+			if onInstallChange != nil {
+				onInstallChange()
+			}
+		}})
+	case f.devInstalls:
+		fl := launcher.(*fake.Launcher)
+		fl.SetMissing(fake.DemoMissing...)
+		fi := fake.NewInstaller(fl, tableIDs)
+		fi.OnChange = func() {
+			if onInstallChange != nil {
+				onInstallChange()
+			}
+		}
+		appInstaller = fi
+		log.Info("dev: some apps start missing; a pretend Flathub installs them (DEMO)")
+	}
 	var plexOpt session.PlexLink // stays nil without a connector (a nil *Manager would not)
 	if plexLink != nil {
 		plexOpt = plexLink
@@ -324,7 +354,8 @@ func runSession(f sessionFlags) error {
 		Themes: themeReg, Tuner: tuner,
 		Logger: log, Desktop: desk, Lock: lockObs, Audio: audioB, Media: media, Display: display, TV: tv, Suspend: suspendR,
 		Launcher: launcher, Adapters: adapters.NewRegistry(), Config: store, Pairing: pair,
-		Supervisor: sup, DevMode: f.dev && (f.devFixtures || f.devPlexFake), Feed: feed, Weather: wx, Plex: plexOpt, Web: webApps,
+		Supervisor: sup, DevMode: f.dev && (f.devFixtures || f.devPlexFake || f.devInstalls), Feed: feed, Weather: wx, Plex: plexOpt, Web: webApps,
+		Installer: appInstaller,
 		// Den badges: local counters in state.db; nothing counted while
 		// config achievements.enabled is false (docs/security.md#den-badges).
 		Achievements: achievements.New(achievements.Options{DB: db, Logger: log, Enabled: func() bool { return store.Current().AchievementsEnabled() }}),
@@ -332,6 +363,7 @@ func runSession(f sessionFlags) error {
 			return doctor.Report(ctx, doctor.Options{Paths: paths, Version: Version, ShellBinary: f.shellBinary})
 		},
 	})
+	onInstallChange = coord.InstallChanged
 	if plexLink != nil {
 		plexLink.SetOnChange(coord.PlexChanged)
 		go plexLink.Run(ctx)

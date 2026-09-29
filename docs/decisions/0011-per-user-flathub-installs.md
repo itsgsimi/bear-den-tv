@@ -45,22 +45,26 @@ This ADR decides how both hold at once.
   isn't installed on this box". Installing Flatpak itself needs the system
   package manager, which Bear Den never runs. The owner runs, once:
   `sudo apt install flatpak` (Debian/Ubuntu; see
-  [`docs/operations.md`](../operations.md)).
+  [`docs/operations.md`](../operations.md#app-installs)).
 - **Before downloading:** sizes from `flatpak remote-info --user flathub <id>`
   (download and installed size) plus the app's runtime when it is
   installed neither for the user nor system-wide. Extensions such as the GL
   drivers and codecs are not listed by `remote-info`, so the card says
   "plus shared parts if needed". Free space is checked with `statfs` on the
-  user Flatpak directory: it must hold twice the installed estimate plus
-  512 MiB (measured in the container: Moonlight's estimate was 1.1 GB, the
-  real install with its GL and codec extensions 2.5 GB).
+  user Flatpak directory: it must hold the app, twice its runtime when the
+  runtime is new (the GL and codec extensions that come with it are about
+  as big again), plus 512 MiB. Measured in the container: Moonlight's app
+  and runtime are 1.1 GB, the real install with its extensions 2.5 GB;
+  the estimate this rule gives is 2.2 GB.
 - **Progress.** `--noninteractive` makes flatpak use its quiet transaction:
   it prints one line per operation (`Installing runtime/…`,
   `Installing app/…`) and **no percentages**, with or without a terminal
   (checked in the container). So the phase comes from those lines, and the
   percentage from how much the filesystem under the user Flatpak directory
-  has filled, against the estimate, growing the estimate as flatpak names
-  each runtime; it never goes backwards and reaches 100 only after
+  has filled, against the same estimate as the free-space check (without
+  the margin), sampled every 2 s; it never goes backwards, holds at 99 when
+  the extensions make the install bigger than the estimate (Moonlight in
+  the container reached 99 % at 14 s of 16), and reaches 100 only after
   `flatpak info --user <id>` confirms the install. The UI updates on state
   pushes, not on a timer of its own.
 - **Cancel** sends SIGTERM to flatpak's process group, then SIGKILL after
@@ -98,6 +102,6 @@ sites play; see that ADR and the status for what is automated.
   flatpak CLI. It still never runs a package manager, sudo or anything as
   root.
 - Removing an app is the owner's: `flatpak uninstall --user <id>`
-  ([`docs/operations.md`](../operations.md)).
+  ([`docs/operations.md`](../operations.md#app-installs)).
 - Not verified on the TV. Tested with a fake runner fed with flatpak's real
   output, and for real in an Ubuntu 24.04 container as a non-root user.
