@@ -56,7 +56,8 @@ Home. It never wraps, embeds or patches them.
 - **Nothing listens on the LAN** until onboarding consent and interface
   selection. Secrets never enter `config.json`, exports, logs or phone
   payloads.
-- **Demo content** exists only behind `--dev-fixtures` and is labelled DEMO.
+- **Demo content** exists only behind `--dev-fixtures` (and the dev-only
+  `--dev-plex-fake`) and is labelled DEMO.
 
 ## Development philosophy
 

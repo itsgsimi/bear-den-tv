@@ -38,8 +38,9 @@ detailed, honest record is [`docs/IMPLEMENTATION_STATUS.md`](docs/IMPLEMENTATION
 **Built and tested here, not yet seen on the TV:** some themes, bear visits and
 corner scenes; the performance of several newer visuals.
 
-**Not done yet:** Plex content rails from a real Plex server (the rails show
-DEMO content in dev mode only), published release packages (the .deb below
+**Not done yet:** Plex rows checked against a real Plex account and server
+(sign-in on the TV and the Continue Watching and Recently Added rows are built
+and tested against a local fake, not yet with a real account), published release packages (the .deb below
 builds and passes clean-container install tests but has not been installed on
 the TV yet), and browser (Playwright) tests for the phone remote.
 

@@ -51,7 +51,8 @@ Graphical checks on the target need `DISPLAY=:0 XAUTHORITY=$HOME/.Xauthority DBU
 |---|---|
 | Configuration | `$XDG_CONFIG_HOME/bear-den-tv/config.json` (+ `config.last-known-good.json`, `config.history/`) |
 | State (devices, sessions, focus memory) | `$XDG_DATA_HOME/bear-den-tv/state.db` |
-| Artwork cache | `$XDG_CACHE_HOME/bear-den-tv/artwork/` |
+| Artwork cache | `$XDG_CACHE_HOME/bear-den-tv/artwork/` (icons), `$XDG_CACHE_HOME/bear-den-tv/plex-artwork/` (Plex posters, deleted on sign-out) |
+| Plex client id | `$XDG_DATA_HOME/bear-den-tv/plex-client-id` (32 hex characters; not a secret, but Plex ties the sign-in to it) |
 | IPC socket, instance lock | `$XDG_RUNTIME_DIR/bear-den-tv/` |
 | Connector tokens | Desktop Secret Service (never files) |
 
@@ -310,6 +311,53 @@ To stop every weather request: `build/bin/bear-den-tv weather off`.
 The CLI never edits `config.json` itself; the coordinator stores the choice
 (`weather` in [`contracts/config.md`](../contracts/config.md)). What leaves the
 box is described in [`docs/security.md`](security.md).
+
+## Plex
+
+Home can show **Continue Watching** and **Recently Added** from your Plex
+server. Selecting an item opens Plex HTPC (not that exact item: the handoff is
+not verified yet). Nothing is sent to Plex until you sign in; what is sent
+then is in [`docs/security.md`](security.md).
+
+Sign in on the TV: **Settings → Plex → Sign in**.
+
+1. The TV shows a 4-character code, `plex.tv/link` and a QR code of that
+   address. On a phone or computer, open it, sign in to Plex and type the code.
+2. The TV moves on by itself: with one server it is chosen for you, otherwise
+   pick one.
+3. Tick the libraries Home should use (movies and shows are proposed) and
+   choose **Done**.
+
+Done when: Settings → Plex says "Signed in · <your server>" and Home shows the
+two rows after you go back to it.
+
+The same over SSH, against the running coordinator
+([`cmd/bear-den-tv/plex.go`](../cmd/bear-den-tv/plex.go)):
+
+```sh
+build/bin/bear-den-tv plex sign-in          # prints the code; type it at plex.tv/link
+build/bin/bear-den-tv plex status           # servers / libraries with their ids once linked
+build/bin/bear-den-tv plex server ID        # only when you have several servers
+build/bin/bear-den-tv plex libraries 1 2    # finish with these library ids
+build/bin/bear-den-tv plex sign-out         # token out of the keyring, rows and posters gone
+```
+
+`bear-den-tv plex cancel` abandons a sign-in in progress.
+
+| You see | Do |
+|---|---|
+| "Plex sign-in needs a keyring; install or enable gnome-keyring" | The desktop session has no Secret Service (or it is locked). Install/enable gnome-keyring (or another Secret Service) for the TV user, log in again, retry. Bear Den never stores the token in a file. |
+| "The code expired" | Choose **Try again** for a new code. |
+| "Can't reach plex.tv" | The TV has no internet; check it and retry. |
+| "can't reach <server> from this TV" | None of that server's addresses answered as that server. Is it on and on the same network? |
+| Rows say "Can't reach your Plex server" | The server is off or unreachable. Rows retry after 30 s, 1, 2, 5, then every 10 minutes while Home is in front. |
+| Rows say "Plex no longer accepts this TV's sign-in" | The device was removed on plex.tv. Sign out, then sign in again. |
+| Rows say "Plex account is not linked" | The keyring lost the token (for example a new keyring). Sign in again. |
+
+For development, `bear-den-tv dev --dev-plex-fake` runs the whole flow against
+a local fake plex.tv and server with DEMO titles and generated DEMO posters
+(the code links on the third poll; the keyring is in memory). Plain `dev`
+has no Plex connector and never contacts plex.tv.
 
 ## Sleep timer and screen off
 
