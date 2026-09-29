@@ -6,7 +6,7 @@ export CMAKE_PREFIX_PATH := $(BDTV_TOOLCHAIN)/env
 export GOTOOLCHAIN := local
 BUILD ?= build
 
-.PHONY: help deps-check build go web check-web-dist shell shell-target test test-go test-web test-shell lint shots perf dev doctor clean
+.PHONY: help deps-check build go web check-web-dist shell shell-target package test test-go test-web test-shell lint shots perf dev doctor clean
 
 help: ## List targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "}{printf "  %-14s %s\n", $$1, $$2}'
@@ -58,6 +58,12 @@ shell-target: ## Build the TV shell for the TV machine (glibc 2.28 baseline) int
 	  -DCMAKE_SKIP_BUILD_RPATH=ON \
 	  -DCMAKE_EXE_LINKER_FLAGS="--sysroot=$(TARGET_SYSROOT) -Wl,--disable-new-dtags -Wl,-rpath,$(TARGET_TOOLCHAIN)/env/lib" >/dev/null
 	cmake --build $(BUILD)/tv-shell-target
+
+# The installable .deb: static coordinator, the shell built against the glibc
+# 2.28 sysroot without a toolchain rpath, Qt bundled under /opt/bear-den-tv
+# (packaging/build-deb.sh, packaging/nfpm.yaml; docs/operations.md#packaging).
+package: ## Build the installable .deb into build/dist (packaging/build-deb.sh; smoke test: packaging/smoke-deb.sh)
+	packaging/build-deb.sh
 
 test: test-go test-web test-shell ## Run all automated tests
 

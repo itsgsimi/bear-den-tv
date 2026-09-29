@@ -83,14 +83,19 @@ func execQuote(path string) string {
 	return path
 }
 
-// launcherIcon is the bear mark shipped with the phone remote, next to the
-// start script in the checkout; a stock icon when it is missing.
+// launcherIcon is the bear mark: in a checkout the phone remote's file next to
+// the start script; installed (<prefix>/lib/bear-den-tv/start-session.sh) the
+// themed icon name the package puts in <prefix>/share/icons; else a stock icon.
 func launcherIcon(script string) string {
 	icon := filepath.Join(filepath.Dir(script), "..", "apps", "remote-web", "static", "icons", "bear-den.svg")
-	if _, err := os.Stat(icon); err != nil {
-		return "video-display"
+	if _, err := os.Stat(icon); err == nil {
+		return filepath.Clean(icon)
 	}
-	return filepath.Clean(icon)
+	installed := filepath.Join(filepath.Dir(script), "..", "..", "share", "icons", "hicolor", "scalable", "apps", "bear-den-tv.svg")
+	if _, err := os.Stat(installed); err == nil {
+		return "bear-den-tv"
+	}
+	return "video-display"
 }
 
 // launcherEntry renders the desktop/menu launcher for script.

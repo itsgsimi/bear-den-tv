@@ -158,6 +158,7 @@ make dev DEV_ARGS=--dev-fixtures                     # coordinator + shell local
 scripts/sandbox.sh shot --screen settings --theme forest   # prototype without the TV: one screenshot
 make shots                                           # every theme × main screens in build/shots/gallery
 make perf                                            # frames and CPU per phase of Home (a guide, not a gate on taste)
+make package                                         # installable .deb in build/dist (docs/operations.md#packaging)
 scripts/deploy-target.sh [--now|--no-restart|--dry-run]   # ship to the TV
 scripts/target.sh run '<cmd>'                        # sync, then run on the TV inside the toolchain env
 build/bin/bear-den-tv doctor                         # what's running, what's in front, what's allowed

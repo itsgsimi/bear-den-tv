@@ -39,8 +39,9 @@ detailed, honest record is [`docs/IMPLEMENTATION_STATUS.md`](docs/IMPLEMENTATION
 corner scenes; the performance of several newer visuals.
 
 **Not done yet:** Plex content rails from a real Plex server (the rails show
-DEMO content in dev mode only), an installable package, and browser (Playwright)
-tests for the phone remote.
+DEMO content in dev mode only), published release packages (the .deb below
+builds and passes clean-container install tests but has not been installed on
+the TV yet), and browser (Playwright) tests for the phone remote.
 
 ## What it needs
 
@@ -51,6 +52,35 @@ tests for the phone remote.
 | **Apps** | Flatpak, plus any of Plex HTPC, VacuumTube and Moonlight. Missing apps show as "Not installed". |
 | **Phone** | Any modern phone browser on the same network. No app to install. |
 | **Workstation** | A Linux machine to build on. The toolchain installs in your home folder; no root needed. |
+
+## Install
+
+A `.deb` for Ubuntu 22.04 / Linux Mint 21.3 and newer (amd64, X11 desktop).
+There are no downloads on a Releases page yet, so build it on a workstation
+with the toolchain below, then copy it to the TV box:
+
+```sh
+make package                                        # → build/dist/bear-den-tv_<version>_amd64.deb
+```
+
+On the TV box:
+
+```sh
+sudo apt install ./bear-den-tv_<version>_amd64.deb  # Qt is bundled; X11/EGL/fonts come from the distro
+/usr/lib/bear-den-tv/start-session.sh --watch       # start it now, or open "Bear Den TV" from the app menu
+bear-den-tv autostart enable                        # optional: start at every desktop login
+```
+
+Installing enables nothing by itself; autostart is your choice. To remove it:
+
+```sh
+bear-den-tv autostart disable
+sudo apt remove --purge bear-den-tv
+```
+
+Your settings and paired phones stay in `~/.config/bear-den-tv` and
+`~/.local/share/bear-den-tv`; delete those to forget them. Details:
+[`docs/operations.md` → Packaging](docs/operations.md#packaging).
 
 ## Quick start (on a workstation)
 

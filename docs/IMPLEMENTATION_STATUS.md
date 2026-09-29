@@ -13,7 +13,7 @@ Commands are explained in [`operations.md`](operations.md).
 ## Current checkpoint
 
 - Updated: 2026-09-23, branch `coordinator-shell-remote` at commit `552aefd`.
-- Milestones: the control loop (M0), the shell and phone remote (M1) and the app adapters (M2) work on the TV. Customization (M3) is partly built. Packaging (M4) and the release checks (M5) are not done. See [`PLAN.md`](PLAN.md) for the original milestone list.
+- Milestones: the control loop (M0), the shell and phone remote (M1) and the app adapters (M2) work on the TV. Customization (M3) is partly built. Packaging (M4) is partly done: `make package` builds a .deb that passes install/remove smoke tests in Ubuntu 22.04 and 24.04 containers, not yet installed on the TV. The release checks (M5) are not done. See [`PLAN.md`](PLAN.md) for the original milestone list.
 - Development happens on a workstation with no display. The TV is a small Linux Mint 21.3 Xfce/X11 box (the reference box, see [`AGENTS.md`](../AGENTS.md)).
 - The TV's details (host, user) live in an untracked `target.env`; see [`operations.md`](operations.md).
 
@@ -65,7 +65,7 @@ Checked in the tree on 2026-09-23:
 | PLEX-01..02 | Code only. `internal/providers/plex` exists but nothing imports it; content rows come from the DEMO fixtures provider behind `--dev-fixtures` | none for Plex (`internal/providers/feed_test.go` covers the feed with fixtures) | Not yet seen on the TV | Wire the Plex provider; tests |
 | REL-01 | Yes. Shell supervisor restarts a crashed shell, respects intentional exit; `Pdeathsig` stops orphaned shells; coordinator watchdog in `scripts/start-session.sh --watch` | `internal/shellipc/supervisor_test.go` covers only the environment; `cmd/bear-den-tv/autostart_test.go` | Watchdog seen on the TV: `kill -9` of the coordinator, back in about 1 s with one shell (2026-09-22) | Tests for the crash/restart path |
 | REL-02 | Lock detection only | `internal/platform/lock/lock_test.go` | Lock seen on the TV; TV off/on, sleep and network changes not tried | |
-| PORT-01..02 | Partly. `packaging/nfpm.yaml`, `packaging/bundle-qt.sh`; no `uninstall` subcommand | none | Not run | Clean install/remove test; a Wayland report |
+| PORT-01..02 | Partly. `make package` builds `build/dist/bear-den-tv_<version>_amd64.deb` ([operations → Packaging](operations.md#packaging)): static coordinator in `/usr/bin`, the shell built against the glibc 2.28 sysroot with no rpath and Qt 6.8 bundled in `/opt/bear-den-tv/shell`, `depends` on the distro's X11/EGL/xkbcommon/D-Bus/fontconfig. `autostart enable` and `shortcut enable` work from `/usr/bin` (they run `/usr/lib/bear-den-tv/start-session.sh --watch`); the package enables nothing itself. Removal is `apt remove --purge`; no `uninstall` subcommand; user data stays in the XDG folders | `cmd/bear-den-tv/autostart_test.go` (checkout and installed layouts), `TestLauncherIconInstalled`, `tests/packaging` (version mapping, `start-session.sh` in both layouts, `nfpm.yaml` contents). Not in `make test` (needs Docker): `packaging/smoke-deb.sh` passed in clean `ubuntu:22.04` and `ubuntu:24.04` (2026-09-28): install with `--no-install-recommends`, `ldd -r` of every bundled library clean, shell offscreen with no missing library/plugin/QML messages, `dev --dev-fixtures` with the packaged shell (screenshot looked at), purge leaves nothing in `/usr` or `/opt` | Not installed on the TV. Never run from the package on a real X11/EGL display (containers are offscreen only) | Install on the reference box; published releases; a Wayland report; five bundled libraries still carry the build machine's toolchain path as a string (see operations) |
 | OPS-01 | Yes. `bear-den-tv doctor`, `docs/operations.md` | none (`internal/doctor` has no tests) | `doctor` is used by `scripts/deploy-target.sh` on every deploy | Tests for `internal/doctor` |
 | PERF-01 | Partly. `make perf` sandbox, `scripts/measure-target.sh`, `BDTV_FPS_LOG=1` | `make perf` fails when resting or the screensaver draws over budget | Home CPU on the TV fell from 60% to about 7-11% of a core (2026-09-22, commit `6c5d9af`). The pixel-art build is not measured on the TV | Startup and action latency numbers |
 
@@ -93,7 +93,7 @@ Features outside the matrix:
 2. Tests for `internal/remote` (HTTP/WebSocket negative suite), `internal/doctor`, `internal/providers/plex` and the supervisor's restart path.
 3. Wire mDNS and the Plex provider.
 4. Browser tests for the phone remote.
-5. Packaging and an `uninstall` path.
+5. Install the .deb on the reference box and check it on the real display; publish releases.
 
 ## History
 
