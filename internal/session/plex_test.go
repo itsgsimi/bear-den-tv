@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -21,7 +22,37 @@ import (
 	"bear-den-tv/internal/shellipc"
 )
 
+// observedPlex is the real manager plus what the coordinator last told it
+// is in front (Observe), so a test can wait for the connector itself to
+// know an app is in front instead of trusting Target().
+type observedPlex struct {
+	*plexlink.Manager
+	mu         sync.Mutex
+	shellFront bool
+	home       bool
+}
+
+func (o *observedPlex) Observe(shellFront, home bool) {
+	o.mu.Lock()
+	o.shellFront, o.home = shellFront, home
+	o.mu.Unlock()
+	o.Manager.Observe(shellFront, home)
+}
+
+func (o *observedPlex) front() (shellFront, home bool) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	return o.shellFront, o.home
+}
+
 func plexHarness(t *testing.T) (*harness, *plexfake.Fake) {
+	h, f, _ := plexHarnessWith(t, nil)
+	return h, f
+}
+
+// plexHarnessWith also reports every decision of the manager's loop to
+// onPass (plexlink.Options.OnPass) and returns the observing wrapper.
+func plexHarnessWith(t *testing.T, onPass func(plexlink.Pass)) (*harness, *plexfake.Fake, *observedPlex) {
 	t.Helper()
 	f, err := plexfake.New(plexfake.Options{})
 	if err != nil {
@@ -29,22 +60,25 @@ func plexHarness(t *testing.T) (*harness, *plexfake.Fake) {
 	}
 	t.Cleanup(f.Close)
 	var mgr *plexlink.Manager
+	obs := &observedPlex{}
 	h := newHarness(t, func(o *Options) {
 		mgr, err = plexlink.New(plexlink.Options{
 			Config: o.Config, Secrets: secrets.NewMemory(), AccountURL: f.URL,
 			ClientIdentifier: "0123456789abcdef0123456789abcdef", ArtworkDir: filepath.Join(t.TempDir(), "art"),
 			PollInterval: 10 * time.Millisecond, ClientOptions: plex.ClientOptions{Retries: -1},
+			OnPass: onPass,
 		})
 		if err != nil {
 			t.Fatal(err)
 		}
-		o.Plex = mgr
+		obs.Manager = mgr
+		o.Plex = obs
 	})
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan struct{})
 	go func() { mgr.Run(ctx); close(done) }()
 	t.Cleanup(func() { cancel(); <-done })
-	return h, f
+	return h, f, obs
 }
 
 func (h *harness) plexSend(m shellipc.Message, id string) shellipc.Result {
@@ -155,8 +189,19 @@ func TestPlexRefusedWithoutAConnector(t *testing.T) {
 	}
 }
 
+// TestPlexRowsOnlyRefreshBehindHome is deterministic: it waits for the
+// connector itself to learn an app is in front (Target() changes before the
+// publish that tells Plex, so trusting it raced), and for the loop's own
+// decision on the forced refresh (plexlink.Options.OnPass) instead of
+// sleeping and counting requests.
 func TestPlexRowsOnlyRefreshBehindHome(t *testing.T) {
-	h, f := plexHarness(t)
+	passes := make(chan plexlink.Pass, 64)
+	h, f, obs := plexHarnessWith(t, func(p plexlink.Pass) {
+		select {
+		case passes <- p:
+		default: // the test only reads while it waits; never block the loop
+		}
+	})
 	_ = h.shell.Send(shellipc.Focus{Type: shellipc.TypeFocus, Screen: "settings"})
 	_ = h.plexSend(shellipc.PlexSignIn{Type: shellipc.TypePlexSignIn, RequestID: "s1"}, "s1")
 	f.Link()
@@ -169,9 +214,28 @@ func TestPlexRowsOnlyRefreshBehindHome(t *testing.T) {
 	if res.Outcome == contract.OutcomeFailed {
 		t.Fatalf("launch: %+v", res)
 	}
-	h.eventually("app in front", func() bool { return h.c.Target().Kind == "app" })
+	h.eventually("the connector knows an app is in front", func() bool {
+		front, home := obs.front()
+		return h.c.Target().Kind == "app" && !front && !home
+	})
+	// Drop earlier decisions (no rows yet), then finish sign-in: that forces
+	// a refresh, which must wait for the shell.
+	for len(passes) > 0 {
+		<-passes
+	}
 	_ = h.plexSend(shellipc.PlexChooseLibraries{Type: shellipc.TypePlexChooseLibraries, RequestID: "s2", LibraryIDs: []string{"1"}}, "s2")
-	time.Sleep(200 * time.Millisecond)
+	deadline := time.After(3 * time.Second)
+	for decided := false; !decided; {
+		select {
+		case p := <-passes:
+			if p.Started {
+				t.Fatalf("a row refresh started while an app was in front: %+v", p)
+			}
+			decided = p.Feed && p.Due // the loop saw the forced refresh and held it
+		case <-deadline:
+			t.Fatal("the loop never decided on the forced refresh")
+		}
+	}
 	if n := f.Count("/hubs/continueWatching"); n != 0 {
 		t.Fatalf("%d row fetches while an app was in front", n)
 	}

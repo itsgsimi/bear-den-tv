@@ -97,6 +97,17 @@ type Options struct {
 	FeedTimeout time.Duration
 	// ClientOptions tune the server client (tests: Retries -1).
 	ClientOptions plex.ClientOptions
+	// OnPass, when set, is called (never under the manager's lock) after
+	// each decision of Run's loop about the rows, so tests can wait for the
+	// loop instead of sleeping. Production leaves it nil.
+	OnPass func(Pass)
+}
+
+// Pass is one decision of Run's loop (Options.OnPass): whether the rows
+// exist (Feed), a refresh was due (Due), the shell in front allowed one
+// (Allowed), and whether a refresh started (Started).
+type Pass struct {
+	Feed, Due, Allowed, Started bool
 }
 
 // flow is one sign-in attempt, from Sign in to the library choice.
@@ -463,10 +474,12 @@ func (m *Manager) maybeRefresh(ctx context.Context) {
 	due := m.force || (!m.nextDue.IsZero() && !m.clk.Now().Before(m.nextDue))
 	if feed == nil || m.refreshing || !allowed || !due {
 		m.mu.Unlock()
+		m.pass(Pass{Feed: feed != nil, Due: due, Allowed: allowed})
 		return
 	}
 	m.refreshing, m.force = true, false
 	m.mu.Unlock()
+	m.pass(Pass{Feed: true, Due: true, Allowed: true, Started: true})
 
 	m.wg.Add(1)
 	go func() {
@@ -498,6 +511,12 @@ func (m *Manager) maybeRefresh(ctx context.Context) {
 		m.changed()
 		m.wake()
 	}()
+}
+
+func (m *Manager) pass(p Pass) {
+	if m.opts.OnPass != nil {
+		m.opts.OnPass(p)
+	}
 }
 
 // learnLibraries fills the connected view's library list once, from the
