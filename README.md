@@ -56,16 +56,16 @@ the TV yet), and browser (Playwright) tests for the phone remote.
 ## Install
 
 A `.deb` for Ubuntu 22.04 / Linux Mint 21.3 and newer (amd64, X11 desktop).
-There are no downloads on a Releases page yet, so build it on a workstation
-with the toolchain below, then copy it to the TV box:
-
-```sh
-make package                                        # → build/dist/bear-den-tv_<version>_amd64.deb
-```
+Download `bear-den-tv_<version>_amd64.deb` (and `SHA256SUMS`) from the
+[Releases page](https://github.com/itsgsimi/bear-den-tv/releases); GitHub's runner builds and tests every
+release ([Cutting a release](docs/operations.md#cutting-a-release)). No release
+has been published yet; until then, build one yourself with the toolchain
+below (`make package` → `build/dist/`) for your own use only.
 
 On the TV box:
 
 ```sh
+sha256sum -c --ignore-missing SHA256SUMS            # optional: check the download
 sudo apt install ./bear-den-tv_<version>_amd64.deb  # Qt is bundled; X11/EGL/fonts come from the distro
 /usr/lib/bear-den-tv/start-session.sh --watch       # start it now, or open "Bear Den TV" from the app menu
 bear-den-tv autostart enable                        # optional: start at every desktop login

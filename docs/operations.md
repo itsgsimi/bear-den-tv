@@ -146,9 +146,9 @@ What [`packaging/build-deb.sh`](../packaging/build-deb.sh) does:
 - **Reported, not fatal:** a few conda libraries (fontconfig, glib, libuuid,
   libcrypto, xcb-cursor) keep the build machine's toolchain path as a compiled-in
   default. The wrapper's `FONTCONFIG_FILE` and `qt.conf` override the ones that
-  matter. `make package` lists them. For a published release, bootstrap the
-  toolchain at a neutral path (`BDTV_TOOLCHAIN=/opt/bdtv-toolchain`, not tried
-  yet) so no user name ends up in the package.
+  matter. `make package` lists them. On a workstation that path contains your
+  user name, which is why published packages are built only by the release
+  workflow ([Cutting a release](#cutting-a-release)).
 
 Installed layout (from [`packaging/nfpm.yaml`](../packaging/nfpm.yaml)):
 
@@ -164,6 +164,36 @@ Installed layout (from [`packaging/nfpm.yaml`](../packaging/nfpm.yaml)):
 Removing the package leaves your settings, paired phones and caches in the
 XDG folders ([Runtime layout](#runtime-layout-xdg)) and any
 `~/.config/autostart` entry you enabled; delete them to forget everything.
+
+### Cutting a release
+
+Push a version tag. The workflow does the rest:
+
+```sh
+git tag v0.x.y && git push origin v0.x.y
+```
+
+[`.github/workflows/release.yml`](../.github/workflows/release.yml) then runs
+on GitHub's `ubuntu-24.04` runner:
+
+1. restores or bootstraps the toolchain **with** the glibc 2.28 sysroot (cache
+   key: CI's plus `-sysroot`);
+2. `make test`, then `make package`, and checks the package version equals the
+   tag (`v0.2.0` → `0.2.0`, `v0.2.0-rc1` → `0.2.0~rc1`);
+3. `packaging/smoke-deb.sh ubuntu:22.04` and `ubuntu:24.04`;
+4. [`packaging/check-home-paths.sh`](../packaging/check-home-paths.sh): fails if
+   any file in the .deb mentions a home directory other than `/home/runner`
+   (the runner's toolchain path) or `/home/conda` (conda-forge's own build
+   path);
+5. creates the GitHub Release for the tag with auto-generated notes, the .deb
+   and `SHA256SUMS` (a tag with a `-`, like `v0.2.0-rc1`, is marked
+   pre-release). Re-running the workflow replaces the two files.
+
+**Never upload a .deb built locally.** It carries your toolchain path, and
+with it your user name, in five bundled libraries; `packaging/check-home-paths.sh`
+on a local build shows them. To try the release build without publishing,
+run the workflow by hand (Actions → Release → Run workflow): it builds and
+checks the same way and keeps the .deb as a workflow artifact for 14 days.
 
 ## Sandbox (prototype without the TV)
 
