@@ -107,6 +107,10 @@ export interface AppState {
   session: Session | null;
   connection: Connection;
   snapshot: StateSnapshot | null;
+  /** When the last snapshot arrived, on the controller clock (`now()` in app.ts); 0 before any. */
+  snapshotAt: number;
+  /** The page is hidden (another tab, screen off): nothing needs to tick. */
+  hidden: boolean;
   pending: Record<string, PendingAction>;
   hold: HoldStatus;
   lastError: PairError | null;
@@ -124,6 +128,7 @@ export type Event =
   | { type: 'pair_required' }
   | { type: 'connection_changed'; connection: Connection }
   | { type: 'state_received'; snapshot: StateSnapshot; at: number }
+  | { type: 'visibility_changed'; hidden: boolean }
   | { type: 'action_sent'; request: ActionRequest; at: number }
   | { type: 'action_result'; result: ActionResult; at: number }
   | { type: 'action_send_failed'; request_id: string; message: string; at: number }
@@ -181,6 +186,8 @@ export function initialState(deviceName = ''): AppState {
     session: null,
     connection: 'idle',
     snapshot: null,
+    snapshotAt: 0,
+    hidden: false,
     pending: {},
     hold: IDLE_HOLD,
     lastError: null,
@@ -237,7 +244,7 @@ export function reduce(state: AppState, event: Event): AppState {
         state.editor.status === 'ready' && snapshot.layout_pending !== undefined
           ? { ...state.editor, pending: snapshot.layout_pending, pendingAt: event.at }
           : state.editor;
-      return { ...state, snapshot, session, tab, editor };
+      return { ...state, snapshot, snapshotAt: event.at, session, tab, editor };
     }
     case 'action_sent':
       return {
@@ -311,6 +318,8 @@ export function reduce(state: AppState, event: Event): AppState {
       return { ...state, toast: event.toast };
     case 'toast_dismissed':
       return state.toast && state.toast.id === event.id ? { ...state, toast: null } : state;
+    case 'visibility_changed':
+      return state.hidden === event.hidden ? state : { ...state, hidden: event.hidden };
     case 'tab_selected':
       return state.tab === event.tab ? state : { ...state, tab: event.tab };
     case 'pair_device_name':

@@ -156,7 +156,11 @@ export function createApp(env: ApiEnvironment, page: PageEnvironment, win: Windo
   );
 
   bindHoldLifecycle(hold, page, win);
-  page.addEventListener('visibilitychange', () => socket.setHidden(page.hidden));
+  store.dispatch({ type: 'visibility_changed', hidden: page.hidden });
+  page.addEventListener('visibilitychange', () => {
+    socket.setHidden(page.hidden);
+    store.dispatch({ type: 'visibility_changed', hidden: page.hidden });
+  });
 
   function showToast(kind: NoticeKind, text: string): void {
     toastSeq += 1;

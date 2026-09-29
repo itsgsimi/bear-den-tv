@@ -4,7 +4,7 @@
 // Server-provided `message` strings (action results, HTTP errors, capability
 // reasons) are shown verbatim and are not translated here.
 
-import type { Outcome, Permission, TargetKind, Transport } from './contract.ts';
+import type { NowPlayingStatus, Outcome, Permission, TargetKind, Transport } from './contract.ts';
 
 const ACTION_NAMES: Record<string, string> = {
   'nav.up': 'Up',
@@ -116,6 +116,10 @@ export const t = {
     seekForward: '+30 s',
     seekBackLabel: 'Seek back 30 seconds',
     seekForwardLabel: 'Seek forward 30 seconds',
+    nowPlaying: 'Now playing',
+    nowPlayingIn: (app: string) => `Now playing in ${app}`,
+    nowPlayingStatus: (status: NowPlayingStatus): string => (status === 'playing' ? 'Playing' : status === 'paused' ? 'Paused' : 'Stopped'),
+    nowPlayingProgress: (position: string, length: string) => `${position} of ${length}`,
     pcVolume: 'PC volume',
     volumeDown: 'Volume down',
     volumeUp: 'Volume up',
