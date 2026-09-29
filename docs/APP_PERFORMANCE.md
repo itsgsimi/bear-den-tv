@@ -174,6 +174,18 @@ H.264 **Optimized Versions** on the server.
 VacuumTube also reads extra Chromium flags from `flags.txt` in the same folder.
 Bear Den doesn't need any today.
 
+### Spotify, Jellyfin, RetroArch (optional apps): no tunable settings
+
+These are rows in `Apps` with `NoTuning` plans: no settings file, no changes,
+nothing to adjust by hand, and one note that says why. Detection still lists
+them with what to expect.
+
+| App | Why Bear Den tunes nothing |
+|---|---|
+| Spotify | It streams compressed audio, which any box plays without help. |
+| Jellyfin Desktop | Its playback settings live on the Jellyfin server and in its own profile; Bear Den does not edit them yet. If a file stutters, lower its quality in the player so the server converts it. |
+| RetroArch | Video and audio settings belong to each core and game; `retroarch.cfg` is the owner's. On an entry box: lightweight cores, shaders off. |
+
 ## What to expect, and the caveats
 
 Each app gets plain "expect" lines: what plays, up to what resolution, and
@@ -315,7 +327,9 @@ written to the apps' files; `apps detect --apply` applies them.
    - keep unknown settings and the file's formatting as they were;
    - with no settings file yet, return a note and no changes.
 4. Add a row to `Apps` in [`detect.go`](../internal/applications/tuning/detect.go) (Flatpak id, adapter name, label, plan)
-   and a case in `Expectations` for what to expect and its caveats.
+   and a case in `Expectations` for what to expect and its caveats. Every
+   adapter needs a row (`TestEveryAdapterHasATuningRow`); an app with nothing
+   to tune gets `NoTuning(adapter, flatpakID, why)` and skips steps 1–3.
 5. Test it in [`tuning_test.go`](../internal/applications/tuning/tuning_test.go) and [`settings_test.go`](../internal/applications/tuning/settings_test.go) against the reference
    box (`small`, the `haswellInspect` decoders, the `refDisplay` display) and a
    capable one (`standard` or `big`, `modernInspect`, `uhd60`): the catalog's
