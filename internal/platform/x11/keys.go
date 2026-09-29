@@ -20,6 +20,9 @@ const (
 	keysymAudioPause   xproto.Keysym = 0x1008ff31
 	keysymAudioRewind  xproto.Keysym = 0x1008ff3e
 	keysymAudioForward xproto.Keysym = 0x1008ff97
+	keysymX            xproto.Keysym = 0x0078
+	keysymZ            xproto.Keysym = 0x007a
+	keysymP            xproto.Keysym = 0x0070
 )
 
 // keysyms is the only key → keysym table; anything absent cannot be injected.
@@ -35,6 +38,9 @@ var keysyms = map[platform.Key]xproto.Keysym{
 	platform.KeyPause:     keysymAudioPause,
 	platform.KeyRewind:    keysymAudioRewind,
 	platform.KeyForward:   keysymAudioForward,
+	platform.KeyLetterX:   keysymX,
+	platform.KeyLetterZ:   keysymZ,
+	platform.KeyLetterP:   keysymP,
 }
 
 // KeysymFor returns the X keysym for a logical key, or false when the key is

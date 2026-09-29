@@ -41,6 +41,8 @@ const SCHEMA_FOR: Record<string, string> = {
   'state.shell-home.valid.json': 'state.schema.json',
   'state.phone-controller.valid.json': 'state.schema.json',
   'state.phone-now-playing.valid.json': 'state.schema.json',
+  'state.phone-optional-apps.valid.json': 'state.schema.json',
+  'state.hidden-not-bool.invalid.json': 'state.schema.json',
   'state.now-playing-bad-status.invalid.json': 'state.schema.json',
   'state.now-playing-no-title.invalid.json': 'state.schema.json',
   'config.default.valid.json': 'config.schema.json',

@@ -48,6 +48,10 @@ Error body shape: `{"error":"<code>","message":"<human text>"}`.
 
 There is no HTTP route for playback settings or local weather: those are changed on the TV or with the local CLI over IPC ([`ipc.md`](ipc.md) `playback.set`, `weather.search`, `weather.configure`), and phones never receive `state.weather`.
 
+## Optional apps (`state.applications[].hidden`)
+
+An application whose config has `hide_when_missing: true` ([`config.md`](config.md#optional-apps-optional-field)) carries `hidden: true` while its Flatpak is not installed or not yet discovered. Phones and the shell draw no tile for a hidden app; it stays in the list so layout editors still see it. Absent means `false`.
+
 ## Now playing (`state.now_playing`)
 
 While an app that exposes an MPRIS player is in front, phones with the `controller` permission get `state.now_playing`: the app id, the title, an optional subtitle (artist or album), `status` (`playing`, `paused`, `stopped`), optional `length_ms` and `position_ms`, `position_at` and `rate`. This is a deliberate exception to "phones never see external window titles" (`target.window_title` stays redacted): the owner shows what is playing to the devices they paired for control, and can turn it off.

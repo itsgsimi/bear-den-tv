@@ -668,6 +668,62 @@ private slots:
         QVERIFY(SessionModel::instance()->applySnapshot(fixture()));
     }
 
+    // Optional apps (config hide_when_missing): a `hidden` app has no tile, a
+    // present one does; a non-boolean `hidden` rejects the snapshot.
+    void optionalAppHiddenWhenMissing()
+    {
+        const auto restore = qScopeGuard([&] { QVERIFY(SessionModel::instance()->applySnapshot(fixture())); });
+        auto withOptional = [&](const QJsonValue &hidden) {
+            QJsonObject snap = fixture();
+            QJsonArray apps = snap.value(QStringLiteral("applications")).toArray();
+            QJsonObject app = apps.at(0).toObject();
+            for (const char *id : {"spotify", "retroarch"}) {
+                app.insert(QStringLiteral("id"), QString::fromLatin1(id));
+                app.insert(QStringLiteral("adapter"), QString::fromLatin1(id));
+                app.insert(QStringLiteral("label"), QString::fromLatin1(id));
+                app.remove(QStringLiteral("hidden"));
+                if (qstrcmp(id, "spotify") == 0) {
+                    app.insert(QStringLiteral("installed"), false);
+                    app.insert(QStringLiteral("hidden"), hidden);
+                } else {
+                    app.insert(QStringLiteral("installed"), true);
+                }
+                apps.append(app);
+            }
+            snap.insert(QStringLiteral("applications"), apps);
+            QJsonObject layout = snap.value(QStringLiteral("layout")).toObject();
+            QJsonArray sections = layout.value(QStringLiteral("sections")).toArray();
+            QJsonObject fav = sections.at(0).toObject();
+            fav.insert(QStringLiteral("application_ids"), QJsonArray{QStringLiteral("plex-htpc"), QStringLiteral("youtube"), QStringLiteral("spotify"), QStringLiteral("retroarch")});
+            sections.replace(0, fav);
+            layout.insert(QStringLiteral("sections"), sections);
+            snap.insert(QStringLiteral("layout"), layout);
+            snap.insert(QStringLiteral("context_epoch"), snap.value(QStringLiteral("context_epoch")).toInt() + 1);
+            return SessionModel::instance()->applySnapshot(snap);
+        };
+        QVERIFY(!withOptional(QStringLiteral("yes")));
+        QVERIFY(withOptional(true));
+        QCoreApplication::processEvents();
+        goHome();
+        toFavorites();
+        act(QStringLiteral("nav.right"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("youtube"));
+        act(QStringLiteral("nav.right")); // spotify is hidden: straight to retroarch
+        QCOMPARE(m_nav->itemId(), QStringLiteral("retroarch"));
+        act(QStringLiteral("nav.right"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("retroarch"));
+        shot(QStringLiteral("optional-hidden"));
+        QVERIFY(withOptional(false)); // installed now: its tile appears
+        QCoreApplication::processEvents();
+        goHome();
+        toFavorites();
+        for (int i = 0; i < 4; ++i)
+            act(QStringLiteral("nav.left"));
+        act(QStringLiteral("nav.right"));
+        act(QStringLiteral("nav.right"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("spotify"));
+    }
+
     void lockedHidesEverything()
     {
         goHome();

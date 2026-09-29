@@ -1,7 +1,10 @@
-// Package adapters holds the per-application knowledge for the three approved
-// clients, Plex HTPC, VacuumTube and Moonlight: the only Flatpak id each may
+// Package adapters holds the per-application knowledge for the approved
+// clients: the three core apps (Plex HTPC, VacuumTube, Moonlight) and the
+// optional ones (Spotify, Jellyfin Desktop, RetroArch; hidden while not
+// installed, config hide_when_missing). Per app: the only Flatpak id it may
 // launch, the closed list of launch arguments, window matching by WM_CLASS
-// (X11) or app_id (Wayland), the action → logical-key map, and the pause verification flag. Everything here
+// (X11) or app_id (Wayland), the action → logical-key map, the MPRIS match, how Home may pause
+// it (HomePause) and the pause verification flag. Everything here
 // is unverified against the target until the live probe records evidence in
 // tests/compatibility/; PauseVerified stays false until then.
 package adapters
@@ -19,6 +22,9 @@ const (
 	PlexHTPCName   = "plex-htpc"
 	VacuumTubeName = "vacuumtube"
 	MoonlightName  = "moonlight"
+	SpotifyName    = "spotify"
+	JellyfinName   = "jellyfin"
+	RetroArchName  = "retroarch"
 
 	// PlexHTPCFlatpakID is the published Flatpak id of Plex HTPC (spec §7.1).
 	PlexHTPCFlatpakID = "tv.plex.PlexHTPC"
@@ -26,6 +32,14 @@ const (
 	VacuumTubeFlatpakID = "rocks.shy.VacuumTube"
 	// MoonlightFlatpakID is the Flathub id of Moonlight (game streaming client).
 	MoonlightFlatpakID = "com.moonlight_stream.Moonlight"
+	// SpotifyFlatpakID is the Flathub id of Spotify (checked on flathub.org).
+	SpotifyFlatpakID = "com.spotify.Client"
+	// JellyfinFlatpakID is the Flathub id of Jellyfin Desktop, the renamed
+	// Jellyfin Media Player (2.0; the old com.github.iwalton3.jellyfin-media-player
+	// is end-of-life on Flathub).
+	JellyfinFlatpakID = "org.jellyfin.JellyfinDesktop"
+	// RetroArchFlatpakID is the Flathub id of RetroArch.
+	RetroArchFlatpakID = "org.libretro.RetroArch"
 )
 
 // WM_CLASS fragments (lower-cased substring match against any WM_CLASS
@@ -36,6 +50,9 @@ var (
 	plexClassFragments       = []string{"plex"}       // expected "Plex HTPC" / "plexhtpc"
 	vacuumTubeClassFragments = []string{"vacuumtube"} // expected "vacuumtube" / "VacuumTube"
 	moonlightClassFragments  = []string{"moonlight"}  // expected "moonlight" / "Moonlight"
+	spotifyClassFragments    = []string{"spotify"}    // expected "spotify" / "Spotify"
+	jellyfinClassFragments   = []string{"jellyfin"}   // expected "org.jellyfin.JellyfinDesktop" (its .desktop StartupWMClass)
+	retroArchClassFragments  = []string{"retroarch"}  // expected "retroarch" / "RetroArch"
 )
 
 // navKeys is the action → key map shared by every Leanback-style client.
@@ -55,12 +72,55 @@ var plexMediaKeys = map[string]platform.Key{
 	"media.pause": platform.KeyPause,
 }
 
+// spotifyKeys follow Spotify's documented shortcuts
+// (support.spotify.com, "Keyboard shortcuts"): Up/Down move through a list and
+// Return plays the selected row. Left/Right are left unmapped because Spotify
+// documents them as list actions (add to library/queue), not as moving focus;
+// there is no documented Back key. Playback goes through MPRIS instead.
+var spotifyKeys = map[string]platform.Key{
+	"nav.up":   platform.KeyUp,
+	"nav.down": platform.KeyDown,
+	"select":   platform.KeySelect,
+}
+
+// retroArchKeys are RetroArch's default keyboard controls (retroarch.cfg and
+// docs.libretro.com "Input and controls"): arrows navigate the menu, x
+// confirms (input_player1_a), z goes back (input_player1_b). Escape is never
+// sent: it is input_exit_emulator and would quit RetroArch.
+var retroArchKeys = map[string]platform.Key{
+	"nav.up":    platform.KeyUp,
+	"nav.down":  platform.KeyDown,
+	"nav.left":  platform.KeyLeft,
+	"nav.right": platform.KeyRight,
+	"select":    platform.KeyLetterX,
+	"back":      platform.KeyLetterZ,
+}
+
+// HomePause says how Home may pause an app before bringing the shell forward
+// (config home_policy "pause-if-supported"; contracts/actions.md `home`). It
+// is data: the router may act on it only while PauseVerified is true, and no
+// adapter is verified yet, so today Home never pauses anything.
+type HomePause struct {
+	// Kind: "none" (keep playing: music, game streams), "mpris" (MPRIS
+	// Pause, idempotent) or "key" (a documented pause key).
+	Kind string
+	// Key is the pause key for Kind "key".
+	Key platform.Key
+	// Toggle marks a key that also un-pauses: sent to an already paused app
+	// it would resume it, so it needs the app's state first.
+	Toggle bool
+	// Why explains the choice (docs, diagnostics).
+	Why string
+}
+
 type app struct {
 	name      string
 	flatpakID string
 	args      []string
 	fragments []string
 	keys      map[string]platform.Key
+	media     string // MPRIS match when it is not the Flatpak id
+	home      HomePause
 }
 
 // Name implements applications.Adapter.
@@ -86,7 +146,24 @@ func (a *app) KeyFor(action string) (platform.Key, bool) {
 
 // MediaMatch implements applications.Adapter with the Flatpak id, which is
 // also the expected MPRIS DesktopEntry.
-func (a *app) MediaMatch() string { return a.flatpakID }
+func (a *app) MediaMatch() string {
+	if a.media != "" {
+		return a.media
+	}
+	return a.flatpakID
+}
+
+// HomePause returns how Home may pause this app (data; see HomePause).
+func (a *app) HomePause() HomePause { return a.home }
+
+// HomePauseOf returns ad's HomePause, or Kind "none" for an adapter that does
+// not declare one.
+func HomePauseOf(ad applications.Adapter) HomePause {
+	if h, ok := ad.(interface{ HomePause() HomePause }); ok {
+		return h.HomePause()
+	}
+	return HomePause{Kind: "none"}
+}
 
 // PauseVerified implements applications.Adapter: nothing has been verified on
 // the target; flip only with recorded evidence in tests/compatibility/.
@@ -145,13 +222,15 @@ func merged(maps ...map[string]platform.Key) map[string]platform.Key {
 // PlexHTPC returns the Plex HTPC adapter: no launch arguments (spec §7.1),
 // navigation plus unverified media keys.
 func PlexHTPC() applications.Adapter {
-	return &app{name: PlexHTPCName, flatpakID: PlexHTPCFlatpakID, fragments: plexClassFragments, keys: merged(navKeys, plexMediaKeys)}
+	return &app{name: PlexHTPCName, flatpakID: PlexHTPCFlatpakID, fragments: plexClassFragments, keys: merged(navKeys, plexMediaKeys),
+		home: HomePause{Kind: "mpris", Why: "A film should wait while you are Home: MPRIS Pause."}}
 }
 
 // VacuumTube returns the VacuumTube adapter: documented fullscreen flags
 // (spec §8), navigation only — media.* stays unmapped until verified.
 func VacuumTube() applications.Adapter {
-	return &app{name: VacuumTubeName, flatpakID: VacuumTubeFlatpakID, args: []string{"--fullscreen", "--no-window-decorations"}, fragments: vacuumTubeClassFragments, keys: merged(navKeys)}
+	return &app{name: VacuumTubeName, flatpakID: VacuumTubeFlatpakID, args: []string{"--fullscreen", "--no-window-decorations"}, fragments: vacuumTubeClassFragments, keys: merged(navKeys),
+		home: HomePause{Kind: "mpris", Why: "A video should wait while you are Home: MPRIS Pause."}}
 }
 
 // Moonlight returns the Moonlight adapter: no launch arguments, navigation
@@ -160,7 +239,35 @@ func VacuumTube() applications.Adapter {
 // still works because it activates the shell window instead of sending keys.
 // No MPRIS: media.* stays unmapped.
 func Moonlight() applications.Adapter {
-	return &app{name: MoonlightName, flatpakID: MoonlightFlatpakID, fragments: moonlightClassFragments, keys: merged(navKeys)}
+	return &app{name: MoonlightName, flatpakID: MoonlightFlatpakID, fragments: moonlightClassFragments, keys: merged(navKeys),
+		home: HomePause{Kind: "none", Why: "The game runs on the streaming PC and keys would reach that host, so Home leaves it alone."}}
+}
+
+// Spotify returns the Spotify adapter (optional app): no launch arguments,
+// Spotify's documented list keys (spotifyKeys). Its MPRIS player is
+// org.mpris.MediaPlayer2.spotify, so MediaMatch is "spotify", not the
+// Flatpak id (UNVERIFIED on the target). Home leaves music playing.
+func Spotify() applications.Adapter {
+	return &app{name: SpotifyName, flatpakID: SpotifyFlatpakID, fragments: spotifyClassFragments, keys: merged(spotifyKeys), media: "spotify",
+		home: HomePause{Kind: "none", Why: "Music keeps playing while you are Home."}}
+}
+
+// Jellyfin returns the Jellyfin Desktop adapter (optional app): starts in its
+// TV interface, full screen (`--fullscreen --tv`, from its --help and its
+// .desktop actions). Its keyboard map (resources/inputmaps/keyboard.json)
+// gives arrows, Return (enter) and Escape (short press: back); media.* stays
+// unmapped until verified. Its MPRIS DesktopEntry is the Flatpak id.
+func Jellyfin() applications.Adapter {
+	return &app{name: JellyfinName, flatpakID: JellyfinFlatpakID, args: []string{"--fullscreen", "--tv"}, fragments: jellyfinClassFragments, keys: merged(navKeys),
+		home: HomePause{Kind: "mpris", Why: "A film should wait while you are Home: MPRIS Pause."}}
+}
+
+// RetroArch returns the RetroArch adapter (optional app): full screen
+// (`--fullscreen`), RetroArch's default menu keys (retroArchKeys). No MPRIS.
+// Home's pause is the documented pause key p (input_pause_toggle), a toggle.
+func RetroArch() applications.Adapter {
+	return &app{name: RetroArchName, flatpakID: RetroArchFlatpakID, args: []string{"--fullscreen"}, fragments: retroArchClassFragments, keys: merged(retroArchKeys),
+		home: HomePause{Kind: "key", Key: platform.KeyLetterP, Toggle: true, Why: "A game should wait while you are Home: RetroArch's pause key (p, input_pause_toggle)."}}
 }
 
 // Registry resolves config adapter names to adapters.
@@ -171,7 +278,7 @@ type Registry struct {
 // NewRegistry returns a registry holding every approved adapter.
 func NewRegistry() *Registry {
 	r := &Registry{byName: map[string]applications.Adapter{}}
-	for _, a := range []applications.Adapter{PlexHTPC(), VacuumTube(), Moonlight()} {
+	for _, a := range []applications.Adapter{PlexHTPC(), VacuumTube(), Moonlight(), Spotify(), Jellyfin(), RetroArch()} {
 		r.byName[a.Name()] = a
 	}
 	return r

@@ -17,6 +17,8 @@ Canonical messages consumed by contract tests in Go ([`tests/contract/fixtures_t
 | `state.shell-home.valid.json` | `state.schema.json` (shell view, pairing shown) |
 | `state.phone-controller.valid.json` | `state.schema.json` (phone view, redacted) |
 | `state.phone-now-playing.valid.json` | `state.schema.json` (phone view with DEMO `now_playing` and `remote.now_playing`) |
+| `state.phone-optional-apps.valid.json` | `state.schema.json` (phone view: an installed optional app, and a missing one with `hidden: true`) |
+| `state.hidden-not-bool.invalid.json` | rejected: `applications[].hidden` must be a boolean |
 | `state.now-playing-bad-status.invalid.json` | rejected: `now_playing.status` must be `playing`, `paused` or `stopped` |
 | `state.now-playing-no-title.invalid.json` | rejected: `now_playing.title` must not be empty (no title means no `now_playing`) |
 | `config.default.valid.json` | `config.schema.json` (built-in defaults) |

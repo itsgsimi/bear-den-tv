@@ -78,7 +78,8 @@
           "running": {"type": "boolean"},
           "foreground": {"type": "boolean"},
           "launch_state": {"enum": ["idle", "launching", "running", "failed", "exited", "crashed"]},
-          "last_error": {"type": ["string", "null"]}
+          "last_error": {"type": ["string", "null"]},
+          "hidden": {"type": "boolean", "description": "true when the app is optional (config hide_when_missing) and its Flatpak is not installed (or not yet discovered): the shell and phones show no tile for it. Absent means false."}
         },
         "required": ["id", "label", "adapter", "installed", "version", "installation", "running", "foreground", "launch_state", "last_error"],
         "additionalProperties": false

@@ -4,6 +4,7 @@ package adapters
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 
 	"bear-den-tv/internal/applications"
@@ -12,7 +13,7 @@ import (
 
 func TestRegistry(t *testing.T) {
 	r := NewRegistry()
-	if got := r.Names(); !reflect.DeepEqual(got, []string{"moonlight", "plex-htpc", "vacuumtube"}) {
+	if got := r.Names(); !reflect.DeepEqual(got, []string{"jellyfin", "moonlight", "plex-htpc", "retroarch", "spotify", "vacuumtube"}) {
 		t.Fatalf("%v", got)
 	}
 	if _, ok := r.ForName("kodi"); ok {
@@ -21,7 +22,7 @@ func TestRegistry(t *testing.T) {
 	if a, ok := ForName("plex-htpc"); !ok || a.FlatpakID() != "tv.plex.PlexHTPC" {
 		t.Fatal("plex-htpc")
 	}
-	if len(r.All()) != 3 {
+	if len(r.All()) != 6 {
 		t.Fatal("All")
 	}
 }
@@ -140,5 +141,85 @@ func TestMoonlight(t *testing.T) {
 	}
 	if k, ok := a.KeyFor("back"); !ok || k != platform.KeyBack {
 		t.Fatal("moonlight back must map to the back key")
+	}
+}
+
+// The optional apps are rows of data: id, arguments, window match, key map,
+// MPRIS match and Home's pause, all checked here (docs in each constructor).
+func TestOptionalApps(t *testing.T) {
+	cases := []struct {
+		name, id string
+		args     []string
+		class    []string
+		keys     map[string]platform.Key
+		unmapped []string
+		media    string
+		home     HomePause
+	}{
+		{
+			name: "spotify", id: "com.spotify.Client", class: []string{"spotify", "Spotify"},
+			keys:     map[string]platform.Key{"nav.up": platform.KeyUp, "nav.down": platform.KeyDown, "select": platform.KeySelect},
+			unmapped: []string{"nav.left", "nav.right", "back", "media.play", "media.pause"},
+			media:    "spotify",
+			home:     HomePause{Kind: "none"},
+		},
+		{
+			name: "jellyfin", id: "org.jellyfin.JellyfinDesktop", args: []string{"--fullscreen", "--tv"},
+			class: []string{"org.jellyfin.JellyfinDesktop", "org.jellyfin.JellyfinDesktop"},
+			keys: map[string]platform.Key{"nav.up": platform.KeyUp, "nav.down": platform.KeyDown, "nav.left": platform.KeyLeft,
+				"nav.right": platform.KeyRight, "select": platform.KeySelect, "back": platform.KeyBack},
+			unmapped: []string{"media.play", "media.pause"},
+			media:    "org.jellyfin.JellyfinDesktop",
+			home:     HomePause{Kind: "mpris"},
+		},
+		{
+			name: "retroarch", id: "org.libretro.RetroArch", args: []string{"--fullscreen"}, class: []string{"retroarch", "RetroArch"},
+			keys: map[string]platform.Key{"nav.up": platform.KeyUp, "nav.down": platform.KeyDown, "nav.left": platform.KeyLeft,
+				"nav.right": platform.KeyRight, "select": platform.KeyLetterX, "back": platform.KeyLetterZ},
+			unmapped: []string{"media.play", "media.pause"},
+			media:    "org.libretro.RetroArch",
+			home:     HomePause{Kind: "key", Key: platform.KeyLetterP, Toggle: true},
+		},
+	}
+	for _, c := range cases {
+		a, ok := ForName(c.name)
+		if !ok {
+			t.Fatalf("%s is not registered", c.name)
+		}
+		if a.FlatpakID() != c.id || strings.Join(a.ApprovedArgs(), " ") != strings.Join(c.args, " ") {
+			t.Errorf("%s: id %s args %v", c.name, a.FlatpakID(), a.ApprovedArgs())
+		}
+		if !a.MatchWindow(platform.WindowInfo{Class: c.class}) || a.MatchWindow(platform.WindowInfo{Class: []string{"plexhtpc"}, Title: c.name}) {
+			t.Errorf("%s: window matching", c.name)
+		}
+		if !a.MatchWindow(platform.WindowInfo{AppID: c.id}) {
+			t.Errorf("%s: Wayland app_id %s not matched", c.name, c.id)
+		}
+		for action, want := range c.keys {
+			if got, ok := a.KeyFor(action); !ok || got != want {
+				t.Errorf("%s: KeyFor(%s)=%q,%v want %q", c.name, action, got, ok, want)
+			}
+		}
+		for _, action := range c.unmapped {
+			if k, ok := a.KeyFor(action); ok {
+				t.Errorf("%s: %s must stay unmapped, got %q", c.name, action, k)
+			}
+		}
+		// RetroArch quits on Escape (input_exit_emulator): never send it.
+		for _, action := range []string{"back", "select", "nav.up"} {
+			if k, _ := a.KeyFor(action); c.name == "retroarch" && k == platform.KeyBack {
+				t.Errorf("retroarch: %s maps to Escape, which quits RetroArch", action)
+			}
+		}
+		if a.MediaMatch() != c.media {
+			t.Errorf("%s: MediaMatch %q want %q", c.name, a.MediaMatch(), c.media)
+		}
+		h := HomePauseOf(a)
+		if h.Kind != c.home.Kind || h.Key != c.home.Key || h.Toggle != c.home.Toggle || h.Why == "" {
+			t.Errorf("%s: HomePause %+v want %+v (with a reason)", c.name, h, c.home)
+		}
+		if a.PauseVerified() {
+			t.Errorf("%s: pause must stay unverified", c.name)
+		}
 	}
 }

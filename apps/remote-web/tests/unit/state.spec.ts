@@ -13,6 +13,7 @@ import {
   latestResultFor,
   layoutsEqual,
   reduce,
+  visibleApps,
   visibleTabs,
 } from '../../src/state.ts';
 
@@ -231,5 +232,15 @@ describe('closableApp', () => {
     expect(closableApp(withApps([['plex-htpc', false, false], ['moonlight', true, false]]))?.id).toBe('moonlight');
     expect(closableApp(withApps([['plex-htpc', false, false]]))).toBeNull();
     expect(closableApp(null)).toBeNull();
+  });
+});
+
+describe('visibleApps', () => {
+  it('drops optional apps the coordinator marks hidden and keeps the rest in order', () => {
+    const optional = fixture<StateSnapshot>('state.phone-optional-apps.valid.json');
+    expect(optional.applications.map((a) => a.id)).toEqual(['plex-htpc', 'youtube', 'spotify', 'retroarch']);
+    expect(visibleApps(optional).map((a) => a.id)).toEqual(['plex-htpc', 'youtube', 'spotify']);
+    expect(visibleApps(snapshot)).toHaveLength(snapshot.applications.length);
+    expect(visibleApps(null)).toEqual([]);
   });
 });

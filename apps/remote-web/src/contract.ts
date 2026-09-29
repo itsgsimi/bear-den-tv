@@ -177,6 +177,8 @@ export interface Application {
   foreground: boolean;
   launch_state: LaunchState;
   last_error: string | null;
+  /** An optional app (config hide_when_missing) that is not installed: no tile. Absent means false. */
+  hidden?: boolean;
 }
 
 export interface RemoteLimits {

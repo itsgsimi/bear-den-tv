@@ -481,6 +481,15 @@ export function capabilityFor(snapshot: StateSnapshot | null, action: ActionName
 
 /**
  * @param snapshot Last rendered snapshot.
+ * @returns The apps that get a tile: every application except the optional
+ *   ones the coordinator marks `hidden` (not installed).
+ */
+export function visibleApps(snapshot: StateSnapshot | null): Application[] {
+  return (snapshot?.applications ?? []).filter((a) => a.hidden !== true);
+}
+
+/**
+ * @param snapshot Last rendered snapshot.
  * @returns The app the Close button acts on: the one in front, else one left
  *   running behind Bear Den Home; null when nothing is running.
  */

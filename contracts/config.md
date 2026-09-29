@@ -6,7 +6,7 @@
 
 1. `applications[].id` and `sections[].id` are unique within their arrays and never collide with the reserved words `active`, `shell`.
 2. Every `sections[].application_ids[]` entry references an existing `applications[].id`.
-3. `applications[].launch.args` must be a subset of the adapter's approved argument list: `vacuumtube` ⇒ `--fullscreen`, `--no-window-decorations`; `plex-htpc` and `moonlight` ⇒ none. `launch.app_id` must equal the adapter's known Flatpak id (`rocks.shy.VacuumTube`, `tv.plex.PlexHTPC`, `com.moonlight_stream.Moonlight`).
+3. `applications[].launch.args` must be a subset of the adapter's approved argument list: `vacuumtube` ⇒ `--fullscreen`, `--no-window-decorations`; `jellyfin` ⇒ `--fullscreen`, `--tv`; `retroarch` ⇒ `--fullscreen`; `plex-htpc`, `moonlight` and `spotify` ⇒ none. `launch.app_id` must equal the adapter's known Flatpak id (`rocks.shy.VacuumTube`, `tv.plex.PlexHTPC`, `com.moonlight_stream.Moonlight`, `com.spotify.Client`, `org.jellyfin.JellyfinDesktop`, `org.libretro.RetroArch`).
 4. `remote.enabled` requires `onboarding.lan_consent == true` and every `remote.interfaces[]` to be an interface that exists on this host and is not loopback or a virtual interface (names starting `docker`, `br`, `veth`, `tun`, `tap`, `wg`, `virbr`, `vmnet`, `lxc`, `cni`, `flannel`, `tailscale`, `utun`). Non-existent interfaces fail loud at load ("interface wlan9 not present") and the listener stays down; the shell shows the reconfiguration route.
 5. `remote.transport == "https"` with `remote.enabled` requires readable `certificate_file` and `private_key_file` that parse as a PEM certificate/key pair.
 6. `remote.http_layout_editing` is only honored in `trusted-lan-http`; in `https` layout editing is governed by device permission alone.
@@ -33,6 +33,12 @@
 5. `POST /api/v1/layout/undo` restores the previous revision (one level). `POST /api/v1/layout/reset` restores built-in defaults for one section or the whole layout.
 
 Preview (`POST /api/v1/layout/preview`) sends a draft to the shell over IPC without writing it; the draft ends on `preview_end`, on apply, or after 60 s.
+
+## Optional apps (optional field)
+
+- `applications[].hide_when_missing` (boolean, absent = `false`): an optional app. While its Flatpak is not installed (or not yet discovered) the coordinator marks it `hidden` in `state.applications[]` and neither the shell nor phones draw a tile for it; the core apps leave it out and show "Not installed" instead. The built-in defaults ship Spotify, Jellyfin and RetroArch this way, after the three core apps, in the "Your Apps" rail.
+- Defaults only seed a fresh install: an existing `config.json` keeps its own `applications` list, so an existing box gains the optional apps only by adding their rows (copy them from [`fixtures/config.default.valid.json`](fixtures/config.default.valid.json)).
+- Additive: `schema_version` stays 1.
 
 ## Playback tuning (optional fields)
 
