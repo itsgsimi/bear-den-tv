@@ -19,6 +19,7 @@ import (
 	"context"
 	"errors"
 	"math"
+	"sync"
 	"time"
 
 	"bear-den-tv/internal/config"
@@ -55,6 +56,7 @@ type cecState struct {
 	standbyByUs bool   // Bear Den put the TV in standby; the next input wakes it
 	wasEnabled  bool   // for releasing the adapter when the owner turns it off
 	kick        chan struct{}
+	bg          sync.WaitGroup // background wake/standby sends (waitCECIdle)
 }
 
 func (c *Coordinator) cecSettings() config.CEC { return c.opts.Config.Current().CECSettings() }
@@ -231,7 +233,9 @@ func (c *Coordinator) tvWake(why string) {
 	if !c.cecActive() {
 		return
 	}
+	c.cec.bg.Add(1)
 	go func() {
+		defer c.cec.bg.Done()
 		ctx, cancel := context.WithTimeout(context.Background(), 2*CECTimeout)
 		defer cancel()
 		if err := c.tvOn(ctx); err != nil {
@@ -240,6 +244,10 @@ func (c *Coordinator) tvWake(why string) {
 		c.noteTVPower(c.readTVPower(ctx))
 	}()
 }
+
+// waitCECIdle waits until every background wake or standby send has
+// finished (each is bounded by 2*CECTimeout); tests use it instead of sleeps.
+func (c *Coordinator) waitCECIdle() { c.cec.bg.Wait() }
 
 // wakeTVAfterStandby is powerGate's part: any action after Bear Den put the
 // TV in standby wakes it (the display wake calls tvWake itself).
@@ -270,7 +278,9 @@ func (c *Coordinator) standbyAfterDisplayOff() {
 	if !c.cecActive() {
 		return
 	}
+	c.cec.bg.Add(1)
 	go func() {
+		defer c.cec.bg.Done()
 		ctx, cancel := context.WithTimeout(context.Background(), 2*CECTimeout)
 		defer cancel()
 		if err := c.tvStandby(ctx); err != nil {

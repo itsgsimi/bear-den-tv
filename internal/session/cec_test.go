@@ -344,11 +344,14 @@ func TestTVPowerAction(t *testing.T) {
 	}
 	h.tv.Hang(false)
 
-	// A guest pass never powers the TV (not on the guest allow-list).
+	// A guest pass never powers the TV (not on the guest allow-list). Home's
+	// background wake above may still be finishing: let it drain first.
+	h.c.waitCECIdle()
 	before := len(h.tv.Calls())
 	expectOutcome(t, h.submit(guestViewer(time.Now().Add(time.Hour)), h.req(contract.ActionTVPower, map[string]any{"power": "standby"})), contract.OutcomeFailed, contract.CodeForbidden)
+	h.c.waitCECIdle()
 	if len(h.tv.Calls()) != before {
-		t.Fatal("a guest reached the TV")
+		t.Fatalf("a guest reached the TV: extra %v", h.tv.Calls()[before:])
 	}
 
 	// Old epoch: still applies (a power action); locked: refused.
