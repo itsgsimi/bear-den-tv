@@ -37,6 +37,7 @@ set(BDTV_QML_FILES
   qml/LaunchOverlay.qml
   qml/ErrorBanner.qml
   qml/Toast.qml
+  qml/SleepWarning.qml
   qml/Wallpaper.qml
   qml/BearMark.qml
   qml/Header.qml

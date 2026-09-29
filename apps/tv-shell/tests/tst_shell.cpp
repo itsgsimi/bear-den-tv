@@ -374,6 +374,46 @@ private slots:
         QVERIFY(session->applySnapshot(fixture()));
     }
 
+    // state.power (sleep timer and display) is accepted with a timer or with
+    // null, exposed as Session.power, and a malformed one is rejected while
+    // the previous state stays.
+    void powerAcceptedAndChecked()
+    {
+        SessionModel *session = SessionModel::instance();
+        const int epoch = session->contextEpoch();
+        QJsonObject snap = fixture();
+        snap.insert(QStringLiteral("context_epoch"), epoch + 400);
+        QJsonObject power{{QStringLiteral("sleep_at_ms"), 2685000}, {QStringLiteral("sleep_minutes"), 45},
+                          {QStringLiteral("warning"), true}, {QStringLiteral("display"), QStringLiteral("on")},
+                          {QStringLiteral("suspend"), QJsonObject{{QStringLiteral("available"), false}, {QStringLiteral("reason"), QStringLiteral("The system asks for a password to suspend.")}}}};
+        snap.insert(QStringLiteral("power"), power);
+        QVERIFY2(session->applySnapshot(snap), qPrintable(session->lastError()));
+        QCOMPARE(session->power().value(QStringLiteral("warning")).toBool(), true);
+        QCOMPARE(session->power().value(QStringLiteral("sleep_minutes")).toInt(), 45);
+        power.insert(QStringLiteral("sleep_at_ms"), QJsonValue::Null);
+        power.insert(QStringLiteral("display"), QStringLiteral("off"));
+        snap.insert(QStringLiteral("power"), power);
+        QVERIFY2(session->applySnapshot(snap), qPrintable(session->lastError()));
+        QCOMPARE(session->power().value(QStringLiteral("display")).toString(), QStringLiteral("off"));
+
+        snap.insert(QStringLiteral("context_epoch"), epoch + 500);
+        power.insert(QStringLiteral("display"), QStringLiteral("dim"));
+        snap.insert(QStringLiteral("power"), power);
+        QVERIFY(!session->applySnapshot(snap));
+        QVERIFY2(session->lastError().contains(QStringLiteral("state.power")), qPrintable(session->lastError()));
+        power.insert(QStringLiteral("display"), QStringLiteral("on"));
+        power.insert(QStringLiteral("sleep_at_ms"), 12.5);
+        snap.insert(QStringLiteral("power"), power);
+        QVERIFY(!session->applySnapshot(snap));
+        power.insert(QStringLiteral("sleep_at_ms"), QJsonValue::Null);
+        power.remove(QStringLiteral("warning"));
+        snap.insert(QStringLiteral("power"), power);
+        QVERIFY(!session->applySnapshot(snap));
+        QCOMPARE(session->contextEpoch(), epoch + 400); // the previous state stays
+        QVERIFY(session->applySnapshot(fixture()));
+        QVERIFY(session->power().isEmpty());
+    }
+
     // Settings → Now playing on phones: a toggle showing state.remote.now_playing
     // (missing means on), OK sends remote.now_playing with the opposite value.
     void nowPlayingRowTogglesTheSetting()
@@ -429,6 +469,157 @@ private slots:
         act(QStringLiteral("select"));
         QCOMPARE(lastToggle().value(QStringLiteral("enabled")), QJsonValue(true));
 
+        QVERIFY(session->applySnapshot(fixture()));
+        goHome();
+    }
+
+    // Settings → Sleep timer (◀ ▶ over Off, 15 … 120 min, sending
+    // power.sleep_timer) and Turn the screen off (display.off after a short
+    // pause, only while the capability is available).
+    void sleepRowSetsTheTimerAndScreenOff()
+    {
+        SessionModel *session = SessionModel::instance();
+        IpcClient *ipc = ShellController::instance()->ipc();
+        auto focusedValue = [this]() {
+            QString value;
+            std::function<void(QQuickItem *)> find = [&](QQuickItem *item) {
+                if (!item->isVisible() || item->opacity() == 0)
+                    return;
+                if (item->objectName() == QLatin1String("settingsRow") && item->property("focused").toBool())
+                    value = item->property("value").toString();
+                for (QQuickItem *child : item->childItems())
+                    find(child);
+            };
+            find(m_window->contentItem());
+            return value;
+        };
+        auto lastRequest = [ipc](const QString &action) {
+            const QList<QJsonObject> sent = ipc->sentMessages();
+            for (auto it = sent.crbegin(); it != sent.crend(); ++it)
+                if (it->value(QStringLiteral("type")).toString() == QLatin1String("request")
+                    && it->value(QStringLiteral("action")).toString() == action)
+                    return *it;
+            return QJsonObject{};
+        };
+        auto withPower = [this](const QJsonObject &power, bool screenOff) {
+            QJsonObject snap = fixture();
+            snap.insert(QStringLiteral("power"), power);
+            QJsonObject caps = snap.value(QStringLiteral("capabilities")).toObject();
+            caps.insert(QStringLiteral("display.off"), screenOff ? QJsonObject{{QStringLiteral("available"), true}, {QStringLiteral("backend"), QStringLiteral("x11-dpms")}}
+                                                                 : QJsonObject{{QStringLiteral("available"), false}, {QStringLiteral("reason"), QStringLiteral("The screen cannot be turned off here: no DPMS")}});
+            snap.insert(QStringLiteral("capabilities"), caps);
+            return snap;
+        };
+        const QJsonObject noTimer{{QStringLiteral("sleep_at_ms"), QJsonValue::Null}, {QStringLiteral("warning"), false}, {QStringLiteral("display"), QStringLiteral("on")}};
+
+        QVERIFY2(session->applySnapshot(withPower(noTimer, true)), qPrintable(session->lastError()));
+        goHome();
+        toHeader();
+        act(QStringLiteral("nav.right"));
+        act(QStringLiteral("select"));
+        QCOMPARE(m_nav->screen(), QStringLiteral("settings"));
+        for (int i = 0; i < 25; ++i)
+            act(QStringLiteral("nav.up"));
+        for (int i = 0; i < 18; ++i) // remote … advanced playback, diagnostics
+            act(QStringLiteral("nav.down"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("sleep"));
+        QCOMPARE(focusedValue(), QStringLiteral("Off"));
+
+        ipc->clearSent();
+        act(QStringLiteral("nav.right"));
+        QCOMPARE(lastRequest(QStringLiteral("power.sleep_timer")).value(QStringLiteral("args")).toObject().value(QStringLiteral("minutes")).toInt(), 15);
+        QJsonObject timer{{QStringLiteral("sleep_at_ms"), 2700000}, {QStringLiteral("sleep_minutes"), 45}, {QStringLiteral("warning"), false}, {QStringLiteral("display"), QStringLiteral("on")}};
+        QVERIFY2(session->applySnapshot(withPower(timer, true)), qPrintable(session->lastError()));
+        QTRY_COMPARE(focusedValue(), QStringLiteral("45 min"));
+        shot(QStringLiteral("settings-sleep"));
+        act(QStringLiteral("nav.right"));
+        QCOMPARE(lastRequest(QStringLiteral("power.sleep_timer")).value(QStringLiteral("args")).toObject().value(QStringLiteral("minutes")).toInt(), 60);
+        timer.insert(QStringLiteral("sleep_minutes"), 15);
+        QVERIFY(session->applySnapshot(withPower(timer, true)));
+        QCoreApplication::processEvents();
+        act(QStringLiteral("nav.left"));
+        const QJsonObject cancel = lastRequest(QStringLiteral("power.sleep_timer"));
+        QVERIFY(cancel.value(QStringLiteral("args")).toObject().contains(QStringLiteral("minutes")));
+        QCOMPARE(cancel.value(QStringLiteral("args")).toObject().value(QStringLiteral("minutes")).toInt(), 0);
+
+        // Screen off: sent only after the OK key is let go, and only when available.
+        act(QStringLiteral("nav.down"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("screen-off"));
+        ipc->clearSent();
+        act(QStringLiteral("select"));
+        QVERIFY(lastRequest(QStringLiteral("display.off")).isEmpty()); // not at once
+        QTRY_VERIFY_WITH_TIMEOUT(!lastRequest(QStringLiteral("display.off")).isEmpty(), 3000);
+        QVERIFY(session->applySnapshot(withPower(noTimer, false)));
+        QCoreApplication::processEvents();
+        ipc->clearSent();
+        act(QStringLiteral("select"));
+        QTest::qWait(1200);
+        QVERIFY(lastRequest(QStringLiteral("display.off")).isEmpty());
+
+        QVERIFY(session->applySnapshot(fixture()));
+        goHome();
+    }
+
+    // The sleep timer's last minute shows the dozing-cub card, and while it
+    // shows (or while the display is off) a key does nothing but send
+    // power.activity; afterwards keys work again.
+    void sleepWarningSwallowsKeysAndShowsTheCard()
+    {
+        SessionModel *session = SessionModel::instance();
+        IpcClient *ipc = ShellController::instance()->ipc();
+        auto activities = [ipc]() {
+            int n = 0;
+            for (const QJsonObject &m : ipc->sentMessages())
+                if (m.value(QStringLiteral("type")).toString() == QLatin1String("power.activity"))
+                    ++n;
+            return n;
+        };
+        auto withPower = [this](bool warning, const QString &display) {
+            QJsonObject snap = fixture();
+            snap.insert(QStringLiteral("power"), QJsonObject{{QStringLiteral("sleep_at_ms"), warning ? QJsonValue(2700000) : QJsonValue()},
+                                                            {QStringLiteral("warning"), warning}, {QStringLiteral("display"), display}});
+            return snap;
+        };
+        QQuickItem *card = nullptr;
+        std::function<void(QQuickItem *)> find = [&](QQuickItem *item) {
+            if (item->objectName() == QLatin1String("sleepWarning"))
+                card = item;
+            for (QQuickItem *child : item->childItems())
+                find(child);
+        };
+        find(m_window->contentItem());
+        QVERIFY(card);
+
+        goHome();
+        toFavorites();
+        for (int i = 0; i < 8; ++i) // the first favourite, so "right" can move
+            act(QStringLiteral("nav.left"));
+        const QString before = m_nav->itemId();
+        QVERIFY(!card->isVisible());
+        QVERIFY2(session->applySnapshot(withPower(true, QStringLiteral("on"))), qPrintable(session->lastError()));
+        QTRY_VERIFY(card->isVisible() && card->opacity() > 0.99);
+        shot(QStringLiteral("sleep-warning"));
+        ipc->clearSent();
+        act(QStringLiteral("nav.right"));
+        act(QStringLiteral("select"));
+        QCOMPARE(m_nav->itemId(), before); // swallowed: no move, no launch
+        QCOMPARE(m_nav->screen(), QStringLiteral("home"));
+        QVERIFY(ShellController::instance()->launchingAppId().isEmpty());
+        QCOMPARE(activities(), 2);
+
+        // Display off: the card is gone (nothing to see) and keys still only wake.
+        QVERIFY(session->applySnapshot(withPower(false, QStringLiteral("off"))));
+        QTRY_VERIFY(!card->isVisible());
+        act(QStringLiteral("nav.right"));
+        QCOMPARE(m_nav->itemId(), before);
+        QCOMPARE(activities(), 3);
+
+        // Awake again: keys move focus and send nothing.
+        QVERIFY(session->applySnapshot(withPower(false, QStringLiteral("on"))));
+        QCoreApplication::processEvents();
+        act(QStringLiteral("nav.right"));
+        QVERIFY(m_nav->itemId() != before);
+        QCOMPARE(activities(), 3);
         QVERIFY(session->applySnapshot(fixture()));
         goHome();
     }

@@ -476,6 +476,11 @@ QString IpcClient::sendRemoteNowPlaying(bool enabled)
     return track(id, QStringLiteral("remote.now_playing"));
 }
 
+void IpcClient::sendPowerActivity()
+{
+    send(QJsonObject{{QStringLiteral("type"), QStringLiteral("power.activity")}});
+}
+
 void IpcClient::sendShellExit(const QString &reason)
 {
     send(QJsonObject{{QStringLiteral("type"), QStringLiteral("shell.exit")}, {QStringLiteral("reason"), reason}});

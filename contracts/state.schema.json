@@ -229,6 +229,25 @@
       "required": ["app_id", "title", "status", "position_at", "rate"],
       "additionalProperties": false
     },
+    "power": {
+      "type": "object",
+      "description": "The sleep timer and the display (contracts/actions.md power.sleep_timer, display.off; http.md \"Sleep timer and screen off\"). Not private: sent to the shell and to every authenticated phone, also while locked (the shell needs display to swallow the key that wakes it); never to anonymous viewers. Absent from older coordinators.",
+      "properties": {
+        "sleep_at_ms": {"type": ["integer", "null"], "description": "When the sleep timer fires, in the coordinator monotonic milliseconds of generated_at_ms (not wall-clock); null when no timer is set. Phones count down sleep_at_ms - generated_at_ms - time since the snapshot arrived."},
+        "sleep_minutes": {"enum": [15, 30, 45, 60, 90, 120], "description": "The choice that set the running timer; absent when none is set."},
+        "warning": {"type": "boolean", "description": "True during the last 60 s before the timer fires: the TV shows 'Going to sleep in 1 minute' and any input cancels the timer."},
+        "display": {"enum": ["on", "off"], "description": "off while Bear Den has turned the display off (display.off or the timer); any input turns it on again."},
+        "suspend": {
+          "type": "object",
+          "description": "Whether the box could be suspended. Bear Den never suspends today; reason says why (for example the system asks for a password).",
+          "properties": {"available": {"type": "boolean"}, "reason": {"type": "string"}},
+          "required": ["available"],
+          "additionalProperties": false
+        }
+      },
+      "required": ["sleep_at_ms", "warning", "display"],
+      "additionalProperties": false
+    },
     "content": {
       "type": "object",
       "description": "Optional provider rows (Plex connector). Absent when no provider is configured.",

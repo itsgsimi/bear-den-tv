@@ -311,6 +311,53 @@ The CLI never edits `config.json` itself; the coordinator stores the choice
 (`weather` in [`contracts/config.md`](../contracts/config.md)). What leaves the
 box is described in [`docs/security.md`](security.md).
 
+## Sleep timer and screen off
+
+Set it on the phone (Remote → Sleep: 15, 30, 45, 60, 90 or 120 minutes,
+Cancel, Screen off) or on the TV (**Settings → Sleep timer** with ◀ ▶, and
+**Settings → Turn the screen off**). What happens and why is in
+[`contracts/actions.md`](../contracts/actions.md#sleep-screen-off-and-wake):
+
+- A minute before the timer runs out the TV shows "Going to sleep in 1
+  minute" (when Bear Den is in front; over an app only the phone shows it).
+  Any key on the TV or any phone button cancels it.
+- When it runs out: the app in front is paused only if its own MPRIS player
+  is verified (never a guessed key), Bear Den Home comes to the front, then
+  the display turns off. While the desktop is locked only the display turns
+  off.
+- Any phone button or TV key turns the display on again. That first press
+  does nothing else. A TV key sent to an app in front (after Screen off from
+  the phone) does reach the app: the X server wakes the display and the
+  coordinator notices within 2 s.
+- The timer lives in the coordinator's memory: restarting Bear Den cancels
+  it and turns the display back on.
+
+The display is turned off with X11 DPMS ([`internal/platform/x11/dpms.go`](../internal/platform/x11/dpms.go)).
+If your desktop has DPMS disabled (the reference TV has it disabled with
+600 s timeouts), Bear Den enables it only while the display is off, with the
+standby, suspend and off timeouts at 0, and puts back the exact previous
+state (enabled flag and timeouts) when the display comes on and when the
+coordinator stops. Check the state on the TV (read-only):
+
+```sh
+DISPLAY=:0 xset q | sed -n '/DPMS/,$p'   # "DPMS is Disabled" and 600 s timeouts on the reference TV
+```
+
+If the coordinator was killed while the display was off, DPMS stays enabled
+with no timeouts: nothing blanks later, but `xset q` shows "DPMS is Enabled".
+Put your own settings back by hand, for example `DISPLAY=:0 xset dpms 600 600 600 && DISPLAY=:0 xset -dpms`.
+
+Suspend is never offered: the coordinator only asks logind `CanSuspend` and
+reports the answer as `state.power.suspend` (on the reference TV
+"challenge": the system asks for a password, which Bear Den never handles).
+The coordinator logs it at start (`msg=suspend`).
+
+To try it against a DPMS-capable display you choose (nothing playing, the
+display goes dark for a moment and its settings are put back):
+`BDTV_DPMS_LIVE_DISPLAY=:0 go test -run DPMSLive -v ./internal/platform/x11/`.
+Without it the live test starts a throwaway Xvfb, which has no DPMS extension,
+and skips.
+
 ## Phone remote
 
 ```sh

@@ -17,7 +17,7 @@
 |---|---|
 | `protocol` | Must be `1`. Other values ⇒ `failed/unsupported_protocol`. |
 | `request_id` | UUID v4 string, unique per device session. The coordinator remembers the last 256 ids per session for 60 s (monotonic clock). Same id + identical payload ⇒ the original result is returned again. Same id + different payload ⇒ `failed/duplicate_mismatch`. |
-| `context_epoch` | Integer from the last `state` the sender saw. Must equal the coordinator's current epoch for every action except `home`, `app.launch`, and `shell.restart`; otherwise `failed/stale_epoch`. |
+| `context_epoch` | Integer from the last `state` the sender saw. Must equal the coordinator's current epoch for every action except `home`, `app.launch`, `shell.restart`, `power.sleep_timer` and `display.off` (the power actions never touch the window in front); otherwise `failed/stale_epoch`. |
 | `target` | `"active"` (whatever the coordinator currently observes in the foreground), `"shell"`, or a registered application id. Actions on `"active"` are refused when the observed target is `unknown` or `locked`. |
 | `action` | One of the names below. |
 | `args` | Object validated per action; extra keys are rejected. |
@@ -38,8 +38,16 @@
 | `audio.mute` | `{"muted": true}` | controller | PC/PulseAudio default sink. |
 | `text.submit` | `{"text": "..."}` (1..256 chars, no control chars) | controller | Only into a target with a validated text adapter (shell search/pairing fields). Off for external apps. |
 | `shell.restart` | `{}` | owner | Recovery only: restart a crashed/stuck shell through the coordinator supervisor. Never kills external players. |
+| `power.sleep_timer` | `{"minutes": 45}` (0 cancels; else 15, 30, 45, 60, 90 or 120) | controller | Sets, replaces or cancels the sleep timer on the coordinator clock (`state.power.sleep_at_ms`). `observed` with `detail.sleep_at_ms` (null after a cancel). 60 s before it fires `state.power.warning` turns true, the TV shows "Going to sleep in 1 minute" and any input cancels it. When it fires: pause through MPRIS only if the foreground app's own player is verified (never a guessed key), then the `home` path, then the display off; while locked only the display goes off. Ignores stale epochs. |
+| `display.off` | `{}` | controller | Turns the display off now (X11 DPMS; `state.power.display = "off"`). `observed` when the display reports off, `delivered` when that could not be read back, `observed` with `detail.already_off` when it was off. Any input turns it on again. Ignores stale epochs. |
 
 Unknown or disabled actions ⇒ `failed/unsupported` with a `message` explaining why (for example "VacuumTube pause has not been verified on this installation").
+
+### Sleep, screen off and wake
+
+- **Every action wakes the display.** While `state.power.display` is `off`, an authorized action turns the display on first. The press that woke it is swallowed, as a TV does, so it never reaches the shell or an app: the result is `failed/display_off` ("The screen was off. This press turned it on; press again."), except `power.sleep_timer`, which also applies, and `display.off`, which leaves the display off (`observed`, `detail.already_off`).
+- **The sleep warning.** While `state.power.warning` is true, any authorized action cancels the timer and then does its normal job; a key on the TV cancels it too (the shell swallows that key and sends IPC `power.activity`; with an app in front the coordinator notices TV input through the X idle counter).
+- **Locked.** A locked session refuses every phone action (`failed/locked`), `power.sleep_timer` and `display.off` included, like every other action; the press still wakes a display that is off, since the TV then shows only the lock screen. A timer set before the lock still fires, but only turns the display off: nothing is paused and Home is not pressed behind the lock screen.
 
 ## Result
 
@@ -63,7 +71,7 @@ Unknown or disabled actions ⇒ `failed/unsupported` with a `message` explaining
 | `observed` | A state change confirming the action was seen (shell focus report, window active, MPRIS status). |
 | `failed` | Not applied. `code` is one of the failure codes below. |
 
-Failure codes: `invalid`, `unsupported_protocol`, `unauthorized`, `forbidden`, `rate_limited`, `duplicate_mismatch`, `stale_epoch`, `no_target`, `unknown_foreground`, `locked`, `unsupported`, `target_unfocused`, `busy`, `launch_failed`, `timeout`, `internal`.
+Failure codes: `invalid`, `unsupported_protocol`, `unauthorized`, `forbidden`, `rate_limited`, `duplicate_mismatch`, `stale_epoch`, `no_target`, `unknown_foreground`, `locked`, `unsupported`, `target_unfocused`, `busy`, `launch_failed`, `timeout`, `internal`, `display_off` (the display was off; this press only turned it on and was not applied).
 
 Over HTTP, `POST /api/v1/actions` returns the first terminal or `accepted` result; later results for the same `request_id` arrive on the WebSocket as `action_result` events.
 

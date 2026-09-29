@@ -12,8 +12,12 @@ Canonical messages consumed by contract tests in Go ([`tests/contract/fixtures_t
 | `action.request.app-launch.valid.json` | `action.schema.json#/$defs/request` |
 | `action.request.shell-string.invalid.json` | rejected: unknown action name |
 | `action.request.extra-args.invalid.json` | rejected: `args` must be empty for `select` |
+| `action.request.power-sleep-timer.valid.json` | `action.schema.json#/$defs/request` (`power.sleep_timer`, 45 minutes) |
+| `action.request.sleep-timer-odd-minutes.invalid.json` | rejected: `power.sleep_timer` `minutes` must be 0, 15, 30, 45, 60, 90 or 120 |
+| `action.request.display-off.valid.json` | `action.schema.json#/$defs/request` (`display.off`, no args) |
 | `action.result.observed.valid.json` | `action.schema.json#/$defs/result` |
 | `action.result.failed-stale.valid.json` | `action.schema.json#/$defs/result` |
+| `action.result.display-off-woke.valid.json` | `action.schema.json#/$defs/result` (`failed/display_off`: the press woke the screen and was not applied) |
 | `state.shell-home.valid.json` | `state.schema.json` (shell view, pairing shown) |
 | `state.phone-controller.valid.json` | `state.schema.json` (phone view, redacted) |
 | `state.phone-now-playing.valid.json` | `state.schema.json` (phone view with DEMO `now_playing` and `remote.now_playing`) |
@@ -21,6 +25,8 @@ Canonical messages consumed by contract tests in Go ([`tests/contract/fixtures_t
 | `state.hidden-not-bool.invalid.json` | rejected: `applications[].hidden` must be a boolean |
 | `state.now-playing-bad-status.invalid.json` | rejected: `now_playing.status` must be `playing`, `paused` or `stopped` |
 | `state.now-playing-no-title.invalid.json` | rejected: `now_playing.title` must not be empty (no title means no `now_playing`) |
+| `state.phone-sleep-warning.valid.json` | `state.schema.json` (phone view: a 45-minute sleep timer in its last minute, `power.suspend` unavailable) |
+| `state.power-bad-display.invalid.json` | rejected: `power.display` must be `on` or `off` |
 | `config.default.valid.json` | `config.schema.json` (built-in defaults) |
 | `config.now-playing-not-bool.invalid.json` | rejected structurally: `remote.now_playing` must be a boolean |
 | `config.dangling-ref.invalid.json` | rejected semantically: section references unknown app |

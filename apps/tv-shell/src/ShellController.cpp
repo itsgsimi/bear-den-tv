@@ -313,6 +313,21 @@ void ShellController::setNowPlaying(bool enabled)
     m_ipc->sendRemoteNowPlaying(enabled);
 }
 
+void ShellController::setSleepTimer(int minutes)
+{
+    m_ipc->sendRequest(QStringLiteral("power.sleep_timer"), QJsonObject{{QStringLiteral("minutes"), minutes}});
+}
+
+void ShellController::screenOff()
+{
+    m_ipc->sendRequest(QStringLiteral("display.off"), QJsonObject{});
+}
+
+void ShellController::powerActivity()
+{
+    m_ipc->sendPowerActivity();
+}
+
 void ShellController::answerConfirm(const QString &confirmId, bool accepted)
 {
     m_ipc->sendConfirmResult(confirmId, accepted);

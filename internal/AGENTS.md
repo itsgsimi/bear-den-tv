@@ -12,7 +12,7 @@ Wire shapes come from [`contracts/`](../contracts/AGENTS.md) and nowhere else.
 
 | Package | Owns | Key files |
 |---|---|---|
-| [`session`](session/coordinator.go) | the core: epoch, target, state snapshot, action routing; implements `remote.Backend` (phones) and `shellipc.Handler` (shell) | `coordinator.go` (Options, `retargetLocked`, `publish`), `route.go` (`route`, `doLaunch`, `doHome`, `doClose`), `state.go` (`buildStateFor`, `capabilitiesLocked`), `backend.go`, `ipc.go`, `tuning.go`, `nowplaying.go` (`state.now_playing`: the foreground player's reading, memory only) |
+| [`session`](session/coordinator.go) | the core: epoch, target, state snapshot, action routing; implements `remote.Backend` (phones) and `shellipc.Handler` (shell) | `coordinator.go` (Options, `retargetLocked`, `publish`), `route.go` (`route`, `doLaunch`, `doHome`, `doClose`), `state.go` (`buildStateFor`, `capabilitiesLocked`), `backend.go`, `ipc.go`, `tuning.go`, `nowplaying.go` (`state.now_playing`: the foreground player's reading, memory only), `power.go` (sleep timer, display off and wake: `state.power`) |
 | [`contract`](contract/contract.go) | Go types for protocol 1 and JSON Schema validation of the embedded `contracts/*.json` | `contract.go`, `validate.go` |
 | [`actions`](actions/dedup.go) | request de-duplication and server-side hold leases, on an injected clock | `dedup.go`, `holds.go` |
 | [`applications`](applications/applications.go) | `Adapter` and `Launcher` interfaces | `applications.go` |
@@ -24,8 +24,8 @@ Wire shapes come from [`contracts/`](../contracts/AGENTS.md) and nowhere else.
 | [`remote`](remote/server.go) | the LAN HTTP/WebSocket server: static assets, cookies, CSRF, Host/Origin, rate limits, revocation | `server.go`, `routes.go`, `ws.go`, `auth.go`, `options.go`, `backend.go` (seams) |
 | [`remote/mdns`](remote/mdns/mdns.go) | Avahi advertisement, best effort; not wired into `session` yet | `mdns.go` |
 | [`shellipc`](shellipc/server.go) | [`contracts/ipc.md`](../contracts/ipc.md): Unix socket to the shell and CLI; shell supervisor | `messages.go`, `server.go`, `dial.go`, `supervisor.go` |
-| [`platform`](platform/platform.go) | the desktop seam (`DesktopAdapter`, lock, media, audio) | `platform.go` |
-| `platform/{x11,wayland,detect,lock,mpris,audio,dbusx,probe,fake}` | X11 EWMH+XTEST adapter; Wayland (wlr-foreign-toplevel on wlroots, honest reasons elsewhere; ADR 0007); session detection; lock observation; MPRIS; `pactl`; narrow D-Bus; probe report; in-memory desktop | one file each (x11: `adapter.go`, `keys.go`, `props.go`; wayland: `wayland.go`, `client.go`, `wire.go`) |
+| [`platform`](platform/platform.go) | the desktop seam (`DesktopAdapter`, lock, media, audio, `DisplayPower`) | `platform.go` |
+| `platform/{x11,wayland,detect,lock,mpris,audio,dbusx,probe,suspend,fake}` | X11 EWMH+XTEST adapter and DPMS display power (`dpms.go`: captures and restores the exact DPMS state); Wayland (wlr-foreign-toplevel on wlroots, honest reasons elsewhere; ADR 0007); session detection; lock observation; MPRIS; `pactl`; narrow D-Bus; probe report; logind `CanSuspend` (asks only); in-memory desktop | one file each (x11: `adapter.go`, `keys.go`, `props.go`, `dpms.go`; wayland: `wayland.go`, `client.go`, `wire.go`) |
 | [`providers`](providers/providers.go) | optional home content (`ContentProvider`, `Feed`); `plex/` connector (not wired into `session` yet), `fixtures/` DEMO items | `feed.go`, `plex/provider.go`, `fixtures/fixtures.go` |
 | [`secrets`](secrets/secrets.go) | connector tokens outside `config.json` (Secret Service, or memory) | `secrets.go`, `dbus.go`, `memory.go` |
 | [`storage`](storage/storage.go) | SQLite: devices, session hashes, invitations, focus memory, launch state | `storage.go`, `secrets.go` |
@@ -48,6 +48,7 @@ Embeds live in the repository root [`embed.go`](../embed.go): `contracts/`,
 | `fakeShell` | same file | answers `input`/`home` like the real shell (`observed` with focus detail), records inputs in `h.inputs` |
 | `fakeLauncher`, `fakeLock`, `fakeTuner` | same file | launching maps a window on the fake desktop; lock pushes through `set`; the tuner returns a canned report and records apps it applied |
 | `fake.Desktop`, `fake.Launcher` | [`platform/fake`](platform/fake/fake.go) | in-memory windows (`AddWindow`, `SetActive`, `RemoveWindow`), delivered keys (`Keys()`); also backs `bear-den-tv dev` |
+| `fake.Display` | [`platform/fake/display.go`](platform/fake/display.go) | display power: `Off`/`On` calls (`Calls()`), `Changed()` while settings are not restored, `Wake()` plays a TV key, `SetIdle`, an `OnOff` hook; also backs `bear-den-tv dev` |
 | `fake.Media`, `fake.Player` | [`platform/fake/media.go`](platform/fake/media.go) | an MPRIS-style locator and player on an injected clock (position advances while playing; `Set`, `Signal`, `Fail`, `Reads()`, `Calls()`); `DemoMedia` backs `dev --dev-fixtures` with DEMO titles |
 | `dbusx.Fake` | [`platform/dbusx/fake.go`](platform/dbusx/fake.go) | scripted `Call`/`Property`/`Names`, `Emit` signals; used by the lock and mpris tests |
 | `fakeCompositor` | [`platform/wayland/wayland_test.go`](platform/wayland/wayland_test.go) | the server side of `wl_registry`/`wl_callback`/wlr foreign-toplevel over `net.Pipe`: announce globals and toplevels (`add`), send events or one flush (`w.sendBatch`), `waitRequest` for what the adapter sent. Live twin: `scripts/wayland-container-test.sh` (headless sway in Docker) |
@@ -75,6 +76,10 @@ different body is `duplicate_mismatch`), then `route()`, which checks in order:
    submit actions): `controller` for everything; `owner` for `shell.restart`
    and `app.close` with `force`. Otherwise `forbidden`.
 3. **Lock**: a locked session refuses every action, `home` included (`locked`).
+   Just before it, `powerGate` ([`session/power.go`](session/power.go)) wakes
+   a display Bear Den turned off and cancels a sleep warning; an unlocked
+   press that woke the display is swallowed (`display_off`) unless it is a
+   power action.
 4. **Stale epoch** (phones only; shell requests are stamped with the current
    epoch): `req.ContextEpoch != epoch` is `stale_epoch` unless `contract.IgnoresStaleEpoch` (`home`, `app.launch`, `shell.restart`).
 5. **Capability**: input, media and audio go through `capability()`, which reads

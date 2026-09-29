@@ -2,6 +2,11 @@
 // coordinator injects through Nav — arrives here as a named action and goes
 // to exactly one owner: the topmost dialog, the launch overlay, or the
 // current screen. Back pops one level; at Home it is a reported no-op.
+// While Bear Den turned the display off, or the sleep timer is in its last
+// minute (state.power), a key only wakes the TV or keeps it awake: it is
+// swallowed and reported as IPC power.activity (SleepWarning shows the
+// warning). Remote input never lands here in that state: the coordinator
+// wakes or cancels first and its new state reaches the shell before the input.
 
 import QtQuick
 import BearDen
@@ -95,6 +100,14 @@ FocusScope {
     }
 
     function handle(action) {
+        if (Session.power.display === "off" || Session.power.warning === true) {
+            // Like a TV: the press that wakes it does nothing else.
+            Shell.powerActivity()
+            screensaver.active = false
+            wake()
+            if (action === "back") Nav.noteAtRoot()
+            return
+        }
         if (screensaver.active) {
             // Waking consumes the press so it does not also move or select.
             screensaver.active = false
@@ -294,13 +307,16 @@ FocusScope {
     AppUnavailableDialog { id: appDialog; anchors.fill: parent }
     MessageDialog { id: messageDialog; anchors.fill: parent }
     ConfirmDialog { id: confirmDialog; anchors.fill: parent }
+    SleepWarning {
+        anchors { horizontalCenter: parent.horizontalCenter; bottom: parent.bottom; bottomMargin: Math.max(Theme.safeY, 24 * Theme.scale) + 72 * Theme.scale }
+    }
     LockedScreen { anchors.fill: parent; visible: Session.loaded && Session.locked }
     Screensaver { id: screensaver; anchors.fill: parent; onActiveChanged: Theme.screensaver = active }
-    // An app coming to the front (or a lock) ends the screensaver.
+    // An app coming to the front, a lock or the sleep warning ends the screensaver.
     Connections {
         target: Session
         function onSnapshotChanged() {
-            if (screensaver.active && (Session.locked || Session.target.kind !== "shell")) screensaver.active = false
+            if (screensaver.active && (Session.locked || Session.target.kind !== "shell" || Session.power.warning === true)) screensaver.active = false
         }
     }
 }

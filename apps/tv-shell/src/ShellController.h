@@ -118,6 +118,12 @@ public:
     // Settings → Now playing on phones (remote.now_playing): whether paired
     // phones see what the app in front is playing.
     Q_INVOKABLE void setNowPlaying(bool enabled);
+    // Settings → Sleep timer and Screen off: the power.sleep_timer (0 cancels)
+    // and display.off actions; powerActivity tells the coordinator a TV key
+    // was swallowed to wake the display or stay awake (contracts/ipc.md).
+    Q_INVOKABLE void setSleepTimer(int minutes);
+    Q_INVOKABLE void screenOff();
+    Q_INVOKABLE void powerActivity();
     // Settings → Weather (contracts/ipc.md): weather.search finds places for a
     // query (answer in weatherPlaces); weather.configure stores the whole block
     // (place: a weatherPlaces entry replaces the stored place; null/empty keeps it;

@@ -90,6 +90,8 @@ type harness struct {
 	inputs  []shellipc.Input
 	results map[string]shellipc.Result // replies to the shell's requests, by request_id
 	places  map[string]shellipc.WeatherPlaces
+
+	stop context.CancelFunc // ends Run, as the coordinator stopping
 }
 
 // shellResult waits for the coordinator's reply to one of the shell's requests.
@@ -143,6 +145,7 @@ func newHarness(t *testing.T, configure ...func(*Options)) *harness {
 	}
 	h.c.AttachShellServer(srv)
 	ctx, cancel := context.WithCancel(context.Background())
+	h.stop = cancel
 	t.Cleanup(func() { cancel(); srv.Close() })
 	h.shellW = desk.AddWindow(platform.WindowInfo{PID: 1, Class: []string{"bear-den-tv-shell", "bear-den-tv-shell"}})
 	desk.SetActive(h.shellW)

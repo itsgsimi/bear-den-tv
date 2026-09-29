@@ -88,6 +88,13 @@ func (c *Coordinator) route(ctx context.Context, s sender, req contract.ActionRe
 			return c.fail(req, contract.CodeForbidden, "This device is not allowed to do that.")
 		}
 	}
+	// Any authorized press wakes an off display and cancels a sleep
+	// warning; the press that woke the display is swallowed (power.go).
+	if c.powerGate(req.Action) {
+		res := c.fail(req, contract.CodeDisplayOff, "The screen was off. This press turned it on; press again.")
+		res.Detail = map[string]any{"display": contract.DisplayOn}
+		return res
+	}
 	epoch, target, locked := c.current()
 	if locked {
 		return c.fail(req, contract.CodeLocked, "The TV session is locked. Unlock it on the TV.")
@@ -109,6 +116,10 @@ func (c *Coordinator) route(ctx context.Context, s sender, req contract.ActionRe
 		return c.doMedia(ctx, req, target)
 	case contract.ActionAudioVolume, contract.ActionAudioMute:
 		return c.doAudio(ctx, req)
+	case contract.ActionSleepTimer:
+		return c.doSleepTimer(req)
+	case contract.ActionDisplayOff:
+		return c.doDisplayOff(ctx, req)
 	case contract.ActionShellRestart:
 		if c.opts.Supervisor == nil {
 			return c.fail(req, contract.CodeUnsupported, "The shell is not supervised by this coordinator.")

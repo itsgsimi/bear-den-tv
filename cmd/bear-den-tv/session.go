@@ -35,6 +35,8 @@ import (
 	"bear-den-tv/internal/platform/fake"
 	"bear-den-tv/internal/platform/lock"
 	"bear-den-tv/internal/platform/mpris"
+	"bear-den-tv/internal/platform/suspend"
+	"bear-den-tv/internal/platform/x11"
 	"bear-den-tv/internal/providers"
 	"bear-den-tv/internal/providers/fixtures"
 	"bear-den-tv/internal/remote"
@@ -190,12 +192,16 @@ func runSession(f sessionFlags) error {
 		audioB   platform.AudioBackend
 		media    platform.MediaLocator
 		launcher applications.Launcher
+		display  platform.DisplayPower // sleep timer and display.off
+		suspendR *platform.Capability  // what logind says about suspending
 	)
 	if f.dev {
 		fd := fake.New()
 		shellWin := fd.AddWindow(platform.WindowInfo{PID: 0, Class: []string{"bear-den-tv-shell", "bear-den-tv-shell"}, Title: session.ShellLabel})
 		fd.SetActive(shellWin)
 		desk, launcher = fd, fake.NewLauncher(fd)
+		display = fake.NewDisplay()
+		suspendR = &platform.Capability{Backend: "dev", Reason: "Development session: suspend is never offered."}
 		log.Info("dev: fake desktop with a synthetic shell window; nothing touches the real display")
 		if f.devFixtures {
 			// DEMO players so the phone's Now playing card and media
@@ -214,6 +220,24 @@ func runSession(f sessionFlags) error {
 		} else {
 			log.Warn("no session bus; media controls unavailable", "err", err)
 		}
+		if desk.DisplaySession() == detect.SessionX11 {
+			// Its own X connection; restores the DPMS state on Close.
+			dp := x11.NewDisplayPower("")
+			defer dp.Close()
+			display = dp
+			if cp := dp.Capability(); !cp.Available {
+				log.Info("display power unavailable", "reason", cp.Reason)
+			}
+		}
+		// Ask only: Bear Den never suspends and never handles a password.
+		var sysBus dbusx.Bus // stays a nil interface without a system bus
+		if conn, err := dbusx.ConnectSystem(ctx); err == nil {
+			sysBus = conn
+			defer conn.Close()
+		}
+		cp, answer := suspend.Check(ctx, sysBus)
+		suspendR = &cp
+		log.Info("suspend", "logind_can_suspend", answer, "reason", cp.Reason)
 	}
 	defer desk.Close()
 
@@ -256,7 +280,7 @@ func runSession(f sessionFlags) error {
 	}
 	coord = session.New(session.Options{
 		Themes: themeReg, Tuner: tuner,
-		Logger: log, Desktop: desk, Lock: lockObs, Audio: audioB, Media: media,
+		Logger: log, Desktop: desk, Lock: lockObs, Audio: audioB, Media: media, Display: display, Suspend: suspendR,
 		Launcher: launcher, Adapters: adapters.NewRegistry(), Config: store, Pairing: pair,
 		Supervisor: sup, DevMode: f.dev && f.devFixtures, Feed: feed, Weather: wx,
 		Diagnostics: func(ctx context.Context) map[string]any {

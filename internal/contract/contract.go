@@ -39,6 +39,9 @@ const (
 	CodeLaunchFailed        Code = "launch_failed"
 	CodeTimeout             Code = "timeout"
 	CodeInternal            Code = "internal"
+	// CodeDisplayOff: the display was off and this press only turned it on
+	// again; the action itself was not applied (contracts/actions.md).
+	CodeDisplayOff Code = "display_off"
 )
 
 // Action names (contracts/actions.md).
@@ -59,6 +62,8 @@ const (
 	ActionAudioMute    = "audio.mute"
 	ActionTextSubmit   = "text.submit"
 	ActionShellRestart = "shell.restart"
+	ActionSleepTimer   = "power.sleep_timer"
+	ActionDisplayOff   = "display.off"
 )
 
 // AllActions lists every action name in protocol 1, in contract order.
@@ -66,7 +71,12 @@ var AllActions = []string{
 	ActionNavUp, ActionNavDown, ActionNavLeft, ActionNavRight, ActionSelect, ActionBack, ActionHome,
 	ActionAppLaunch, ActionAppClose, ActionMediaPlay, ActionMediaPause, ActionMediaSeek,
 	ActionAudioVolume, ActionAudioMute, ActionTextSubmit, ActionShellRestart,
+	ActionSleepTimer, ActionDisplayOff,
 }
+
+// SleepChoices are the power.sleep_timer minutes a timer may be set to
+// (0 cancels), in the order phones and the TV offer them.
+var SleepChoices = []int{15, 30, 45, 60, 90, 120}
 
 // IsNav reports whether the action is a directional navigation action (holdable).
 func IsNav(action string) bool {
@@ -78,10 +88,12 @@ func IsNav(action string) bool {
 }
 
 // IgnoresStaleEpoch reports whether the action is an explicit escape that may
-// ignore an obsolete context epoch (still authorized, still refused when locked).
+// ignore an obsolete context epoch (still authorized, still refused when
+// locked). The power actions never touch the window in front, so what was
+// in front when the button was drawn does not matter to them.
 func IgnoresStaleEpoch(action string) bool {
 	switch action {
-	case ActionHome, ActionAppLaunch, ActionShellRestart:
+	case ActionHome, ActionAppLaunch, ActionShellRestart, ActionSleepTimer, ActionDisplayOff:
 		return true
 	}
 	return false
@@ -477,6 +489,30 @@ type State struct {
 	Playback       *Playback             `json:"playback,omitempty"`
 	Weather        *Weather              `json:"weather,omitempty"`
 	NowPlaying     *NowPlaying           `json:"now_playing,omitempty"`
+	Power          *Power                `json:"power,omitempty"`
+}
+
+// Display power states (state.schema.json#/properties/power/display).
+const (
+	DisplayOn  = "on"
+	DisplayOff = "off"
+)
+
+// Power is state.schema.json#/properties/power: the sleep timer and the
+// display. SleepAtMs is in the coordinator monotonic milliseconds of
+// GeneratedAtMs; nil when no timer is set.
+type Power struct {
+	SleepAtMs    *int64         `json:"sleep_at_ms"`
+	SleepMinutes int            `json:"sleep_minutes,omitempty"`
+	Warning      bool           `json:"warning"`
+	Display      string         `json:"display"` // on | off
+	Suspend      *SuspendReport `json:"suspend,omitempty"`
+}
+
+// SuspendReport says whether the box could be suspended, and why not.
+type SuspendReport struct {
+	Available bool   `json:"available"`
+	Reason    string `json:"reason,omitempty"`
 }
 
 // Now-playing statuses (state.schema.json#/properties/now_playing/status).

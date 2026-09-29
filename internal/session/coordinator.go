@@ -71,6 +71,12 @@ type Options struct {
 	// Weather keeps the local weather reading (state.weather, shell view)
 	// and answers weather.search; nil reports weather as unavailable.
 	Weather *weather.Poller
+	// Display turns the display off and on (display.off, the sleep timer);
+	// nil reports display.off unavailable (power.go).
+	Display platform.DisplayPower
+	// Suspend is what logind said about suspending (state.power.suspend);
+	// nil omits it. Bear Den never suspends.
+	Suspend *platform.Capability
 	// Supervisor restarts the shell for shell.restart; nil when --no-shell.
 	Supervisor *shellipc.Supervisor
 	DevMode    bool
@@ -120,7 +126,8 @@ type Coordinator struct {
 	shellState     string
 	apps           map[string]*appRuntime
 	media          *mediaProbe
-	np             npState // now playing for phones (nowplaying.go); memory only
+	np             npState    // now playing for phones (nowplaying.go); memory only
+	pw             powerState // sleep timer and display (power.go)
 	notifications  []contract.Notification
 	previewing     bool
 	remote         contract.RemoteState
@@ -274,6 +281,7 @@ func (c *Coordinator) Run(ctx context.Context) error {
 		select {
 		case <-ctx.Done():
 			c.holds.CancelAll("shutdown")
+			c.stopPower() // the display on, its settings restored
 			return nil
 		case fg, ok := <-fgCh:
 			if !ok {

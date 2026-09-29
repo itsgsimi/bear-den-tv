@@ -180,6 +180,38 @@ func (m MediaInfo) String() string {
 // LogValue implements slog.LogValuer with the titles redacted.
 func (m MediaInfo) LogValue() slog.Value { return slog.StringValue(m.String()) }
 
+// DisplayPower turns the TV's display off and on again (the sleep timer and
+// display.off; X11 DPMS in platform/x11). Turning it off changes the
+// desktop's own power settings, so an implementation captures them before
+// its first Off and restores them exactly in On and in Close: the desktop
+// must never be left blanking on its own afterwards (a film would go dark
+// after the old idle timeout).
+type DisplayPower interface {
+	// Capability reports whether the display can be turned off, with a reason.
+	Capability() Capability
+	// Off captures the current power settings (once; a second Off keeps the
+	// first capture) and turns the display off now.
+	Off(ctx context.Context) error
+	// On turns the display on and restores the captured settings exactly;
+	// a no-op when nothing was captured.
+	On(ctx context.Context) error
+	// Status reads the display's power level and, where the backend can,
+	// the time since the last user input on the TV.
+	Status(ctx context.Context) (DisplayStatus, error)
+	// Close restores the captured settings, if any, and releases the backend.
+	Close() error
+}
+
+// DisplayStatus is one reading of the display.
+type DisplayStatus struct {
+	// On is true while the display is powered (any input wakes it).
+	On bool
+	// Idle is the time since the last keyboard or pointer input; valid only
+	// when IdleKnown.
+	Idle      time.Duration
+	IdleKnown bool
+}
+
 // MediaLocator finds players belonging to a running application instance.
 type MediaLocator interface {
 	// Find returns the player whose DesktopEntry or bus name matches match, or

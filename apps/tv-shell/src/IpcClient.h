@@ -88,6 +88,9 @@ public:
     QString sendPlaybackSet(const QString &adapter, const QString &setting, const QString &value);
     QString sendRemoteNowPlaying(bool enabled);
     void sendShellExit(const QString &reason);
+    // power.activity: a TV key the shell swallowed while the display was off
+    // or the sleep warning showed (contracts/ipc.md). No reply.
+    void sendPowerActivity();
     void sendPing();
     void sendPong();
 
