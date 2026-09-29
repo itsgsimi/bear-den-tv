@@ -383,7 +383,7 @@ PixelBox {
                     Text {
                         anchors.verticalCenter: parent.verticalCenter
                         text: root.isApp
-                              ? (root.item.installed === false ? qsTr("How to install")
+                              ? (root.item.installed === false ? (root.item.installState === "available" ? qsTr("Install") : root.item.installState === "preparing" || root.item.installState === "downloading" || root.item.installState === "installing" ? qsTr("Installing %1%").arg(root.item.installProgress) : qsTr("How to install"))
                                  : (root.item.running ? qsTr("Switch to %1").arg(root.item.title) : qsTr("Open %1").arg(root.item.title)))
                               : (root.item.kind === "setup" ? qsTr("Open Settings")
                                  // Only a verified exact-item handoff (open_action play_exact)

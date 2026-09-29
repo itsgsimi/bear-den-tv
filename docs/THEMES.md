@@ -729,7 +729,7 @@ Where the name is shown (checked with `grep -rn "Bear Den"`):
 
 | Part | Files |
 |---|---|
-| TV shell copy (`qsTr`) | `Header.qml` (the title; it also hides the device name when it equals `"Bear Den"`), `Main.qml` (window title), `SettingsScreen.qml`, `ConnectingScreen.qml`, `ErrorBanner.qml`, `LaunchOverlay.qml`, `Screensaver.qml`, `RemoteSetupScreen.qml`, `AppUnavailableDialog.qml`, `AdvancedPlaybackScreen.qml`, `HeroPanel.qml`, `DiagnosticsScreen.qml`, all in [`apps/tv-shell/qml/`](../apps/tv-shell/qml/) |
+| TV shell copy (`qsTr`) | `Header.qml` (the title; it also hides the device name when it equals `"Bear Den"`), `Main.qml` (window title), `SettingsScreen.qml`, `ConnectingScreen.qml`, `ErrorBanner.qml`, `LaunchOverlay.qml`, `Screensaver.qml`, `RemoteSetupScreen.qml`, `InstallCard.qml`, `AddAppsScreen.qml`, `AdvancedPlaybackScreen.qml`, `HeroPanel.qml`, `DiagnosticsScreen.qml`, all in [`apps/tv-shell/qml/`](../apps/tv-shell/qml/) |
 | TV shell C++ | `src/main.cpp` (display name, `--help` text), `src/ShellController.cpp` (error messages) |
 | Phone remote | [`apps/remote-web/src/i18n.ts`](../apps/remote-web/src/i18n.ts) (all phone copy, incl. `productName`), `static/index.html`, `static/manifest.webmanifest` |
 | Coordinator | `device.display_name` default `"Bear Den"` in [`contracts/fixtures/config.default.valid.json`](../contracts/fixtures/config.default.valid.json); the mDNS default name `avahiDefaultName` in `internal/remote/mdns/mdns.go`; `ShellLabel` in `internal/session/coordinator.go`; `Product` sent to Plex in `internal/providers/plex/client.go`; tuning notes in `internal/applications/tuning/` |

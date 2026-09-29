@@ -592,7 +592,15 @@ void SessionModel::rebuildSections()
                 item.installed = app.value(QStringLiteral("installed")).toBool();
                 item.running = app.value(QStringLiteral("running")).toBool();
                 item.launchState = app.value(QStringLiteral("launch_state")).toString();
-                if (!item.installed)
+                const QJsonObject install = app.value(QStringLiteral("install")).toObject();
+                item.installState = install.value(QStringLiteral("state")).toString();
+                item.installProgress = install.value(QStringLiteral("progress")).toInt();
+                if (item.installState == QLatin1String("preparing") || item.installState == QLatin1String("downloading")
+                    || item.installState == QLatin1String("installing"))
+                    item.subtitle = QStringLiteral("Installing… %1%").arg(item.installProgress);
+                else if (!item.installed && item.installState == QLatin1String("available"))
+                    item.subtitle = QStringLiteral("Not installed — press OK to install");
+                else if (!item.installed)
                     item.subtitle = QStringLiteral("Not installed — see Settings");
                 else if (item.launchState == QLatin1String("launching"))
                     item.subtitle = QStringLiteral("Starting…");

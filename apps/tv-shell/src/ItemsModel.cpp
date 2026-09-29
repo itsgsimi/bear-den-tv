@@ -29,6 +29,8 @@ QVariant ItemsModel::data(const QModelIndex &index, int role) const
     case TintRole: return it.tint;
     case OpenActionRole: return it.openAction;
     case ArtworkRole: return it.artwork;
+    case InstallStateRole: return it.installState;
+    case InstallProgressRole: return it.installProgress;
     default: return {};
     }
 }
@@ -40,7 +42,7 @@ QHash<int, QByteArray> ItemsModel::roleNames() const
         {SubtitleRole, "subtitle"}, {ProgressRole, "progress"}, {DemoRole, "demo"},
         {InstalledRole, "installed"}, {RunningRole, "running"}, {LaunchStateRole, "launchState"},
         {AppIdRole, "appId"},     {TintRole, "tint"},           {OpenActionRole, "openAction"},
-        {ArtworkRole, "artwork"},
+        {ArtworkRole, "artwork"}, {InstallStateRole, "installState"}, {InstallProgressRole, "installProgress"},
     };
 }
 

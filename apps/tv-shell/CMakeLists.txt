@@ -31,7 +31,8 @@ set(BDTV_QML_FILES
   qml/DiagnosticsScreen.qml
   qml/ConnectingScreen.qml
   qml/LockedScreen.qml
-  qml/AppUnavailableDialog.qml
+  qml/InstallCard.qml
+  qml/AddAppsScreen.qml
   qml/MessageDialog.qml
   qml/ConfirmDialog.qml
   qml/LaunchOverlay.qml

@@ -7,6 +7,8 @@
 // swallowed and reported as IPC power.activity (SleepWarning shows the
 // warning). Remote input never lands here in that state: the coordinator
 // wakes or cancels first and its new state reaches the shell before the input.
+// An app the owner chose to install (InstallCard) opens by itself when its
+// install is done, if the owner is still on its card or its Home tile.
 
 import QtQuick
 import BearDen
@@ -19,11 +21,12 @@ FocusScope {
     readonly property var screens: ({
         "home": home, "settings": settings, "remote-setup": remoteSetup,
         "pairing": pairing, "devices": devices, "diagnostics": diagnostics, "playback": playback,
-        "advanced-playback": advancedPlayback, "weather": weather, "plex": plex, "badges": badges, "streaming": streaming
+        "advanced-playback": advancedPlayback, "weather": weather, "plex": plex, "badges": badges, "streaming": streaming,
+        "add-apps": addApps
     })
     readonly property var topDialog: confirmDialog.visible ? confirmDialog
                                    : messageDialog.visible ? messageDialog
-                                   : appDialog.visible ? appDialog
+                                   : installCard.visible ? installCard
                                    : null
     readonly property bool blocked: !Session.loaded || Session.locked
 
@@ -31,7 +34,7 @@ FocusScope {
         if (topDialog) return "dialog"
         if (screen === "remote-setup") return "setup"
         if (screen === "playback" || screen === "advanced-playback") return "diagnostics"   // the contract's screen names
-        if (screen === "weather" || screen === "plex" || screen === "badges" || screen === "streaming") return "settings"
+        if (screen === "weather" || screen === "plex" || screen === "badges" || screen === "streaming" || screen === "add-apps") return "settings"
         return screen
     }
     function syncNav() { Nav.screen = navScreenName() }
@@ -66,7 +69,7 @@ FocusScope {
         wake()
         confirmDialog.finish(false)
         messageDialog.visible = false
-        appDialog.visible = false
+        installCard.visible = false
         launchOverlay.dismissed = true
         if (current().leave) current().leave()
         stack = ["home"]
@@ -169,6 +172,33 @@ FocusScope {
         function onRequestFailed(what, message) { messageDialog.open(what, message) }
     }
 
+    // The app whose Install the owner pressed: it opens by itself once
+    // installed, if the owner is still on its card or on its Home tile;
+    // otherwise its tile is simply ready. A failure or a cancel forgets it.
+    property string pendingOpen: ""
+    property bool pendingStarted: false   // a snapshot showed the install running
+    onPendingOpenChanged: pendingStarted = false
+    function openWhenInstalled() {
+        if (pendingOpen.length === 0) return
+        const app = Session.application(pendingOpen)
+        if (app.installed !== true) {
+            const st = app.install ? app.install.state : ""
+            if (st === "preparing" || st === "downloading" || st === "installing") pendingStarted = true
+            else if (st === "failed" || (pendingStarted && st === "available")) pendingOpen = "" // failed or cancelled
+            return
+        }
+        const id = pendingOpen
+        pendingOpen = ""
+        const onCard = installCard.visible && installCard.appId === id
+        const onTile = !topDialog && screen === "home" && home.focusedAppId() === id && !screensaver.active
+        if (onCard) installCard.close()
+        if (onCard || onTile) Shell.launchApp(id)
+    }
+    Connections {
+        target: Session
+        function onSnapshotChanged() { root.openWhenInstalled() }
+    }
+
     Component.onCompleted: {
         syncNav()
         if (Shell.startScreen !== "home" && screens[Shell.startScreen]) Qt.callLater(() => open(Shell.startScreen))
@@ -202,7 +232,7 @@ FocusScope {
             Behavior on opacity { NumberAnimation { duration: Theme.ms(220); easing.type: Easing.OutCubic } }
             Behavior on y { NumberAnimation { duration: Theme.ms(260); easing.type: Easing.OutCubic } }
             onOpenScreen: (name) => root.open(name)
-            onAppUnavailable: (app) => appDialog.openFor(app)
+            onAppUnavailable: (app) => installCard.openFor(app.id)
             onMessage: (title, body) => messageDialog.open(title, body)
         }
         SettingsScreen {
@@ -215,6 +245,17 @@ FocusScope {
             Behavior on y { NumberAnimation { duration: Theme.ms(260); easing.type: Easing.OutCubic } }
             onOpenScreen: (name) => root.open(name)
             onConfirm: (title, body, label, accept) => confirmDialog.open({ title: title, body: body, confirmLabel: label, onAccept: accept })
+        }
+        AddAppsScreen {
+            id: addApps
+            width: parent.width; height: parent.height
+            active: root.screen === "add-apps" && !root.topDialog
+            opacity: root.screen === "add-apps" ? 1 : 0
+            visible: opacity > 0
+            y: root.screen === "add-apps" ? 0 : 24 * Theme.scale
+            Behavior on opacity { NumberAnimation { duration: Theme.ms(220); easing.type: Easing.OutCubic } }
+            Behavior on y { NumberAnimation { duration: Theme.ms(260); easing.type: Easing.OutCubic } }
+            onOpenInstall: (appId) => installCard.openFor(appId)
         }
         RemoteSetupScreen {
             id: remoteSetup
@@ -303,6 +344,7 @@ FocusScope {
             y: root.screen === "streaming" ? 0 : 24 * Theme.scale
             Behavior on opacity { NumberAnimation { duration: Theme.ms(220); easing.type: Easing.OutCubic } }
             Behavior on y { NumberAnimation { duration: Theme.ms(260); easing.type: Easing.OutCubic } }
+            onOpenInstall: (appId) => installCard.openFor(appId)
         }
         BadgesScreen {
             id: badges
@@ -345,7 +387,11 @@ FocusScope {
                  && !launchOverlay.visible && !root.blocked && !screensaver.active
     }
     LaunchOverlay { id: launchOverlay; anchors.fill: parent }
-    AppUnavailableDialog { id: appDialog; anchors.fill: parent }
+    InstallCard {
+        id: installCard
+        anchors.fill: parent
+        onInstallRequested: (appId) => root.pendingOpen = appId
+    }
     MessageDialog { id: messageDialog; anchors.fill: parent }
     ConfirmDialog { id: confirmDialog; anchors.fill: parent }
     SleepWarning {

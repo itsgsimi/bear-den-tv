@@ -31,6 +31,8 @@ public:
         TintRole,
         OpenActionRole,
         ArtworkRole,
+        InstallStateRole,    // state.applications[].install.state, "" when absent
+        InstallProgressRole, // 0..100
     };
 
     struct Item {
@@ -47,6 +49,8 @@ public:
         QColor tint;
         QString openAction;
         QString artwork;
+        QString installState;
+        int installProgress = 0;
     };
 
     explicit ItemsModel(QObject *parent = nullptr);

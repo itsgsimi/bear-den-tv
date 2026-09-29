@@ -3,7 +3,8 @@
 // OK toggles through IPC app.enable (contracts/ipc.md); the coordinator
 // stores it in config.json and a new snapshot follows. A web app that is off
 // has no tile on Home. The rows come from the snapshot, never from display
-// names: an entry is listed because it has `enabled`.
+// names: an entry is listed because it has `enabled`. Turning a site on
+// while Chromium is missing opens the install card for it (ADR 0011).
 
 pragma ComponentBehavior: Bound
 import QtQuick
@@ -16,6 +17,7 @@ Item {
     property bool active: false
 
     readonly property var sites: Session.applications.filter(a => a.enabled !== undefined)
+    signal openInstall(string appId)
 
     function enter() { focusIndex = Math.min(focusIndex, Math.max(0, sites.length - 1)); report() }
     function report() { Nav.reportFocus("streaming", sites.length > 0 ? sites[focusIndex].id : "none", 0) }
@@ -24,8 +26,13 @@ Item {
         report()
     }
     function describe(app) {
+        const i = app.install || {}
+        if (!app.installed && (i.state === "preparing" || i.state === "downloading" || i.state === "installing"))
+            return qsTr("Installing Chromium… %1%").arg(i.progress)
         if (!app.installed)
-            return qsTr("Needs Chromium from Flathub (org.chromium.Chromium)")
+            return qsTr("Needs Chromium from Flathub: OK to install it")
+        if (i.drm === "preparing" || (app.enabled === true && i.drm === "pending"))
+            return qsTr("Still setting up playback support")
         return Apps.hint(app.adapter) || Apps.tagline(app.adapter)
     }
     function navigate(action) {
@@ -34,9 +41,15 @@ Item {
         case "nav.down": move(focusIndex + 1); return true
         case "nav.left":
         case "nav.right": return true
-        case "select":
-            if (sites.length > 0) Shell.setAppEnabled(sites[focusIndex].id, sites[focusIndex].enabled !== true)
+        case "select": {
+            if (sites.length === 0) return true
+            const site = sites[focusIndex]
+            const on = site.enabled !== true
+            Shell.setAppEnabled(site.id, on)
+            // Chromium missing: the same install card as a Home tile.
+            if (on && site.installed === false) openInstall(site.id)
             return true
+        }
         }
         return false
     }

@@ -49,6 +49,28 @@ QtObject {
         }
         return ""
     }
+    // What an install of this app actually fetches, when it is not the app
+    // itself ("" = the app): the web apps all run in Flathub Chromium
+    // (internal/applications/adapters ChromiumFlatpakID), installed once.
+    function installName(adapter) {
+        switch (adapter) {
+        case "netflix":
+        case "disney-plus":
+        case "hulu":
+        case "browser": return qsTr("Chromium")
+        }
+        return ""
+    }
+    // Why that shared install is needed (Settings → Add apps, the install card).
+    function installWhy(adapter) {
+        switch (adapter) {
+        case "netflix":
+        case "disney-plus":
+        case "hulu":
+        case "browser": return qsTr("Browser for Netflix, Disney+, Hulu")
+        }
+        return ""
+    }
     // A short note on the tile until the app is first opened in this session
     // ("" = none): the streaming sites' honest quality cap.
     function note(adapter) {

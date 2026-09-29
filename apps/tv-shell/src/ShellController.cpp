@@ -83,7 +83,7 @@ ShellController::ShellController(QObject *parent) : QObject(parent)
         if (!ok)
             emit requestFailed(tr("Settings"), error);
     });
-    connect(m_ipc, &IpcClient::requestTimedOut, this, [this](const QString &requestId, const QString &) {
+    connect(m_ipc, &IpcClient::requestTimedOut, this, [this](const QString &requestId, const QString &type) {
         if (requestId == m_launchRequestId)
             setLaunching(QString());
         if (requestId == m_weatherSearchId) {
@@ -92,6 +92,11 @@ ShellController::ShellController(QObject *parent) : QObject(parent)
             m_weatherOk = false;
             m_weatherError = tr("The place search did not answer in time.");
             emit weatherPlacesChanged();
+            return;
+        }
+        if (type.startsWith(QLatin1String("app.install"))) {
+            // Flathub can be slow: the card says so instead of a dialog.
+            emit installReplied(type, m_installRequests.take(requestId), false, tr("Flathub did not answer in time."), {});
             return;
         }
         emit requestFailed(tr("Request"), tr("Bear Den did not answer in time."));
@@ -233,6 +238,14 @@ void ShellController::onReply(const QString &requestId, const QString &type, con
             emit requestFailed(tr("Weather"), error);
         return;
     }
+    if (type.startsWith(QLatin1String("app.install"))) {
+        // The install card shows the answer itself (and the progress is in
+        // state.applications[].install).
+        const QString appId = m_installRequests.take(requestId);
+        emit installReplied(type, appId, payload.value(QStringLiteral("ok")).toBool(), payload.value(QStringLiteral("error")).toString(),
+                            payload.value(QStringLiteral("data")).toObject().toVariantMap());
+        return;
+    }
     if (type.startsWith(QLatin1String("plex."))) {
         // Settings → Plex shows the reason itself (state.plex.message and this reply).
         emit plexReplied(type, payload.value(QStringLiteral("ok")).toBool(), payload.value(QStringLiteral("error")).toString());
@@ -249,6 +262,8 @@ void ShellController::onReply(const QString &requestId, const QString &type, con
         emit requestFailed(tr("Paired phones"), error);
     else if (type == QLatin1String("remote.now_playing"))
         emit requestFailed(tr("Now playing on phones"), error);
+    else if (type == QLatin1String("apps.configure"))
+        emit requestFailed(tr("Keep apps up to date"), error);
     else if (type == QLatin1String("cec.configure"))
         emit requestFailed(tr("TV control over HDMI"), error);
     else if (type == QLatin1String("playback.set"))
@@ -325,6 +340,26 @@ void ShellController::setNowPlaying(bool enabled)
 void ShellController::setAppEnabled(const QString &appId, bool enabled)
 {
     m_ipc->sendAppEnable(appId, enabled);
+}
+
+void ShellController::installInfo(const QString &appId)
+{
+    m_installRequests.insert(m_ipc->sendAppInstall(QStringLiteral("app.install_info"), appId), appId);
+}
+
+void ShellController::installApp(const QString &appId)
+{
+    m_installRequests.insert(m_ipc->sendAppInstall(QStringLiteral("app.install"), appId), appId);
+}
+
+void ShellController::cancelInstall(const QString &appId)
+{
+    m_installRequests.insert(m_ipc->sendAppInstall(QStringLiteral("app.install_cancel"), appId), appId);
+}
+
+void ShellController::setAutoUpdate(bool enabled)
+{
+    m_ipc->sendAppsConfigure(enabled);
 }
 
 void ShellController::setSleepTimer(int minutes)

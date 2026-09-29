@@ -155,6 +155,66 @@ private:
         return wx ? wx->property("drawn").toStringList().join(QLatin1Char(',')) : QStringLiteral("<none>");
     }
 
+    // App installs (InstallCard.qml, AddAppsScreen.qml; ADR 0011): the demo
+    // snapshot with YouTube missing but installable, Netflix and Hulu (both
+    // Chromium) missing, and installs available.
+    QJsonObject installSnapshot(const QString &youtubeState, int progress = 0, bool youtubeInstalled = false)
+    {
+        QJsonObject snap = fixture();
+        QJsonArray apps = snap.value(QStringLiteral("applications")).toArray();
+        for (int i = 0; i < apps.size(); ++i) {
+            QJsonObject a = apps.at(i).toObject();
+            if (a.value(QStringLiteral("id")).toString() == QLatin1String("youtube")) {
+                a.insert(QStringLiteral("installed"), youtubeInstalled);
+                a.insert(QStringLiteral("install"), QJsonObject{{QStringLiteral("state"), youtubeState}, {QStringLiteral("progress"), progress},
+                                                                {QStringLiteral("phase"), youtubeState == QLatin1String("downloading") ? QStringLiteral("runtime") : QString()},
+                                                                {QStringLiteral("size_bytes"), 417600000}, {QStringLiteral("disk_bytes"), 2218600000LL}});
+            } else {
+                a.insert(QStringLiteral("install"), QJsonObject{{QStringLiteral("state"), QStringLiteral("none")}, {QStringLiteral("progress"), 0}, {QStringLiteral("phase"), QString()}});
+            }
+            apps.replace(i, a);
+        }
+        auto web = [](const QString &id, const QString &label) {
+            return QJsonObject{{QStringLiteral("id"), id}, {QStringLiteral("label"), label}, {QStringLiteral("adapter"), id},
+                               {QStringLiteral("installed"), false}, {QStringLiteral("version"), QJsonValue()}, {QStringLiteral("installation"), QStringLiteral("none")},
+                               {QStringLiteral("running"), false}, {QStringLiteral("foreground"), false}, {QStringLiteral("launch_state"), QStringLiteral("idle")},
+                               {QStringLiteral("last_error"), QJsonValue()}, {QStringLiteral("enabled"), false}, {QStringLiteral("hidden"), true},
+                               {QStringLiteral("install"), QJsonObject{{QStringLiteral("state"), QStringLiteral("available")}, {QStringLiteral("progress"), 0}, {QStringLiteral("phase"), QString()}}}};
+        };
+        apps.append(web(QStringLiteral("netflix"), QStringLiteral("Netflix")));
+        apps.append(web(QStringLiteral("hulu"), QStringLiteral("Hulu")));
+        snap.insert(QStringLiteral("applications"), apps);
+        QJsonObject caps = snap.value(QStringLiteral("capabilities")).toObject();
+        caps.insert(QStringLiteral("app.install"), QJsonObject{{QStringLiteral("available"), true}, {QStringLiteral("backend"), QStringLiteral("flathub")}});
+        snap.insert(QStringLiteral("capabilities"), caps);
+        snap.insert(QStringLiteral("apps"), QJsonObject{{QStringLiteral("auto_update"), true}});
+        return snap;
+    }
+    QJsonObject lastSent(const QString &type)
+    {
+        const QList<QJsonObject> sent = ShellController::instance()->ipc()->sentMessages();
+        for (auto it = sent.crbegin(); it != sent.crend(); ++it)
+            if (it->value(QStringLiteral("type")).toString() == type)
+                return *it;
+        return {};
+    }
+    QQuickItem *visibleItem(const QString &name)
+    {
+        QQuickItem *found = nullptr;
+        std::function<void(QQuickItem *)> find = [&](QQuickItem *item) {
+            if (found || !item->isVisible())
+                return;
+            if (item->objectName() == name) {
+                found = item;
+                return;
+            }
+            for (QQuickItem *child : item->childItems())
+                find(child);
+        };
+        find(m_window->contentItem());
+        return found;
+    }
+
 private slots:
     void initTestCase()
     {
@@ -598,6 +658,234 @@ private slots:
         for (int i = 0; i < 40; ++i) // leave Settings at its first row for the tests after
             act(QStringLiteral("nav.up"));
         goHome();
+    }
+
+    // OK on a "Not installed" tile opens the card with Install focused and
+    // asks for the size; Install sends app.install; progress shows on the
+    // card and, after Back, on the tile while the install carries on; Cancel
+    // sends app.install_cancel; the app opens by itself when done if the
+    // owner is still on its card or tile, and not when focus moved on.
+    void installCardInstallsWithProgressAndOpensWhenDone()
+    {
+        SessionModel *session = SessionModel::instance();
+        IpcClient *ipc = ShellController::instance()->ipc();
+        QSignalSpy failed(ShellController::instance(), &ShellController::requestFailed);
+        auto opened = [&failed]() { // offline, launchApp reports it cannot open: proof it was asked
+            for (const auto &args : failed)
+                if (args.at(0).toString() == QLatin1String("Open app"))
+                    return true;
+            return false;
+        };
+        const auto restore = qScopeGuard([session, this] { session->applySnapshot(fixture()); });
+        QVERIFY2(session->applySnapshot(installSnapshot(QStringLiteral("available"))), qPrintable(session->lastError()));
+        goHome();
+        toFavorites();
+        act(QStringLiteral("nav.left"));
+        act(QStringLiteral("nav.right"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("youtube"));
+        ipc->clearSent();
+        act(QStringLiteral("select"));
+        QCOMPARE(m_nav->screen(), QStringLiteral("dialog"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("install-install"));
+        QVERIFY(lastSent(QStringLiteral("app.install_info")).isEmpty()); // the size is already known
+        shot(QStringLiteral("install-card"));
+        act(QStringLiteral("nav.right"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("install-close"));
+        act(QStringLiteral("nav.left"));
+        act(QStringLiteral("select"));
+        QCOMPARE(lastSent(QStringLiteral("app.install")).value(QStringLiteral("app_id")).toString(), QStringLiteral("youtube"));
+
+        // Progress arrives with the state: the card, then the tile after Back.
+        QVERIFY(session->applySnapshot(installSnapshot(QStringLiteral("downloading"), 42)));
+        QCoreApplication::processEvents();
+        QCOMPARE(m_nav->itemId(), QStringLiteral("install-hide"));
+        QQuickItem *bar = visibleItem(QStringLiteral("installCardProgress"));
+        QVERIFY(bar);
+        QCOMPARE(bar->property("value").toDouble(), 0.42);
+        shot(QStringLiteral("install-card-progress"));
+        act(QStringLiteral("back"));
+        QCOMPARE(m_nav->screen(), QStringLiteral("home"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("youtube"));
+        QVERIFY(lastSent(QStringLiteral("app.install_cancel")).isEmpty()); // Back is not a cancel
+        QQuickItem *tileBar = visibleItem(QStringLiteral("tileInstallProgress"));
+        QVERIFY(tileBar);
+        QCOMPARE(tileBar->property("value").toDouble(), 0.42);
+        shot(QStringLiteral("install-tile-progress"));
+
+        // Open the card again from the tile and cancel.
+        act(QStringLiteral("select"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("install-hide"));
+        act(QStringLiteral("nav.right"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("install-cancel"));
+        act(QStringLiteral("select"));
+        QCOMPARE(lastSent(QStringLiteral("app.install_cancel")).value(QStringLiteral("app_id")).toString(), QStringLiteral("youtube"));
+        QVERIFY(session->applySnapshot(installSnapshot(QStringLiteral("available"))));
+        QCoreApplication::processEvents();
+        QCOMPARE(m_nav->itemId(), QStringLiteral("install-install"));
+
+        // Install again; done while the owner is still on the card: it opens.
+        act(QStringLiteral("select"));
+        QVERIFY(session->applySnapshot(installSnapshot(QStringLiteral("downloading"), 80)));
+        QVERIFY(session->applySnapshot(installSnapshot(QStringLiteral("done"), 100, true)));
+        QCoreApplication::processEvents();
+        QVERIFY(opened());
+        act(QStringLiteral("back")); // the offline "cannot open" notice
+        failed.clear();
+
+        // Done after the owner moved to another tile: no surprise launch.
+        QVERIFY(session->applySnapshot(installSnapshot(QStringLiteral("available"))));
+        goHome();
+        toFavorites();
+        act(QStringLiteral("nav.left"));
+        act(QStringLiteral("nav.right"));
+        act(QStringLiteral("select"));
+        act(QStringLiteral("select")); // Install
+        QVERIFY(session->applySnapshot(installSnapshot(QStringLiteral("downloading"), 10)));
+        act(QStringLiteral("back"));
+        act(QStringLiteral("nav.left"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("plex-htpc"));
+        QVERIFY(session->applySnapshot(installSnapshot(QStringLiteral("done"), 100, true)));
+        QCoreApplication::processEvents();
+        QVERIFY(!opened());
+        QCOMPARE(m_nav->screen(), QStringLiteral("home"));
+
+        // Done while the owner waits on its tile: it opens.
+        QVERIFY(session->applySnapshot(installSnapshot(QStringLiteral("available"))));
+        act(QStringLiteral("nav.right"));
+        act(QStringLiteral("select"));
+        act(QStringLiteral("select"));
+        QVERIFY(session->applySnapshot(installSnapshot(QStringLiteral("downloading"), 10)));
+        act(QStringLiteral("back"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("youtube"));
+        QVERIFY(session->applySnapshot(installSnapshot(QStringLiteral("done"), 100, true)));
+        QCoreApplication::processEvents();
+        QVERIFY(opened());
+        goHome();
+    }
+
+    // Installs unavailable (Flatpak missing): the card says why and offers
+    // only OK.
+    void installCardSaysWhyInstallsAreUnavailable()
+    {
+        SessionModel *session = SessionModel::instance();
+        const auto restore = qScopeGuard([session, this] { session->applySnapshot(fixture()); });
+        QJsonObject snap = installSnapshot(QStringLiteral("none"));
+        QJsonArray apps = snap.value(QStringLiteral("applications")).toArray();
+        for (int i = 0; i < apps.size(); ++i) {
+            QJsonObject a = apps.at(i).toObject();
+            if (a.value(QStringLiteral("id")).toString() == QLatin1String("youtube")) {
+                a.insert(QStringLiteral("install"), QJsonObject{{QStringLiteral("state"), QStringLiteral("none")}, {QStringLiteral("progress"), 0}, {QStringLiteral("phase"), QString()},
+                                                                {QStringLiteral("message"), QStringLiteral("Flatpak isn't installed on this box")}});
+                apps.replace(i, a);
+            }
+        }
+        snap.insert(QStringLiteral("applications"), apps);
+        QVERIFY2(session->applySnapshot(snap), qPrintable(session->lastError()));
+        ShellController::instance()->ipc()->clearSent();
+        goHome();
+        toFavorites();
+        act(QStringLiteral("nav.left"));
+        act(QStringLiteral("nav.right"));
+        act(QStringLiteral("select"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("install-close"));
+        act(QStringLiteral("nav.right"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("install-close"));
+        shot(QStringLiteral("install-card-no-flatpak"));
+        act(QStringLiteral("select"));
+        QCOMPARE(m_nav->screen(), QStringLiteral("home"));
+        QVERIFY(lastSent(QStringLiteral("app.install")).isEmpty());
+        QVERIFY(lastSent(QStringLiteral("app.install_info")).isEmpty());
+    }
+
+    // Settings → Add apps lists each missing Flatpak once (the web apps are
+    // one Chromium row) and opens the card; Keep apps up to date sends
+    // apps.configure; Streaming sites turns a site on and offers Chromium.
+    void addAppsAndStreamingSitesOfferInstalls()
+    {
+        SessionModel *session = SessionModel::instance();
+        const auto restore = qScopeGuard([session, this] { session->applySnapshot(fixture()); });
+        QVERIFY2(session->applySnapshot(installSnapshot(QStringLiteral("available"))), qPrintable(session->lastError()));
+        IpcClient *ipc = ShellController::instance()->ipc();
+        goHome();
+        toHeader();
+        act(QStringLiteral("nav.right"));
+        act(QStringLiteral("select"));
+        QCOMPARE(m_nav->screen(), QStringLiteral("settings"));
+        for (int i = 0; i < 40 && m_nav->itemId() != QLatin1String("add-apps"); ++i)
+            act(QStringLiteral("nav.down"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("add-apps"));
+        act(QStringLiteral("nav.down"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("auto-update"));
+        ipc->clearSent();
+        act(QStringLiteral("select"));
+        QCOMPARE(lastSent(QStringLiteral("apps.configure")).value(QStringLiteral("auto_update")), QJsonValue(false));
+        act(QStringLiteral("nav.up"));
+        act(QStringLiteral("select"));
+        QCOMPARE(m_nav->sectionId(), QStringLiteral("add-apps"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("youtube"));
+        QStringList rows{m_nav->itemId()};
+        for (int i = 0; i < 4; ++i) {
+            act(QStringLiteral("nav.down"));
+            if (rows.last() != m_nav->itemId())
+                rows << m_nav->itemId();
+        }
+        QCOMPARE(rows, (QStringList{QStringLiteral("youtube"), QStringLiteral("netflix")})); // hulu shares Chromium's row
+        shot(QStringLiteral("settings-add-apps"));
+        act(QStringLiteral("select"));
+        QCOMPARE(m_nav->screen(), QStringLiteral("dialog"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("install-install"));
+        QCOMPARE(lastSent(QStringLiteral("app.install_info")).value(QStringLiteral("app_id")).toString(), QStringLiteral("netflix"));
+        act(QStringLiteral("back"));
+        QCOMPARE(m_nav->sectionId(), QStringLiteral("add-apps"));
+        act(QStringLiteral("back"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("add-apps"));
+
+        // Streaming sites: turning Netflix on while Chromium is missing.
+        for (int i = 0; i < 40 && m_nav->itemId() != QLatin1String("streaming"); ++i)
+            act(QStringLiteral("nav.up"));
+        act(QStringLiteral("select"));
+        QCOMPARE(m_nav->sectionId(), QStringLiteral("streaming"));
+        for (int i = 0; i < 4; ++i) // the screen remembers its row
+            act(QStringLiteral("nav.up"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("netflix"));
+        ipc->clearSent();
+        act(QStringLiteral("select"));
+        QCOMPARE(lastSent(QStringLiteral("app.enable")).value(QStringLiteral("enabled")), QJsonValue(true));
+        QCOMPARE(m_nav->screen(), QStringLiteral("dialog"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("install-install"));
+        QCOMPARE(lastSent(QStringLiteral("app.install_info")).value(QStringLiteral("app_id")).toString(), QStringLiteral("netflix"));
+        shot(QStringLiteral("streaming-chromium-card"));
+        act(QStringLiteral("back"));
+        act(QStringLiteral("back"));
+        for (int i = 0; i < 40; ++i) // leave Settings at its first row for the tests after
+            act(QStringLiteral("nav.up"));
+        goHome();
+    }
+
+    void installStateAcceptedAndChecked()
+    {
+        SessionModel *session = SessionModel::instance();
+        const auto restore = qScopeGuard([session, this] { session->applySnapshot(fixture()); });
+        QVERIFY2(session->applySnapshot(installSnapshot(QStringLiteral("downloading"), 42)), qPrintable(session->lastError()));
+        QCOMPARE(session->apps().value(QStringLiteral("auto_update")).toBool(), true);
+        auto broken = [this](const char *field, const QJsonValue &value) {
+            QJsonObject snap = installSnapshot(QStringLiteral("downloading"), 42);
+            QJsonArray apps = snap.value(QStringLiteral("applications")).toArray();
+            QJsonObject a = apps.at(1).toObject();
+            QJsonObject inst = a.value(QStringLiteral("install")).toObject();
+            inst.insert(QString::fromLatin1(field), value);
+            a.insert(QStringLiteral("install"), inst);
+            apps.replace(1, a);
+            snap.insert(QStringLiteral("applications"), apps);
+            return snap;
+        };
+        QVERIFY(!session->applySnapshot(broken("state", QStringLiteral("queued"))));
+        QVERIFY(!session->applySnapshot(broken("progress", 140)));
+        QVERIFY(!session->applySnapshot(broken("phase", QStringLiteral("downloading everything"))));
+        QVERIFY(!session->applySnapshot(broken("drm", QStringLiteral("maybe"))));
+        QJsonObject noAuto = installSnapshot(QStringLiteral("available"));
+        noAuto.insert(QStringLiteral("apps"), QJsonObject{});
+        QVERIFY(!session->applySnapshot(noAuto));
     }
 
     // A badge in achievements.celebrate is celebrated on Home, never over an

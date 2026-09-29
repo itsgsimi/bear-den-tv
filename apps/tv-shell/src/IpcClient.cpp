@@ -427,11 +427,18 @@ QString IpcClient::sendRemoteConfigure(bool enabled, const QString &transport, c
     return track(id, QStringLiteral("remote.configure"));
 }
 
-QString IpcClient::sendInstallRequest(const QString &appId)
+QString IpcClient::sendAppInstall(const QString &type, const QString &appId)
 {
     const QString id = newRequestId();
-    send(QJsonObject{{QStringLiteral("type"), QStringLiteral("applications.install_request")}, {QStringLiteral("request_id"), id}, {QStringLiteral("app_id"), appId}});
-    return track(id, QStringLiteral("applications.install_request"));
+    send(QJsonObject{{QStringLiteral("type"), type}, {QStringLiteral("request_id"), id}, {QStringLiteral("app_id"), appId}});
+    return track(id, type);
+}
+
+QString IpcClient::sendAppsConfigure(bool autoUpdate)
+{
+    const QString id = newRequestId();
+    send(QJsonObject{{QStringLiteral("type"), QStringLiteral("apps.configure")}, {QStringLiteral("request_id"), id}, {QStringLiteral("auto_update"), autoUpdate}});
+    return track(id, QStringLiteral("apps.configure"));
 }
 
 QString IpcClient::sendWeatherSearch(const QString &query)

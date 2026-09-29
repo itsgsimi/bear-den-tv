@@ -29,6 +29,11 @@ Item {
         const r = activeRail ? activeRail : (rails.count > 0 ? rails.itemAt(0) : null)
         return r && r.isApplications ? r.tileRects(target) : []
     }
+    // The app id of the focused tile ("" when focus is not on an app).
+    function focusedAppId() {
+        const d = activeRail ? activeRail.currentData : null
+        return d && d.kind === "app" ? d.appId : ""
+    }
     function reportHeader() {
         Nav.reportFocus("header", header.pills[headerIndex][0], 0)
     }

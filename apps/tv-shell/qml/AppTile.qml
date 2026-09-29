@@ -1,7 +1,9 @@
 // Application tile in the app's own colours: its icon (Bear Den's own, or the
 // owner's brand icon; AppIcon), a faint oversized copy of that icon as texture, the name, what the app is for, and a
-// status pill (Running / Starting / Not installed / Launch failed) so state is
-// never conveyed by colour alone.
+// status pill (Running / Starting / Not installed / Installing 42% / Launch
+// failed) so state is never conveyed by colour alone. While its install runs
+// (state.applications[].install) a bar along the bottom shows how far it is,
+// moved only by state pushes.
 
 import QtQuick
 import BearDen
@@ -18,7 +20,10 @@ Item {
     readonly property var art: Shell.appArt(adapter, World.classic)
     readonly property bool hasLogo: art.logo.length > 0
     readonly property bool hasPhoto: art.background.length > 0
+    readonly property bool installing: item.installState === "preparing" || item.installState === "downloading" || item.installState === "installing"
     readonly property var status: {
+        if (installing) return { text: qsTr("Installing %1%").arg(item.installProgress || 0), color: Theme.accent }
+        if (item.installed === false && item.installState === "failed") return { text: qsTr("Install failed"), color: Theme.danger }
         if (item.installed === false) return { text: qsTr("Not installed"), color: Theme.warning }
         if (item.launchState === "launching") return { text: qsTr("Starting…"), color: Theme.accent }
         if (item.launchState === "failed" || item.launchState === "crashed") return { text: qsTr("Launch failed"), color: Theme.danger }
@@ -79,7 +84,7 @@ Item {
         anchors.fill: parent
         scale: root.focused ? Theme.focusScale : 1
         Behavior on scale { NumberAnimation { duration: Theme.duration; easing.type: Easing.OutCubic } }
-        opacity: root.item.installed === false ? 0.6 : 1
+        opacity: root.item.installed === false && !root.installing ? 0.6 : 1
 
         BrandBackdrop {
             anchors.fill: parent
@@ -179,6 +184,13 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
                 }
             }
+        }
+        ProgressBar {
+            objectName: "tileInstallProgress"
+            visible: root.installing
+            anchors { left: parent.left; right: parent.right; bottom: parent.bottom; leftMargin: 22 * Theme.scale; rightMargin: 22 * Theme.scale; bottomMargin: 8 * Theme.scale }
+            height: 8 * Theme.scale
+            value: (root.item.installProgress || 0) / 100
         }
         Column {
             anchors { left: parent.left; right: parent.right; bottom: parent.bottom; leftMargin: 22 * Theme.scale; rightMargin: 22 * Theme.scale; bottomMargin: 18 * Theme.scale }

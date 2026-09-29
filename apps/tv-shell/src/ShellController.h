@@ -121,6 +121,14 @@ public:
     Q_INVOKABLE void setNowPlaying(bool enabled);
     // Settings → Streaming sites (app.enable): turn one web app on or off.
     Q_INVOKABLE void setAppEnabled(const QString &appId, bool enabled);
+    // App installs from Flathub (contracts/ipc.md app.install*): the install
+    // card asks for the size, Install starts it, Cancel stops it. Progress is
+    // state.applications[].install; replies arrive as installReplied.
+    Q_INVOKABLE void installInfo(const QString &appId);
+    Q_INVOKABLE void installApp(const QString &appId);
+    Q_INVOKABLE void cancelInstall(const QString &appId);
+    // Settings → Keep apps up to date (apps.configure).
+    Q_INVOKABLE void setAutoUpdate(bool enabled);
     // Settings → TV control over HDMI (CEC) and its volume row
     // (cec.configure): on/off, and whether the phone's volume buttons drive
     // the PC ("pc") or the TV ("tv").
@@ -189,6 +197,9 @@ signals:
     void weatherConfigured(bool ok, const QString &error);
     /// The coordinator's `result` for a plex.* message (type is its name).
     void plexReplied(const QString &type, bool ok, const QString &error);
+    /// The coordinator's `result` for app.install, app.install_info or
+    /// app.install_cancel (type), for appId; data carries the sizes.
+    void installReplied(const QString &type, const QString &appId, bool ok, const QString &error, const QVariantMap &data);
 
 private:
     void onInput(const QString &requestId, const QString &action, const QVariantMap &args, int contextEpoch);
@@ -214,5 +225,6 @@ private:
     bool m_weatherOk = true;
     bool m_weatherSearching = false;
     QString m_weatherError;
+    QHash<QString, QString> m_installRequests; // request id → app id
     mutable QHash<QString, QPair<qint64, QVariantMap>> m_artCache;
 };

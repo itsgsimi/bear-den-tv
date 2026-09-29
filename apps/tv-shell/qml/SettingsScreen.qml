@@ -3,7 +3,8 @@
 // layout update), weather, playback, diagnostics, the sleep timer and Screen
 // off (the power.sleep_timer and display.off actions, state.power), TV
 // control over HDMI (CEC) and its volume row (cec.configure, state.cec),
-// Plex, and a maintenance exit.
+// Add apps (AddAppsScreen) and Keep apps up to date (apps.configure,
+// state.apps), Plex, and a maintenance exit.
 
 import QtQuick
 import BearDen
@@ -60,6 +61,17 @@ Item {
         if (cec.tv_power === "on") return qsTr("The TV is on and follows Bear Den")
         return qsTr("The TV did not say whether it is on")
     }
+    // Settings → Add apps: how many Flatpaks Bear Den could install.
+    readonly property int toAdd: {
+        const seen = {}
+        let n = 0
+        for (const a of Session.applications) {
+            if (a.installed === true || !a.install || a.install.state === "none") continue
+            const key = Shell.flatpakIdFor(a.adapter) || a.id
+            if (!seen[key]) { seen[key] = true; n++ }
+        }
+        return n
+    }
     function sleepLabel(minutes) {
         if (!minutes) return qsTr("Off")
         if (minutes === 60) return qsTr("1 hour")
@@ -109,6 +121,14 @@ Item {
         // after Badges so the rows tests walk to keep their places.
         { id: "streaming", kind: "link", label: qsTr("Streaming sites"), description: qsTr("Netflix, Disney+, Hulu and the Browser, in Chromium"),
           value: qsTr("%1 on").arg(Session.applications.filter(a => a.enabled === true).length) },
+        // App installs (ADR 0011); after Streaming sites, so the rows tests
+        // that count from the top keep their places.
+        { id: "add-apps", kind: "link", label: qsTr("Add apps"), description: qsTr("Install the apps Bear Den knows, from Flathub"),
+          value: toAdd > 0 ? qsTr("%1 to add").arg(toAdd) : qsTr("All installed") },
+        // state.apps.auto_update mirrors config apps.auto_update (absent = on).
+        { id: "auto-update", kind: "toggle", label: qsTr("Keep apps up to date"),
+          description: qsTr("Update the apps installed here while the TV is idle"),
+          value: Session.apps.auto_update === false ? "off" : "on" },
         { id: "cec", kind: "toggle", label: qsTr("TV control over HDMI (CEC)"), description: cecDescription(), value: cecOn ? "on" : "off" }
     ].concat(cecOn && cec.available === true ? [
         { id: "cec-volume", kind: "choice", label: qsTr("Phone volume buttons"),
@@ -165,6 +185,8 @@ Item {
         case "plex": openScreen("plex"); break
         case "badges": openScreen("badges"); break
         case "streaming": openScreen("streaming"); break
+        case "add-apps": openScreen("add-apps"); break
+        case "auto-update": Shell.setAutoUpdate(Session.apps.auto_update === false); break
         case "motion": editUi(u => u.reduced_motion = !u.reduced_motion); break
         case "contrast": editUi(u => u.high_contrast_focus = !u.high_contrast_focus); break
         case "hero": editUi(u => u.hero_enabled = !u.hero_enabled); break

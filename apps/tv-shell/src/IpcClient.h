@@ -80,7 +80,11 @@ public:
     QString sendDevicesRevoke(const QString &deviceId);
     QString sendDevicesGrant(const QString &deviceId, const QStringList &permissions);
     QString sendRemoteConfigure(bool enabled, const QString &transport, const QString &interface, int port, bool httpLayoutEditing);
-    QString sendInstallRequest(const QString &appId);
+    /// app.install | app.install_info | app.install_cancel (contracts/ipc.md)
+    /// for one app; answered with result.
+    QString sendAppInstall(const QString &type, const QString &appId);
+    /// apps.configure: Settings → Keep apps up to date.
+    QString sendAppsConfigure(bool autoUpdate);
     /// One app's playback setting chosen by hand; value "" returns it to automatic.
     /// weather.search: a city query; the coordinator answers with `weather_places`.
     QString sendWeatherSearch(const QString &query);
