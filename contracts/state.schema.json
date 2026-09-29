@@ -220,6 +220,7 @@
         "message": {"type": "string", "description": "User-facing text; empty when nothing needs saying."},
         "code": {"type": ["string", "null"], "pattern": "^[A-Za-z0-9]{4,8}$", "description": "The link code to type at link_url while status is linking; otherwise null."},
         "link_url": {"type": ["string", "null"], "description": "Where to type the code (https://plex.tv/link) while status is linking; otherwise null. Shown and drawn as a QR code by the shell; the coordinator never fetches it."},
+        "qr_modules": {"type": ["array", "null"], "items": {"type": "string", "pattern": "^[01]+$"}, "description": "link_url as a QR code while status is linking (rows of 0/1 characters, rendered by the shell like pairing.qr_modules); otherwise absent or null."},
         "server": {"type": ["string", "null"], "description": "The chosen server's name, when known."},
         "servers": {
           "type": "array",

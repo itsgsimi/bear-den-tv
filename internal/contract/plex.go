@@ -21,6 +21,7 @@ type Plex struct {
 	Message   string        `json:"message"`
 	Code      *string       `json:"code"`
 	LinkURL   *string       `json:"link_url"`
+	QRModules []string      `json:"qr_modules,omitempty"` // link_url as a QR code while linking (filled by the session)
 	Server    *string       `json:"server"`
 	Servers   []PlexServer  `json:"servers"`
 	Libraries []PlexLibrary `json:"libraries"`

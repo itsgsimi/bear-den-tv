@@ -363,6 +363,8 @@ export interface PlexSignIn {
   message: string;
   code: string | null;
   link_url: string | null;
+  /** link_url as QR rows of 0/1 while linking. */
+  qr_modules?: string[] | null;
   server: string | null;
   servers: PlexServer[];
   libraries: PlexLibrary[];

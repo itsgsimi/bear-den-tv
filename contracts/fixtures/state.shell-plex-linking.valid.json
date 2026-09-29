@@ -389,6 +389,7 @@
   "message": "",
   "code": "D4K9",
   "link_url": "https://plex.tv/link",
+  "qr_modules": ["1111111", "1000001", "1011101", "1011101", "1011101", "1000001", "1111111"],
   "server": null,
   "servers": [],
   "libraries": []

@@ -8,8 +8,10 @@ package session
 import (
 	"context"
 	"errors"
+	"sync"
 
 	"bear-den-tv/internal/contract"
+	"bear-den-tv/internal/pairing"
 	"bear-den-tv/internal/shellipc"
 )
 
@@ -34,7 +36,30 @@ func (c *Coordinator) plexState() *contract.Plex {
 		return nil
 	}
 	st := c.opts.Plex.State()
+	if st.LinkURL != nil {
+		st.QRModules = linkQR(*st.LinkURL)
+	}
 	return &st
+}
+
+// linkQR encodes the (constant) link URL once; state builds reuse it.
+var linkQRCache struct {
+	sync.Mutex
+	url     string
+	modules []string
+}
+
+func linkQR(url string) []string {
+	linkQRCache.Lock()
+	defer linkQRCache.Unlock()
+	if linkQRCache.url != url {
+		mods, err := pairing.QRModules(url)
+		if err != nil {
+			return nil
+		}
+		linkQRCache.url, linkQRCache.modules = url, mods
+	}
+	return append([]string(nil), linkQRCache.modules...)
 }
 
 // plexContent is the Plex rows when no other feed (DEMO fixtures) is set.

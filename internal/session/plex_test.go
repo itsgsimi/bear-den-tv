@@ -68,6 +68,9 @@ func TestPlexSignInOverIPCAndRowsOnHome(t *testing.T) {
 	if st.Plex == nil || st.Plex.Status != contract.PlexLinking || st.Plex.Code == nil {
 		t.Fatalf("linking = %+v", st.Plex)
 	}
+	if len(st.Plex.QRModules) < 21 {
+		t.Fatalf("no QR code of the link while linking: %d rows", len(st.Plex.QRModules))
+	}
 	code := *st.Plex.Code
 	if _, err := contract.MarshalAndValidateState(st); err != nil {
 		t.Fatalf("shell state invalid: %v", err)
