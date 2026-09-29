@@ -26,6 +26,11 @@ for path in sys.argv[1:]:
             detail = [l.strip() for l in lines[i + 1:i + 8] if l.startswith("    ")][:5]
             found.append(("Go test failed: " + m.group(1), "\n".join(detail) or line))
             continue
+        m = re.match(r"\s*FAIL!\s*:\s*(\S+)\s*(.*)", line)  # QtTest (tst_shell)
+        if m:
+            loc = [l.strip() for l in lines[i + 1:i + 4] if l.strip().startswith(("Loc:", "Actual", "Expected"))]
+            found.append(("Shell test failed: " + m.group(1), "\n".join([m.group(2)] + loc)))
+            continue
         if re.match(r"\s*panic: ", line):  # Go panic
             found.append(("Go panic", "\n".join(lines[i:i + 6])))
             continue
