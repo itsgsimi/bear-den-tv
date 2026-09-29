@@ -576,6 +576,23 @@ input[type='range'] { width: 100%; accent-color: var(--accent); min-height: 32px
 .sleep-chip { font-variant-numeric: tabular-nums; }
 .sleep-chip.is-chosen { background: var(--sage); border-color: var(--sage); color: var(--accent-ink); }
 .tv-status { margin: 0 0 0.6rem; }
+/* Add apps (views/install.tsx): owner phones only. */
+.install-list { list-style: none; padding: 0; margin: 0.4rem 0 0; display: flex; flex-direction: column; gap: 0.6rem; }
+.install-row {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: var(--r14, 0);
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+.install-row.is-failed { border-left: 3px solid var(--warning); }
+.install-row .btn { flex: none; min-width: 6.5rem; }
+.install-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.15rem; }
+.install-label { font-weight: 700; }
+.install-status { font-variant-numeric: tabular-nums; }
+.install-progress { width: 100%; height: 0.5rem; margin-top: 0.2rem; accent-color: var(--sage); }
 .app-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 0.6rem; }
 .app-tile { flex-direction: column; min-height: 88px; border-radius: var(--r16, 0); }
 .app-tile.is-foreground { border-color: var(--accent); background: linear-gradient(180deg, rgba(var(--sage-rgb), 0.2), rgba(34, 39, 44, 0.92)); }

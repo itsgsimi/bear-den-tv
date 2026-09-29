@@ -1,0 +1,145 @@
+// Unit tests for Add apps (src/views/install.tsx): drawn only for the
+// owner's phone (never a family phone or a guest pass) while app.install is
+// listed; one row per Flatpak (the web apps share Chromium's); progress and
+// Cancel while an install runs; Install and Cancel send app.install and
+// app.install_cancel to the shell target.
+import { describe, expect, it } from 'vitest';
+import type { VNode } from 'preact';
+import { createApp, type PageEnvironment, type WindowEnvironment } from '../../src/app.ts';
+import type { ApiEnvironment, SocketLike } from '../../src/api.ts';
+import type { ActionResult, Application, Install, Permission, StateSnapshot } from '../../src/contract.ts';
+import { AddAppsPanel, AddAppsSection, installEntries, mayInstall } from '../../src/views/install.tsx';
+import type { AppState } from '../../src/state.ts';
+import type { App } from '../../src/app.ts';
+
+type Props = Record<string, unknown> & { children?: unknown };
+
+function walk(node: unknown, out: VNode<Props>[] = []): VNode<Props>[] {
+  if (Array.isArray(node)) {
+    for (const c of node) walk(c, out);
+  } else if (node && typeof node === 'object' && 'props' in node) {
+    const v = node as VNode<Props>;
+    out.push(v);
+    if (typeof v.type === 'function') walk((v.type as (p: Props) => unknown)(v.props), out);
+    else walk(v.props.children, out);
+  }
+  return out;
+}
+
+function text(node: unknown): string {
+  if (typeof node === 'string' || typeof node === 'number') return String(node);
+  if (Array.isArray(node)) return node.map(text).join(' ');
+  if (node && typeof node === 'object' && 'props' in node) {
+    const v = node as VNode<Props>;
+    if (typeof v.type === 'function') return text((v.type as (p: Props) => unknown)(v.props));
+    return text(v.props.children);
+  }
+  return '';
+}
+
+const byTestId = (tree: VNode<Props>[], id: string) => tree.find((v) => v.props['data-testid'] === id);
+
+function app(id: string, adapter: string, installed: boolean, install?: Install): Application {
+  return {
+    id, label: id === 'youtube' ? 'YouTube' : id.charAt(0).toUpperCase() + id.slice(1), adapter, installed, version: null,
+    installation: installed ? 'user' : 'none', running: false, foreground: false, launch_state: 'idle', last_error: null,
+    ...(install ? { install } : {}),
+  };
+}
+
+const idle = (state: Install['state'] = 'available'): Install => ({ state, progress: 0, phase: '' });
+
+function snapshot(permissions: Permission[], apps: Application[]): StateSnapshot {
+  return {
+    applications: apps,
+    capabilities: { 'app.install': { available: true, backend: 'flathub' } },
+    me: { device_id: 'dev', device_name: 'Phone', permissions, transport_secure: false, ...(permissions.includes('guest') ? { expires_at_ms: 1 } : {}) },
+  } as unknown as StateSnapshot;
+}
+
+const APPS = [
+  app('plex-htpc', 'plex-htpc', true, idle('none')),
+  app('moonlight', 'moonlight', false, idle()),
+  app('netflix', 'netflix', false, { state: 'downloading', progress: 42, phase: 'runtime', size_bytes: 433_000_000 }),
+  app('hulu', 'hulu', false, { state: 'downloading', progress: 42, phase: 'runtime' }),
+  app('browser', 'browser', false, { state: 'downloading', progress: 42, phase: 'runtime' }),
+];
+
+function stateFor(permissions: Permission[], apps = APPS): AppState {
+  return { snapshot: snapshot(permissions, apps), session: null } as unknown as AppState;
+}
+
+function panel(state: AppState) {
+  const taps: [string, unknown][] = [];
+  const fake = { tap: async (action: string, args: unknown) => void taps.push([action, args]) } as unknown as App;
+  const vnode = AddAppsPanel({ app: fake, state });
+  return { vnode, tree: walk(vnode), taps, text: text(vnode) };
+}
+
+describe('Add apps', () => {
+  it('is the owner\'s only: never a family phone, a layout editor or a guest pass', () => {
+    expect(mayInstall(stateFor(['owner']))).toBe(true);
+    expect(panel(stateFor(['owner'])).vnode).not.toBeNull();
+    for (const perms of [['controller'], ['controller', 'layout_editor'], ['guest']] as Permission[][]) {
+      expect(mayInstall(stateFor(perms))).toBe(false);
+      expect(panel(stateFor(perms)).vnode).toBeNull();
+    }
+  });
+
+  it('lists each missing Flatpak once, the web apps as Chromium', () => {
+    const entries = installEntries(snapshot(['owner'], APPS));
+    expect(entries.map((e) => [e.id, e.label])).toEqual([['moonlight', 'Moonlight'], ['netflix', 'Chromium']]);
+    expect(entries[1]?.why).toBe('Browser for Netflix, Disney+, Hulu');
+  });
+
+  it('shows progress and Cancel while installing, Install otherwise', () => {
+    const { tree, taps, text: shown } = panel(stateFor(['owner']));
+    expect(shown).toContain('Installing… 42%');
+    expect(byTestId(tree, 'install-progress-netflix')?.props.value).toBe(42);
+    expect(byTestId(tree, 'install-button-netflix')).toBeUndefined();
+    (byTestId(tree, 'install-cancel-netflix')?.props.onClick as () => void)();
+    (byTestId(tree, 'install-button-moonlight')?.props.onClick as () => void)();
+    expect(taps).toEqual([['app.install_cancel', { app_id: 'netflix' }], ['app.install', { app_id: 'moonlight' }]]);
+  });
+
+  it('is not drawn when every app is installed, and says why installs are off', () => {
+    expect(byTestId(panel(stateFor(['owner'], APPS.slice(0, 1))).tree, 'add-apps')).toBeUndefined();
+    expect(byTestId(panel(stateFor(['owner'])).tree, 'add-apps')).toBeDefined();
+    const off = AddAppsSection({ entries: installEntries(snapshot(['owner'], APPS)), available: false, reason: "Flatpak isn't installed on this box", art: 'pixel', onInstall: () => undefined, onCancel: () => undefined });
+    const tree = walk(off);
+    expect(text(off)).toContain("Flatpak isn't installed on this box");
+    expect(byTestId(tree, 'install-button-moonlight')?.props.disabled).toBe(true);
+  });
+});
+
+describe('app.install request', () => {
+  it('targets the shell', async () => {
+    const sent: Record<string, unknown>[] = [];
+    const fetch = async (path: string, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>;
+      if (path === '/api/v1/actions') sent.push(body);
+      const result: ActionResult = {
+        protocol: 1, request_id: String(body.request_id), outcome: 'delivered', code: 'ok', message: '',
+        context_epoch: 1, target: { kind: 'shell', app_id: null, label: 'Bear Den TV' }, detail: {},
+      };
+      return new Response(JSON.stringify(result), { status: 200 });
+    };
+    const socket: SocketLike = { readyState: 0, send: () => undefined, close: () => undefined, onopen: null, onclose: null, onerror: null, onmessage: null };
+    const env: ApiEnvironment = {
+      fetch, createSocket: () => socket, setTimeout: () => 0, clearTimeout: () => undefined, setInterval: () => 0,
+      clearInterval: () => undefined, random: () => 0.5, origin: 'http://192.0.2.10:8090',
+    };
+    const page: PageEnvironment = { hidden: false, addEventListener: () => undefined, removeEventListener: () => undefined };
+    const win: WindowEnvironment = {
+      addEventListener: () => undefined, removeEventListener: () => undefined, location: { hash: '', pathname: '/', search: '' },
+      history: { replaceState: () => undefined }, navigator: { userAgent: 'test' }, localStorage: null,
+    };
+    const client = createApp(env, page, win, { now: () => 1000 });
+    await client.tap('app.install', { app_id: 'moonlight' });
+    await client.tap('app.install_cancel', { app_id: 'moonlight' });
+    expect(sent.map((r) => [r.action, r.target, r.args])).toEqual([
+      ['app.install', 'shell', { app_id: 'moonlight' }],
+      ['app.install_cancel', 'shell', { app_id: 'moonlight' }],
+    ]);
+  });
+});

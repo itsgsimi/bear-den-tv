@@ -10,7 +10,8 @@
 // kept distinct; nothing here pretends a press was observed when it was delivered.
 // A guest pass sees only what it may use (`mayUse`): no Close app, no restart,
 // no sleep timer or screen off. With a web app in front the Touchpad
-// (touchpad.tsx) appears under the D-pad.
+// (touchpad.tsx) appears under the D-pad. The owner's phone also gets Add
+// apps (install.tsx) under the app shortcuts.
 import { useEffect, useState } from 'preact/hooks';
 import type { ComponentChildren, JSX } from 'preact';
 import type { App } from '../app.ts';
@@ -22,6 +23,7 @@ import { NowPlayingPanel, nowPlayingOf } from './nowplaying.tsx';
 import { SleepPanel } from './sleep.tsx';
 import { TvPanel, volumeHeading } from './tv.tsx';
 import { TouchpadPanel } from './touchpad.tsx';
+import { AddAppsPanel } from './install.tsx';
 import { type AppState, type PendingAction, capabilityFor, closableApp, isSecureTransport, mayUse, permissionsOf, visibleApps } from '../state.ts';
 
 const TEXT_MAX = 256;
@@ -102,6 +104,8 @@ export function RemoteView({ app, state }: { app: App; state: AppState }): JSX.E
           </div>
         </div>
       ) : null}
+
+      <AddAppsPanel app={app} state={state} />
 
       {listed(state, 'media.play') || listed(state, 'media.pause') || listed(state, 'media.seek_relative') || nowPlayingOf(snapshot) ? (
         <div class="group" aria-labelledby="playback-heading">

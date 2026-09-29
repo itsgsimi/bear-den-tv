@@ -29,6 +29,8 @@ const ACTION_NAMES: Record<string, string> = {
   'pointer.move': 'Touchpad',
   'pointer.click': 'Click',
   'pointer.scroll': 'Scroll',
+  'app.install': 'Install app',
+  'app.install_cancel': 'Cancel install',
 };
 
 export const t = {
@@ -206,6 +208,24 @@ export const t = {
     chipLabel: (minutes: number) => `Sleep in ${minutes} minutes`,
     cancel: 'Cancel timer',
     screenOff: 'Screen off',
+  },
+
+  // Add apps (views/install.tsx): owner phones only.
+  install: {
+    heading: 'Add apps',
+    note: 'Installs on the TV for its user, from Flathub. Nothing installs until you tap Install.',
+    from: 'From Flathub',
+    size: (download: string): string => `About ${download} to download, from Flathub`,
+    install: 'Install',
+    tryAgain: 'Try again',
+    cancel: 'Cancel',
+    preparing: 'Getting ready…',
+    installing: (percent: number): string => `Installing… ${percent}%`,
+    finishing: 'Finishing…',
+    ready: 'Ready',
+    failed: 'The install stopped.',
+    chromium: 'Chromium',
+    chromiumWhy: 'Browser for Netflix, Disney+, Hulu',
   },
 
   // TV over HDMI-CEC (views/tv.tsx).
