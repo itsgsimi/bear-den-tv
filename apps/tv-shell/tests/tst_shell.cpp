@@ -1056,9 +1056,13 @@ private slots:
 
         // The coordinator answers with a live guest invitation.
         QJsonObject snap = fixture();
-        // "Tonight": 04:00 the next morning, local time (the coordinator's PassEnd).
-        const QDateTime nowLocal = QDateTime::currentDateTime();
-        const double ends = double(QDateTime(nowLocal.date().addDays(nowLocal.time().hour() >= 4 ? 1 : 0), QTime(4, 0)).toMSecsSinceEpoch());
+        // Six hours from now, on the minute: under the 20 h after which the
+        // devices list adds the weekday, whatever the time of day. (A fixed
+        // 04:00, the coordinator's "tonight", is more than 20 h away between
+        // 04:00 and 08:00, so the test used to fail then: in the UTC morning on CI.)
+        const qint64 endsMs = (QDateTime::currentMSecsSinceEpoch() + 6 * 3600 * 1000) / 60000 * 60000;
+        const double ends = double(endsMs);
+        const QString endsAt = QDateTime::fromMSecsSinceEpoch(endsMs).toString(QStringLiteral("HH:mm"));
         QFile pf(QStringLiteral(BDTV_FIXTURE_DIR "/pairing.guest-demo.json")); // DEMO invitation with a real QR
         QVERIFY(pf.open(QIODevice::ReadOnly));
         QJsonObject pairing = QJsonDocument::fromJson(pf.readAll()).object();
@@ -1106,7 +1110,7 @@ private slots:
                 find(child);
         };
         find(m_window->contentItem());
-        QVERIFY2(guestRow.contains(QStringLiteral("Guest pass · ends 04:00")) && guestRow.contains(QStringLiteral(" left)")), qPrintable(guestRow));
+        QVERIFY2(guestRow.contains(QStringLiteral("Guest pass · ends ") + endsAt + QStringLiteral(" (")) && guestRow.contains(QStringLiteral(" left)")), qPrintable(guestRow));
         shot(QStringLiteral("devices-guest"));
         QVERIFY(session->applySnapshot(fixture()));
         goHome();
