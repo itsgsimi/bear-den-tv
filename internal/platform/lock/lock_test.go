@@ -133,6 +133,21 @@ func TestNoSourceFailsClosed(t *testing.T) {
 	}
 }
 
+// The real dialers on a machine with no reachable bus (a CI runner has no
+// session bus): the observer must fail closed and Close must not panic on a
+// nil connection wrapped in the Bus interface.
+func TestRealDialersWithoutBusFailClosedAndClose(t *testing.T) {
+	t.Setenv("DBUS_SESSION_BUS_ADDRESS", "unix:path="+t.TempDir()+"/no-session-bus")
+	t.Setenv("DBUS_SYSTEM_BUS_ADDRESS", "unix:path="+t.TempDir()+"/no-system-bus")
+	o := New(context.Background(), Options{})
+	if _, err := o.Locked(context.Background()); !errors.Is(err, platform.ErrUnsupported) {
+		t.Fatalf("Locked err=%v; want ErrUnsupported", err)
+	}
+	if err := o.Close(); err != nil {
+		t.Fatalf("Close err=%v; want nil (nothing was connected)", err)
+	}
+}
+
 func TestScreensaverErrorAndLogindUnresolvedIsUnknown(t *testing.T) {
 	f := &fixture{screensaverErr: errors.New("timeout")}
 	o, _, _ := newObserver(t, f, func(o *Options) {

@@ -93,11 +93,11 @@ func New(ctx context.Context, opts Options) *Observer {
 	o := &Observer{}
 	connectSession := opts.ConnectSession
 	if connectSession == nil {
-		connectSession = func(ctx context.Context) (dbusx.Bus, error) { return dbusx.ConnectSession(ctx) }
+		connectSession = func(ctx context.Context) (dbusx.Bus, error) { return asBus(dbusx.ConnectSession(ctx)) }
 	}
 	connectSystem := opts.ConnectSystem
 	if connectSystem == nil {
-		connectSystem = func(ctx context.Context) (dbusx.Bus, error) { return dbusx.ConnectSystem(ctx) }
+		connectSystem = func(ctx context.Context) (dbusx.Bus, error) { return asBus(dbusx.ConnectSystem(ctx)) }
 	}
 	getenv := opts.Getenv
 	if getenv == nil {
@@ -386,6 +386,16 @@ func (o *Observer) Watch(ctx context.Context) (<-chan bool, error) {
 		}
 	}()
 	return out, nil
+}
+
+// asBus returns a nil Bus when the dial failed. Returning the *dbusx.Conn
+// directly would wrap a nil pointer in a non-nil interface, and Close would then
+// dereference it (seen on a machine with no session bus, such as a CI runner).
+func asBus(c *dbusx.Conn, err error) (dbusx.Bus, error) {
+	if err != nil || c == nil {
+		return nil, err
+	}
+	return c, nil
 }
 
 // Close releases both bus connections.
