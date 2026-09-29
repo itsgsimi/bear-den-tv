@@ -1,9 +1,13 @@
+# Applications-menu entry installed by the .deb (packaging/nfpm.yaml). It is
+# the same launcher `bear-den-tv shortcut enable` writes for an installed
+# copy: start Bear Den, or restart it when it is already running.
 [Desktop Entry]
 Type=Application
 Name=Bear Den TV
-Comment=TV home screen with a phone remote for Plex HTPC and VacuumTube
-Exec=bear-den-tv session
+GenericName=TV home screen
+Comment=Open the Bear Den TV home screen (restarts it if it is already running)
+Exec=/usr/lib/bear-den-tv/start-session.sh --watch
 Icon=bear-den-tv
 Terminal=false
+StartupNotify=false
 Categories=AudioVideo;Video;TV;
-StartupWMClass=bear-den-tv-shell

@@ -1,9 +1,12 @@
+# Login autostart entry shipped by the .deb under
+# /usr/share/bear-den-tv/autostart/ (packaging/nfpm.yaml). It does nothing
+# there: autostart is the owner's choice. `bear-den-tv autostart enable`
+# writes the same Exec line to ~/.config/autostart (cmd/bear-den-tv/autostart.go).
 [Desktop Entry]
 Type=Application
 Name=Bear Den TV
-Comment=Start the Bear Den TV session coordinator and shell at login (opt-in; installed by `bear-den-tv autostart enable`)
-Exec=bear-den-tv session
+Comment=TV home screen and phone remote (coordinator + shell)
+Exec=/usr/lib/bear-den-tv/start-session.sh --watch
 Icon=bear-den-tv
 Terminal=false
 X-GNOME-Autostart-enabled=true
-OnlyShowIn=XFCE;GNOME;KDE;X-Cinnamon;MATE;LXQt;

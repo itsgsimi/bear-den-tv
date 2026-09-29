@@ -1,17 +1,37 @@
 #!/usr/bin/env bash
 # Starts (or restarts) the Bear Den coordinator, which supervises the TV shell,
 # in this user's graphical session, detached from the terminal.
-#   scripts/start-session.sh          # (re)start once
-#   scripts/start-session.sh --watch  # (re)start and restart the coordinator if it crashes
-#   scripts/start-session.sh stop     # stop (and stop watching)
-# Run on the TV machine, e.g. `scripts/target.sh ssh scripts/start-session.sh`.
+#   start-session.sh          # (re)start once
+#   start-session.sh --watch  # (re)start and restart the coordinator if it crashes
+#   start-session.sh stop     # stop (and stop watching)
+#   start-session.sh which    # print the coordinator and shell it would run
+# Works from both layouts (docs/operations.md → Packaging):
+#   checkout:  <repo>/scripts/start-session.sh → <repo>/build/bin/bear-den-tv
+#   installed: <prefix>/lib/bear-den-tv/start-session.sh → <prefix>/bin/bear-den-tv
+#              (the .deb installs it as /usr/lib/bear-den-tv/start-session.sh)
+# In a checkout on the TV machine, e.g. `scripts/target.sh ssh scripts/start-session.sh`.
 # `bear-den-tv autostart enable` runs this with --watch at every desktop login.
 # Log: ${XDG_STATE_HOME:-~/.local/state}/bear-den-tv/session.log.
 set -euo pipefail
-cd "$(dirname "$0")/.."
-here="$PWD/scripts/start-session.sh"
+here="$(readlink -f "$0")"
+dir="$(dirname "$here")"
+if [ -x "$dir/../build/bin/bear-den-tv" ]; then
+  # Relative on purpose: the process line stays "build/bin/bear-den-tv
+  # session", which stop_all here and deploy-target.sh match.
+  cd "$dir/.."
+  bin="build/bin/bear-den-tv"
+  shell="build/bin/bear-den-tv-shell"
+elif [ -x "$dir/../../bin/bear-den-tv" ]; then
+  bin="$(cd "$dir/../../bin" && pwd)/bear-den-tv"
+  shell="$(dirname "$bin")/bear-den-tv-shell"
+  cd "$HOME"
+else
+  echo "bear-den-tv not found: looked for $dir/../build/bin/bear-den-tv (checkout) and $dir/../../bin/bear-den-tv (installed)" >&2
+  exit 1
+fi
+if [ "${1:-}" = "which" ]; then realpath -ms "$bin" "$shell"; exit 0; fi
 uid=$(id -u)
-coord="build/bin/bear-den-tv session"
+coord="$bin session"
 watcher="start-session.sh __watch"
 log="${XDG_STATE_HOME:-$HOME/.local/state}/bear-den-tv/session.log"
 
@@ -43,7 +63,7 @@ if [ "${1:-}" = "__watch" ]; then
   while true; do
     started=$(date +%s)
     status=0
-    build/bin/bear-den-tv session --shell-binary build/bin/bear-den-tv-shell "$@" || status=$?
+    "$bin" session --shell-binary "$shell" "$@" || status=$?
     [ "$status" -eq 0 ] && exit 0
     # Signals used by stop/logout end the watch too.
     case "$status" in 130|143) exit 0 ;; esac
@@ -67,6 +87,6 @@ if [ "$watch" = 1 ]; then
   echo "started with watchdog, pid $! (log: $log)"
 else
   session_env
-  setsid build/bin/bear-den-tv session --shell-binary build/bin/bear-den-tv-shell "$@" >>"$log" 2>&1 </dev/null &
+  setsid "$bin" session --shell-binary "$shell" "$@" >>"$log" 2>&1 </dev/null &
   echo "started pid $! (log: $log)"
 fi

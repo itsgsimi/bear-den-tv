@@ -78,10 +78,88 @@ build/bin/bear-den-tv autostart enable|disable|status   # start at every desktop
 build/bin/bear-den-tv shortcut enable|disable|status    # "Bear Den TV" icon on the desktop and in the app menu
 ```
 
+From the .deb, the same commands are `bear-den-tv autostart|shortcut ...` and
+`/usr/lib/bear-den-tv/start-session.sh --watch|stop` ([Packaging](#packaging)).
+
 - **Settings → Exit Bear Den TV** closes the home screen until the next start.
   The coordinator keeps running for the phone.
 - The **desktop icon** runs `start-session.sh --watch`.
+- `autostart enable` and `shortcut enable` find the start script next to the
+  binary: `<repo>/scripts/start-session.sh` for `<repo>/build/bin/bear-den-tv`,
+  `/usr/lib/bear-den-tv/start-session.sh` for `/usr/bin/bear-den-tv`.
 - **Log:** `${XDG_STATE_HOME:-~/.local/state}/bear-den-tv/session.log`, rotated at 5 MB (one old copy, `session.log.1`).
+
+## Packaging
+
+`make package` builds `build/dist/bear-den-tv_<version>_amd64.deb` for Ubuntu
+22.04 / Linux Mint 21 and newer (X11 desktops). It needs only the user-space
+toolchain (`scripts/bootstrap-toolchain.sh` also builds [nfpm](https://nfpm.goreleaser.com/)
+v2.43.1 into it).
+
+```sh
+make package                                   # → build/dist/bear-den-tv_<version>_amd64.deb
+packaging/smoke-deb.sh ubuntu:22.04            # install/run/remove in a clean container (Docker)
+packaging/smoke-deb.sh ubuntu:24.04
+```
+
+On the TV box:
+
+```sh
+sudo apt install ./bear-den-tv_<version>_amd64.deb   # pulls X11/EGL/fontconfig from the distro
+/usr/lib/bear-den-tv/start-session.sh --watch        # start now (or "Bear Den TV" in the app menu)
+bear-den-tv autostart enable                         # optional: start at every desktop login
+bear-den-tv autostart disable                        # before removing
+sudo apt remove --purge bear-den-tv
+```
+
+What [`packaging/build-deb.sh`](../packaging/build-deb.sh) does:
+
+- **Version:** [`packaging/version.sh`](../packaging/version.sh) maps
+  `git describe --tags --always --dirty` to a Debian version (`v1.2.0` → `1.2.0`,
+  `v1.2.0-3-gabc1234` → `1.2.0+git3.gabc1234`, no tag yet → `0.1.0~git.<sha>`).
+  `VERSION=...` overrides it. The coordinator prints it with `bear-den-tv version`.
+- **Coordinator:** static (`CGO_ENABLED=0`; every Go dependency, SQLite
+  included, is pure Go).
+- **Shell:** built against the glibc 2.28 sysroot like `make shell-target`, but
+  with **no rpath**: conda's GCC adds `-rpath <toolchain>/env/lib` to every link
+  through its specs, so the build passes a specs file without it. A `DT_RPATH`
+  into the toolchain would override the wrapper's `LD_LIBRARY_PATH` and load a
+  developer's Qt.
+- **Qt runtime:** [`packaging/bundle-qt.sh`](../packaging/bundle-qt.sh) copies the
+  toolchain libraries the shell needs, the xcb/offscreen platform plugins, the
+  image formats and exactly the QML modules `qmlimportscanner` reports, plus a
+  `qt.conf`. It leaves out what must come from the system: glibc, the GL/EGL/DRM
+  stack (libglvnd has to find the distro's Mesa), libX11/libxcb (shared with
+  Mesa), xkbcommon (reads the system's XKB data) and D-Bus. Those are the
+  package's `depends`.
+- **libstdc++:** the shell is built with GCC 15. The bundle carries its
+  libstdc++/libgcc_s in `lib/compat/`, and the wrapper
+  ([`packaging/bear-den-tv-shell.sh`](../packaging/bear-den-tv-shell.sh)) uses
+  them only when the system's libstdc++ lacks the needed `GLIBCXX` version, so a
+  newer distro's Mesa never gets an older libstdc++ than it was built with.
+- **Checks that fail the build:** any shipped ELF with an rpath/runpath into the
+  toolchain, or needing a glibc newer than 2.28.
+- **Reported, not fatal:** a few conda libraries (fontconfig, glib, libuuid,
+  libcrypto, xcb-cursor) keep the build machine's toolchain path as a compiled-in
+  default. The wrapper's `FONTCONFIG_FILE` and `qt.conf` override the ones that
+  matter. `make package` lists them. For a published release, bootstrap the
+  toolchain at a neutral path (`BDTV_TOOLCHAIN=/opt/bdtv-toolchain`, not tried
+  yet) so no user name ends up in the package.
+
+Installed layout (from [`packaging/nfpm.yaml`](../packaging/nfpm.yaml)):
+
+| Path | What |
+|---|---|
+| `/usr/bin/bear-den-tv` | coordinator and CLI |
+| `/opt/bear-den-tv/shell/` | the shell, its wrapper and the bundled Qt |
+| `/usr/bin/bear-den-tv-shell` | symlink to the wrapper; the coordinator finds the shell next to itself |
+| `/usr/lib/bear-den-tv/start-session.sh` | (re)start with the watchdog; what autostart and the launchers run |
+| `/usr/share/applications/bear-den-tv.desktop` | app-menu entry |
+| `/usr/share/bear-den-tv/autostart/bear-den-tv.desktop` | a login entry that does nothing until copied; the package never enables autostart |
+
+Removing the package leaves your settings, paired phones and caches in the
+XDG folders ([Runtime layout](#runtime-layout-xdg)) and any
+`~/.config/autostart` entry you enabled; delete them to forget everything.
 
 ## Sandbox (prototype without the TV)
 

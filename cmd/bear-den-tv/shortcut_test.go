@@ -74,3 +74,16 @@ func TestInstallLaunchers(t *testing.T) {
 		t.Fatalf("no desktop: written=%v err=%v", written, err)
 	}
 }
+
+func TestLauncherIconInstalled(t *testing.T) {
+	prefix := filepath.Join(t.TempDir(), "usr")
+	script := filepath.Join(prefix, "lib", "bear-den-tv", "start-session.sh")
+	touch(t, script)
+	if got := launcherIcon(script); got != "video-display" {
+		t.Fatalf("no icon installed: got %q", got)
+	}
+	touch(t, filepath.Join(prefix, "share", "icons", "hicolor", "scalable", "apps", "bear-den-tv.svg"))
+	if got := launcherIcon(script); got != "bear-den-tv" {
+		t.Fatalf("installed icon: got %q", got)
+	}
+}
