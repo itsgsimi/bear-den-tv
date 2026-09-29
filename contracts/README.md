@@ -5,7 +5,7 @@ Every process speaks the same versioned contract. Go (coordinator), C++/QML (TV 
 | File | Purpose |
 |---|---|
 | `actions.md` + `action.schema.json` | Named actions the phone or shell may submit; result envelope with accepted/delivered/observed/failed |
-| `state.schema.json` | Authorized state snapshot pushed to phones and the shell. Each viewer gets its own redacted view (`buildStateFor` in [`internal/session/state.go`](../internal/session/state.go)): for example `pairing`, `playback`, `weather` and `plex` reach only the shell, and `now_playing` only phones with `controller` ([`http.md`](http.md#now-playing-statenow_playing)) |
+| `state.schema.json` | Authorized state snapshot pushed to phones and the shell. Each viewer gets its own redacted view (`buildStateFor` in [`internal/session/state.go`](../internal/session/state.go)): for example `pairing`, `playback`, `weather` and `plex` reach only the shell, and `now_playing` only phones with `controller` or a guest pass ([`http.md`](http.md#now-playing-statenow_playing)) |
 | `ipc.md` | Private Unix-socket protocol between coordinator and shell (its `state` payload is `state.schema.json`) |
 | `http.md` | HTTP + WebSocket API served by the coordinator |
 | `config.schema.json` + `config.md` | Structural schema for `config.json`; semantic rules live in `internal/config` and are listed in `config.md` |

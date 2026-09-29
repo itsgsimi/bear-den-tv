@@ -10,6 +10,7 @@ import (
 
 	"bear-den-tv/internal/config"
 	"bear-den-tv/internal/contract"
+	"bear-den-tv/internal/pairing"
 	"bear-den-tv/internal/shellipc"
 )
 
@@ -113,10 +114,22 @@ func (h *ShellHandler) Receive(cl *shellipc.Client, m shellipc.Message) {
 			_ = c.opts.Config.Cancel(rev)
 		}
 	case shellipc.PairIssue:
-		iss, err := c.opts.Pairing.Issue(ctx, nil)
+		// Only trusted local peers (the shell, the cli) reach this socket:
+		// phones never issue invitations, family or guest.
+		var iss pairing.Issued
+		var err error
+		if msg.Pass == "" {
+			iss, err = c.opts.Pairing.Issue(ctx, nil)
+		} else {
+			iss, err = c.opts.Pairing.IssuePass(ctx, msg.Pass)
+		}
 		var data any
 		if err == nil {
-			data = map[string]any{"code": iss.Code, "url": iss.URL, "expires_at_ms": iss.ExpiresAt.UnixMilli()}
+			d := map[string]any{"code": iss.Code, "url": iss.URL, "expires_at_ms": iss.ExpiresAt.UnixMilli()}
+			if iss.PassExpiresAt != nil {
+				d["pass_expires_at_ms"] = iss.PassExpiresAt.UnixMilli()
+			}
+			data = d
 		}
 		h.reply(cl, msg.RequestID, err, data)
 	case shellipc.PairCancel:

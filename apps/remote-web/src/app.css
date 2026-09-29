@@ -336,6 +336,33 @@ input[type='range'] { width: 100%; accent-color: var(--accent); min-height: 32px
 .status-online .status-dot { background: var(--success); box-shadow: 0 0 6px rgba(140, 209, 158, 0.7); }
 .status-connecting .status-dot, .status-reconnecting .status-dot { background: var(--warning); }
 .status-offline .status-dot { background: var(--error); }
+/* Guest pass chip (shell.tsx GuestChip): amber, so a visitor sees at a glance
+   the phone is on a pass and when it ends. Radius follows the art style. */
+.guest-strip { display: flex; justify-content: center; margin: 0.6rem 1rem 0; }
+.guest-chip {
+  padding: 0.3rem 0.75rem;
+  border-radius: var(--r-pill, 0);
+  border: 1px solid rgba(227, 179, 92, 0.55);
+  background: rgba(227, 179, 92, 0.14);
+  color: var(--amber);
+  font-size: 0.78rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+/* "Your guest pass has ended" on the pair screen (pair.tsx). */
+.pass-ended {
+  display: grid;
+  justify-items: center;
+  gap: 0.35rem;
+  margin: 0.75rem 0;
+  padding: 1rem;
+  text-align: center;
+  border-radius: var(--r14, 0);
+  border: 1px solid rgba(227, 179, 92, 0.45);
+  background: var(--surface);
+}
+.pass-ended h2 { margin: 0; font-size: 1.15rem; color: var(--amber); }
+.pass-ended p { margin: 0; }
 .target-bar {
   display: flex;
   align-items: baseline;

@@ -121,10 +121,14 @@
       "properties": {
         "device_id": {"type": "string"},
         "device_name": {"type": "string"},
-        "permissions": {"type": "array", "items": {"enum": ["controller", "layout_editor", "owner"]}},
-        "transport_secure": {"type": "boolean"}
+        "permissions": {"type": "array", "items": {"enum": ["controller", "layout_editor", "owner", "guest"]}, "if": {"contains": {"const": "guest"}}, "then": {"maxItems": 1}, "description": "guest is a time-limited guest pass and never comes with another permission."},
+        "transport_secure": {"type": "boolean"},
+        "expires_at_ms": {"type": "integer", "minimum": 0, "description": "Guest passes only: when the pass ends, Unix epoch milliseconds on the coordinator's wall clock. Required with guest, absent otherwise."}
       },
       "required": ["device_id", "device_name", "permissions", "transport_secure"],
+      "if": {"properties": {"permissions": {"contains": {"const": "guest"}}}, "required": ["permissions"]},
+      "then": {"required": ["expires_at_ms"]},
+      "else": {"not": {"required": ["expires_at_ms"]}},
       "additionalProperties": false
     },
     "appearance": {"type": "object", "description": "The TV's look, mirrored by paired phones: the themed world, the style and the accent (not sensitive).", "properties": {"background": {"type": "string", "pattern": "^[a-z][a-z0-9-]{1,31}$", "description": "Canonical theme id."}, "theme": {"enum": ["den-dark", "plain-dark", "performance"]}, "accent": {"type": "string", "pattern": "^#[0-9A-Fa-f]{6}$"}, "name": {"type": "string", "maxLength": 32}, "pixel": {"type": "boolean", "description": "The backdrop in use is pixel art: draw it without smoothing."}, "art_style": {"enum": ["pixel", "classic"], "description": "The TV's art style (layout.ui.art_style): pixel art, or smooth classic art. Missing means pixel."}, "palette": {"type": "object", "properties": {"stem": {"type": "string"}, "light": {"type": "string"}, "dark": {"type": "string"}, "bloom": {"type": "string"}, "glow": {"type": "string"}}, "additionalProperties": false}, "focus": {"type": "object", "description": "The phone's tile decoration: the theme's focus style and ornament URLs (same origin).", "properties": {"style": {"enum": ["", "vine", "fern", "stars", "embers"]}, "tip": {"type": "string"}, "tip_upright": {"type": "boolean"}}, "additionalProperties": false}, "phone": {"type": "object", "properties": {"backdrop": {"type": "string"}, "veil": {"type": "string", "pattern": "^#[0-9A-Fa-f]{6}$"}, "particles": {"enum": ["", "none", "fireflies", "leaves", "stars", "embers", "snow"]}}, "additionalProperties": false}, "themes": {"type": "array", "description": "Installed themes, for pickers.", "items": {"type": "object", "properties": {"id": {"type": "string"}, "name": {"type": "string"}, "accent": {"type": "string"}}, "required": ["id", "name"], "additionalProperties": false}}}, "required": ["background", "theme", "accent"], "additionalProperties": false},
@@ -137,7 +141,9 @@
         "url": {"type": ["string", "null"], "description": "Full QR URL including the single-use fragment token; only ever sent over the private IPC socket."},
         "qr_modules": {"type": ["array", "null"], "items": {"type": "string"}, "description": "Rows of 0/1 characters; rendered by the shell."},
         "expires_in_s": {"type": "integer", "minimum": 0},
-        "attempts_left": {"type": "integer", "minimum": 0}
+        "attempts_left": {"type": "integer", "minimum": 0},
+        "guest": {"type": "boolean", "description": "The live invitation is a guest pass (pair.issue with pass); missing means false."},
+        "pass_expires_at_ms": {"type": ["integer", "null"], "minimum": 0, "description": "Guest pass only: when the pass will end, Unix epoch milliseconds (wall clock); null or absent otherwise."}
       },
       "required": ["active", "code", "url", "qr_modules", "expires_in_s", "attempts_left"],
       "additionalProperties": false
@@ -150,10 +156,12 @@
         "properties": {
           "id": {"type": "string"},
           "name": {"type": "string"},
-          "permissions": {"type": "array", "items": {"enum": ["controller", "layout_editor", "owner"]}},
+          "permissions": {"type": "array", "items": {"enum": ["controller", "layout_editor", "owner", "guest"]}, "if": {"contains": {"const": "guest"}}, "then": {"maxItems": 1}},
           "connected": {"type": "boolean"},
           "last_seen_ms": {"type": "integer"},
-          "created_at": {"type": "string"}
+          "created_at": {"type": "string"},
+          "guest": {"type": "boolean", "description": "A guest pass (permissions is [\"guest\"]); missing means false."},
+          "expires_at_ms": {"type": ["integer", "null"], "minimum": 0, "description": "Guest passes: when the pass ends and the device is revoked, Unix epoch milliseconds (wall clock); null or absent for family phones."}
         },
         "required": ["id", "name", "permissions", "connected", "last_seen_ms", "created_at"],
         "additionalProperties": false
@@ -258,7 +266,7 @@
     },
     "now_playing": {
       "type": ["object", "null"],
-      "description": "Phones with the controller permission only: what the foreground app's own MPRIS player reports. Omitted for the shell, anonymous viewers and phones without controller, while the session is locked, when config remote.now_playing is false, and when nothing is known; null means the same as absent. Never logged, persisted or included in diagnostics (docs/security.md).",
+      "description": "Phones with the controller permission or a guest pass only: what the foreground app's own MPRIS player reports. Omitted for the shell, anonymous viewers and phones with neither, while the session is locked, when config remote.now_playing is false, and when nothing is known; null means the same as absent. Never logged, persisted or included in diagnostics (docs/security.md).",
       "properties": {
         "app_id": {"type": "string", "minLength": 1, "description": "The foreground application (state.applications[].id) whose player this is."},
         "title": {"type": "string", "minLength": 1, "maxLength": 200, "description": "xesam:title, cut to 200 characters. Private media: shown to phones only."},

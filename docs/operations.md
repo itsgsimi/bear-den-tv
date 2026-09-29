@@ -411,8 +411,28 @@ and skips.
 ```sh
 build/bin/bear-den-tv remote enable --interface <interface> --accept-lan-exposure   # or Settings → Phone remote on the TV
 build/bin/bear-den-tv pair            # show a pairing code/URL
+build/bin/bear-den-tv pair --guest tonight   # a guest pass: until 04:00 tomorrow morning (also 24h, 7d)
 build/bin/bear-den-tv devices [revoke <id|*>]
 ```
+
+### Guest passes
+
+A guest pass lets a visitor use their phone as a remote for a limited time
+without becoming a family phone. Issue one on the TV (Settings → Pair a phone,
+then ◀ ▶ to choose *Guest pass · Tonight*, *24 hours* or *7 days*) or with
+`bear-den-tv pair --guest tonight|24h|7d`; the visitor scans the code as usual.
+*Tonight* ends at 04:00 the next morning in the TV's local time zone (a pass
+issued between midnight and 04:00 ends that same morning).
+
+A guest can move around, select, go back and Home, open apps, play, pause and
+seek, change the volume and type into a text field, and sees what is playing.
+A guest cannot close apps, restart the shell, turn anything off, or see or
+change settings, the layout or the list of phones. When the pass ends the phone
+is removed automatically (it shows "Your guest pass has ended"), also if Bear
+Den was restarted in between. Settings → Paired phones and `bear-den-tv devices`
+show each guest with the time it ends; remove one early like any phone.
+A guest pass cannot be turned into a family phone: pair that phone again as a
+family phone instead. Details: [`contracts/http.md`](../contracts/http.md#guest-passes).
 
 ## Further reading
 

@@ -34,6 +34,7 @@ export function PairView({ app, state }: { app: App; state: AppState }): JSX.Ele
 
   const notice =
     state.pair.notice === 'revoked' ? t.pair.revoked : state.pair.notice === 'logout' ? t.pair.loggedOut : state.pair.notice === 'unauthenticated' ? t.pair.sessionExpired : null;
+  const passEnded = state.pair.notice === 'pass_ended';
 
   const art = artStyleOf(state.snapshot?.appearance);
 
@@ -65,6 +66,13 @@ export function PairView({ app, state }: { app: App; state: AppState }): JSX.Ele
         {notice ? (
           <div class="notice notice-warning" role="status" data-testid="pair-notice">
             {notice}
+          </div>
+        ) : null}
+        {passEnded ? (
+          <div class="pass-ended" role="status" data-testid="pass-ended">
+            <Art name="bear-sleep" class="pass-ended-bear" scale={3} width={60} art={art} />
+            <h2>{t.pair.passEnded}</h2>
+            <p class="muted">{t.pair.passEndedBody}</p>
           </div>
         ) : null}
         {state.pair.redeeming ? (

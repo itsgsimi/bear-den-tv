@@ -33,7 +33,7 @@ func (b *PhoneBackend) Snapshot(_ context.Context, v *remote.Viewer) contract.St
 // Subscribe implements remote.Backend; snapshots are coalesced per wake-up.
 func (b *PhoneBackend) Subscribe(ctx context.Context, v *remote.Viewer) (<-chan contract.State, error) {
 	wake := b.c.subscribe(ctx)
-	if v != nil && v.Has(contract.PermController) {
+	if v != nil && v.Has(contract.PermGuest) {
 		b.c.phoneStreamOpened(ctx) // keeps a playing player's position fresh
 	}
 	out := make(chan contract.State, 1)
@@ -90,7 +90,7 @@ func (b *PhoneBackend) Results(ctx context.Context, v remote.Viewer) (<-chan con
 // HoldStart implements remote.Backend. Holds obey the same authorization,
 // lock, epoch, and capability rules as single taps.
 func (b *PhoneBackend) HoldStart(ctx context.Context, v remote.Viewer, m contract.HoldMessage) remote.HoldStatus {
-	if !v.Has(contract.PermController) {
+	if ok, _ := b.c.phoneMay(v, contract.ActionRequest{Action: m.Action}); !ok {
 		return remote.HoldStatus{HoldID: m.HoldID, State: "rejected", Reason: "forbidden"}
 	}
 	epoch, _, locked := b.c.current()

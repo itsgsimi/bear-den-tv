@@ -72,6 +72,8 @@ export const t = {
       generic: (message: string) => (message ? message : 'Pairing failed.'),
     },
     revoked: 'This phone’s access was revoked on the TV. Pair again to continue.',
+    passEnded: 'Your guest pass has ended',
+    passEndedBody: 'Thanks for visiting. To use this phone as a remote again, ask for a new code on the TV.',
     loggedOut: 'You have been logged out.',
     sessionExpired: 'The session ended. Pair again to continue.',
     httpNotice: 'Trusted-LAN HTTP: pairing prevents casual unpaired control but does not encrypt traffic.',
@@ -292,6 +294,8 @@ export const t = {
           return 'Layout editor';
         case 'owner':
           return 'Owner';
+        case 'guest':
+          return 'Guest pass';
         default:
           return p;
       }
@@ -325,6 +329,12 @@ export const t = {
     dismiss: 'Dismiss',
   },
 
+  // Guest passes (contracts/http.md#guest-passes).
+  guest: {
+    chip: (ends: string) => `Guest · ends ${ends}`,
+    chipLabel: (ends: string) => `This phone has a guest pass that ends ${ends}.`,
+  },
+
   errors: {
     network: 'Could not reach the TV.',
     csrf: 'The session token was refreshed. Try again.',
@@ -332,3 +342,17 @@ export const t = {
     generic: (message: string) => (message ? message : 'Something went wrong.'),
   },
 } as const;
+
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
+
+/**
+ * @param endsAt When a guest pass ends, Unix epoch ms.
+ * @param now The phone's clock, Unix epoch ms.
+ * @returns "04:00" when it ends within 20 hours, else "Sat 21:30" (the phone's
+ *   local time; 24-hour clock like the TV).
+ */
+export function passEndLabel(endsAt: number, now: number): string {
+  const d = new Date(endsAt);
+  const time = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  return endsAt - now < 20 * 3600 * 1000 ? time : `${WEEKDAYS[d.getDay()]} ${time}`;
+}

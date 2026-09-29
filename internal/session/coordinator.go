@@ -258,6 +258,7 @@ func (c *Coordinator) Run(ctx context.Context) error {
 	}
 	go c.watchApps(ctx)
 	go c.watchNowPlaying(ctx)
+	go c.watchRevocations(ctx)
 	// Subscribe before the initial read so a change between the two is never lost.
 	fgCh, err := c.opts.Desktop.WatchForeground(ctx)
 	if err != nil {
@@ -304,6 +305,27 @@ func (c *Coordinator) Run(ctx context.Context) error {
 			// snapshots, so this costs one state build per second.
 			c.publish()
 			tick.Reset(time.Second)
+		}
+	}
+}
+
+// watchRevocations cancels the holds and forgets the de-dup entries of every
+// revoked device, whoever revoked it: the TV, an owner phone, the phone
+// itself, or the end of a guest pass (internal/pairing/guest.go).
+func (c *Coordinator) watchRevocations(ctx context.Context) {
+	ch, err := c.opts.Pairing.Revocations(ctx)
+	if err != nil {
+		c.log.Warn("session: revocation watch unavailable", "err", err)
+		return
+	}
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case id := <-ch:
+			c.holds.CancelDevice(id, "revoked")
+			c.dedup.Forget(id)
+			c.publish()
 		}
 	}
 }

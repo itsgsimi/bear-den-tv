@@ -2,6 +2,9 @@
 // phones, and owns the device/session records behind remote.Devices. Secrets
 // (fragment token, six-digit code, session token) exist in memory only while
 // they are handed to the TV or the phone; the database keeps SHA-256 hashes.
+// It also owns guest passes (guest.go): a device that holds only the guest
+// permission until a stored end time, when it is revoked like any other
+// (contracts/http.md#guest-passes, docs/security.md).
 package pairing
 
 import (
@@ -57,16 +60,21 @@ type Options struct {
 	// OnChange is called after the invitation state changes (issue, cancel,
 	// expiry, redemption) or a device list change so the coordinator republishes.
 	OnChange func()
+	// Location is the local time zone for guest passes that end "tonight"
+	// (04:00 the next morning); nil selects time.Local.
+	Location *time.Location
 }
 
 // Issued is a freshly created invitation; Token and Code are shown once on the TV.
+// PassExpiresAt is set for a guest pass: when the redeeming device is revoked.
 type Issued struct {
-	ID           string
-	Token        string
-	Code         string
-	URL          string
-	ExpiresAt    time.Time
-	AttemptsLeft int
+	ID            string
+	Token         string
+	Code          string
+	URL           string
+	ExpiresAt     time.Time
+	AttemptsLeft  int
+	PassExpiresAt *time.Time
 }
 
 type live struct {
@@ -79,6 +87,7 @@ type live struct {
 	expiresAt    time.Time
 	attemptsLeft int
 	permissions  []contract.Permission
+	passExpires  *time.Time // guest pass end, nil for a family phone
 	timer        clock.Timer
 }
 
@@ -90,6 +99,7 @@ type Service struct {
 	limiters  map[string]*limiterEntry
 	connected map[string]bool
 	subs      map[chan string]struct{}
+	passTimer clock.Timer // next guest pass sweep (guest.go)
 }
 
 type limiterEntry struct {
@@ -118,15 +128,44 @@ func New(opts Options) (*Service, error) {
 	if opts.SourceClaimsPerMinute <= 0 {
 		opts.SourceClaimsPerMinute = DefaultSourceClaimsPerMinute
 	}
+	if opts.Location == nil {
+		opts.Location = time.Local
+	}
 	if err := opts.DB.CancelInvitations(context.Background()); err != nil {
 		return nil, err
 	}
-	return &Service{opts: opts, limiters: map[string]*limiterEntry{}, connected: map[string]bool{}, subs: map[chan string]struct{}{}}, nil
+	s := &Service{opts: opts, limiters: map[string]*limiterEntry{}, connected: map[string]bool{}, subs: map[chan string]struct{}{}}
+	// Guest passes that ended while the coordinator was stopped are revoked
+	// now; the others get their timer back.
+	s.sweepPasses()
+	return s, nil
 }
 
 // Issue creates a new invitation, replacing any live one. permissions are
-// granted to the device that redeems it; nil means controller only.
+// granted to the device that redeems it; nil means controller only. guest is
+// refused here: guest passes come from IssuePass, which sets their end.
 func (s *Service) Issue(ctx context.Context, permissions []contract.Permission) (Issued, error) {
+	for _, p := range permissions {
+		if p == contract.PermGuest {
+			return Issued{}, errors.New("pairing: guest passes are issued with a duration")
+		}
+	}
+	return s.issue(ctx, normalizePermissions(permissions), nil)
+}
+
+// IssuePass creates a guest pass invitation: the redeeming device gets only
+// the guest permission and is revoked at the end computed now from pass
+// (contract.PassTonight, Pass24h, Pass7d). Only trusted local callers (the
+// TV shell and the CLI over IPC) reach this.
+func (s *Service) IssuePass(ctx context.Context, pass string) (Issued, error) {
+	end, err := PassEnd(s.opts.Clock.Now(), pass, s.opts.Location)
+	if err != nil {
+		return Issued{}, err
+	}
+	return s.issue(ctx, []contract.Permission{contract.PermGuest}, &end)
+}
+
+func (s *Service) issue(ctx context.Context, perms []contract.Permission, passEnd *time.Time) (Issued, error) {
 	lim := s.opts.Limits()
 	if lim.Expiry <= 0 || lim.MaxAttempts <= 0 {
 		return Issued{}, errors.New("pairing: invalid limits")
@@ -154,22 +193,25 @@ func (s *Service) Issue(ctx context.Context, permissions []contract.Permission) 
 			return Issued{}, err
 		}
 	}
-	inv := storage.Invitation{ID: id, TokenSHA256: hashHex(token), CodeSHA256: hashHex(code), ExpiresAtMs: now.Add(lim.Expiry).UnixMilli(), AttemptsLeft: lim.MaxAttempts}
+	inv := storage.Invitation{ID: id, TokenSHA256: hashHex(token), CodeSHA256: hashHex(code), ExpiresAtMs: now.Add(lim.Expiry).UnixMilli(), AttemptsLeft: lim.MaxAttempts, Permissions: permStrings(perms)}
+	if passEnd != nil {
+		ms := passEnd.UnixMilli()
+		inv.PassExpiresAtMs = &ms
+	}
 	if err := s.opts.DB.CreateInvitation(ctx, inv); err != nil {
 		return Issued{}, err
 	}
-	perms := normalizePermissions(permissions)
 	s.mu.Lock()
 	if s.live != nil && s.live.timer != nil {
 		s.live.timer.Stop()
 	}
-	l := &live{id: id, tokenHash: inv.TokenSHA256, codeHash: inv.CodeSHA256, code: code, url: url, qr: qr, expiresAt: now.Add(lim.Expiry), attemptsLeft: lim.MaxAttempts, permissions: perms}
+	l := &live{id: id, tokenHash: inv.TokenSHA256, codeHash: inv.CodeSHA256, code: code, url: url, qr: qr, expiresAt: now.Add(lim.Expiry), attemptsLeft: lim.MaxAttempts, permissions: perms, passExpires: passEnd}
 	l.timer = s.opts.Clock.AfterFunc(lim.Expiry, func() { s.expire(id) })
 	s.live = l
 	s.mu.Unlock()
-	s.opts.Logger.Info("pairing: invitation issued", "invitation_id", id, "expires_in_s", int(lim.Expiry/time.Second))
+	s.opts.Logger.Info("pairing: invitation issued", "invitation_id", id, "expires_in_s", int(lim.Expiry/time.Second), "guest", passEnd != nil)
 	s.notify()
-	return Issued{ID: id, Token: token, Code: code, URL: url, ExpiresAt: l.expiresAt, AttemptsLeft: lim.MaxAttempts}, nil
+	return Issued{ID: id, Token: token, Code: code, URL: url, ExpiresAt: l.expiresAt, AttemptsLeft: lim.MaxAttempts, PassExpiresAt: passEnd}, nil
 }
 
 func (s *Service) expire(id string) {
@@ -220,7 +262,12 @@ func (s *Service) State() contract.Pairing {
 		u := s.live.url
 		url = &u
 	}
-	return contract.Pairing{Active: true, Code: &code, URL: url, QRModules: s.live.qr, ExpiresInS: int(left / time.Second), AttemptsLeft: s.live.attemptsLeft}
+	p := contract.Pairing{Active: true, Code: &code, URL: url, QRModules: s.live.qr, ExpiresInS: int(left / time.Second), AttemptsLeft: s.live.attemptsLeft}
+	if s.live.passExpires != nil {
+		ms := s.live.passExpires.UnixMilli()
+		p.Guest, p.PassExpiresAtMs = true, &ms
+	}
+	return p
 }
 
 // Claim implements remote.Devices.
@@ -273,6 +320,18 @@ func (s *Service) Claim(ctx context.Context, token, code, deviceName, sourceAddr
 	s.mu.Unlock()
 
 	now := s.opts.Clock.Now()
+	var passEndMs *int64
+	if l.passExpires != nil {
+		// A pass that already ended (a "tonight" code redeemed after 04:00)
+		// never creates a device.
+		if !now.Before(*l.passExpires) {
+			_ = s.opts.DB.CancelInvitations(ctx)
+			s.notify()
+			return remote.ClaimResult{}, remote.ErrInvitationExpired
+		}
+		ms := l.passExpires.UnixMilli()
+		passEndMs = &ms
+	}
 	nowText := now.UTC().Format(time.RFC3339)
 	redeemed := nowText
 	if err := s.opts.DB.UpdateInvitation(ctx, storage.Invitation{ID: l.id, AttemptsLeft: l.attemptsLeft, RedeemedAt: &redeemed}); err != nil {
@@ -283,11 +342,8 @@ func (s *Service) Claim(ctx context.Context, token, code, deviceName, sourceAddr
 		return remote.ClaimResult{}, err
 	}
 	name := sanitizeName(deviceName)
-	permText := make([]string, len(perms))
-	for i, p := range perms {
-		permText[i] = string(p)
-	}
-	if err := s.opts.DB.CreateDevice(ctx, storage.Device{ID: deviceID, Name: name, Permissions: permText, CreatedAt: nowText, LastSeenMs: now.UnixMilli()}); err != nil {
+	permText := permStrings(perms)
+	if err := s.opts.DB.CreateDevice(ctx, storage.Device{ID: deviceID, Name: name, Permissions: permText, CreatedAt: nowText, LastSeenMs: now.UnixMilli(), ExpiresAtMs: passEndMs}); err != nil {
 		return remote.ClaimResult{}, err
 	}
 	sessionToken, csrf, err := s.createSession(ctx, deviceID, nowText, now.UnixMilli())
@@ -295,6 +351,9 @@ func (s *Service) Claim(ctx context.Context, token, code, deviceName, sourceAddr
 		return remote.ClaimResult{}, err
 	}
 	s.opts.Logger.Info("pairing: device paired", "device_id", deviceID, "permissions", permText)
+	if passEndMs != nil {
+		s.sweepPasses() // arm the timer for the new pass
+	}
 	s.notify()
 	return remote.ClaimResult{DeviceID: deviceID, DeviceName: name, Permissions: perms, SessionToken: sessionToken, CSRFToken: csrf}, nil
 }
@@ -331,12 +390,18 @@ func (s *Service) Authenticate(ctx context.Context, sessionToken string) (remote
 	if err != nil || dev.Revoked() {
 		return remote.Viewer{}, "", false
 	}
+	// Every request re-checks a guest pass: an ended pass is revoked here
+	// even if its timer has not fired yet (suspend, clock change).
+	if s.passEnded(dev) {
+		s.revokeEnded(ctx, dev.ID)
+		return remote.Viewer{}, "", false
+	}
 	csrf := csrfFor(sessionToken)
 	if !constantEqual(hashHex(csrf), sess.CSRFSHA256) {
 		return remote.Viewer{}, "", false
 	}
 	_ = s.opts.DB.TouchSession(ctx, sess.TokenSHA256, s.opts.Clock.Now().UnixMilli())
-	return remote.Viewer{DeviceID: dev.ID, DeviceName: dev.Name, Permissions: toPermissions(dev.Permissions)}, csrf, true
+	return remote.Viewer{DeviceID: dev.ID, DeviceName: dev.Name, Permissions: toPermissions(dev.Permissions), ExpiresAtMs: dev.ExpiresAtMs}, csrf, true
 }
 
 // Logout implements remote.Devices.
@@ -358,7 +423,8 @@ func (s *Service) List(ctx context.Context) ([]contract.Device, error) {
 	defer s.mu.Unlock()
 	out := make([]contract.Device, 0, len(devs))
 	for _, d := range devs {
-		out = append(out, contract.Device{ID: d.ID, Name: d.Name, Permissions: toPermissions(d.Permissions), Connected: s.connected[d.ID], LastSeenMs: d.LastSeenMs, CreatedAt: d.CreatedAt})
+		out = append(out, contract.Device{ID: d.ID, Name: d.Name, Permissions: toPermissions(d.Permissions), Connected: s.connected[d.ID], LastSeenMs: d.LastSeenMs, CreatedAt: d.CreatedAt,
+			Guest: d.ExpiresAtMs != nil, ExpiresAtMs: d.ExpiresAtMs})
 	}
 	return out, nil
 }
@@ -433,18 +499,23 @@ func (s *Service) Touch(ctx context.Context, deviceID string, connected bool) {
 }
 
 // Grant replaces a device's permissions (TV-only operation). Unknown
-// permissions are rejected; controller is always included.
+// permissions are rejected; controller is always included. guest cannot be
+// granted, and a guest pass cannot be upgraded: pair that phone again as a
+// family phone.
 func (s *Service) Grant(ctx context.Context, deviceID string, permissions []contract.Permission) error {
 	for _, p := range permissions {
 		if p.Rank() == 0 {
 			return fmt.Errorf("pairing: unknown permission %q", p)
 		}
+		if p == contract.PermGuest {
+			return errors.New("pairing: guest passes are issued from Pair a phone, not granted")
+		}
+	}
+	if dev, err := s.opts.DB.Device(ctx, deviceID); err == nil && dev.ExpiresAtMs != nil {
+		return errors.New("pairing: a guest pass cannot be upgraded; pair the phone again as a family phone")
 	}
 	perms := normalizePermissions(permissions)
-	text := make([]string, len(perms))
-	for i, p := range perms {
-		text[i] = string(p)
-	}
+	text := permStrings(perms)
 	if err := s.opts.DB.SetPermissions(ctx, deviceID, text); err != nil {
 		return err
 	}
@@ -481,10 +552,13 @@ func (s *Service) notify() {
 	}
 }
 
+// normalizePermissions orders a family phone's permissions and always
+// includes controller. guest is never kept here: guest passes carry exactly
+// [guest] and are built by IssuePass.
 func normalizePermissions(in []contract.Permission) []contract.Permission {
 	set := map[contract.Permission]bool{contract.PermController: true}
 	for _, p := range in {
-		if p.Rank() > 0 {
+		if p.Rank() > 0 && p != contract.PermGuest {
 			set[p] = true
 		}
 	}
@@ -494,6 +568,14 @@ func normalizePermissions(in []contract.Permission) []contract.Permission {
 	}
 	if set[contract.PermOwner] {
 		out = append(out, contract.PermOwner)
+	}
+	return out
+}
+
+func permStrings(in []contract.Permission) []string {
+	out := make([]string, len(in))
+	for i, p := range in {
+		out[i] = string(p)
 	}
 	return out
 }

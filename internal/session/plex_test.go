@@ -75,8 +75,10 @@ func TestPlexSignInOverIPCAndRowsOnHome(t *testing.T) {
 	if _, err := contract.MarshalAndValidateState(st); err != nil {
 		t.Fatalf("shell state invalid: %v", err)
 	}
-	// Phones never see the flow or the code.
+	// Phones (guest passes included) never see the flow or the code.
+	guest := guestViewer(time.Now().Add(time.Hour))
 	for name, v := range map[string]contract.State{
+		"guest":      h.phones.Snapshot(ctx, &guest),
 		"controller": h.phones.Snapshot(ctx, &h.ctl),
 		"owner":      h.phones.Snapshot(ctx, &h.owner),
 		"anonymous":  h.c.buildState(viewAnonymous),

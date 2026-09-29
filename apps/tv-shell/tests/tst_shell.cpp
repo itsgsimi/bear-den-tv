@@ -11,6 +11,7 @@
 #include "Theme.h"
 #include "ThemeRegistry.h"
 
+#include <QDateTime>
 #include <QDir>
 #include <QFile>
 #include <QImageReader>
@@ -414,6 +415,140 @@ private slots:
         QCOMPARE(session->contextEpoch(), epoch + 400); // the previous state stays
         QVERIFY(session->applySnapshot(fixture()));
         QVERIFY(session->power().isEmpty());
+    }
+
+    // Guest passes: pairing.guest/pass_expires_at_ms and devices[].guest/
+    // expires_at_ms are accepted; guest with another permission is rejected.
+    void guestPassFieldsAcceptedAndChecked()
+    {
+        SessionModel *session = SessionModel::instance();
+        const int epoch = session->contextEpoch();
+        QJsonObject snap = fixture();
+        snap.insert(QStringLiteral("context_epoch"), epoch + 400);
+        QJsonObject pairing = snap.value(QStringLiteral("pairing")).toObject();
+        pairing.insert(QStringLiteral("guest"), true);
+        pairing.insert(QStringLiteral("pass_expires_at_ms"), 1790647200000.0);
+        snap.insert(QStringLiteral("pairing"), pairing);
+        QJsonObject guest{{QStringLiteral("id"), QStringLiteral("dev_g")}, {QStringLiteral("name"), QStringLiteral("Guest phone")},
+                          {QStringLiteral("permissions"), QJsonArray{QStringLiteral("guest")}}, {QStringLiteral("connected"), true},
+                          {QStringLiteral("last_seen_ms"), 1000}, {QStringLiteral("created_at"), QStringLiteral("2026-09-28T19:30:00Z")},
+                          {QStringLiteral("guest"), true}, {QStringLiteral("expires_at_ms"), 1790647200000.0}};
+        QJsonArray devices = snap.value(QStringLiteral("devices")).toArray();
+        devices.append(guest);
+        snap.insert(QStringLiteral("devices"), devices);
+        QVERIFY2(session->applySnapshot(snap), qPrintable(session->lastError()));
+        QCOMPARE(session->contextEpoch(), epoch + 400);
+        QVERIFY(session->pairing().value(QStringLiteral("guest")).toBool());
+        QCOMPARE(session->devices().last().toMap().value(QStringLiteral("guest")).toBool(), true);
+
+        snap.insert(QStringLiteral("context_epoch"), epoch + 500);
+        guest.insert(QStringLiteral("permissions"), QJsonArray{QStringLiteral("guest"), QStringLiteral("controller")});
+        devices.removeLast();
+        devices.append(guest);
+        snap.insert(QStringLiteral("devices"), devices);
+        QVERIFY(!session->applySnapshot(snap));
+        QVERIFY2(session->lastError().contains(QStringLiteral("guest")), qPrintable(session->lastError()));
+        QCOMPARE(session->contextEpoch(), epoch + 400); // the previous state stays
+        QVERIFY(session->applySnapshot(fixture()));
+    }
+
+    // Pair a phone: "Who is it for?" starts on Family phone (pair.issue without
+    // pass); ◀ ▶ re-issues as a guest pass (pass tonight/24h/7d). Paired phones
+    // shows a guest with its badge and the time it ends.
+    void pairScreenOffersGuestPasses()
+    {
+        SessionModel *session = SessionModel::instance();
+        IpcClient *ipc = ShellController::instance()->ipc();
+        auto lastIssue = [ipc]() {
+            const QList<QJsonObject> sent = ipc->sentMessages();
+            for (auto it = sent.crbegin(); it != sent.crend(); ++it)
+                if (it->value(QStringLiteral("type")).toString() == QLatin1String("pair.issue"))
+                    return *it;
+            return QJsonObject{};
+        };
+        auto kindRow = [this]() { return m_window->findChild<QObject *>(QStringLiteral("pairKindRow")); };
+
+        goHome();
+        toHeader();
+        act(QStringLiteral("nav.right"));
+        act(QStringLiteral("nav.right"));
+        ipc->clearSent();
+        act(QStringLiteral("select"));
+        QCOMPARE(m_nav->screen(), QStringLiteral("pairing"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("pair-kind"));
+        QVERIFY(!lastIssue().isEmpty());
+        QVERIFY(!lastIssue().contains(QStringLiteral("pass"))); // a family phone by default
+        QVERIFY(kindRow());
+        QCOMPARE(kindRow()->property("value").toString(), QStringLiteral("Family phone"));
+
+        act(QStringLiteral("nav.right"));
+        QCOMPARE(lastIssue().value(QStringLiteral("pass")).toString(), QStringLiteral("tonight"));
+        act(QStringLiteral("nav.right"));
+        QCOMPARE(lastIssue().value(QStringLiteral("pass")).toString(), QStringLiteral("24h"));
+        act(QStringLiteral("nav.right"));
+        act(QStringLiteral("nav.right")); // stops at the last choice
+        QCOMPARE(lastIssue().value(QStringLiteral("pass")).toString(), QStringLiteral("7d"));
+        act(QStringLiteral("nav.left"));
+        act(QStringLiteral("nav.left"));
+        QCOMPARE(lastIssue().value(QStringLiteral("pass")).toString(), QStringLiteral("tonight"));
+        QVERIFY(kindRow()->property("value").toString().contains(QStringLiteral("Tonight")));
+
+        // The coordinator answers with a live guest invitation.
+        QJsonObject snap = fixture();
+        // "Tonight": 04:00 the next morning, local time (the coordinator's PassEnd).
+        const QDateTime nowLocal = QDateTime::currentDateTime();
+        const double ends = double(QDateTime(nowLocal.date().addDays(nowLocal.time().hour() >= 4 ? 1 : 0), QTime(4, 0)).toMSecsSinceEpoch());
+        QFile pf(QStringLiteral(BDTV_FIXTURE_DIR "/pairing.guest-demo.json")); // DEMO invitation with a real QR
+        QVERIFY(pf.open(QIODevice::ReadOnly));
+        QJsonObject pairing = QJsonDocument::fromJson(pf.readAll()).object();
+        pairing.insert(QStringLiteral("pass_expires_at_ms"), ends);
+        snap.insert(QStringLiteral("pairing"), pairing);
+        QVERIFY2(session->applySnapshot(snap), qPrintable(session->lastError()));
+        QCoreApplication::processEvents();
+        QVERIFY2(kindRow()->property("description").toString().contains(QStringLiteral("ends ")), qPrintable(kindRow()->property("description").toString()));
+        shot(QStringLiteral("pairing-guest"));
+        act(QStringLiteral("nav.down"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("new-code"));
+        act(QStringLiteral("select")); // a new code keeps the chosen kind
+        QCOMPARE(lastIssue().value(QStringLiteral("pass")).toString(), QStringLiteral("tonight"));
+        act(QStringLiteral("back"));
+        act(QStringLiteral("back"));
+
+        // Paired phones: a guest row with badge and end.
+        QJsonArray devices = snap.value(QStringLiteral("devices")).toArray();
+        devices.append(QJsonObject{{QStringLiteral("id"), QStringLiteral("dev_g3")}, {QStringLiteral("name"), QStringLiteral("DEMO visitor's phone")},
+                                   {QStringLiteral("permissions"), QJsonArray{QStringLiteral("guest")}}, {QStringLiteral("connected"), true},
+                                   {QStringLiteral("last_seen_ms"), 119000}, {QStringLiteral("created_at"), QStringLiteral("2026-09-28T19:30:00Z")},
+                                   {QStringLiteral("guest"), true}, {QStringLiteral("expires_at_ms"), ends}});
+        snap.insert(QStringLiteral("devices"), devices);
+        snap.insert(QStringLiteral("pairing"), fixture().value(QStringLiteral("pairing")));
+        QVERIFY2(session->applySnapshot(snap), qPrintable(session->lastError()));
+        goHome();
+        toHeader();
+        act(QStringLiteral("nav.right"));
+        act(QStringLiteral("select"));
+        for (int i = 0; i < 20; ++i)
+            act(QStringLiteral("nav.up"));
+        act(QStringLiteral("nav.down"));
+        act(QStringLiteral("nav.down"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("devices"));
+        act(QStringLiteral("select"));
+        QCOMPARE(m_nav->screen(), QStringLiteral("devices"));
+        act(QStringLiteral("nav.down"));
+        act(QStringLiteral("nav.down"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("dev_g3"));
+        QString guestRow;
+        std::function<void(QQuickItem *)> find = [&](QQuickItem *item) {
+            if (item->property("badge").toString() == QLatin1String("Guest") && item->isVisible())
+                guestRow = item->property("description").toString();
+            for (QQuickItem *child : item->childItems())
+                find(child);
+        };
+        find(m_window->contentItem());
+        QVERIFY2(guestRow.contains(QStringLiteral("Guest pass · ends 04:00")) && guestRow.contains(QStringLiteral(" left)")), qPrintable(guestRow));
+        shot(QStringLiteral("devices-guest"));
+        QVERIFY(session->applySnapshot(fixture()));
+        goHome();
     }
 
     // state.plex (shell only): a well-formed sign-in state is accepted and

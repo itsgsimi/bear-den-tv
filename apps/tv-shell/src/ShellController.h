@@ -107,7 +107,8 @@ public:
     // Trusted local requests from the TV UI.
     Q_INVOKABLE void launchApp(const QString &appId);
     Q_INVOKABLE void closeApp(const QString &appId);
-    Q_INVOKABLE void issuePairing();
+    /// A family phone invitation, or with pass (tonight, 24h, 7d) a guest pass.
+    Q_INVOKABLE void issuePairing(const QString &pass = QString());
     Q_INVOKABLE void cancelPairing();
     Q_INVOKABLE void revokeDevice(const QString &deviceId);
     Q_INVOKABLE void configureRemote(bool enabled, const QString &interfaceName);

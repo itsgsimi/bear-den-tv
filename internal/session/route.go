@@ -80,12 +80,11 @@ func (c *Coordinator) route(ctx context.Context, s sender, req contract.ActionRe
 		return c.fail(req, contract.CodeUnsupportedProtocol, "This remote speaks a different protocol version.")
 	}
 	if !s.isShell() {
-		need := contract.PermController
-		if req.Action == contract.ActionShellRestart || (req.Action == contract.ActionAppClose && boolArg(req.Args, "force")) {
-			need = contract.PermOwner
-		}
-		if s.viewer == nil || !s.viewer.Has(need) {
+		if s.viewer == nil {
 			return c.fail(req, contract.CodeForbidden, "This device is not allowed to do that.")
+		}
+		if ok, msg := c.phoneMay(*s.viewer, req); !ok {
+			return c.fail(req, contract.CodeForbidden, msg)
 		}
 	}
 	// Any authorized press wakes an off display and cancels a sleep
@@ -130,6 +129,38 @@ func (c *Coordinator) route(ctx context.Context, s sender, req contract.ActionRe
 		return c.result(req, contract.OutcomeDelivered, nil)
 	}
 	return c.fail(req, contract.CodeUnsupported, fmt.Sprintf("%q is not supported.", req.Action))
+}
+
+// phoneMay is the permission gate for a phone's action. A guest pass may send
+// only contract.GuestActions (so an action added later is refused to guests
+// until someone puts it on that list) and nothing once its pass has ended;
+// everyone else needs controller, and owner for shell.restart and a forced
+// app.close.
+func (c *Coordinator) phoneMay(v remote.Viewer, req contract.ActionRequest) (bool, string) {
+	if v.Guest() {
+		if c.passEnded(v) {
+			return false, "Your guest pass has ended."
+		}
+		if !contract.GuestMayUse(req.Action) {
+			return false, "Guest passes can't do that."
+		}
+		return true, ""
+	}
+	need := contract.PermController
+	if req.Action == contract.ActionShellRestart || (req.Action == contract.ActionAppClose && boolArg(req.Args, "force")) {
+		need = contract.PermOwner
+	}
+	if !v.Has(need) {
+		return false, "This device is not allowed to do that."
+	}
+	return true, ""
+}
+
+// passEnded reports whether v's guest pass has ended by the coordinator's
+// clock. pairing revokes ended passes on its own timer and on every HTTP
+// request; this also covers actions on a socket opened before the end.
+func (c *Coordinator) passEnded(v remote.Viewer) bool {
+	return v.ExpiresAtMs != nil && !c.clock.Now().Before(time.UnixMilli(*v.ExpiresAtMs))
 }
 
 // capability returns the current capability for action plus the failure code
