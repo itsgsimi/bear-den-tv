@@ -7,6 +7,8 @@
 // the controller owns the hold lease; keyboard activation sends a single tap.
 // The last result is shown with its outcome (accepted/delivered/observed/failed)
 // kept distinct; nothing here pretends a press was observed when it was delivered.
+// A guest pass sees only what it may use (`mayUse`): no Close app, no restart,
+// no sleep timer or screen off.
 import { useEffect, useState } from 'preact/hooks';
 import type { ComponentChildren, JSX } from 'preact';
 import type { App } from '../app.ts';
@@ -16,7 +18,7 @@ import { AppArt, Art, artStyleOf, Icon, type IconName } from '../icons.tsx';
 import { Vines } from '../vines.tsx';
 import { NowPlayingPanel, nowPlayingOf } from './nowplaying.tsx';
 import { SleepPanel } from './sleep.tsx';
-import { type AppState, type PendingAction, capabilityFor, closableApp, isSecureTransport, permissionsOf, visibleApps } from '../state.ts';
+import { type AppState, type PendingAction, capabilityFor, closableApp, isSecureTransport, mayUse, permissionsOf, visibleApps } from '../state.ts';
 
 const TEXT_MAX = 256;
 const VOLUME_STEP = 5;
@@ -37,7 +39,7 @@ function gate(state: AppState, action: ActionName): Gate {
 }
 
 function listed(state: AppState, action: ActionName): boolean {
-  return state.snapshot?.capabilities[action] !== undefined;
+  return state.snapshot?.capabilities[action] !== undefined && mayUse(state, action);
 }
 
 export function RemoteView({ app, state }: { app: App; state: AppState }): JSX.Element {
@@ -76,9 +78,11 @@ export function RemoteView({ app, state }: { app: App; state: AppState }): JSX.E
           {t.remote.home}
         </TapButton>
       </div>
-      <div class="button-row">
-        <CloseButton app={app} state={state} />
-      </div>
+      {mayUse(state, 'app.close') ? (
+        <div class="button-row">
+          <CloseButton app={app} state={state} />
+        </div>
+      ) : null}
 
       <LastResult state={state} />
 
@@ -142,7 +146,7 @@ export function RemoteView({ app, state }: { app: App; state: AppState }): JSX.E
         </div>
       ) : null}
 
-      <SleepPanel app={app} state={state} />
+      {mayUse(state, 'power.sleep_timer') || mayUse(state, 'display.off') ? <SleepPanel app={app} state={state} /> : null}
 
       {listed(state, 'text.submit') ? <TextEntry app={app} state={state} gate={note(gate(state, 'text.submit'))} /> : null}
 

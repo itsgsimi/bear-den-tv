@@ -4,11 +4,14 @@
 #include "FocusMemory.h"
 #include "IpcClient.h"
 #include "Navigator.h"
+#include "ItemsModel.h"
+#include "SectionsModel.h"
 #include "SessionModel.h"
 #include "ShellController.h"
 #include "Theme.h"
 #include "ThemeRegistry.h"
 
+#include <QDateTime>
 #include <QDir>
 #include <QFile>
 #include <QImageReader>
@@ -412,6 +415,374 @@ private slots:
         QCOMPARE(session->contextEpoch(), epoch + 400); // the previous state stays
         QVERIFY(session->applySnapshot(fixture()));
         QVERIFY(session->power().isEmpty());
+    }
+
+    // Guest passes: pairing.guest/pass_expires_at_ms and devices[].guest/
+    // expires_at_ms are accepted; guest with another permission is rejected.
+    void guestPassFieldsAcceptedAndChecked()
+    {
+        SessionModel *session = SessionModel::instance();
+        const int epoch = session->contextEpoch();
+        QJsonObject snap = fixture();
+        snap.insert(QStringLiteral("context_epoch"), epoch + 400);
+        QJsonObject pairing = snap.value(QStringLiteral("pairing")).toObject();
+        pairing.insert(QStringLiteral("guest"), true);
+        pairing.insert(QStringLiteral("pass_expires_at_ms"), 1790647200000.0);
+        snap.insert(QStringLiteral("pairing"), pairing);
+        QJsonObject guest{{QStringLiteral("id"), QStringLiteral("dev_g")}, {QStringLiteral("name"), QStringLiteral("Guest phone")},
+                          {QStringLiteral("permissions"), QJsonArray{QStringLiteral("guest")}}, {QStringLiteral("connected"), true},
+                          {QStringLiteral("last_seen_ms"), 1000}, {QStringLiteral("created_at"), QStringLiteral("2026-09-28T19:30:00Z")},
+                          {QStringLiteral("guest"), true}, {QStringLiteral("expires_at_ms"), 1790647200000.0}};
+        QJsonArray devices = snap.value(QStringLiteral("devices")).toArray();
+        devices.append(guest);
+        snap.insert(QStringLiteral("devices"), devices);
+        QVERIFY2(session->applySnapshot(snap), qPrintable(session->lastError()));
+        QCOMPARE(session->contextEpoch(), epoch + 400);
+        QVERIFY(session->pairing().value(QStringLiteral("guest")).toBool());
+        QCOMPARE(session->devices().last().toMap().value(QStringLiteral("guest")).toBool(), true);
+
+        snap.insert(QStringLiteral("context_epoch"), epoch + 500);
+        guest.insert(QStringLiteral("permissions"), QJsonArray{QStringLiteral("guest"), QStringLiteral("controller")});
+        devices.removeLast();
+        devices.append(guest);
+        snap.insert(QStringLiteral("devices"), devices);
+        QVERIFY(!session->applySnapshot(snap));
+        QVERIFY2(session->lastError().contains(QStringLiteral("guest")), qPrintable(session->lastError()));
+        QCOMPARE(session->contextEpoch(), epoch + 400); // the previous state stays
+        QVERIFY(session->applySnapshot(fixture()));
+    }
+
+    // Pair a phone: "Who is it for?" starts on Family phone (pair.issue without
+    // pass); ◀ ▶ re-issues as a guest pass (pass tonight/24h/7d). Paired phones
+    // shows a guest with its badge and the time it ends.
+    void pairScreenOffersGuestPasses()
+    {
+        SessionModel *session = SessionModel::instance();
+        IpcClient *ipc = ShellController::instance()->ipc();
+        auto lastIssue = [ipc]() {
+            const QList<QJsonObject> sent = ipc->sentMessages();
+            for (auto it = sent.crbegin(); it != sent.crend(); ++it)
+                if (it->value(QStringLiteral("type")).toString() == QLatin1String("pair.issue"))
+                    return *it;
+            return QJsonObject{};
+        };
+        auto kindRow = [this]() { return m_window->findChild<QObject *>(QStringLiteral("pairKindRow")); };
+
+        goHome();
+        toHeader();
+        act(QStringLiteral("nav.right"));
+        act(QStringLiteral("nav.right"));
+        ipc->clearSent();
+        act(QStringLiteral("select"));
+        QCOMPARE(m_nav->screen(), QStringLiteral("pairing"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("pair-kind"));
+        QVERIFY(!lastIssue().isEmpty());
+        QVERIFY(!lastIssue().contains(QStringLiteral("pass"))); // a family phone by default
+        QVERIFY(kindRow());
+        QCOMPARE(kindRow()->property("value").toString(), QStringLiteral("Family phone"));
+
+        act(QStringLiteral("nav.right"));
+        QCOMPARE(lastIssue().value(QStringLiteral("pass")).toString(), QStringLiteral("tonight"));
+        act(QStringLiteral("nav.right"));
+        QCOMPARE(lastIssue().value(QStringLiteral("pass")).toString(), QStringLiteral("24h"));
+        act(QStringLiteral("nav.right"));
+        act(QStringLiteral("nav.right")); // stops at the last choice
+        QCOMPARE(lastIssue().value(QStringLiteral("pass")).toString(), QStringLiteral("7d"));
+        act(QStringLiteral("nav.left"));
+        act(QStringLiteral("nav.left"));
+        QCOMPARE(lastIssue().value(QStringLiteral("pass")).toString(), QStringLiteral("tonight"));
+        QVERIFY(kindRow()->property("value").toString().contains(QStringLiteral("Tonight")));
+
+        // The coordinator answers with a live guest invitation.
+        QJsonObject snap = fixture();
+        // "Tonight": 04:00 the next morning, local time (the coordinator's PassEnd).
+        const QDateTime nowLocal = QDateTime::currentDateTime();
+        const double ends = double(QDateTime(nowLocal.date().addDays(nowLocal.time().hour() >= 4 ? 1 : 0), QTime(4, 0)).toMSecsSinceEpoch());
+        QFile pf(QStringLiteral(BDTV_FIXTURE_DIR "/pairing.guest-demo.json")); // DEMO invitation with a real QR
+        QVERIFY(pf.open(QIODevice::ReadOnly));
+        QJsonObject pairing = QJsonDocument::fromJson(pf.readAll()).object();
+        pairing.insert(QStringLiteral("pass_expires_at_ms"), ends);
+        snap.insert(QStringLiteral("pairing"), pairing);
+        QVERIFY2(session->applySnapshot(snap), qPrintable(session->lastError()));
+        QCoreApplication::processEvents();
+        QVERIFY2(kindRow()->property("description").toString().contains(QStringLiteral("ends ")), qPrintable(kindRow()->property("description").toString()));
+        shot(QStringLiteral("pairing-guest"));
+        act(QStringLiteral("nav.down"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("new-code"));
+        act(QStringLiteral("select")); // a new code keeps the chosen kind
+        QCOMPARE(lastIssue().value(QStringLiteral("pass")).toString(), QStringLiteral("tonight"));
+        act(QStringLiteral("back"));
+        act(QStringLiteral("back"));
+
+        // Paired phones: a guest row with badge and end.
+        QJsonArray devices = snap.value(QStringLiteral("devices")).toArray();
+        devices.append(QJsonObject{{QStringLiteral("id"), QStringLiteral("dev_g3")}, {QStringLiteral("name"), QStringLiteral("DEMO visitor's phone")},
+                                   {QStringLiteral("permissions"), QJsonArray{QStringLiteral("guest")}}, {QStringLiteral("connected"), true},
+                                   {QStringLiteral("last_seen_ms"), 119000}, {QStringLiteral("created_at"), QStringLiteral("2026-09-28T19:30:00Z")},
+                                   {QStringLiteral("guest"), true}, {QStringLiteral("expires_at_ms"), ends}});
+        snap.insert(QStringLiteral("devices"), devices);
+        snap.insert(QStringLiteral("pairing"), fixture().value(QStringLiteral("pairing")));
+        QVERIFY2(session->applySnapshot(snap), qPrintable(session->lastError()));
+        goHome();
+        toHeader();
+        act(QStringLiteral("nav.right"));
+        act(QStringLiteral("select"));
+        for (int i = 0; i < 20; ++i)
+            act(QStringLiteral("nav.up"));
+        act(QStringLiteral("nav.down"));
+        act(QStringLiteral("nav.down"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("devices"));
+        act(QStringLiteral("select"));
+        QCOMPARE(m_nav->screen(), QStringLiteral("devices"));
+        act(QStringLiteral("nav.down"));
+        act(QStringLiteral("nav.down"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("dev_g3"));
+        QString guestRow;
+        std::function<void(QQuickItem *)> find = [&](QQuickItem *item) {
+            if (item->property("badge").toString() == QLatin1String("Guest") && item->isVisible())
+                guestRow = item->property("description").toString();
+            for (QQuickItem *child : item->childItems())
+                find(child);
+        };
+        find(m_window->contentItem());
+        QVERIFY2(guestRow.contains(QStringLiteral("Guest pass · ends 04:00")) && guestRow.contains(QStringLiteral(" left)")), qPrintable(guestRow));
+        shot(QStringLiteral("devices-guest"));
+        QVERIFY(session->applySnapshot(fixture()));
+        goHome();
+    }
+
+    // state.plex (shell only): a well-formed sign-in state is accepted and
+    // exposed as Session.plex; a bad status or library kind is rejected and
+    // the previous state stays.
+    void plexStateAcceptedAndChecked()
+    {
+        SessionModel *session = SessionModel::instance();
+        const int epoch = session->contextEpoch();
+        QJsonObject snap = fixture();
+        snap.insert(QStringLiteral("context_epoch"), epoch + 210);
+        QJsonObject lib{{QStringLiteral("id"), QStringLiteral("1")}, {QStringLiteral("title"), QStringLiteral("DEMO Movies")},
+                        {QStringLiteral("kind"), QStringLiteral("movie")}, {QStringLiteral("selected"), true}};
+        QJsonObject plex{{QStringLiteral("status"), QStringLiteral("linking")}, {QStringLiteral("message"), QString()},
+                         {QStringLiteral("code"), QStringLiteral("D4K9")}, {QStringLiteral("link_url"), QStringLiteral("https://plex.tv/link")},
+                         {QStringLiteral("server"), QJsonValue::Null}, {QStringLiteral("servers"), QJsonArray{}},
+                         {QStringLiteral("libraries"), QJsonArray{lib}}};
+        snap.insert(QStringLiteral("plex"), plex);
+        QVERIFY2(session->applySnapshot(snap), qPrintable(session->lastError()));
+        QCOMPARE(session->plex().value(QStringLiteral("code")).toString(), QStringLiteral("D4K9"));
+
+        snap.insert(QStringLiteral("context_epoch"), epoch + 310);
+        plex.insert(QStringLiteral("status"), QStringLiteral("linked"));
+        snap.insert(QStringLiteral("plex"), plex);
+        QVERIFY(!session->applySnapshot(snap));
+        QVERIFY2(session->lastError().contains(QStringLiteral("state.plex")), qPrintable(session->lastError()));
+        plex.insert(QStringLiteral("status"), QStringLiteral("choose_libraries"));
+        lib.insert(QStringLiteral("kind"), QStringLiteral("podcast"));
+        plex.insert(QStringLiteral("libraries"), QJsonArray{lib});
+        snap.insert(QStringLiteral("plex"), plex);
+        QVERIFY(!session->applySnapshot(snap));
+        QCOMPARE(session->contextEpoch(), epoch + 210); // the previous state stays
+        QVERIFY(session->applySnapshot(fixture()));
+        QVERIFY(session->plex().isEmpty());
+    }
+
+    // Settings → Plex: the row opens the screen, and each state.plex status
+    // offers the right step and sends the right plex.* message (ipc.md).
+    void plexScreenDrivesSignIn()
+    {
+        SessionModel *session = SessionModel::instance();
+        IpcClient *ipc = ShellController::instance()->ipc();
+        auto last = [ipc](const QString &type) {
+            const QList<QJsonObject> sent = ipc->sentMessages();
+            for (auto it = sent.crbegin(); it != sent.crend(); ++it)
+                if (it->value(QStringLiteral("type")).toString() == type)
+                    return *it;
+            return QJsonObject{};
+        };
+        auto count = [ipc](const QString &type) {
+            int n = 0;
+            for (const QJsonObject &m : ipc->sentMessages())
+                n += m.value(QStringLiteral("type")).toString() == type;
+            return n;
+        };
+        int epoch = session->contextEpoch() + 400;
+        auto withPlex = [&](const QJsonObject &plex) {
+            QJsonObject snap = fixture();
+            snap.insert(QStringLiteral("context_epoch"), ++epoch);
+            snap.insert(QStringLiteral("plex"), plex);
+            QVERIFY2(session->applySnapshot(snap), qPrintable(session->lastError()));
+            QCoreApplication::processEvents();
+        };
+        auto plexState = [](const QString &status) {
+            return QJsonObject{{QStringLiteral("status"), status}, {QStringLiteral("message"), QString()},
+                               {QStringLiteral("code"), QJsonValue::Null}, {QStringLiteral("link_url"), QJsonValue::Null},
+                               {QStringLiteral("server"), QJsonValue::Null}, {QStringLiteral("servers"), QJsonArray{}},
+                               {QStringLiteral("libraries"), QJsonArray{}}};
+        };
+        const auto restore = qScopeGuard([&] { QVERIFY(session->applySnapshot(fixture())); goHome(); });
+        withPlex(plexState(QStringLiteral("signed_out")));
+
+        goHome();
+        toHeader();
+        act(QStringLiteral("nav.right"));
+        act(QStringLiteral("select"));
+        QCOMPARE(m_nav->screen(), QStringLiteral("settings"));
+        for (int i = 0; i < 25; ++i)
+            act(QStringLiteral("nav.down"));
+        act(QStringLiteral("nav.up")); // the last row is Exit; Plex sits just above it
+        QCOMPARE(m_nav->itemId(), QStringLiteral("plex"));
+        act(QStringLiteral("select"));
+        QCOMPARE(m_nav->screen(), QStringLiteral("settings")); // the contract's name for it
+        QCOMPARE(m_nav->sectionId(), QStringLiteral("plex"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("sign-in"));
+        ipc->clearSent();
+
+        act(QStringLiteral("select"));
+        QCOMPARE(count(QStringLiteral("plex.sign_in")), 1);
+
+        QJsonObject linking = plexState(QStringLiteral("linking"));
+        linking.insert(QStringLiteral("code"), QStringLiteral("D4K9"));
+        linking.insert(QStringLiteral("link_url"), QStringLiteral("https://plex.tv/link"));
+        linking.insert(QStringLiteral("qr_modules"), QJsonArray{QStringLiteral("111"), QStringLiteral("101"), QStringLiteral("111")});
+        withPlex(linking);
+        QCOMPARE(m_nav->itemId(), QStringLiteral("cancel"));
+        QObject *linkingView = m_window->findChild<QObject *>(QStringLiteral("plexLinking"));
+        QVERIFY(linkingView && linkingView->property("visible").toBool());
+        shot(QStringLiteral("plex-linking"));
+        act(QStringLiteral("select"));
+        QCOMPARE(count(QStringLiteral("plex.cancel")), 1);
+
+        QJsonObject servers = plexState(QStringLiteral("choose_server"));
+        servers.insert(QStringLiteral("servers"), QJsonArray{
+            QJsonObject{{QStringLiteral("id"), QStringLiteral("srv-a")}, {QStringLiteral("name"), QStringLiteral("DEMO A")}, {QStringLiteral("owned"), true}, {QStringLiteral("local"), true}},
+            QJsonObject{{QStringLiteral("id"), QStringLiteral("srv-b")}, {QStringLiteral("name"), QStringLiteral("DEMO B")}, {QStringLiteral("owned"), false}, {QStringLiteral("local"), false}}});
+        withPlex(servers);
+        act(QStringLiteral("nav.down"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("server-srv-b"));
+        act(QStringLiteral("select"));
+        QCOMPARE(last(QStringLiteral("plex.choose_server")).value(QStringLiteral("server_id")).toString(), QStringLiteral("srv-b"));
+
+        auto lib = [](const QString &id, const QString &kind, bool selected) {
+            return QJsonObject{{QStringLiteral("id"), id}, {QStringLiteral("title"), QStringLiteral("DEMO ") + id},
+                               {QStringLiteral("kind"), kind}, {QStringLiteral("selected"), selected}};
+        };
+        QJsonObject libs = plexState(QStringLiteral("choose_libraries"));
+        libs.insert(QStringLiteral("server"), QStringLiteral("DEMO B"));
+        libs.insert(QStringLiteral("libraries"), QJsonArray{lib(QStringLiteral("1"), QStringLiteral("movie"), true),
+                                                            lib(QStringLiteral("3"), QStringLiteral("artist"), false),
+                                                            lib(QStringLiteral("2"), QStringLiteral("show"), true)});
+        withPlex(libs);
+        QCOMPARE(m_nav->itemId(), QStringLiteral("library-1"));
+        act(QStringLiteral("select")); // untick movies
+        act(QStringLiteral("nav.down"));
+        act(QStringLiteral("select")); // tick music
+        act(QStringLiteral("nav.down"));
+        act(QStringLiteral("nav.down"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("done"));
+        act(QStringLiteral("select"));
+        QCOMPARE(last(QStringLiteral("plex.choose_libraries")).value(QStringLiteral("library_ids")).toArray(),
+                 (QJsonArray{QStringLiteral("3"), QStringLiteral("2")}));
+
+        // Back in the middle of the flow cancels it.
+        const int cancels = count(QStringLiteral("plex.cancel"));
+        act(QStringLiteral("back"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("plex")); // back on the Settings row
+        QCOMPARE(count(QStringLiteral("plex.cancel")), cancels + 1);
+
+        QJsonObject connected = plexState(QStringLiteral("connected"));
+        connected.insert(QStringLiteral("server"), QStringLiteral("DEMO B"));
+        withPlex(connected);
+        act(QStringLiteral("select"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("sign-out"));
+        act(QStringLiteral("select")); // confirmation, focus on the safe choice
+        QCOMPARE(m_nav->screen(), QStringLiteral("dialog"));
+        act(QStringLiteral("nav.left"));
+        act(QStringLiteral("select"));
+        QCOMPARE(count(QStringLiteral("plex.sign_out")), 1);
+        QCOMPARE(count(QStringLiteral("plex.cancel")), cancels + 1); // leaving a finished sign-in cancels nothing
+    }
+
+    // Home: Plex posters come from the local artwork cache, pixelated in the
+    // Pixel art style (decoded once at 1/World.px size, drawn without
+    // smoothing) and smooth in Classic; empty rows that fail say why.
+    void plexRowsPixelatePostersAndExplainFailures()
+    {
+        SessionModel *session = SessionModel::instance();
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString poster = dir.filePath(QStringLiteral("poster.png"));
+        QImage img(200, 300, QImage::Format_RGB32);
+        img.fill(QColor(80, 60, 160));
+        QVERIFY(img.save(poster));
+        QJsonObject snap = fixture();
+        snap.insert(QStringLiteral("context_epoch"), session->contextEpoch() + 500);
+        QJsonObject content = snap.value(QStringLiteral("content")).toObject();
+        QJsonArray sections = content.value(QStringLiteral("sections")).toArray();
+        QJsonObject first = sections.at(0).toObject();
+        QJsonArray items = first.value(QStringLiteral("items")).toArray();
+        QJsonObject item = items.at(0).toObject();
+        item.insert(QStringLiteral("artwork"), poster);
+        item.insert(QStringLiteral("demo"), false);
+        items.replace(0, item);
+        first.insert(QStringLiteral("items"), items);
+        sections.replace(0, first);
+        content.insert(QStringLiteral("sections"), sections);
+        snap.insert(QStringLiteral("content"), content);
+        const auto restore = qScopeGuard([&] { QVERIFY(session->applySnapshot(fixture())); });
+
+        auto artFor = [this]() {
+            QList<QQuickItem *> found;
+            std::function<void(QQuickItem *)> collect = [&](QQuickItem *it) {
+                if (it->objectName() == QLatin1String("contentArt") && it->property("status").toInt() == 1 /* Image.Ready */)
+                    found.append(it);
+                for (QQuickItem *child : it->childItems())
+                    collect(child);
+            };
+            collect(m_window->contentItem());
+            return found;
+        };
+        for (const bool classic : {false, true}) {
+            QJsonObject layout = snap.value(QStringLiteral("layout")).toObject();
+            QJsonObject ui = layout.value(QStringLiteral("ui")).toObject();
+            ui.insert(QStringLiteral("art_style"), classic ? QStringLiteral("classic") : QStringLiteral("pixel"));
+            layout.insert(QStringLiteral("ui"), ui);
+            snap.insert(QStringLiteral("layout"), layout);
+            snap.insert(QStringLiteral("context_epoch"), snap.value(QStringLiteral("context_epoch")).toInt() + 1);
+            QVERIFY2(session->applySnapshot(snap), qPrintable(session->lastError()));
+            QList<QQuickItem *> arts;
+            QTRY_VERIFY_WITH_TIMEOUT(!(arts = artFor()).isEmpty(), 3000);
+            QQuickItem *art = arts.first();
+            const QSize source = art->property("sourceSize").toSize();
+            const int px = std::max(1, int(std::lround(4 * Theme::instance()->scale())));
+            QQuickItem *hero = m_window->findChild<QQuickItem *>(QStringLiteral("heroBackdrop"));
+            QVERIFY(hero);
+            QCOMPARE(hero->property("pixelSize").toInt(), classic ? 1 : px);
+            if (classic) {
+                QVERIFY(art->property("smooth").toBool());
+                QVERIFY2(source.width() >= int(art->width()) - 1, qPrintable(QStringLiteral("classic decodes at %1 for %2").arg(source.width()).arg(art->width())));
+            } else {
+                QVERIFY(!art->property("smooth").toBool());
+                QCOMPARE(source.width(), int(std::ceil(art->width() / px)));
+            }
+        }
+
+        // The server is unreachable: the empty rows stay, with the reason.
+        QJsonObject failing = fixture();
+        failing.insert(QStringLiteral("context_epoch"), session->contextEpoch() + 1);
+        QJsonObject bad = failing.value(QStringLiteral("content")).toObject();
+        bad.insert(QStringLiteral("status"), QStringLiteral("error"));
+        bad.insert(QStringLiteral("message"), QStringLiteral("Can't reach your Plex server"));
+        QJsonArray empty;
+        for (const QJsonValue &v : bad.value(QStringLiteral("sections")).toArray())
+            empty.append(QJsonObject{{QStringLiteral("section_id"), v.toObject().value(QStringLiteral("section_id"))}, {QStringLiteral("items"), QJsonArray{}}});
+        bad.insert(QStringLiteral("sections"), empty);
+        failing.insert(QStringLiteral("content"), bad);
+        QVERIFY2(session->applySnapshot(failing), qPrintable(session->lastError()));
+        SectionsModel *model = session->sections();
+        const int row = model->indexOfSection(QStringLiteral("plex-continue"));
+        QVERIFY2(row >= 0, "a failing Plex row with hide_when_empty must still show");
+        ItemsModel *cw = model->itemsFor(QStringLiteral("plex-continue"));
+        QVERIFY(cw && cw->rowCount() == 1);
+        QCOMPARE(cw->get(0).value(QStringLiteral("subtitle")).toString(), QStringLiteral("Can't reach your Plex server"));
     }
 
     // Settings → Now playing on phones: a toggle showing state.remote.now_playing

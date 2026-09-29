@@ -379,10 +379,13 @@ QString IpcClient::sendSettingsUpdate(int baseRevision, const QJsonObject &layou
     return track(id, QStringLiteral("settings.update"));
 }
 
-QString IpcClient::sendPairIssue()
+QString IpcClient::sendPairIssue(const QString &pass)
 {
     const QString id = newRequestId();
-    send(QJsonObject{{QStringLiteral("type"), QStringLiteral("pair.issue")}, {QStringLiteral("request_id"), id}});
+    QJsonObject msg{{QStringLiteral("type"), QStringLiteral("pair.issue")}, {QStringLiteral("request_id"), id}};
+    if (!pass.isEmpty())
+        msg.insert(QStringLiteral("pass"), pass); // a guest pass: tonight | 24h | 7d (contracts/ipc.md)
+    send(msg);
     return track(id, QStringLiteral("pair.issue"));
 }
 
@@ -479,6 +482,16 @@ QString IpcClient::sendRemoteNowPlaying(bool enabled)
 void IpcClient::sendPowerActivity()
 {
     send(QJsonObject{{QStringLiteral("type"), QStringLiteral("power.activity")}});
+}
+
+QString IpcClient::sendPlex(const QString &type, const QJsonObject &fields)
+{
+    const QString id = newRequestId();
+    QJsonObject message = fields;
+    message.insert(QStringLiteral("type"), type);
+    message.insert(QStringLiteral("request_id"), id);
+    send(message);
+    return track(id, type);
 }
 
 void IpcClient::sendShellExit(const QString &reason)

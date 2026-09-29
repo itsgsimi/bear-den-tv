@@ -11,8 +11,10 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
+	"bear-den-tv/internal/contract"
 	"bear-den-tv/internal/doctor"
 	"bear-den-tv/internal/shellipc"
 )
@@ -75,18 +77,25 @@ func cmdPair(args []string) error {
 	fs := flag.NewFlagSet("pair", flag.ExitOnError)
 	sock := socketFlag(fs)
 	cancelInv := fs.Bool("cancel", false, "withdraw the displayed invitation")
+	guest := fs.String("guest", "", "issue a guest pass instead of a family phone: tonight (until 04:00), 24h or 7d")
 	_ = fs.Parse(args)
+	if *guest != "" && !validPass(*guest) {
+		return fmt.Errorf("--guest must be one of %s", strings.Join(contract.PassDurations, ", "))
+	}
 	id := "cli-pair-" + fmt.Sprint(time.Now().UnixNano())
 	if *cancelInv {
 		_, err := call(*sock, shellipc.PairCancel{Type: shellipc.TypePairCancel, RequestID: id}, id)
 		return err
 	}
-	res, err := call(*sock, shellipc.PairIssue{Type: shellipc.TypePairIssue, RequestID: id}, id)
+	res, err := call(*sock, shellipc.PairIssue{Type: shellipc.TypePairIssue, RequestID: id, Pass: *guest}, id)
 	if err != nil {
 		return err
 	}
 	data, _ := res.Data.(map[string]any)
 	fmt.Printf("Pairing code: %v\n", data["code"])
+	if end, ok := data["pass_expires_at_ms"].(float64); ok {
+		fmt.Printf("Guest pass: remote only, ends %s\n", time.UnixMilli(int64(end)).Format("Mon 15:04"))
+	}
 	if u, _ := data["url"].(string); u != "" {
 		fmt.Printf("Open on the phone: %s\n", u)
 	} else {
@@ -120,9 +129,24 @@ func cmdDevices(args []string) error {
 		return nil
 	}
 	for _, d := range *conn.State.Devices {
-		fmt.Printf("%s\t%s\t%v\tconnected=%v\n", d.ID, d.Name, d.Permissions, d.Connected)
+		ends := ""
+		if d.ExpiresAtMs != nil {
+			ends = "\tguest pass ends " + time.UnixMilli(*d.ExpiresAtMs).Format("Mon 15:04")
+		}
+		fmt.Printf("%s\t%s\t%v\tconnected=%v%s\n", d.ID, d.Name, d.Permissions, d.Connected, ends)
 	}
 	return nil
+}
+
+// validPass reports whether pass is a guest pass duration the coordinator
+// accepts (contract.PassDurations); the coordinator checks again.
+func validPass(pass string) bool {
+	for _, p := range contract.PassDurations {
+		if p == pass {
+			return true
+		}
+	}
+	return false
 }
 
 func cmdRemote(args []string) error {

@@ -79,7 +79,9 @@ Item {
             if (item.installed === false) appUnavailable(Session.application(item.appId))
             else Shell.launchApp(item.appId)
         } else if (item.kind === "setup") {
-            openScreen("settings")
+            // Empty, loading or failing Plex rows: Settings → Plex when this
+            // session has the connector (state.plex), else Settings.
+            openScreen(Session.plex.status !== undefined ? "plex" : "settings")
         } else if (item.demo) {
             message(qsTr("DEMO item"), qsTr("“%1” is demo content from --dev-fixtures. With a real Plex connection, OK opens it in Plex HTPC.").arg(item.title))
         } else {

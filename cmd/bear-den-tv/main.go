@@ -4,7 +4,7 @@
 //	bear-den-tv session              run the coordinator in the graphical session
 //	bear-den-tv dev                  run with a fake desktop on loopback (development)
 //	bear-den-tv doctor [--probe]     print diagnostics as JSON
-//	bear-den-tv pair                 show a pairing invitation (code + URL)
+//	bear-den-tv pair [--guest tonight|24h|7d]  show a pairing invitation (code + URL); --guest issues a guest pass
 //	bear-den-tv devices [revoke ID]  list or revoke paired phones
 //	bear-den-tv remote enable|disable --interface IF --accept-lan-exposure
 //	bear-den-tv artwork fetch        cache official app icons from Flathub
@@ -13,6 +13,7 @@
 //	bear-den-tv apps detect|tune|probe            playback detection per app; best settings
 //	bear-den-tv themes list|validate DIR|path     installed themes; check a theme; owner themes dir
 //	bear-den-tv weather status|search Q|set Q|off local weather on the running coordinator
+//	bear-den-tv plex status|sign-in|server ID|libraries ID...|cancel|sign-out  Plex sign-in on the running coordinator
 //	bear-den-tv version              print the version
 package main
 
@@ -31,7 +32,7 @@ commands:
   session   run the coordinator (supervises the TV shell)
   dev       run with a fake desktop, loopback remote, and optional DEMO fixtures
   doctor    print diagnostics as JSON
-  pair      issue a pairing invitation on the running coordinator
+  pair      issue a pairing invitation on the running coordinator (--guest tonight|24h|7d: a guest pass)
   devices   list paired phones, or "devices revoke <id|*>"
   remote    "remote enable --interface IF --accept-lan-exposure" or "remote disable"
   artwork   "artwork fetch": cache the official Flathub icons of the registered apps
@@ -42,6 +43,8 @@ commands:
   themes    "themes list" | "themes validate <dir>" | "themes path": theme packages (docs/THEMES.md)
   weather   "weather status" | "weather search QUERY" | "weather off" |
             "weather set [--units celsius|fahrenheit] [--no-scene] QUERY [INDEX]": local weather (Open-Meteo)
+  plex      "plex status" | "plex sign-in" | "plex server ID" | "plex libraries ID..." | "plex cancel" |
+            "plex sign-out": sign the TV in to Plex for the Home rows (the code also shows on the TV)
   version   print the version
 `)
 }
@@ -78,6 +81,8 @@ func main() {
 		err = cmdThemes(args)
 	case "weather":
 		err = cmdWeather(args)
+	case "plex":
+		err = cmdPlex(args)
 	case "version", "--version":
 		fmt.Println(Version)
 	case "help", "-h", "--help":

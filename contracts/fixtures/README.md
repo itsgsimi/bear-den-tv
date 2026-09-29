@@ -27,6 +27,14 @@ Canonical messages consumed by contract tests in Go ([`tests/contract/fixtures_t
 | `state.now-playing-no-title.invalid.json` | rejected: `now_playing.title` must not be empty (no title means no `now_playing`) |
 | `state.phone-sleep-warning.valid.json` | `state.schema.json` (phone view: a 45-minute sleep timer in its last minute, `power.suspend` unavailable) |
 | `state.power-bad-display.invalid.json` | rejected: `power.display` must be `on` or `off` |
+| `state.shell-plex-linking.valid.json` | `state.schema.json` (shell view in Settings → Plex, a link code shown) |
+| `state.shell-plex-libraries.valid.json` | `state.schema.json` (shell view choosing DEMO libraries) |
+| `state.plex-bad-status.invalid.json` | rejected: `plex.status` must be one of the six sign-in states |
+| `state.plex-token-field.invalid.json` | rejected: `plex` has no room for a token (`additionalProperties: false`) |
+| `state.phone-guest.valid.json` | `state.schema.json` (phone view of a guest pass: `me.permissions` `["guest"]` with `me.expires_at_ms`, DEMO `now_playing`) |
+| `state.shell-guest-pass.valid.json` | `state.schema.json` (shell view: a live guest-pass invitation, a family phone and a guest in `devices`) |
+| `state.guest-with-controller.invalid.json` | rejected: `guest` never comes with another permission |
+| `state.guest-no-expiry.invalid.json` | rejected: a guest `me` must carry `expires_at_ms` |
 | `config.default.valid.json` | `config.schema.json` (built-in defaults) |
 | `config.now-playing-not-bool.invalid.json` | rejected structurally: `remote.now_playing` must be a boolean |
 | `config.dangling-ref.invalid.json` | rejected semantically: section references unknown app |

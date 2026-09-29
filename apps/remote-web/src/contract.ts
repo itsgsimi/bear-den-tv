@@ -28,6 +28,28 @@ export type ActionName =
 /** power.sleep_timer minutes: 0 cancels, otherwise one of the fixed choices. */
 export type SleepMinutes = 0 | 15 | 30 | 45 | 60 | 90 | 120;
 
+/**
+ * What a guest pass may send (contract.GuestActions in Go, contracts/actions.md).
+ * The server enforces it; the phone only hides what a guest cannot use. Any
+ * action not listed here is refused to guests.
+ */
+export const GUEST_ACTIONS: ReadonlySet<ActionName> = new Set<ActionName>([
+  'nav.up',
+  'nav.down',
+  'nav.left',
+  'nav.right',
+  'select',
+  'back',
+  'home',
+  'app.launch',
+  'media.play',
+  'media.pause',
+  'media.seek_relative',
+  'audio.volume_delta',
+  'audio.mute',
+  'text.submit',
+]);
+
 /** Argument object per action; `{}` for argument-free actions. */
 export type ActionArgs = {
   'nav.up': Record<string, never>;
@@ -143,7 +165,8 @@ export type ServerMessage =
   | { type: 'pong' };
 
 export type Transport = 'local-only' | 'trusted-lan-http' | 'https';
-export type Permission = 'controller' | 'layout_editor' | 'owner';
+/** `guest` is a time-limited guest pass and never comes with another permission. */
+export type Permission = 'controller' | 'layout_editor' | 'owner' | 'guest';
 
 export interface Capability {
   available: boolean;
@@ -216,6 +239,8 @@ export interface Me {
   device_name: string;
   permissions: Permission[];
   transport_secure: boolean;
+  /** Guest passes only: when the pass ends, Unix epoch ms (the TV's wall clock). */
+  expires_at_ms?: number;
 }
 
 export interface Device {
@@ -225,6 +250,10 @@ export interface Device {
   connected: boolean;
   last_seen_ms: number;
   created_at: string;
+  /** A guest pass (permissions is ['guest']); missing means false. */
+  guest?: boolean;
+  /** Guest passes: when the pass ends, Unix epoch ms; null or missing for family phones. */
+  expires_at_ms?: number | null;
 }
 
 export interface LayoutPending {
@@ -327,6 +356,8 @@ export interface StateSnapshot {
   now_playing?: NowPlaying | null;
   /** The sleep timer and the display; absent for anonymous viewers and from older coordinators. */
   power?: Power;
+  /** Shell view only: phones never receive it (the TV's Plex sign-in flow). */
+  plex?: PlexSignIn;
 }
 
 /**
@@ -339,6 +370,35 @@ export interface Power {
   warning: boolean;
   display: 'on' | 'off';
   suspend?: { available: boolean; reason?: string };
+}
+
+/** state.plex: the TV's Plex sign-in flow (shell only; mirrored for completeness). */
+export type PlexStatus = 'signed_out' | 'linking' | 'choose_server' | 'choose_libraries' | 'connected' | 'error';
+
+export interface PlexServer {
+  id: string;
+  name: string;
+  owned: boolean;
+  local: boolean;
+}
+
+export interface PlexLibrary {
+  id: string;
+  title: string;
+  kind: 'movie' | 'show' | 'artist' | 'photo' | 'other';
+  selected: boolean;
+}
+
+export interface PlexSignIn {
+  status: PlexStatus;
+  message: string;
+  code: string | null;
+  link_url: string | null;
+  /** link_url as QR rows of 0/1 while linking. */
+  qr_modules?: string[] | null;
+  server: string | null;
+  servers: PlexServer[];
+  libraries: PlexLibrary[];
 }
 
 export type NowPlayingStatus = 'playing' | 'paused' | 'stopped';

@@ -1,0 +1,61 @@
+{
+ "protocol": 1,
+ "context_epoch": 5,
+ "generated_at_ms": 9000,
+ "device_name": "Bear Den",
+ "dev_mode": false,
+ "config_revision": 3,
+ "session": {
+  "locked": false,
+  "display_session": "x11",
+  "desktop_adapter": "fake",
+  "shell_connected": true,
+  "shell_state": "running"
+ },
+ "target": {
+  "kind": "shell",
+  "app_id": null,
+  "label": "Bear Den TV",
+  "observed": true
+ },
+ "capabilities": {},
+ "shell": {
+  "screen": "settings",
+  "focus": {
+   "section_id": null,
+   "item_id": null
+  }
+ },
+ "applications": [],
+ "remote": {
+  "enabled": false,
+  "transport": "local-only",
+  "listening": false,
+  "addresses": [],
+  "https": false,
+  "http_layout_editing": false,
+  "paired_device_count": 0,
+  "hold": {
+   "active": false,
+   "device_id": null,
+   "action": null
+  },
+  "limits": {
+   "repeat_delay_ms": 350,
+   "repeat_hz": 6,
+   "hold_renew_ms": 200,
+   "hold_expiry_ms": 600,
+   "max_message_bytes": 16384
+  }
+ },
+ "notifications": [],
+ "plex": {
+  "status": "linked",
+  "message": "",
+  "code": null,
+  "link_url": null,
+  "server": null,
+  "servers": [],
+  "libraries": []
+ }
+}

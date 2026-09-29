@@ -53,6 +53,12 @@ clients as `dev_mode` in the state. [`cmd/bear-den-tv/session.go`](../cmd/bear-d
 TV) ⊂ `layout_editor` (also edit the home layout) ⊂ `owner` (everything).
 Granted on the TV only. [`contracts/http.md`](../contracts/http.md).
 
+**Guest pass.** A time-limited pairing for a visitor's phone: permission
+`guest` only (remote control without closing apps, settings or power), ending
+"tonight" at 04:00, after 24 hours or after 7 days, when the phone is removed
+automatically. Issued on the TV or with `bear-den-tv pair --guest`.
+[`contracts/http.md`](../contracts/http.md#guest-passes).
+
 **Doctor.** `bear-den-tv doctor`: JSON diagnostics of the running coordinator.
 [`internal/doctor/doctor.go`](../internal/doctor/doctor.go).
 

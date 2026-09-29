@@ -12,6 +12,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"sort"
 	"strings"
 	"time"
 )
@@ -34,6 +35,8 @@ type AccountOptions struct {
 	Transport        http.RoundTripper
 	RequestTimeout   time.Duration
 	Strong           bool
+	// Now is the clock PIN expiry is judged by; nil uses time.Now.
+	Now func() time.Time
 }
 
 // Account is the plex.tv side of sign-in: PIN creation and polling, then
@@ -46,6 +49,7 @@ type Account struct {
 	clientID string
 	strong   bool
 	maxJSON  int64
+	now      func() time.Time
 }
 
 // PIN is a pending link code.
@@ -60,7 +64,8 @@ type Server struct {
 	Name              string
 	MachineIdentifier string
 	Owned             bool
-	// Connections are ordered local-first; relay connections are excluded.
+	// Connections are ordered local before remote, then https before http;
+	// relay connections are excluded.
 	Connections []Connection
 }
 
@@ -100,7 +105,12 @@ func NewAccount(opts AccountOptions) (*Account, error) {
 			ResponseHeaderTimeout: timeout,
 		}
 	}
+	now := opts.Now
+	if now == nil {
+		now = time.Now
+	}
 	return &Account{
+		now:      now,
 		base:     base,
 		clientID: opts.ClientIdentifier,
 		strong:   opts.Strong,
@@ -205,7 +215,7 @@ func (a *Account) PollPIN(ctx context.Context, id int) (token string, done bool,
 	if reply.AuthToken != "" {
 		return reply.AuthToken, true, nil
 	}
-	if exp := reply.expires(); !exp.IsZero() && !time.Now().Before(exp) {
+	if exp := reply.expires(); !exp.IsZero() && !a.now().Before(exp) {
 		return "", false, ErrPINExpired
 	}
 	return "", false, nil
@@ -227,8 +237,9 @@ type resourceReply struct {
 }
 
 // DiscoverServers is GET /api/v2/resources?includeHttps=1&includeRelay=0
-// for the account token: every resource that provides "server", with local
-// non-relay connections first.
+// for the account token: every resource that provides "server", with its
+// non-relay connections ordered local first, then https before http (the
+// order a caller should try them in).
 func (a *Account) DiscoverServers(ctx context.Context, token string) ([]Server, error) {
 	if token == "" {
 		return nil, errors.New("plex: token is required for discovery")
@@ -246,7 +257,6 @@ func (a *Account) DiscoverServers(ctx context.Context, token string) ([]Server, 
 			continue
 		}
 		s := Server{Name: r.Name, MachineIdentifier: r.ClientIdentifier, Owned: r.Owned}
-		var local, remote []Connection
 		for _, c := range r.Connections {
 			if c.Relay {
 				continue
@@ -255,16 +265,27 @@ func (a *Account) DiscoverServers(ctx context.Context, token string) ([]Server, 
 			if _, err := ParseServerURL(conn.URI); err != nil {
 				continue
 			}
-			if c.Local {
-				local = append(local, conn)
-			} else {
-				remote = append(remote, conn)
-			}
+			s.Connections = append(s.Connections, conn)
 		}
-		s.Connections = append(local, remote...)
+		sort.SliceStable(s.Connections, func(i, j int) bool {
+			return connectionRank(s.Connections[i]) < connectionRank(s.Connections[j])
+		})
 		servers = append(servers, s)
 	}
 	return servers, nil
+}
+
+// connectionRank orders connections: local https, local http, remote https,
+// remote http.
+func connectionRank(c Connection) int {
+	rank := 0
+	if !c.Local {
+		rank += 2
+	}
+	if !strings.HasPrefix(strings.ToLower(c.URI), "https://") {
+		rank++
+	}
+	return rank
 }
 
 func providesServer(provides string) bool {

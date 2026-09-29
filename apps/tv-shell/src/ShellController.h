@@ -107,7 +107,8 @@ public:
     // Trusted local requests from the TV UI.
     Q_INVOKABLE void launchApp(const QString &appId);
     Q_INVOKABLE void closeApp(const QString &appId);
-    Q_INVOKABLE void issuePairing();
+    /// A family phone invitation, or with pass (tonight, 24h, 7d) a guest pass.
+    Q_INVOKABLE void issuePairing(const QString &pass = QString());
     Q_INVOKABLE void cancelPairing();
     Q_INVOKABLE void revokeDevice(const QString &deviceId);
     Q_INVOKABLE void configureRemote(bool enabled, const QString &interfaceName);
@@ -130,6 +131,14 @@ public:
     // units celsius|fahrenheit).
     Q_INVOKABLE void weatherSearch(const QString &query);
     Q_INVOKABLE void weatherConfigure(bool enabled, const QVariant &place, const QString &units, bool scene);
+    // Settings → Plex (contracts/ipc.md plex.*): sign in, pick a server and
+    // libraries, cancel, sign out. The flow itself is state.plex
+    // (Session.plex); each reply arrives as plexReplied.
+    Q_INVOKABLE void plexSignIn();
+    Q_INVOKABLE void plexCancel();
+    Q_INVOKABLE void plexChooseServer(const QString &serverId);
+    Q_INVOKABLE void plexChooseLibraries(const QStringList &libraryIds);
+    Q_INVOKABLE void plexSignOut();
     Q_INVOKABLE void answerConfirm(const QString &confirmId, bool accepted);
     Q_INVOKABLE void exitShell();
     // Flatpak id for a registered adapter ("" when unknown); the closed set
@@ -164,6 +173,8 @@ signals:
     void weatherPlacesChanged();
     /// The coordinator's `result` for weather.configure.
     void weatherConfigured(bool ok, const QString &error);
+    /// The coordinator's `result` for a plex.* message (type is its name).
+    void plexReplied(const QString &type, bool ok, const QString &error);
 
 private:
     void onInput(const QString &requestId, const QString &action, const QVariantMap &args, int contextEpoch);

@@ -1,6 +1,8 @@
 // Shows the live invitation: QR code (URL with a single-use fragment token)
 // and the six-digit code, with expiry and remaining attempts. Leaving the
-// screen withdraws the invitation.
+// screen withdraws the invitation. "Who is it for?" (◀ ▶) chooses a family
+// phone or a guest pass (tonight, 24 hours, 7 days: IPC pair.issue "pass",
+// contracts/http.md#guest-passes); changing it issues a new code.
 
 import QtQuick
 import BearDen
@@ -26,12 +28,40 @@ Item {
     }
     Timer { id: celebrateTimer; interval: 4000; onTriggered: root.celebrating = false }
 
+    // Who the code is for; pass is the IPC pair.issue value ("" = family).
+    readonly property var kinds: [
+        { pass: "", label: qsTr("Family phone") },
+        { pass: "tonight", label: qsTr("Guest pass · Tonight") },
+        { pass: "24h", label: qsTr("Guest pass · 24 hours") },
+        { pass: "7d", label: qsTr("Guest pass · 7 days") }
+    ]
+    property int kindIndex: 0
+    readonly property string pass: kinds[kindIndex].pass
+    readonly property bool guestLive: active && pairing.guest === true
+
+    // When a guest pass ends, as the TV's clock shows it: a time today or
+    // tonight, a weekday and time further out.
+    function endsText(ms) {
+        const d = new Date(ms)
+        return ms - Date.now() < 20 * 3600 * 1000 ? Qt.formatTime(d, "HH:mm") : Qt.formatDateTime(d, "ddd HH:mm")
+    }
+    function kindDescription() {
+        if (root.pass === "")
+            return qsTr("Stays paired until you remove it in Paired phones")
+        const ends = root.guestLive && root.pairing.pass_expires_at_ms ? qsTr("ends %1").arg(endsText(root.pairing.pass_expires_at_ms))
+                                                                       : (root.pass === "tonight" ? qsTr("ends at 04:00") : "")
+        return qsTr("A remote for a visitor · %1").arg(ends || qsTr("ends by itself"))
+    }
+
     property bool requested: false
+    function issue() { root.requested = false; Shell.issuePairing(root.pass); requestTimer.restart() }
+    function report() { Nav.reportFocus("pairing", !listening ? "setup" : (focusIndex === 0 ? "pair-kind" : "new-code"), 0) }
     function enter() {
         focusIndex = 0
+        kindIndex = 0 // a new visit starts as a family phone; a guest pass is always chosen
         requested = false
-        if (listening) { Shell.issuePairing(); requestTimer.restart() }
-        Nav.reportFocus("pairing", listening ? "new-code" : "setup", 0)
+        if (listening) issue()
+        report()
     }
     function leave() { if (active) Shell.cancelPairing() }
     // A code shown once and then gone was used or expired; never re-issue
@@ -40,10 +70,17 @@ Item {
     function navigate(action) {
         switch (action) {
         case "select":
-            if (listening) { root.requested = false; Shell.issuePairing(); requestTimer.restart() }
+            if (listening) issue()
             else openScreen("remote-setup")
             return true
-        case "nav.up": case "nav.down": case "nav.left": case "nav.right":
+        case "nav.up": case "nav.down":
+            if (listening) { focusIndex = action === "nav.up" ? 0 : 1; report() }
+            return true
+        case "nav.left": case "nav.right":
+            if (listening && focusIndex === 0) {
+                const next = Math.max(0, Math.min(kinds.length - 1, kindIndex + (action === "nav.left" ? -1 : 1)))
+                if (next !== kindIndex) { kindIndex = next; issue() }
+            }
             return true
         }
         return false
@@ -92,8 +129,10 @@ Item {
     ScreenFrame {
         anchors.fill: parent
         title: qsTr("Pair a phone")
-        subtitle: root.listening ? qsTr("Scan the code with your phone's camera") : qsTr("Turn on the phone remote first")
-        hints: [["OK", root.listening ? qsTr("New code") : qsTr("Set up")], ["Back", qsTr("Done")]]
+        subtitle: !root.listening ? qsTr("Turn on the phone remote first")
+                  : (root.pass !== "" ? qsTr("A guest pass: a remote for a visitor that ends by itself") : qsTr("Scan the code with your phone's camera"))
+        hints: root.listening ? [["◀ ▶", qsTr("Family or guest")], ["OK", qsTr("New code")], ["Back", qsTr("Done")]]
+                              : [["OK", qsTr("Set up")], ["Back", qsTr("Done")]]
 
         Row {
             visible: root.listening
@@ -128,6 +167,24 @@ Item {
             Column {
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: 22 * Theme.scale
+                SettingsRow {
+                    objectName: "pairKindRow"
+                    width: 740 * Theme.scale
+                    kind: "choice"
+                    label: qsTr("Who is it for?")
+                    value: root.kinds[root.kindIndex].label
+                    description: root.kindDescription()
+                    focused: root.focusIndex === 0
+                }
+                Text {
+                    visible: root.pass !== ""
+                    width: 740 * Theme.scale
+                    wrapMode: Text.WordWrap
+                    text: qsTr("Guests can move around, open apps, play, pause and change the volume. They can't close apps, change settings or turn anything off.")
+                    color: Theme.textSecondary
+                    font.family: Theme.fontFamily
+                    font.pixelSize: 22 * Theme.fontUnit
+                }
                 Text {
                     text: qsTr("Or open this address and enter the code")
                     color: Theme.textSecondary
@@ -173,7 +230,7 @@ Item {
                 }
                 FocusButton {
                     text: qsTr("New code")
-                    focused: true
+                    focused: root.focusIndex === 1
                 }
             }
         }

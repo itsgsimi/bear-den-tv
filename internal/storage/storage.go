@@ -19,7 +19,7 @@ import (
 )
 
 // SchemaVersion is the current user_version; migrations run up to it.
-const SchemaVersion = 1
+const SchemaVersion = 2
 
 // migrations[i] upgrades user_version i to i+1.
 var migrations = []string{
@@ -60,6 +60,13 @@ var migrations = []string{
 		last_launch_at TEXT,
 		last_error TEXT
 	);`,
+	// 2: guest passes. A device may carry an expiry (NULL for family phones;
+	// the device is revoked when it passes); an invitation stores the
+	// permissions it grants and, for a guest pass, when that pass will end.
+	// Existing rows keep NULL: every device paired before stays a family phone.
+	`ALTER TABLE devices ADD COLUMN expires_at_ms INTEGER;
+	ALTER TABLE invitations ADD COLUMN permissions TEXT;
+	ALTER TABLE invitations ADD COLUMN pass_expires_at_ms INTEGER;`,
 }
 
 // DefaultPath is $XDG_DATA_HOME/bear-den-tv/state.db (or ~/.local/share).
@@ -153,7 +160,8 @@ func (d *DB) migrate() error {
 var ErrNotFound = errors.New("storage: not found")
 
 // Device is one paired device. Permissions are stored as a comma-separated
-// list in rank-independent order.
+// list in rank-independent order. ExpiresAtMs (Unix epoch ms, wall clock) is
+// set for guest passes only.
 type Device struct {
 	ID          string
 	Name        string
@@ -161,6 +169,7 @@ type Device struct {
 	CreatedAt   string
 	RevokedAt   *string
 	LastSeenMs  int64
+	ExpiresAtMs *int64
 }
 
 // Revoked reports whether the device has been revoked.
@@ -168,20 +177,20 @@ func (d Device) Revoked() bool { return d.RevokedAt != nil }
 
 // CreateDevice inserts a device record.
 func (d *DB) CreateDevice(ctx context.Context, dev Device) error {
-	_, err := d.sql.ExecContext(ctx, `INSERT INTO devices (id, name, permissions, created_at, revoked_at, last_seen_ms) VALUES (?, ?, ?, ?, ?, ?)`,
-		dev.ID, dev.Name, strings.Join(dev.Permissions, ","), dev.CreatedAt, dev.RevokedAt, dev.LastSeenMs)
+	_, err := d.sql.ExecContext(ctx, `INSERT INTO devices (id, name, permissions, created_at, revoked_at, last_seen_ms, expires_at_ms) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		dev.ID, dev.Name, strings.Join(dev.Permissions, ","), dev.CreatedAt, dev.RevokedAt, dev.LastSeenMs, dev.ExpiresAtMs)
 	return err
 }
 
 // Device returns one device or ErrNotFound.
 func (d *DB) Device(ctx context.Context, id string) (Device, error) {
-	row := d.sql.QueryRowContext(ctx, `SELECT id, name, permissions, created_at, revoked_at, last_seen_ms FROM devices WHERE id = ?`, id)
+	row := d.sql.QueryRowContext(ctx, `SELECT id, name, permissions, created_at, revoked_at, last_seen_ms, expires_at_ms FROM devices WHERE id = ?`, id)
 	return scanDevice(row)
 }
 
 // ListDevices returns every device that has not been revoked, oldest first.
 func (d *DB) ListDevices(ctx context.Context) ([]Device, error) {
-	rows, err := d.sql.QueryContext(ctx, `SELECT id, name, permissions, created_at, revoked_at, last_seen_ms FROM devices WHERE revoked_at IS NULL ORDER BY created_at, id`)
+	rows, err := d.sql.QueryContext(ctx, `SELECT id, name, permissions, created_at, revoked_at, last_seen_ms, expires_at_ms FROM devices WHERE revoked_at IS NULL ORDER BY created_at, id`)
 	if err != nil {
 		return nil, err
 	}
@@ -202,7 +211,7 @@ type scanner interface{ Scan(dest ...any) error }
 func scanDevice(s scanner) (Device, error) {
 	var dev Device
 	var perms string
-	err := s.Scan(&dev.ID, &dev.Name, &perms, &dev.CreatedAt, &dev.RevokedAt, &dev.LastSeenMs)
+	err := s.Scan(&dev.ID, &dev.Name, &perms, &dev.CreatedAt, &dev.RevokedAt, &dev.LastSeenMs, &dev.ExpiresAtMs)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Device{}, ErrNotFound
 	}
@@ -326,15 +335,19 @@ func (d *DB) TouchSession(ctx context.Context, tokenSHA256 string, lastSeenMs in
 	return err
 }
 
-// Invitation is one pairing invitation; only hashes are stored.
+// Invitation is one pairing invitation; only hashes are stored. Permissions
+// are what the redeeming device gets (nil in rows from schema 1: controller);
+// PassExpiresAtMs is set for a guest pass.
 type Invitation struct {
-	ID           string
-	TokenSHA256  string
-	CodeSHA256   string
-	ExpiresAtMs  int64
-	AttemptsLeft int
-	RedeemedAt   *string
-	Cancelled    bool
+	ID              string
+	TokenSHA256     string
+	CodeSHA256      string
+	ExpiresAtMs     int64
+	AttemptsLeft    int
+	RedeemedAt      *string
+	Cancelled       bool
+	Permissions     []string
+	PassExpiresAtMs *int64
 }
 
 // CreateInvitation inserts an invitation after cancelling every live one so
@@ -348,8 +361,13 @@ func (d *DB) CreateInvitation(ctx context.Context, inv Invitation) error {
 	if _, err := tx.ExecContext(ctx, `UPDATE invitations SET cancelled = 1 WHERE redeemed_at IS NULL AND cancelled = 0`); err != nil {
 		return err
 	}
-	if _, err := tx.ExecContext(ctx, `INSERT INTO invitations (id, token_sha256, code_sha256, expires_at_ms, attempts_left, redeemed_at, cancelled) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-		inv.ID, inv.TokenSHA256, inv.CodeSHA256, inv.ExpiresAtMs, inv.AttemptsLeft, inv.RedeemedAt, boolInt(inv.Cancelled)); err != nil {
+	var perms *string
+	if inv.Permissions != nil {
+		p := strings.Join(inv.Permissions, ",")
+		perms = &p
+	}
+	if _, err := tx.ExecContext(ctx, `INSERT INTO invitations (id, token_sha256, code_sha256, expires_at_ms, attempts_left, redeemed_at, cancelled, permissions, pass_expires_at_ms) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		inv.ID, inv.TokenSHA256, inv.CodeSHA256, inv.ExpiresAtMs, inv.AttemptsLeft, inv.RedeemedAt, boolInt(inv.Cancelled), perms, inv.PassExpiresAtMs); err != nil {
 		return err
 	}
 	return tx.Commit()
@@ -360,12 +378,16 @@ func (d *DB) CreateInvitation(ctx context.Context, inv Invitation) error {
 func (d *DB) LiveInvitation(ctx context.Context) (Invitation, error) {
 	var inv Invitation
 	var cancelled int
-	err := d.sql.QueryRowContext(ctx, `SELECT id, token_sha256, code_sha256, expires_at_ms, attempts_left, redeemed_at, cancelled FROM invitations WHERE redeemed_at IS NULL AND cancelled = 0 ORDER BY expires_at_ms DESC LIMIT 1`).
-		Scan(&inv.ID, &inv.TokenSHA256, &inv.CodeSHA256, &inv.ExpiresAtMs, &inv.AttemptsLeft, &inv.RedeemedAt, &cancelled)
+	var perms *string
+	err := d.sql.QueryRowContext(ctx, `SELECT id, token_sha256, code_sha256, expires_at_ms, attempts_left, redeemed_at, cancelled, permissions, pass_expires_at_ms FROM invitations WHERE redeemed_at IS NULL AND cancelled = 0 ORDER BY expires_at_ms DESC LIMIT 1`).
+		Scan(&inv.ID, &inv.TokenSHA256, &inv.CodeSHA256, &inv.ExpiresAtMs, &inv.AttemptsLeft, &inv.RedeemedAt, &cancelled, &perms, &inv.PassExpiresAtMs)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Invitation{}, ErrNotFound
 	}
 	inv.Cancelled = cancelled != 0
+	if perms != nil && *perms != "" {
+		inv.Permissions = strings.Split(*perms, ",")
+	}
 	return inv, err
 }
 

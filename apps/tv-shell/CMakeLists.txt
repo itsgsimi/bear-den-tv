@@ -52,6 +52,7 @@ set(BDTV_QML_FILES
   qml/Ambient.qml
   qml/WeatherSky.qml
   qml/WeatherScreen.qml
+  qml/PlexScreen.qml
   qml/DenMascot.qml
   qml/CornerDecor.qml
   qml/FocusDecor.qml

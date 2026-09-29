@@ -74,7 +74,8 @@ public:
     /// Shell-originated action; returns the request id.
     QString sendRequest(const QString &action, const QJsonObject &args);
     QString sendSettingsUpdate(int baseRevision, const QJsonObject &layout);
-    QString sendPairIssue();
+    /// pair.issue; a non-empty pass (tonight, 24h, 7d) issues a guest pass.
+    QString sendPairIssue(const QString &pass = QString());
     QString sendPairCancel();
     QString sendDevicesRevoke(const QString &deviceId);
     QString sendDevicesGrant(const QString &deviceId, const QStringList &permissions);
@@ -87,6 +88,9 @@ public:
     QString sendWeatherConfigure(bool enabled, const QJsonValue &place, const QString &units, bool scene);
     QString sendPlaybackSet(const QString &adapter, const QString &setting, const QString &value);
     QString sendRemoteNowPlaying(bool enabled);
+    /// plex.sign_in | plex.cancel | plex.choose_server | plex.choose_libraries | plex.sign_out
+    /// (contracts/ipc.md) with the given extra fields; answered with result.
+    QString sendPlex(const QString &type, const QJsonObject &fields = {});
     void sendShellExit(const QString &reason);
     // power.activity: a TV key the shell swallowed while the display was off
     // or the sleep warning showed (contracts/ipc.md). No reply.
