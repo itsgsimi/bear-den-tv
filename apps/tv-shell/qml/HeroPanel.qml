@@ -383,9 +383,12 @@ PixelBox {
                         }
                     }
                     Text {
+                        objectName: "heroAction"
                         anchors.verticalCenter: parent.verticalCenter
+                        // Not installed: OK opens the install card, which
+                        // installs or says why it can't (never "How to install").
                         text: root.isApp
-                              ? (root.item.installed === false ? (root.item.installState === "available" ? qsTr("Install") : root.item.installState === "preparing" || root.item.installState === "downloading" || root.item.installState === "installing" ? qsTr("Installing %1%").arg(root.item.installProgress) : qsTr("How to install"))
+                              ? (root.item.installed === false ? (root.item.installState === "preparing" || root.item.installState === "downloading" || root.item.installState === "installing" ? qsTr("Installing %1%").arg(root.item.installProgress) : qsTr("Install"))
                                  : (root.item.running ? qsTr("Switch to %1").arg(root.item.title) : qsTr("Open %1").arg(root.item.title)))
                               : (root.item.kind === "setup" ? qsTr("Open Settings")
                                  // Only a verified exact-item handoff (open_action play_exact)

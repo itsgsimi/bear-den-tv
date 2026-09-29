@@ -9,7 +9,7 @@ import { createApp, type PageEnvironment, type WindowEnvironment } from '../../s
 import type { ApiEnvironment, SocketLike } from '../../src/api.ts';
 import type { ActionResult, Application, Install, Permission, StateSnapshot } from '../../src/contract.ts';
 import { AddAppsPanel, AddAppsSection, installEntries, mayInstall } from '../../src/views/install.tsx';
-import { tileStatusText } from '../../src/views/remote.tsx';
+import { notInstalledReason, tileStatusText } from '../../src/views/remote.tsx';
 import { INSTALL_READY_MS, readyAfter, tileStatus, type AppState } from '../../src/state.ts';
 import type { App } from '../../src/app.ts';
 
@@ -196,5 +196,18 @@ describe('app tile install status', () => {
     clock += INSTALL_READY_MS;
     timers[0]![0]();
     expect(client.store.getState().installReady).toEqual({});
+  });
+});
+
+// Wording for a tile that is not installed: the owner's phone points at Add
+// apps; other phones learn only the owner installs (on the TV or their phone).
+describe('not installed wording', () => {
+  it('differs for the owner and for other phones, and while installing', () => {
+    const moon = app('moonlight', 'moonlight', false, idle());
+    expect(notInstalledReason(moon, stateFor(['owner']))).toBe('Moonlight is not installed on this TV. Install it under Add apps below.');
+    expect(notInstalledReason(moon, stateFor(['controller']))).toBe("Moonlight is not installed on this TV. Only the TV's owner can install apps.");
+    expect(notInstalledReason(moon, stateFor(['guest']))).toBe("Moonlight is not installed on this TV. Only the TV's owner can install apps.");
+    const busy = app('moonlight', 'moonlight', false, { state: 'downloading', progress: 10, phase: 'app' });
+    expect(notInstalledReason(busy, stateFor(['controller']))).toBe('Moonlight is installing on the TV.');
   });
 });

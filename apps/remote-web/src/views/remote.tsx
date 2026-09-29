@@ -23,7 +23,7 @@ import { NowPlayingPanel, nowPlayingOf } from './nowplaying.tsx';
 import { SleepPanel } from './sleep.tsx';
 import { TvPanel, volumeHeading } from './tv.tsx';
 import { TouchpadPanel } from './touchpad.tsx';
-import { AddAppsPanel } from './install.tsx';
+import { AddAppsPanel, mayInstall } from './install.tsx';
 import { type AppState, type PendingAction, type TileStatus, capabilityFor, closableApp, isSecureTransport, mayUse, permissionsOf, tileStatus, visibleApps } from '../state.ts';
 
 const TEXT_MAX = 256;
@@ -102,6 +102,9 @@ export function RemoteView({ app, state }: { app: App; state: AppState }): JSX.E
               <AppButton key={application.id} app={app} state={state} application={application} />
             ))}
           </div>
+          {!mayInstall(state) && visibleApps(snapshot).some((a) => !a.installed) ? (
+            <p class="muted small" data-testid="owner-installs">{t.remote.ownerInstalls}</p>
+          ) : null}
         </div>
       ) : null}
 
@@ -310,6 +313,20 @@ function CloseButton({ app, state }: { app: App; state: AppState }): JSX.Element
 }
 
 /**
+ * Why a tile that is not installed does nothing, per phone: the owner's
+ * installs it under Add apps (or watches it install); others learn only the
+ * owner can.
+ * @param application The application.
+ * @param state The app state.
+ * @returns The explanation.
+ */
+export function notInstalledReason(application: Application, state: AppState): string {
+  const running = tileStatus(application, {})?.kind === 'installing';
+  if (running) return t.remote.installingNow(application.label);
+  return mayInstall(state) ? t.remote.installFromAddApps(application.label) : t.remote.onlyOwnerInstalls(application.label);
+}
+
+/**
  * The words for a tile's status (state.ts tileStatus).
  * @param s The status.
  * @returns Its text, or null.
@@ -335,7 +352,7 @@ export function tileStatusText(s: TileStatus): string | null {
 
 function AppButton({ app, state, application }: { app: App; state: AppState; application: Application }): JSX.Element {
   const launch = gate(state, 'app.launch');
-  const reason = !application.installed ? t.remote.notInstalled(application.label) : launch.reason;
+  const reason = !application.installed ? notInstalledReason(application, state) : launch.reason;
   const tile = tileStatus(application, state.installReady);
   const status = tileStatusText(tile);
   const live = application.launch_state === 'launching' ? 'launching' : application.foreground ? 'front' : application.running ? 'running' : null;

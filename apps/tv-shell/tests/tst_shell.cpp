@@ -795,6 +795,11 @@ private slots:
         toFavorites();
         act(QStringLiteral("nav.left"));
         act(QStringLiteral("nav.right"));
+        // The featured panel offers Install (never "How to install"); OK
+        // opens the card, which says why it can't.
+        QObject *action = m_window->findChild<QObject *>(QStringLiteral("heroAction"));
+        QVERIFY(action);
+        QTRY_COMPARE(action->property("text").toString(), QStringLiteral("Install"));
         act(QStringLiteral("select"));
         QCOMPARE(m_nav->itemId(), QStringLiteral("install-close"));
         act(QStringLiteral("nav.right"));
