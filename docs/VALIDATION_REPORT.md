@@ -1,6 +1,6 @@
 # Bear Den TV validation report
 
-What has actually been checked, where and with what result. Allowed outcomes are PASS, FAIL, BLOCKED, NOT RUN and NOT APPLICABLE ([acceptance matrix](../bear-den-tv-materials/ACCEPTANCE_MATRIX.md)). A skipped check is never a pass. The requirement-by-requirement view is in [`IMPLEMENTATION_STATUS.md`](IMPLEMENTATION_STATUS.md).
+What has actually been checked, where and with what result. Allowed outcomes are PASS, FAIL, BLOCKED, NOT RUN and NOT APPLICABLE. A skipped check is never a pass. The requirement-by-requirement view is in [`IMPLEMENTATION_STATUS.md`](IMPLEMENTATION_STATUS.md).
 
 Updated 2026-09-23.
 

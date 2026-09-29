@@ -120,5 +120,4 @@ the pull request.
    free-running animations or `Timer`s for motion.
 6. **No personal details.** No IPs, host names, user names or real titles in
    code, tests, fixtures, docs or screenshots. Demo content is labelled DEMO.
-7. **Do not edit `bear-den-tv-materials/`.** It is the provided design package.
-8. **Do not commit, push or deploy** unless your user asks.
+7. **Do not commit, push or deploy** unless your user asks.

@@ -6,9 +6,8 @@ you back with Home. It does this **without wrapping, embedding or modifying the
 apps**. They are ordinary Flatpak apps; Bear Den decides which one is on screen,
 makes it fullscreen, and routes the remote's buttons to whatever is in front.
 
-This page explains the moving parts. The authoritative design is
-[`Bear_Den_TV_Design_and_Implementation.md`](../bear-den-tv-materials/reference/Bear_Den_TV_Design_and_Implementation.md);
-the contracts are in [`contracts/`](../contracts/README.md); decisions are in
+This page explains the moving parts. The contracts are in
+[`contracts/`](../contracts/README.md); decisions are in
 [`docs/decisions/`](decisions/). To change the code, start at
 [`AGENTS.md`](../AGENTS.md).
 

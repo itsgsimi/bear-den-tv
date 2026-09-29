@@ -30,8 +30,6 @@ Home. It never wraps, embeds or patches them.
 | How does it all work? | [`docs/HOW_IT_WORKS.md`](docs/HOW_IT_WORKS.md) |
 | What does a word mean? | [`docs/GLOSSARY.md`](docs/GLOSSARY.md) |
 | How do I contribute? | [`CONTRIBUTING.md`](CONTRIBUTING.md) |
-| What is the intended design? (authoritative) | [`bear-den-tv-materials/reference/Bear_Den_TV_Design_and_Implementation.md`](bear-den-tv-materials/reference/Bear_Den_TV_Design_and_Implementation.md) |
-| Execution rules and requirement ids | [`bear-den-tv-materials/Bear_Den_TV_Codex_Prompt.md`](bear-den-tv-materials/Bear_Den_TV_Codex_Prompt.md), [`IMPLEMENTATION_NOTES.md`](bear-den-tv-materials/IMPLEMENTATION_NOTES.md), [`ACCEPTANCE_MATRIX.md`](bear-den-tv-materials/ACCEPTANCE_MATRIX.md) |
 | What is built, tested, live-validated? | [`docs/IMPLEMENTATION_STATUS.md`](docs/IMPLEMENTATION_STATUS.md), [`docs/VALIDATION_REPORT.md`](docs/VALIDATION_REPORT.md) |
 | Why is it like this? | [`docs/decisions/`](docs/decisions/) (ADRs) |
 | Wire formats | [`contracts/README.md`](contracts/README.md), [`actions.md`](contracts/actions.md), [`ipc.md`](contracts/ipc.md), [`http.md`](contracts/http.md), [`config.md`](contracts/config.md) |
@@ -94,7 +92,7 @@ These are the habits this codebase was built with. Follow them.
 4. **Honest statuses.**
    - *Implemented*, *automatically tested* and *live-validated* are separate
      claims, recorded separately in `docs/IMPLEMENTATION_STATUS.md` and traced
-     to `ACCEPTANCE_MATRIX.md` ids.
+     to requirement ids.
    - A skipped, blocked or not-run check is never a pass. Say "not yet seen on
      the TV" when that's the truth.
 5. **Contracts first.** A shape change is one commit that touches:

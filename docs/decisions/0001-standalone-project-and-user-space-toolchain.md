@@ -4,7 +4,7 @@ Date: 2026-09-22. Status: accepted.
 
 ## Context
 
-The materials recommend a standalone Qt 6 / Go / TypeScript project rather than a Flex Launcher fork (`flex-launcher_2.2_amd64.deb` sits in the target's Downloads but is not installed). The TV target (Linux Mint 21.3 Xfce, X11, 2-core Haswell, 7.6 GiB) has no Go, no Qt 6, no C++ compiler, and the agent has no sudo. The development workstation (Ubuntu 24.04) has no Go or Qt 6 either.
+The original design brief recommends a standalone Qt 6 / Go / TypeScript project rather than a Flex Launcher fork (`flex-launcher_2.2_amd64.deb` sits in the target's Downloads but is not installed). The TV target (Linux Mint 21.3 Xfce, X11, 2-core Haswell, 7.6 GiB) has no Go, no Qt 6, no C++ compiler, and the agent has no sudo. The development workstation (Ubuntu 24.04) has no Go or Qt 6 either.
 
 ## Decision
 

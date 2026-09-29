@@ -7,7 +7,7 @@ Those are three separate claims:
 - **Automatically tested**: a named test exercises it and runs in `make test` (or `scripts/e2e-target.sh` for the live suite).
 - **Live on the TV**: a commit message or doc records it working on the real TV. If not, the row says "not yet seen on the TV".
 
-Requirement ids come from [`ACCEPTANCE_MATRIX.md`](../bear-den-tv-materials/ACCEPTANCE_MATRIX.md).
+Requirement ids (such as `UI-02`) come from the original design brief's acceptance matrix, which is not part of this repository.
 Commands are explained in [`operations.md`](operations.md).
 
 ## Current checkpoint

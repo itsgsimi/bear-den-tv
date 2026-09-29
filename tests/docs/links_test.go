@@ -20,7 +20,6 @@ import (
 // skipDirs are generated, vendored or externally provided trees.
 var skipDirs = map[string]bool{
 	".git": true, "node_modules": true, "build": true, "dist": true, "toolchain": true,
-	"bear-den-tv-materials": true, // the provided design package, not ours to edit
 }
 
 var link = regexp.MustCompile(`\[[^\]]*\]\(([^)\s]+)\)`)
