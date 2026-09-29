@@ -879,9 +879,26 @@ recognised by its label and colour.
   (`apps/tv-shell/assets/classic/app-<adapter>.svg`, a 32×32 view box).
 - **Phones:** both tools copy their icons to `apps/remote-web/static/art/`
   (`pixel/app-<adapter>.png`, `app-<adapter>.svg`); the remote's app tiles use
-  them (`AppArt` in `icons.tsx`).
-- **Order** (`Shell.appArt`): the owner's brand folder, Bear Den's icon, the
-  installed Flatpak's exported icon, a monogram.
+  them (`AppArt` in `icons.tsx`) whenever the coordinator has no icon of the
+  app's own for them.
+- **App's own or Bear Den style** (Settings → App icons, the phone's Layout;
+  layout `ui.app_icons`, owner decision: the app's own by default).
+- **Order**, everywhere an app is shown (TV tiles, the featured panel and
+  its room's screen, the launch overlay, the install card, Add apps, phone
+  tiles):
+  1. the owner's brand folder (`brand/<adapter>/icon.*`);
+  2. with "App's own": the icon the **installed** Flatpak exports, when that
+     Flatpak is the app itself. The streaming sites (Netflix, Disney+, Hulu)
+     run in Chromium and never show its icon; the Browser tile may. An app
+     that is not installed has no export;
+  3. Bear Den's icon;
+  4. a monogram.
+
+  The TV resolves this in `Shell.appArt`; phones get rungs 1 and 2 from
+  [`GET /api/v1/apps/{adapter}/icon`](../contracts/http.md#app-icons) as PNG
+  (never SVG: an SVG-only brand icon or export is skipped on phones) and
+  draw Bear Den's icon when it answers 404. The featured panel's rooms stay
+  Bear Den's art; the room's screen shows the chosen icon.
 - Regenerate: `python3 -B tools/pixelart/build.py --preview appicons`
   (preview `build/pixel-preview/appicons.png`) and
   `python3 -B tools/classicart/build.py appicons`.

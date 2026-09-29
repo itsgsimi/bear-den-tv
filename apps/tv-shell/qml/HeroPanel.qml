@@ -26,7 +26,7 @@ PixelBox {
     property string sectionTitle: ""
     readonly property bool isApp: item.kind === "app"
     readonly property var app: isApp && item.appId ? Session.application(item.appId) : ({})
-    readonly property var art: isApp ? Shell.appArt(app.adapter || "", World.classic) : ({ icon: "", logo: "", background: "" })
+    readonly property var art: isApp ? Shell.appArt(app.adapter || "", World.classic, Theme.appIcons) : ({ icon: "", logo: "", background: "" })
     readonly property string backdrop: isApp ? art.background : (item.artwork || "")
     readonly property bool hasBackdrop: backdropImage.ready
     readonly property color tint: item && item.tint ? item.tint : Theme.tintFor(item && item.itemId ? item.itemId : "bear")
@@ -139,6 +139,7 @@ PixelBox {
             x: room.screenRect.x + (room.screenRect.width - side) / 2
             y: room.screenRect.y + (room.screenRect.height - side) / 2
             adapter: root.app.adapter || ""
+            installed: root.item.installed !== false
             label: root.item.title || ""
             tint: root.tint
         }
@@ -161,6 +162,7 @@ PixelBox {
             anchors.centerIn: parent
             size: 210 * Theme.scale
             adapter: root.app.adapter || ""
+            installed: root.item.installed !== false
             label: root.item.title || ""
             tint: root.tint
         }

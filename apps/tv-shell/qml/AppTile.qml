@@ -17,7 +17,7 @@ Item {
     readonly property var brand: Apps.brand(adapter)
     readonly property color tint: item.tint || Theme.accent
     // Artwork: the owner's logo and photo (brand folder), empty when absent.
-    readonly property var art: Shell.appArt(adapter, World.classic)
+    readonly property var art: Shell.appArt(adapter, World.classic, Theme.appIcons)
     readonly property bool hasLogo: art.logo.length > 0
     readonly property bool hasPhoto: art.background.length > 0
     readonly property bool installing: item.installState === "preparing" || item.installState === "downloading" || item.installState === "installing"
@@ -115,6 +115,7 @@ Item {
                 size: parent.height * 0.7
                 anchors { right: parent.right; rightMargin: -size * 0.16; verticalCenter: parent.verticalCenter }
                 adapter: root.adapter
+                installed: root.item.installed !== false
                 label: root.item.title || ""
                 tint: root.tint
                 opacity: 0.12
@@ -156,6 +157,7 @@ Item {
             anchors { left: parent.left; top: parent.top; leftMargin: 22 * Theme.scale; topMargin: 20 * Theme.scale }
             size: 64 * Theme.scale
             adapter: root.adapter
+            installed: root.item.installed !== false
             label: root.item.title || ""
             tint: root.tint
         }

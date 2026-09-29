@@ -96,6 +96,10 @@ Item {
         { id: "background", kind: "choice", label: qsTr("Theme"), description: qsTr("The world Bear Den lives in, on the TV and the phone"), value: Themes.get(ui.background).name || qsTr("Den") },
         { id: "style", kind: "choice", label: qsTr("Style"), description: ui.theme === "performance" ? qsTr("No bears, decorations or animations: the lightest on the TV") : qsTr("Bear Den adds the world's decorations and bears; Plain keeps it simple"), value: ui.theme === "performance" ? qsTr("Performance") : ui.theme === "plain-dark" ? qsTr("Plain") : qsTr("Bear Den") },
         { id: "art", kind: "choice", label: qsTr("Art style"), description: ui.art_style === "classic" ? qsTr("Smooth drawings and pictures") : qsTr("Everything drawn in pixel art"), value: ui.art_style === "classic" ? qsTr("Classic") : qsTr("Pixel") },
+        // layout.ui.app_icons: missing means app (the app's own icon).
+        { id: "app-icons", kind: "choice", label: qsTr("App icons"),
+          description: ui.app_icons === "bear_den" ? qsTr("Bear Den's own drawing for every app") : qsTr("Each installed app's own icon; Bear Den's for the rest"),
+          value: ui.app_icons === "bear_den" ? qsTr("Bear Den style") : qsTr("App's own") },
         { id: "margin", kind: "choice", label: qsTr("Screen edge margin"), description: qsTr("Increase if the edges are cut off on your TV"), value: (ui.safe_margin_percent || 3) + "%" },
         { id: "motion", kind: "toggle", label: qsTr("Reduce motion"), description: "", value: ui.reduced_motion ? "on" : "off" },
         { id: "contrast", kind: "toggle", label: qsTr("High-contrast focus"), description: "", value: ui.high_contrast_focus ? "on" : "off" },
@@ -161,6 +165,7 @@ Item {
         case "background": editUi(u => { u.background = cycle(backgrounds, Themes.canonical(u.background), delta); u.accent = World.accentFor(u.background) }); return true
         case "style": editUi(u => u.theme = cycle(["den-dark", "plain-dark", "performance"], u.theme, delta)); return true
         case "art": editUi(u => u.art_style = cycle(["pixel", "classic"], u.art_style || "pixel", delta)); return true
+        case "app-icons": editUi(u => u.app_icons = cycle(["app", "bear_den"], u.app_icons || "app", delta)); return true
         case "margin": editUi(u => u.safe_margin_percent = cycle(margins, u.safe_margin_percent, delta)); return true
         case "sleep": Shell.setSleepTimer(cycle(sleepChoices, sleepRunning ? power.sleep_minutes : 0, delta)); return true
         case "cec-volume": Shell.setCEC(true, delta > 0 ? "tv" : "pc"); return true

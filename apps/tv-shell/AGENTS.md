@@ -150,7 +150,7 @@ array of `{id, kind, label, description, value}` with `kind` one of `link`,
    from the top: `remote`, `pairing`, `devices`, `now-playing` (a toggle
    that sends `remote.now_playing` through `Shell.setNowPlaying`, showing
    `Session.remote.now_playing`), `text`, `density`, `background` (Theme),
-   `style`, `art`, `margin`, `motion`, `contrast`, `hero`, `clock`,
+   `style`, `art`, `app-icons` (App icons: App's own / Bear Den style, layout `ui.app_icons`), `margin`, `motion`, `contrast`, `hero`, `clock`,
    `weather`, `playback`, `advanced-playback`, `diagnostics`, `sleep` (◀ ▶
    over Off, 15 … 120 min through `Shell.setSleepTimer`, showing
    `Session.power.sleep_minutes`), `screen-off` (`Shell.screenOff()` 0.8 s
@@ -161,12 +161,12 @@ array of `{id, kind, label, description, value}` with `kind` one of `link`,
    (only while `Session.cec` is available and enabled: ◀ ▶ or OK between
    PC and TV), `plex` (opens Settings → Plex), `exit`. A snapshot rebuilds `rows`; the
    list keeps the focused row in view (`onModelChanged`).
-   `sleepRowSetsTheTimerAndScreenOff` walks 18 rows down to `sleep`.
-   `headerPillsOpenScreensAndBackReturns` walks 17 rows down from `remote`
-   to reach `diagnostics` (and 2 to `devices`),
-   `advancedPlaybackSendsPlaybackSet` 16 to `advanced-playback`,
-   `weatherScreenSearchesAndConfigures` 14 to `weather`, and
-   `nowPlayingRowTogglesTheSetting` 3 to `now-playing`, and
+   Tests reach a row with `toSettingsRow(id)` (to the top, then down until
+   that row), so a new row shifts nothing: `sleepRowSetsTheTimerAndScreenOff`,
+   `headerPillsOpenScreensAndBackReturns` (`diagnostics`, and 2 rows to
+   `devices`), `advancedPlaybackSendsPlaybackSet`,
+   `weatherScreenSearchesAndConfigures` and `appIconsRowSwitchesTheChoice`;
+   `nowPlayingRowTogglesTheSetting` walks 3 to `now-playing`, and
    `plexScreenDrivesSignIn` goes to the bottom and one up to `plex` (it sits
    just above `exit`). A row inserted above any of them shifts those counts.
    `cecRowsShowTheReasonAndConfigure` walks down until it reaches `cec`.
@@ -200,14 +200,21 @@ For a new app, after [`internal/AGENTS.md` → Add an app](../../internal/AGENTS
 
 Artwork: Bear Den bundles its own original app icons, never third-party
 logos ([`docs/THEMES.md` → App icons](../../docs/THEMES.md#app-icons)).
-`Shell.appArt(adapter, classic)` returns `{icon, logo, background,
+`Shell.appArt(adapter, classic, icons)` returns `{icon, logo, background,
 iconSource}`; the icon comes, in order, from the owner's brand folder
 `~/.local/share/bear-den-tv/brand/<adapter>/` (`icon|logo|background` +
-`.svg|.png|.jpg|.webp`; logo and background come only from there), Bear
-Den's own icon (`assets/pixel/app-<adapter>.png`, or with `classic`
-`assets/classic/app-<adapter>.svg`), the icon the installed Flatpak exports,
-then icons cached by `bear-den-tv artwork fetch`; `AppIcon` draws a monogram
-when there is none. Results are cached for a minute. A new app needs its icon
+`.svg|.png|.jpg|.webp`; logo and background come only from there); with
+`icons` `"app"` (`Theme.appIcons`, layout `ui.app_icons`, the default:
+Settings → App icons → App's own) the icon the installed Flatpak exports
+when that Flatpak is the app itself (`ownIconFlatpakIdFor`: never
+Chromium's for the streaming sites, the Browser tile may; an app that is
+not installed has no export); Bear Den's own icon
+(`assets/pixel/app-<adapter>.png`, or with `classic`
+`assets/classic/app-<adapter>.svg`); `AppIcon` draws a monogram when there
+is none. The icons cached by `bear-den-tv artwork fetch` are no longer
+used. Results are cached for a minute. Every place an app is shown goes
+through `AppIcon` (tiles, the featured panel and its room's screen, the
+launch overlay, the install card, Add apps). A new app needs its icon
 in `tools/pixelart/appicons.py` and `tools/classicart/appicons.py`
 (`appArtResolutionOrder` checks every adapter has both).
 

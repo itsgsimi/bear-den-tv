@@ -70,6 +70,17 @@ private:
             act(QStringLiteral("nav.up"));
         QCOMPARE(m_nav->sectionId(), QStringLiteral("header"));
     }
+    // In Settings: to the top, then down to the row `id` (no row counts, so
+    // a new row does not shift every test).
+    void toSettingsRow(const QString &id)
+    {
+        for (int i = 0; i < 50; ++i)
+            act(QStringLiteral("nav.up"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("remote"));
+        for (int i = 0; i < 50 && m_nav->itemId() != id; ++i)
+            act(QStringLiteral("nav.down"));
+        QCOMPARE(m_nav->itemId(), id);
+    }
     void toFavorites()
     {
         toHeader();
@@ -338,9 +349,7 @@ private slots:
         for (int i = 0; i < 30; ++i) // Settings remembers its row; walk to the top first
             act(QStringLiteral("nav.up"));
         QCOMPARE(m_nav->itemId(), QStringLiteral("remote"));
-        for (int i = 0; i < 17; ++i) // remote, pairing, devices, now playing … theme, style, art style, margin, motion, contrast, hero, clock, weather, playback, advanced playback
-            act(QStringLiteral("nav.down"));
-        QCOMPARE(m_nav->itemId(), QStringLiteral("diagnostics"));
+        toSettingsRow(QStringLiteral("diagnostics"));
         act(QStringLiteral("select"));
         QCOMPARE(m_nav->screen(), QStringLiteral("diagnostics"));
         shot(QStringLiteral("diagnostics"));
@@ -1371,6 +1380,55 @@ private slots:
         QVERIFY(session->cec().isEmpty());
     }
 
+    // Settings → App icons (layout.ui.app_icons): "App's own" by default;
+    // ◀ ▶ sends the layout with the other choice; a snapshot with bear_den
+    // shows "Bear Den style" and Home's tiles switch to Bear Den's icons.
+    void appIconsRowSwitchesTheChoice()
+    {
+        SessionModel *session = SessionModel::instance();
+        IpcClient *ipc = ShellController::instance()->ipc();
+        auto focusedValue = [this]() {
+            QString value;
+            std::function<void(QQuickItem *)> find = [&](QQuickItem *item) {
+                if (!item->isVisible() || item->opacity() == 0)
+                    return;
+                if (item->objectName() == QLatin1String("settingsRow") && item->property("focused").toBool())
+                    value = item->property("value").toString();
+                for (QQuickItem *child : item->childItems())
+                    find(child);
+            };
+            find(m_window->contentItem());
+            return value;
+        };
+        goHome();
+        toHeader();
+        act(QStringLiteral("nav.right"));
+        act(QStringLiteral("select"));
+        QCOMPARE(m_nav->screen(), QStringLiteral("settings"));
+        toSettingsRow(QStringLiteral("app-icons"));
+        QCOMPARE(focusedValue(), QStringLiteral("App's own"));
+        ipc->clearSent();
+        act(QStringLiteral("nav.right"));
+        QCOMPARE(lastSent(QStringLiteral("settings.update")).value(QStringLiteral("layout")).toObject().value(QStringLiteral("ui")).toObject().value(QStringLiteral("app_icons")).toString(),
+                 QStringLiteral("bear_den"));
+        QJsonObject snap = fixture();
+        QJsonObject layout = snap.value(QStringLiteral("layout")).toObject();
+        QJsonObject ui = layout.value(QStringLiteral("ui")).toObject();
+        ui.insert(QStringLiteral("app_icons"), QStringLiteral("bear_den"));
+        layout.insert(QStringLiteral("ui"), ui);
+        snap.insert(QStringLiteral("layout"), layout);
+        QVERIFY2(session->applySnapshot(snap), qPrintable(session->lastError()));
+        QCoreApplication::processEvents();
+        QCOMPARE(focusedValue(), QStringLiteral("Bear Den style"));
+        shot(QStringLiteral("settings-app-icons"));
+        ipc->clearSent();
+        act(QStringLiteral("nav.left"));
+        QCOMPARE(lastSent(QStringLiteral("settings.update")).value(QStringLiteral("layout")).toObject().value(QStringLiteral("ui")).toObject().value(QStringLiteral("app_icons")).toString(),
+                 QStringLiteral("app"));
+        QVERIFY(session->applySnapshot(fixture()));
+        goHome();
+    }
+
     // Settings → Now playing on phones: a toggle showing state.remote.now_playing
     // (missing means on), OK sends remote.now_playing with the opposite value.
     void nowPlayingRowTogglesTheSetting()
@@ -1475,11 +1533,7 @@ private slots:
         act(QStringLiteral("nav.right"));
         act(QStringLiteral("select"));
         QCOMPARE(m_nav->screen(), QStringLiteral("settings"));
-        for (int i = 0; i < 25; ++i)
-            act(QStringLiteral("nav.up"));
-        for (int i = 0; i < 18; ++i) // remote … advanced playback, diagnostics
-            act(QStringLiteral("nav.down"));
-        QCOMPARE(m_nav->itemId(), QStringLiteral("sleep"));
+        toSettingsRow(QStringLiteral("sleep"));
         QCOMPARE(focusedValue(), QStringLiteral("Off"));
 
         ipc->clearSent();
@@ -1677,9 +1731,7 @@ private slots:
         QCOMPARE(m_nav->screen(), QStringLiteral("settings"));
         for (int i = 0; i < 30; ++i)
             act(QStringLiteral("nav.up"));
-        for (int i = 0; i < 14; ++i) // remote … now playing, … art style, … hero, clock, weather
-            act(QStringLiteral("nav.down"));
-        QCOMPARE(m_nav->itemId(), QStringLiteral("weather"));
+        toSettingsRow(QStringLiteral("weather"));
         act(QStringLiteral("select"));
         QCOMPARE(m_nav->screen(), QStringLiteral("settings")); // the contract's name for it
         QCOMPARE(m_nav->sectionId(), QStringLiteral("weather"));
@@ -1809,9 +1861,7 @@ private slots:
         QCOMPARE(m_nav->screen(), QStringLiteral("settings"));
         for (int i = 0; i < 30; ++i)
             act(QStringLiteral("nav.up"));
-        for (int i = 0; i < 16; ++i) // remote … now playing, … art style, … clock, weather, playback, advanced playback
-            act(QStringLiteral("nav.down"));
-        QCOMPARE(m_nav->itemId(), QStringLiteral("advanced-playback"));
+        toSettingsRow(QStringLiteral("advanced-playback"));
         act(QStringLiteral("select"));
         QCOMPARE(m_nav->screen(), QStringLiteral("diagnostics")); // the contract's name for these screens
         QCOMPARE(m_nav->sectionId(), QStringLiteral("playback"));
@@ -1969,7 +2019,10 @@ private slots:
 
     // App icons (docs/THEMES.md → App icons): every adapter has Bear Den's own
     // icon in both art styles, and Shell.appArt picks the owner's brand folder
-    // first, then that bundled icon, and only then the Flatpak's exported icon.
+    // first; then, with the choice "app" (layout ui.app_icons, the default),
+    // the installed Flatpak's exported icon when that Flatpak is the app
+    // itself (never Chromium's for a streaming site); then Bear Den's icon;
+    // then nothing (a monogram).
     void appArtResolutionOrder()
     {
         const QStringList adapters{QStringLiteral("plex-htpc"), QStringLiteral("vacuumtube"), QStringLiteral("moonlight"),
@@ -1993,27 +2046,60 @@ private slots:
         });
         qputenv("XDG_DATA_HOME", data.path().toUtf8());
         qputenv("HOME", home.path().toUtf8());
-        // The installed Flatpak exports an icon: ours still wins.
+        // Nothing installed: Bear Den's icon with either choice.
+        const QString bear = QStringLiteral("app"), ours = QStringLiteral("bear_den");
+        shell->forgetArt();
+        QVariantMap art = shell->appArt(QStringLiteral("plex-htpc"), false, bear);
+        QCOMPARE(art.value(QStringLiteral("iconSource")).toString(), QStringLiteral("bundled"));
+        QCOMPARE(art.value(QStringLiteral("icon")).toString(), QStringLiteral("qrc:/qt/qml/BearDen/assets/pixel/app-plex-htpc.png"));
+        // Installed: its Flatpak exports an icon. "app" (and the default) takes
+        // it in both art styles; "bear_den" keeps ours.
         const QString exported = home.filePath(QStringLiteral(".local/share/flatpak/exports/share/icons/hicolor/128x128/apps"));
         QVERIFY(QDir().mkpath(exported));
         QImage(8, 8, QImage::Format_ARGB32).save(exported + QStringLiteral("/tv.plex.PlexHTPC.png"));
+        QImage(8, 8, QImage::Format_ARGB32).save(exported + QStringLiteral("/org.chromium.Chromium.png"));
         shell->forgetArt();
-        QVariantMap art = shell->appArt(QStringLiteral("plex-htpc"));
+        for (bool classic : {false, true}) {
+            art = shell->appArt(QStringLiteral("plex-htpc"), classic, bear);
+            QCOMPARE(art.value(QStringLiteral("iconSource")).toString(), QStringLiteral("flatpak"));
+            QVERIFY(art.value(QStringLiteral("icon")).toString().endsWith(QStringLiteral("/128x128/apps/tv.plex.PlexHTPC.png")));
+        }
+        QCOMPARE(shell->appArt(QStringLiteral("plex-htpc")).value(QStringLiteral("iconSource")).toString(), QStringLiteral("flatpak"));
+        art = shell->appArt(QStringLiteral("plex-htpc"), false, ours);
         QCOMPARE(art.value(QStringLiteral("iconSource")).toString(), QStringLiteral("bundled"));
-        QCOMPARE(art.value(QStringLiteral("icon")).toString(), QStringLiteral("qrc:/qt/qml/BearDen/assets/pixel/app-plex-htpc.png"));
-        art = shell->appArt(QStringLiteral("plex-htpc"), true);
+        art = shell->appArt(QStringLiteral("plex-htpc"), true, ours);
         QCOMPARE(art.value(QStringLiteral("icon")).toString(), QStringLiteral("qrc:/qt/qml/BearDen/assets/classic/app-plex-htpc.svg"));
-        // An adapter without a bundled icon falls back to nothing here (no Flatpak id).
-        QCOMPARE(shell->appArt(QStringLiteral("something-new")).value(QStringLiteral("iconSource")).toString(), QString());
+        // Streaming sites never take Chromium's icon; the Browser tile does.
+        for (const char *site : {"netflix", "disney-plus", "hulu"}) {
+            QVERIFY(shell->ownIconFlatpakIdFor(QString::fromLatin1(site)).isEmpty());
+            QCOMPARE(shell->appArt(QString::fromLatin1(site), false, bear).value(QStringLiteral("iconSource")).toString(), QStringLiteral("bundled"));
+        }
+        QCOMPARE(shell->appArt(QStringLiteral("browser"), false, bear).value(QStringLiteral("iconSource")).toString(), QStringLiteral("flatpak"));
+        // Not installed (no export): ours.
+        QCOMPARE(shell->appArt(QStringLiteral("spotify"), false, bear).value(QStringLiteral("iconSource")).toString(), QStringLiteral("bundled"));
+        // An adapter with no icon of any kind: nothing (AppIcon draws a monogram).
+        QCOMPARE(shell->appArt(QStringLiteral("something-new"), false, bear).value(QStringLiteral("iconSource")).toString(), QString());
         // The owner's brand folder beats everything.
         const QString brand = data.filePath(QStringLiteral("bear-den-tv/brand/plex-htpc"));
         QVERIFY(QDir().mkpath(brand));
         QImage(8, 8, QImage::Format_ARGB32).save(brand + QStringLiteral("/icon.png"));
         shell->forgetArt();
         for (bool classic : {false, true}) {
-            art = shell->appArt(QStringLiteral("plex-htpc"), classic);
+            art = shell->appArt(QStringLiteral("plex-htpc"), classic, classic ? bear : ours);
             QCOMPARE(art.value(QStringLiteral("iconSource")).toString(), QStringLiteral("brand"));
             QCOMPARE(art.value(QStringLiteral("icon")).toString(), QUrl::fromLocalFile(brand + QStringLiteral("/icon.png")).toString());
+        }
+        // An app the state says is not installed shows Bear Den's icon even
+        // with an export on disk.
+        {
+            QQmlComponent c(m_engine);
+            c.setData("import QtQuick\nimport BearDen\nAppIcon { adapter: \"browser\"; label: \"Browser\"; size: 70 }",
+                      QUrl(QStringLiteral("qrc:/test/IconInstalled.qml")));
+            std::unique_ptr<QObject> icon(c.create());
+            QVERIFY2(icon, qPrintable(c.errorString()));
+            QVERIFY(icon->property("source").toString().endsWith(QStringLiteral("/org.chromium.Chromium.png")));
+            icon->setProperty("installed", false);
+            QVERIFY(icon->property("source").toString().endsWith(QStringLiteral("/pixel/app-browser.png")));
         }
         // AppIcon draws our pixel icon unsmoothed at a whole-number scale.
         shell->forgetArt();

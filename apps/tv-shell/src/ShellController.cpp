@@ -458,6 +458,13 @@ QString ShellController::flatpakIdFor(const QString &adapter) const
     return ids.value(adapter);
 }
 
+QString ShellController::ownIconFlatpakIdFor(const QString &adapter) const
+{
+    // Data, not branches: the adapters whose Flatpak only hosts them.
+    static const QSet<QString> hosted{QStringLiteral("netflix"), QStringLiteral("disney-plus"), QStringLiteral("hulu")};
+    return hosted.contains(adapter) ? QString() : flatpakIdFor(adapter);
+}
+
 namespace {
 QString firstExisting(const QString &base, const QStringList &exts)
 {
@@ -482,21 +489,22 @@ QString flatpakExportedIcon(const QString &id)
 }
 } // namespace
 
-QVariantMap ShellController::appArt(const QString &adapter, bool classic) const
+QVariantMap ShellController::appArt(const QString &adapter, bool classic, const QString &icons) const
 {
     // Bindings call this on every state update; the answer only changes when
     // apps are installed or brand files added, so cache it for a minute.
+    const bool appsOwn = icons != QLatin1String("bear_den"); // missing means app
     const qint64 now = QDateTime::currentMSecsSinceEpoch();
-    const QString key = adapter + (classic ? QStringLiteral("|classic") : QStringLiteral("|pixel"));
+    const QString key = adapter + (classic ? QStringLiteral("|classic") : QStringLiteral("|pixel")) + (appsOwn ? QStringLiteral("|app") : QStringLiteral("|bear_den"));
     auto hit = m_artCache.constFind(key);
     if (hit != m_artCache.constEnd() && now - hit->first < 60000)
         return hit->second;
-    const QVariantMap art = lookupArt(adapter, classic);
+    const QVariantMap art = lookupArt(adapter, classic, appsOwn);
     m_artCache.insert(key, {now, art});
     return art;
 }
 
-QVariantMap ShellController::lookupArt(const QString &adapter, bool classic) const
+QVariantMap ShellController::lookupArt(const QString &adapter, bool classic, bool appsOwn) const
 {
     static const QStringList exts{QStringLiteral(".svg"), QStringLiteral(".png"), QStringLiteral(".jpg"), QStringLiteral(".webp")};
     QVariantMap art{{QStringLiteral("icon"), QString()}, {QStringLiteral("logo"), QString()},
@@ -512,24 +520,23 @@ QVariantMap ShellController::lookupArt(const QString &adapter, bool classic) con
         art.insert(QStringLiteral("iconSource"), QStringLiteral("brand"));
         return art;
     }
-    // 2. Bear Den's own icon for this adapter, in the current art style.
+    // 2. The app's own icon (ui.app_icons "app"): what its installed Flatpak
+    // exports, when that Flatpak is the app itself. Not installed: no export.
+    const QString id = appsOwn ? ownIconFlatpakIdFor(adapter) : QString();
+    if (!id.isEmpty()) {
+        const QString icon = flatpakExportedIcon(id);
+        if (!icon.isEmpty()) {
+            art.insert(QStringLiteral("icon"), icon);
+            art.insert(QStringLiteral("iconSource"), QStringLiteral("flatpak"));
+            return art;
+        }
+    }
+    // 3. Bear Den's own icon for this adapter, in the current art style.
     const QString bundled = classic ? QStringLiteral("assets/classic/app-%1.svg").arg(adapter)
                                     : QStringLiteral("assets/pixel/app-%1.png").arg(adapter);
     if (QFile::exists(QStringLiteral(":/qt/qml/BearDen/") + bundled)) {
         art.insert(QStringLiteral("icon"), QStringLiteral("qrc:/qt/qml/BearDen/") + bundled);
         art.insert(QStringLiteral("iconSource"), QStringLiteral("bundled"));
-        return art;
     }
-    // 3. The installed Flatpak's exported icon, then `artwork fetch`'s cache.
-    const QString id = flatpakIdFor(adapter);
-    if (!id.isEmpty()) {
-        QString icon = flatpakExportedIcon(id);
-        if (icon.isEmpty())
-            icon = firstExisting(QStandardPaths::writableLocation(QStandardPaths::GenericCacheLocation)
-                                     + QStringLiteral("/bear-den-tv/brand/") + id, {QStringLiteral(".png"), QStringLiteral(".svg")});
-        art.insert(QStringLiteral("icon"), icon);
-        if (!icon.isEmpty())
-            art.insert(QStringLiteral("iconSource"), QStringLiteral("flatpak"));
-    }
-    return art;
+    return art; // 4. nothing: AppIcon draws a monogram
 }

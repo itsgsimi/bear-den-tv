@@ -166,19 +166,25 @@ public:
     // Flatpak id for a registered adapter ("" when unknown); the closed set
     // mirrors internal/applications/adapters.
     Q_INVOKABLE QString flatpakIdFor(const QString &adapter) const;
+    // The Flatpak whose exported icon is this adapter's own icon: the app's
+    // Flatpak, or "" for the streaming sites (they run in Chromium and never
+    // show its icon; the Browser tile is Chromium and does). Mirrors
+    // adapters.OwnFlatpakIcon in Go.
+    Q_INVOKABLE QString ownIconFlatpakIdFor(const QString &adapter) const;
     // An app's artwork: {icon, logo, background, iconSource} (URLs, "" when
     // absent). Bear Den bundles its own original icons, never third-party
-    // logos (docs/THEMES.md → Art and brands). The icon comes, in order, from:
+    // logos (docs/THEMES.md → App icons). The icon comes, in order, from:
     //   "brand"   the owner's brand folder $XDG_DATA_HOME/bear-den-tv/brand/<adapter>/
     //             icon.{svg,png,jpg,webp} (logo and background come only from there);
+    //   "flatpak" only when `icons` is "app" (layout ui.app_icons, the default):
+    //             the icon the installed Flatpak exports (ownIconFlatpakIdFor; an
+    //             export exists only while the Flatpak is installed);
     //   "bundled" Bear Den's own icon for the adapter, qrc assets/pixel/app-<adapter>.png
     //             or, with `classic`, assets/classic/app-<adapter>.svg (tools/pixelart
     //             and tools/classicart appicons.py);
-    //   "flatpak" the icon the installed Flatpak exports, then icons cached by
-    //             `bear-den-tv artwork fetch` (an adapter without a bundled icon);
     //   ""        none: AppIcon draws a monogram.
-    // Cached for a minute per adapter and style.
-    Q_INVOKABLE QVariantMap appArt(const QString &adapter, bool classic = false) const;
+    // Cached for a minute per adapter, style and choice.
+    Q_INVOKABLE QVariantMap appArt(const QString &adapter, bool classic = false, const QString &icons = QStringLiteral("app")) const;
     // Forget cached artwork (tests; a new brand folder shows within a minute anyway).
     void forgetArt() { m_artCache.clear(); }
     // Non-loopback, up, non-virtual interfaces the remote could bind to.
@@ -208,7 +214,7 @@ private:
                         const QString &message, const QVariantMap &detail);
     void onReply(const QString &requestId, const QString &type, const QJsonObject &payload);
     void setLaunching(const QString &appId);
-    QVariantMap lookupArt(const QString &adapter, bool classic) const;
+    QVariantMap lookupArt(const QString &adapter, bool classic, bool appsOwn) const;
 
     Options m_options;
     IpcClient *m_ipc = nullptr;

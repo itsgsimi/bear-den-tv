@@ -1,7 +1,10 @@
 // An application's icon (Shell.appArt, docs/THEMES.md → App icons), in order:
-// the owner's brand folder, Bear Den's own icon for the adapter (pixel art
-// drawn unsmoothed at a whole-number scale, or the Classic SVG), the icon its
-// installed Flatpak exports, otherwise a monogram on the app tint.
+// the owner's brand folder; with Settings → App icons on "App's own"
+// (Theme.appIcons, the default) the icon its installed Flatpak exports when
+// that Flatpak is the app itself; Bear Den's own icon for the adapter (pixel
+// art drawn unsmoothed at a whole-number scale, or the Classic SVG);
+// otherwise a monogram on the app tint. An app that is not installed
+// (`installed: false`) always shows Bear Den's icon.
 
 import QtQuick
 import BearDen
@@ -12,7 +15,10 @@ Item {
     property string label
     property color tint: Theme.accent
     property real size: 64 * Theme.scale
-    readonly property var art: Shell.appArt(adapter, World.classic)
+    // False for an app the state says is not installed: Bear Den's icon,
+    // whatever Flatpak export may linger.
+    property bool installed: true
+    readonly property var art: Shell.appArt(adapter, World.classic, installed ? Theme.appIcons : "bear_den")
     readonly property string source: art.icon
     // Bear Den's pixel icons are 32×32 art pixels: shown at the largest whole
     // multiple that fits, never smoothed or scaled in between.
