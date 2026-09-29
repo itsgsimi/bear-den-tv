@@ -14,6 +14,7 @@ import (
 
 	"bear-den-tv/internal/achievements"
 	"bear-den-tv/internal/actions"
+	"bear-den-tv/internal/appicons"
 	"bear-den-tv/internal/applications"
 	"bear-den-tv/internal/applications/adapters"
 	"bear-den-tv/internal/clock"
@@ -84,6 +85,10 @@ type Options struct {
 	// Plex is the Plex sign-in flow and rows (state.plex, state.content,
 	// plex.* IPC); nil when the session has no Plex connector.
 	Plex PlexLink
+	// IconFinder finds the apps' own icons for phones (appicons.go,
+	// GET /api/v1/apps/{adapter}/icon); nil serves none, so phones draw
+	// Bear Den's.
+	IconFinder *appicons.Finder
 	// Achievements counts Den badges (state.achievements, achievements.*
 	// IPC; achievements.go); nil omits them.
 	Achievements *achievements.Tracker
@@ -131,6 +136,7 @@ type Coordinator struct {
 	opts    Options
 	log     *slog.Logger
 	clock   clock.Clock
+	icons   iconCache // phone tile icons (appicons.go)
 	start   time.Time
 	dedup   *actions.Dedup
 	holds   *actions.Holds

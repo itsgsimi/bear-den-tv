@@ -17,6 +17,7 @@
 
 | Threat | Control | Location |
 |---|---|---|
+| A phone reads files or gets active content through app icons | `GET /api/v1/apps/{adapter}/icon` takes only an adapter name that must be in the adapter table (no path, URL or file name from the phone), needs a paired session (guest passes included: they see the tiles), serves only PNG (SVG never; PNG and JPEG are decoded and re-encoded, dropping metadata), skips files over 1 MiB or 1024 px, and answers with `Content-Security-Policy: default-src 'none'` and `nosniff`. Tests: `TestAppIconRoute`, `TestNeverSVGAndSizeCaps`, `TestReencodesAndStripsMetadata`, `TestAppIconForPhones` | `internal/remote/routes.go`, `internal/appicons`, `internal/session/appicons.go` |
 | Unpaired LAN device controls the TV | cookie session + per-request authorization; anonymous routes are `/`, `/api/v1/info`, `/api/v1/pair/claim` only | `internal/remote` |
 | Brute-forced pairing code | 6-digit code + 5 attempts per invitation, 2 min expiry, per-source rate limit, invitation issued only from the TV/CLI | `internal/pairing`, `internal/remote` |
 | CSRF from another site on the phone | `SameSite=Strict`, `HttpOnly` cookie + `X-BDTV-CSRF` header bound to the session; no state change on GET | `internal/remote` |

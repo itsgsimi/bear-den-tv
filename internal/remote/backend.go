@@ -6,6 +6,7 @@ package remote
 
 import (
 	"context"
+	"errors"
 
 	"bear-den-tv/internal/contract"
 )
@@ -46,6 +47,21 @@ func (v Viewer) Has(p contract.Permission) bool {
 	}
 	return best >= p.Rank()
 }
+
+// AppIconSource gives a phone tile the app's own icon
+// (contracts/http.md#app-icons). The adapter name is checked against the
+// adapter table by the source; nothing else from the phone is used.
+type AppIconSource interface {
+	// AppIcon returns a sanitised PNG, or an error wrapping ErrUnknownApp
+	// (not an adapter) or ErrNoIcon (Bear Den's own icon applies).
+	AppIcon(ctx context.Context, adapter string) ([]byte, error)
+}
+
+// Errors an AppIconSource returns.
+var (
+	ErrUnknownApp = errors.New("not an app this TV knows")
+	ErrNoIcon     = errors.New("no icon of the app's own")
+)
 
 // Backend is what the coordinator exposes to the remote server.
 type Backend interface {

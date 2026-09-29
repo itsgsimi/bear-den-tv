@@ -56,6 +56,8 @@ var routes = []route{
 	{method: http.MethodGet, pattern: "/api/v1/devices", auth: true, perm: contract.PermOwner, handler: (*Server).handleDevicesList},
 	{method: http.MethodDelete, pattern: "/api/v1/devices/{id}", auth: true, mutating: true, kind: kindDeviceWrite, handler: (*Server).handleDeviceDelete},
 	{method: http.MethodGet, pattern: "/api/v1/diagnostics", auth: true, perm: contract.PermOwner, kind: kindDiagnostics, handler: (*Server).handleDiagnostics},
+	// Guest passes too: they see the same tiles (contracts/http.md#app-icons).
+	{method: http.MethodGet, pattern: "/api/v1/apps/{adapter}/icon", auth: true, handler: (*Server).handleAppIcon},
 }
 
 // matchRoute returns the route for method+path, or a 404/405 status.
@@ -458,6 +460,54 @@ func (s *Server) handleDiagnostics(w http.ResponseWriter, r *http.Request, scope
 		report = map[string]any{}
 	}
 	writeJSON(w, http.StatusOK, report)
+}
+
+// maxIconBytes bounds what handleAppIcon sends, whatever the source returns.
+const maxIconBytes = 1 << 20
+
+// handleAppIcon serves one app's own icon as PNG (contracts/http.md#app-icons).
+// The adapter must look like an adapter name before the source (which checks
+// the adapter table) sees it; the query string is ignored.
+func (s *Server) handleAppIcon(w http.ResponseWriter, r *http.Request, scope *requestScope) {
+	adapter := scope.params["adapter"]
+	if !adapterName(adapter) {
+		writeError(w, http.StatusNotFound, "unknown_app", "not an app this TV knows")
+		return
+	}
+	if s.opts.AppIcons == nil {
+		writeError(w, http.StatusNotFound, "no_icon", "use Bear Den's icon")
+		return
+	}
+	png, err := s.opts.AppIcons.AppIcon(r.Context(), adapter)
+	switch {
+	case errors.Is(err, ErrUnknownApp):
+		writeError(w, http.StatusNotFound, "unknown_app", "not an app this TV knows")
+		return
+	case err != nil || len(png) == 0 || len(png) > maxIconBytes || !strings.HasPrefix(string(png[:min(len(png), 8)]), "\x89PNG\r\n\x1a\n"):
+		writeError(w, http.StatusNotFound, "no_icon", "use Bear Den's icon")
+		return
+	}
+	h := w.Header()
+	h.Set("Content-Type", "image/png")
+	h.Set("X-Content-Type-Options", "nosniff")
+	h.Set("Content-Security-Policy", "default-src 'none'")
+	h.Set("Cache-Control", "private, max-age=300")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(png)
+}
+
+// adapterName reports whether s has the shape of an adapter name
+// (config.schema.json: lower-case letters, digits and dashes).
+func adapterName(s string) bool {
+	if s == "" || len(s) > 32 || s[0] < 'a' || s[0] > 'z' {
+		return false
+	}
+	for _, c := range s {
+		if !(c >= 'a' && c <= 'z' || c >= '0' && c <= '9' || c == '-') {
+			return false
+		}
+	}
+	return true
 }
 
 // writeBackendError maps Backend errors to contract responses.

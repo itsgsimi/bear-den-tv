@@ -87,6 +87,9 @@ type Options struct {
 	// ShutdownTimeout bounds graceful HTTP shutdown in ListenAndServe; zero
 	// selects 5 seconds.
 	ShutdownTimeout time.Duration
+	// AppIcons serves GET /api/v1/apps/{adapter}/icon; nil answers every
+	// request with 404 no_icon (phones then draw Bear Den's icons).
+	AppIcons AppIconSource
 }
 
 // validate fills defaults and reports misconfiguration.

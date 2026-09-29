@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"bear-den-tv/internal/achievements"
+	"bear-den-tv/internal/appicons"
 	"bear-den-tv/internal/applications"
 	"bear-den-tv/internal/applications/adapters"
 	"bear-den-tv/internal/applications/flatpak"
@@ -354,12 +355,13 @@ func runSession(f sessionFlags) error {
 	if plexLink != nil {
 		plexOpt = plexLink
 	}
+	iconFinder := appicons.DefaultFinder() // phones: the apps' own icons
 	coord = session.New(session.Options{
 		Themes: themeReg, Tuner: tuner,
 		Logger: log, Desktop: desk, Lock: lockObs, Audio: audioB, Media: media, Display: display, TV: tv, Suspend: suspendR,
 		Launcher: launcher, Adapters: adapters.NewRegistry(), Config: store, Pairing: pair,
 		Supervisor: sup, DevMode: f.dev && (f.devFixtures || f.devPlexFake || f.devInstalls), Feed: feed, Weather: wx, Plex: plexOpt, Web: webApps,
-		Installer: appInstaller, DRM: webDRM,
+		Installer: appInstaller, DRM: webDRM, IconFinder: &iconFinder,
 		// Den badges: local counters in state.db; nothing counted while
 		// config achievements.enabled is false (docs/security.md#den-badges).
 		Achievements: achievements.New(achievements.Options{DB: db, Logger: log, Enabled: func() bool { return store.Current().AchievementsEnabled() }}),
@@ -514,7 +516,7 @@ func (h *remoteHost) reconcile(ctx context.Context) {
 	srv, err := remote.New(remote.Options{
 		Backend: h.coord.Phones(), Devices: h.pair, Transport: want.Transport,
 		HTTPLayoutEditing: want.LayoutHTTP, AllowedHosts: append(remote.ListenerHosts(ls), want.AllowedHosts...),
-		DevMode: h.dev, Logger: h.log, ThemeAssets: h.themeAssets,
+		DevMode: h.dev, Logger: h.log, ThemeAssets: h.themeAssets, AppIcons: h.coord,
 	})
 	if err != nil {
 		h.log.Error("remote: server", "err", err)

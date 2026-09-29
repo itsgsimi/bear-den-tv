@@ -329,6 +329,17 @@ func WebOf(ad applications.Adapter) (WebSpec, bool) {
 	return WebSpec{}, false
 }
 
+// OwnFlatpakIcon reports whether ad's Flatpak is the app itself, so the icon
+// that Flatpak exports is the app's own (layout ui.app_icons "app"). False
+// for the streaming sites: they run in Chromium and never show its icon; the
+// Browser tile is Chromium and may.
+func OwnFlatpakIcon(ad applications.Adapter) bool {
+	if spec, ok := WebOf(ad); ok {
+		return spec.Mode == WebModeBrowser
+	}
+	return true
+}
+
 func newWeb(name, mode, hints string) applications.Adapter {
 	class := WebClassPrefix + name
 	return &webApp{
