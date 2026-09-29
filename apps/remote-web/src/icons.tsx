@@ -29,7 +29,9 @@ export type IconName =
   | 'devices'
   | 'about'
   | 'restart'
-  | 'close';
+  | 'close'
+  | 'moon'
+  | 'screen-off';
 
 const PATHS: Record<IconName, string> = {
   up: 'M12 6l7 8H5z',
@@ -54,6 +56,8 @@ const PATHS: Record<IconName, string> = {
   about: 'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm-1 5h2v2h-2zm0 4h2v6h-2z',
   restart: 'M12 4a8 8 0 1 0 7.3 4.8l-1.8.8A6 6 0 1 1 12 6v3l4-4-4-4z',
   close: 'M6.4 5l12.6 12.6-1.4 1.4L5 6.4zM5 17.6L17.6 5 19 6.4 6.4 19z',
+  moon: 'M14.5 3a8.5 8.5 0 1 0 6.5 13.9A7 7 0 0 1 14.5 3z',
+  'screen-off': 'M3 4h18v12h-7v2h3v2H7v-2h3v-2H3zm2 2v8h14V6zm4.5 1.5l5 5-1 1-5-5zm5 0l1 1-5 5-1-1z',
 };
 
 /**

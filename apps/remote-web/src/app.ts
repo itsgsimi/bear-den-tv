@@ -54,7 +54,7 @@ const PRUNE_AFTER_MS = 60_000;
 const DEFAULT_HOLD_RENEW_MS = 200;
 
 /** Actions whose target is the shell rather than whatever is in the foreground. */
-const SHELL_TARGETED: ReadonlySet<ActionName> = new Set<ActionName>(['home', 'app.launch', 'app.close', 'shell.restart']);
+const SHELL_TARGETED: ReadonlySet<ActionName> = new Set<ActionName>(['home', 'app.launch', 'app.close', 'shell.restart', 'power.sleep_timer', 'display.off']);
 
 export interface App {
   readonly store: Store;
@@ -212,6 +212,10 @@ export function createApp(env: ApiEnvironment, page: PageEnvironment, win: Windo
         break;
       case 'unauthorized':
         endSession('unauthenticated');
+        break;
+      case 'display_off':
+        // The press only woke the screen, like a TV remote's first press.
+        showToast('info', result.message || t.errors.generic(result.code));
         break;
       default:
         showToast('error', result.message || t.errors.generic(result.code));

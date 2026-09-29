@@ -23,6 +23,8 @@ const ACTION_NAMES: Record<string, string> = {
   'audio.mute': 'PC mute',
   'text.submit': 'Text entry',
   'shell.restart': 'Restart shell',
+  'power.sleep_timer': 'Sleep timer',
+  'display.off': 'Screen off',
 };
 
 export const t = {
@@ -174,6 +176,20 @@ export const t = {
     demo: 'DEMO',
     demoBody: 'Development fixtures are active. Content and applications on the TV are demo data.',
     actionName: (action: string): string => ACTION_NAMES[action] ?? action,
+  },
+
+  // Sleep timer and screen off (views/sleep.tsx).
+  sleep: {
+    heading: 'Sleep',
+    noTimer: 'No sleep timer. The TV pauses, goes Home and turns the screen off when it runs out.',
+    sleepingIn: (left: string) => `Going to sleep in ${left}`,
+    warning: (left: string) => `Going to sleep in ${left}. Press anything to stay awake.`,
+    screenIsOff: 'The screen is off. Any button turns it back on.',
+    choicesLabel: 'Sleep timer',
+    chip: (minutes: number) => (minutes >= 60 && minutes % 60 === 0 ? `${minutes / 60} h` : minutes > 60 ? `${Math.floor(minutes / 60)} h ${minutes % 60}` : `${minutes} min`),
+    chipLabel: (minutes: number) => `Sleep in ${minutes} minutes`,
+    cancel: 'Cancel timer',
+    screenOff: 'Screen off',
   },
 
   // Layout editor.

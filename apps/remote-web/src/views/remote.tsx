@@ -1,6 +1,6 @@
 // Remote screen: D-pad with Select, Back, Bear Den Home and Close app, app shortcuts from
 // `snapshot.applications`, playback with the Now playing card above its buttons
-// (nowplaying.tsx), PC volume, and text entry. Contract: every
+// (nowplaying.tsx), PC volume, Sleep (sleep.tsx: timer and screen off), and text entry. Contract: every
 // control is gated by `snapshot.capabilities[action]`; a listed-but-unavailable
 // capability renders disabled with the server's reason, an unlisted optional one
 // is not rendered. Directions call `pressStart`/`pressEnd` on pointer down/up so
@@ -15,6 +15,7 @@ import { t } from '../i18n.ts';
 import { Art, artStyleOf, Icon, type IconName } from '../icons.tsx';
 import { Vines } from '../vines.tsx';
 import { NowPlayingPanel, nowPlayingOf } from './nowplaying.tsx';
+import { SleepPanel } from './sleep.tsx';
 import { type AppState, type PendingAction, capabilityFor, closableApp, isSecureTransport, permissionsOf } from '../state.ts';
 
 const TEXT_MAX = 256;
@@ -140,6 +141,8 @@ export function RemoteView({ app, state }: { app: App; state: AppState }): JSX.E
           </div>
         </div>
       ) : null}
+
+      <SleepPanel app={app} state={state} />
 
       {listed(state, 'text.submit') ? <TextEntry app={app} state={state} gate={note(gate(state, 'text.submit'))} /> : null}
 
