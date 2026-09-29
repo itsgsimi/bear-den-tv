@@ -8,6 +8,6 @@ dependencies:
   - cmake >=3.28
   - ninja
   - pkg-config
-  - qt6-main =6.8.*
+  - qt6-main =6.8.4   # exact patch, so CI and every workstation build and test against the same Qt
   - go =1.24.*
   - nodejs =22.*

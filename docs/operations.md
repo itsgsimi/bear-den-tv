@@ -10,6 +10,10 @@ scripts/bootstrap-toolchain.sh   # micromamba env in ~/.bdtv-toolchain: Go 1.24,
 make help                        # build/test targets
 ```
 
+The script pins micromamba (override with `BDTV_MICROMAMBA_VERSION`) and Qt's
+exact patch release. `BDTV_SKIP_SYSROOT=1` skips the glibc 2.28 sysroot that only
+`make shell-target` needs; CI (`.github/workflows/ci.yml`) sets it.
+
 ## Point the scripts at your TV
 
 [`scripts/target.sh`](../scripts/target.sh), [`deploy-target.sh`](../scripts/deploy-target.sh),
