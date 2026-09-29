@@ -45,6 +45,12 @@ permissions, config and the LAN service. [`internal/`](../internal/AGENTS.md),
 always labelled DEMO ([`internal/providers/fixtures/`](../internal/providers/fixtures/),
 [`DemoBadge.qml`](../apps/tv-shell/qml/DemoBadge.qml)).
 
+**Den badges.** Playful badges ("Movie Night", "Night Owl", ...) earned from
+a few local counters on the TV: TV Settings → Badges, the phone's Badges tab.
+Only ids, counts and days are kept, never what was watched
+([ADR 0009](decisions/0009-den-badges-local-counters.md),
+[`internal/achievements`](../internal/achievements/achievements.go)).
+
 **Dev mode.** `bear-den-tv dev` (or `make dev`): the coordinator with a fake
 desktop and a loopback-only remote, for working on a workstation. Shown to
 clients as `dev_mode` in the state. [`cmd/bear-den-tv/session.go`](../cmd/bear-den-tv/session.go).
