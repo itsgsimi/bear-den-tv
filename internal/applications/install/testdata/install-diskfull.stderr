@@ -1,0 +1,5 @@
+Warning: Failed to install org.freedesktop.Platform.GL.default: While pulling runtime/org.freedesktop.Platform.GL.default/x86_64/25.08 from remote flathub: Delta requires 461.6 MB free space, but only 149.5 MB available
+Warning: Failed to install org.freedesktop.Platform.GL.default: While pulling runtime/org.freedesktop.Platform.GL.default/x86_64/25.08-extra from remote flathub: Delta requires 461.6 MB free space, but only 149.5 MB available
+Warning: Failed to install org.freedesktop.Platform.codecs-extra: Not enough disk space to complete this operation
+Warning: Failed to install org.kde.Platform.Locale: While pulling runtime/org.kde.Platform.Locale/x86_64/6.11 from remote flathub: Delta requires 913.6 MB free space, but only 149.5 MB available
+Error: Failed to install org.kde.Platform: While pulling runtime/org.kde.Platform/x86_64/6.11 from remote flathub: Delta requires 1.0 GB free space, but only 149.5 MB available

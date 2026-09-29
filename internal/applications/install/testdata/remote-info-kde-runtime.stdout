@@ -1,0 +1,12 @@
+        ID: org.kde.Platform
+       Ref: runtime/org.kde.Platform/x86_64/6.11
+      Arch: x86_64
+    Branch: 6.11
+Collection: org.flathub.Stable
+  Download: 409.9 MB
+ Installed: 1.1 GB
+
+    Commit: fe192771c0992ad873e6a9ccc6e4f087c76314ce5ced165650cc7ea045a6bbaa
+    Parent: 4da4797cdce707e1db7bc25720ac5e1f56818c087621f3737ea5482b0ed53c18
+   Subject: Export org.kde.Platform
+      Date: 2026-09-19 02:24:49 +0000

@@ -1,0 +1,14 @@
+        ID: com.moonlight_stream.Moonlight
+       Ref: app/com.moonlight_stream.Moonlight/x86_64/stable
+      Arch: x86_64
+    Branch: stable
+Collection: org.flathub.Stable
+  Download: 7.7 MB
+ Installed: 18.6 MB
+   Runtime: org.kde.Platform/x86_64/6.11
+       Sdk: org.kde.Sdk/x86_64/6.11
+
+    Commit: 1a2e7c76df37146bbf04ad44b7fd90b889a79c690a6d5b000b1df2cb9cb776ad
+    Parent: d5262f4c9ac8785249260c7a5dfc53d744a8f5dda0391533ae603d688168203d
+   Subject: Merge pull request #84 from flathub/update_deps (234fb6534107)
+      Date: 2026-08-05 03:23:34 +0000
