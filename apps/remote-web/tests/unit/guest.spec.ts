@@ -18,6 +18,7 @@ const familySnap = fixture<StateSnapshot>('state.phone-controller.valid.json');
 const ALL_ACTIONS: ActionName[] = [
   'nav.up', 'nav.down', 'nav.left', 'nav.right', 'select', 'back', 'home', 'app.launch', 'app.close',
   'media.play', 'media.pause', 'media.seek_relative', 'audio.volume_delta', 'audio.mute', 'text.submit', 'shell.restart', 'power.sleep_timer', 'display.off',
+  'pointer.move', 'pointer.click', 'pointer.scroll',
 ];
 
 function sessionFor(snap: StateSnapshot): Session {

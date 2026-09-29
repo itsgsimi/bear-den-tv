@@ -1,0 +1,11 @@
+{
+  "id": "disney-plus",
+  "verified": false,
+  "note": "UNVERIFIED: never tried on the real site. Keys follow the common web-player shortcuts (space play/pause, arrows to skip, f fullscreen); selectors are guesses at its layout and are ignored when they match nothing.",
+  "prefer": ["[data-testid='set-item'] a", "a[data-testid*='tile']"],
+  "modal": ["[data-testid='modal']"],
+  "close": ["[data-testid='modal-close-button']"],
+  "player": ".btm-media-player",
+  "back": ["field", "fullscreen", "overlay", "history"],
+  "media": {"toggle": " ", "seek_back": "ArrowLeft", "seek_forward": "ArrowRight", "seek_step_s": 10, "fullscreen": "f"}
+}

@@ -1,6 +1,7 @@
 # CI: the checks every contributor runs (CONTRIBUTING.md -> Run the checks):
 # `make test` and `make lint`, plus a check that the committed phone remote build
-# (apps/remote-web/dist, embedded by Go) matches a fresh `make web`.
+# (apps/remote-web/dist) and navigation script (apps/web-nav/dist), both
+# embedded by Go, match a fresh build.
 # Toolchain: scripts/bootstrap-toolchain.sh (pinned conda-forge env via
 # micromamba), cached on the files that define it.
 name: CI
@@ -60,13 +61,25 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.npm
-          key: npm-${{ runner.os }}-${{ hashFiles('apps/remote-web/package-lock.json') }}
+          key: npm-${{ runner.os }}-${{ hashFiles('apps/remote-web/package-lock.json', 'apps/web-nav/package-lock.json') }}
           restore-keys: npm-${{ runner.os }}-
+
+      # The navigation script's browser tests (make test-webnav) and the Go
+      # end-to-end tests of web apps run headless Playwright Chromium on
+      # local fixture pages; the Go ones skip without it, which is not a pass.
+      - name: Cache Playwright Chromium
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('apps/web-nav/package-lock.json') }}
+
+      - name: Install Playwright Chromium
+        run: . scripts/env.sh && make apps/web-nav/node_modules/.installed && cd apps/web-nav && npx playwright install chromium
 
       - name: Test and lint
         run: . scripts/env.sh && make test && make lint
 
       # Runs even when tests fail, so both problems are reported in one run.
-      - name: Committed apps/remote-web/dist matches make web
+      - name: Committed web builds (remote-web, web-nav) match a fresh build
         if: success() || failure()
         run: . scripts/env.sh && scripts/check-web-dist.sh

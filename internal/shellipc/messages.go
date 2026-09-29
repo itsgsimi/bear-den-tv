@@ -45,6 +45,7 @@ const (
 	TypeDevicesGrant     = "devices.grant"
 	TypeRemoteConfigure  = "remote.configure"
 	TypeRemoteNowPlaying = "remote.now_playing"
+	TypeAppEnable        = "app.enable"
 	TypeCECConfigure     = "cec.configure"
 	TypeInstallRequest   = "applications.install_request"
 	TypePlaybackSet      = "playback.set"
@@ -350,6 +351,19 @@ type RemoteNowPlaying struct {
 // Kind implements Message.
 func (RemoteNowPlaying) Kind() string { return TypeRemoteNowPlaying }
 
+// AppEnable turns one web app on or off (TV Settings → Streaming sites);
+// stored as config applications[].enabled. Only web adapters can be turned
+// off; anything else fails closed. Answered with Result.
+type AppEnable struct {
+	Type      string `json:"type"`
+	RequestID string `json:"request_id"`
+	AppID     string `json:"app_id"`
+	Enabled   bool   `json:"enabled"`
+}
+
+// Kind implements Message.
+func (AppEnable) Kind() string { return TypeAppEnable }
+
 // CECConfigure stores config cec (TV Settings → TV control over HDMI (CEC)
 // and its volume row). Answered with Result.
 type CECConfigure struct {
@@ -525,6 +539,8 @@ func Decode(frame []byte) (Message, error) {
 		m = &DevicesGrant{}
 	case TypeRemoteConfigure:
 		m = &RemoteConfigure{}
+	case TypeAppEnable:
+		m = &AppEnable{}
 	case TypeRemoteNowPlaying:
 		m = &RemoteNowPlaying{}
 	case TypeCECConfigure:
@@ -623,6 +639,8 @@ func deref(m Message) Message {
 	case *WeatherPlaces:
 		return *t
 	case *WeatherConfigure:
+		return *t
+	case *AppEnable:
 		return *t
 	case *RemoteNowPlaying:
 		return *t

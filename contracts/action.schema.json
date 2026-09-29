@@ -14,7 +14,8 @@
         "audio.volume_delta", "audio.mute",
         "text.submit", "shell.restart",
         "power.sleep_timer", "display.off",
-        "tv.power"
+        "tv.power",
+        "pointer.move", "pointer.click", "pointer.scroll"
       ]
     },
     "targetInfo": {
@@ -56,6 +57,12 @@
          "then": {"properties": {"args": {"type": "object", "properties": {"minutes": {"enum": [0, 15, 30, 45, 60, 90, 120]}}, "required": ["minutes"], "additionalProperties": false}}}},
         {"if": {"properties": {"action": {"const": "tv.power"}}},
          "then": {"properties": {"args": {"type": "object", "properties": {"power": {"enum": ["on", "standby"]}}, "required": ["power"], "additionalProperties": false}}}},
+        {"if": {"properties": {"action": {"const": "pointer.move"}}},
+         "then": {"properties": {"args": {"type": "object", "properties": {"dx": {"type": "integer", "minimum": -400, "maximum": 400}, "dy": {"type": "integer", "minimum": -400, "maximum": 400}}, "required": ["dx", "dy"], "additionalProperties": false}}}},
+        {"if": {"properties": {"action": {"const": "pointer.click"}}},
+         "then": {"properties": {"args": {"type": "object", "properties": {"button": {"enum": ["left", "right"]}}, "required": ["button"], "additionalProperties": false}}}},
+        {"if": {"properties": {"action": {"const": "pointer.scroll"}}},
+         "then": {"properties": {"args": {"type": "object", "properties": {"dy": {"type": "integer", "minimum": -2000, "maximum": 2000, "not": {"const": 0}}}, "required": ["dy"], "additionalProperties": false}}}},
         {"if": {"properties": {"action": {"const": "text.submit"}}},
          "then": {"properties": {"args": {"type": "object", "properties": {"text": {"type": "string", "minLength": 1, "maxLength": 256, "pattern": "^[^\\p{Cc}]*$"}}, "required": ["text"], "additionalProperties": false}}}}
       ]

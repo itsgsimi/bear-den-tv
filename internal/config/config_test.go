@@ -49,7 +49,7 @@ func TestDefaultsMatchFixture(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.Revision != 1 || len(cfg.Applications) != 6 || cfg.Applications[1].Launch.Args[0] != "--fullscreen" || cfg.Applications[2].Adapter != "moonlight" {
+	if cfg.Revision != 1 || len(cfg.Applications) != 10 || cfg.Applications[1].Launch.Args[0] != "--fullscreen" || cfg.Applications[2].Adapter != "moonlight" {
 		t.Fatalf("defaults decoded wrongly: %+v", cfg)
 	}
 	// The core apps always show a tile; the optional ones only when installed.
@@ -83,7 +83,7 @@ func TestSemanticRejections(t *testing.T) {
 		}, "duplicate section id"},
 		"dangling ref": {func(m map[string]any) {
 			s := m["sections"].([]any)[0].(map[string]any)
-			s["application_ids"] = []any{"plex-htpc", "netflix"}
+			s["application_ids"] = []any{"plex-htpc", "ghost-app"}
 		}, "unknown application"},
 		"disallowed arg": {func(m map[string]any) {
 			l := apps(m)[0].(map[string]any)["launch"].(map[string]any)
@@ -93,6 +93,46 @@ func TestSemanticRejections(t *testing.T) {
 			l := apps(m)[0].(map[string]any)["launch"].(map[string]any)
 			l["app_id"] = "org.evil.App"
 		}, "must be"},
+		// Rule 11: web adapters (apps 6..9 are netflix, disney-plus, hulu, browser).
+		"web url with credentials": {func(m map[string]any) {
+			apps(m)[6].(map[string]any)["web"] = map[string]any{"url": "https://viewer:pw@www.netflix.com/"}
+		}, "user name or password"},
+		"web url on another host": {func(m map[string]any) {
+			apps(m)[6].(map[string]any)["web"] = map[string]any{"url": "https://www.netflix.com.example.org/"}
+		}, "must be on netflix.com"},
+		"web url lookalike host": {func(m map[string]any) {
+			apps(m)[6].(map[string]any)["web"] = map[string]any{"url": "https://evilnetflix.com/"}
+		}, "must be on netflix.com"},
+		"web url with port": {func(m map[string]any) {
+			apps(m)[7].(map[string]any)["web"] = map[string]any{"url": "https://www.disneyplus.com:8443/"}
+		}, "port"},
+		"web url ip literal": {func(m map[string]any) {
+			apps(m)[9].(map[string]any)["web"] = map[string]any{"url": "https://192.0.2.7/"}
+		}, "not an IP address"},
+		"web url fragment": {func(m map[string]any) {
+			apps(m)[9].(map[string]any)["web"] = map[string]any{"url": "https://start.example.org/#x"}
+		}, "fragment"},
+		"web url missing": {func(m map[string]any) {
+			delete(apps(m)[8].(map[string]any), "web")
+		}, "web"},
+		"web block on a flatpak app": {func(m map[string]any) {
+			apps(m)[0].(map[string]any)["web"] = map[string]any{"url": "https://www.netflix.com/"}
+		}, "only web adapters take a web block"},
+		"enabled on a flatpak app": {func(m map[string]any) {
+			apps(m)[0].(map[string]any)["enabled"] = false
+		}, "only web adapters can be turned off"},
+		"web adapter twice": {func(m map[string]any) {
+			a := apps(m)[6].(map[string]any)
+			b := map[string]any{}
+			for k, v := range a {
+				b[k] = v
+			}
+			b["id"] = "netflix-2"
+			m["applications"] = append(apps(m), b)
+		}, "already used"},
+		"web launch args": {func(m map[string]any) {
+			apps(m)[9].(map[string]any)["launch"].(map[string]any)["args"] = []any{"--kiosk"}
+		}, "not approved"},
 		"token leak": {func(m map[string]any) {
 			m["plex_content"].(map[string]any)["token"] = "x"
 		}, "credential key"},
@@ -467,14 +507,14 @@ func TestUndoResetExportImport(t *testing.T) {
 	if err := json.Unmarshal(out, &doc); err != nil {
 		t.Fatal(err)
 	}
-	doc.Layout.Sections[0].ApplicationIDs = append(doc.Layout.Sections[0].ApplicationIDs, "netflix")
+	doc.Layout.Sections[0].ApplicationIDs = append(doc.Layout.Sections[0].ApplicationIDs, "ghost-app")
 	doc.Layout.UI.TextScale = 1.8
 	imported, _ := json.Marshal(doc)
 	pv, err := s.ImportPreview(imported)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(pv.UnresolvedApplicationIDs) != 1 || pv.UnresolvedApplicationIDs[0] != "netflix" || !pv.Risky {
+	if len(pv.UnresolvedApplicationIDs) != 1 || pv.UnresolvedApplicationIDs[0] != "ghost-app" || !pv.Risky {
 		t.Fatalf("preview %+v", pv)
 	}
 	if len(pv.Changes) != 2 {

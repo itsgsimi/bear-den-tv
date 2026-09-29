@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"os/exec"
 	"sync"
 	"syscall"
@@ -19,6 +20,10 @@ import (
 type Command struct {
 	Argv []string
 	Env  []string
+	// ExtraFiles are inherited by a started child as fds 3, 4, ... (the
+	// DevTools pipe of a web app, internal/applications/web). `flatpak run`
+	// in the foreground execs bubblewrap without closing inherited fds.
+	ExtraFiles []*os.File
 }
 
 // Result is what a completed command produced. ExitCode is non-zero for a
@@ -84,6 +89,7 @@ func (ExecRunner) Start(ctx context.Context, cmd Command, stdout, stderr io.Writ
 	c := exec.Command(cmd.Argv[0], cmd.Argv[1:]...)
 	c.Env = cmd.Env
 	c.Stdout, c.Stderr = stdout, stderr
+	c.ExtraFiles = cmd.ExtraFiles
 	c.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 	if err := c.Start(); err != nil {
 		return nil, fmt.Errorf("%s: %w", cmd.Argv[0], err)

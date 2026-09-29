@@ -8,6 +8,9 @@ export const PROTOCOL = 1 as const;
 
 export type NavAction = 'nav.up' | 'nav.down' | 'nav.left' | 'nav.right';
 
+/** The touchpad's actions (web apps only; never on a guest pass). */
+export type PointerAction = 'pointer.move' | 'pointer.click' | 'pointer.scroll';
+
 export type ActionName =
   | NavAction
   | 'select'
@@ -24,7 +27,8 @@ export type ActionName =
   | 'shell.restart'
   | 'power.sleep_timer'
   | 'display.off'
-  | 'tv.power';
+  | 'tv.power'
+  | PointerAction;
 
 /** power.sleep_timer minutes: 0 cancels, otherwise one of the fixed choices. */
 export type SleepMinutes = 0 | 15 | 30 | 45 | 60 | 90 | 120;
@@ -72,6 +76,11 @@ export type ActionArgs = {
   'power.sleep_timer': { minutes: SleepMinutes };
   'display.off': Record<string, never>;
   'tv.power': { power: 'on' | 'standby' };
+  /** Touchpad (web apps only): relative move in CSS pixels, -400..400 each. */
+  'pointer.move': { dx: number; dy: number };
+  'pointer.click': { button: 'left' | 'right' };
+  /** Wheel delta in CSS pixels, -2000..2000, non-zero. */
+  'pointer.scroll': { dy: number };
 };
 
 /** `"active"`, `"shell"`, or a registered application id. */
@@ -212,6 +221,8 @@ export interface Application {
   last_error: string | null;
   /** An optional app (config hide_when_missing) that is not installed: no tile. Absent means false. */
   hidden?: boolean;
+  /** Present only for apps the owner can turn on and off on the TV (web apps); false = turned off (and hidden). */
+  enabled?: boolean;
 }
 
 export interface RemoteLimits {

@@ -51,6 +51,18 @@ var Apps = []App{
 	{"org.libretro.RetroArch", "retroarch", "RetroArch", func(string, Caps, Host, Display, Overrides) (Plan, error) {
 		return NoTuning("retroarch", "org.libretro.RetroArch", "RetroArch's video and audio settings belong to each core and game; Bear Den leaves retroarch.cfg alone."), nil
 	}},
+	// Web apps in Chromium (internal/applications/web): the site picks
+	// its own quality, capped for Linux browsers.
+	webRow("netflix", "Netflix"),
+	webRow("disney-plus", "Disney+"),
+	webRow("hulu", "Hulu"),
+	webRow("browser", "Browser"),
+}
+
+func webRow(adapter, label string) App {
+	return App{"org.chromium.Chromium", adapter, label, func(string, Caps, Host, Display, Overrides) (Plan, error) {
+		return NoTuning(adapter, "org.chromium.Chromium", "The site chooses its own quality in Chromium; Bear Den leaves the browser's settings alone."), nil
+	}}
 }
 
 // NoTuning is the plan of an app Bear Den knows but does not tune: no
@@ -404,6 +416,11 @@ func Expectations(adapter string, caps Caps, host Host, disp Display) ([]string,
 		} else {
 			expect = append(expect, "Files decode on the CPU; the Jellyfin server should convert heavy ones.")
 		}
+	case "netflix", "disney-plus", "hulu":
+		expect = append(expect, "Plays at up to 720p in a Linux browser (the services cap it); needs Chromium's Widevine module.")
+		notes = append(notes, Note{"info", "Performance on this box has not been measured."})
+	case "browser":
+		expect = append(expect, "Ordinary web pages; video plays at what the site allows in Chromium.")
 	case "retroarch":
 		expect = append(expect, "Older consoles run well on any box; 3D-era cores need a capable CPU.")
 		if host.Entry() {

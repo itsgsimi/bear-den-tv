@@ -1,0 +1,26 @@
+{
+  "name": "bear-den-tv-web-nav",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Bear Den TV navigation script: injected into web apps (streaming sites, the Browser tile) through the Chrome DevTools Protocol for D-pad control; built into dist/nav.js and embedded by the coordinator binary.",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "lint": "tsc --noEmit -p tsconfig.json && eslint .",
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@playwright/test": "1.63.0",
+    "@types/node": "22.20.4",
+    "ajv": "8.20.0",
+    "esbuild": "0.28.2",
+    "eslint": "10.11.0",
+    "globals": "17.12.0",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.70.1"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

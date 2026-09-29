@@ -270,6 +270,87 @@ func RetroArch() applications.Adapter {
 		home: HomePause{Kind: "key", Key: platform.KeyLetterP, Toggle: true, Why: "A game should wait while you are Home: RetroArch's pause key (p, input_pause_toggle)."}}
 }
 
+// Web adapter names (config adapter, contracts/config.md rule 11).
+const (
+	NetflixName    = "netflix"
+	DisneyPlusName = "disney-plus"
+	HuluName       = "hulu"
+	BrowserName    = "browser"
+
+	// ChromiumFlatpakID is Flathub's Chromium, the only browser web
+	// adapters launch (docs/decisions/0010-web-apps-over-cdp-pipe.md).
+	ChromiumFlatpakID = "org.chromium.Chromium"
+	// WebClassPrefix starts the WM_CLASS Bear Den gives each web adapter's
+	// Chromium (--class=BearDenWeb-<adapter>), so windows of different web
+	// apps and of other Chromium windows are told apart.
+	WebClassPrefix = "BearDenWeb-"
+)
+
+// Web modes: a streaming site opens as a full-screen app window (no tabs,
+// no address bar); the browser is ordinary Chromium, maximized.
+const (
+	WebModeApp     = "app"
+	WebModeBrowser = "browser"
+)
+
+// WebSpec is what makes an adapter a web adapter: Chromium opens a page in
+// its own profile and the coordinator drives it through the navigation
+// script over the DevTools pipe (internal/applications/web).
+type WebSpec struct {
+	// Mode is WebModeApp or WebModeBrowser.
+	Mode string
+	// Hints names the navigation hints file (apps/web-nav/hints/<id>.json);
+	// empty means the generic behaviour only.
+	Hints string
+	// Class is the WM_CLASS class Chromium is started with.
+	Class string
+}
+
+// webApp is a web adapter: no key map (input goes through the page, never
+// XTEST), MPRIS matched on Chromium's desktop entry for Now playing.
+type webApp struct {
+	app
+	web WebSpec
+}
+
+// Web returns the adapter's web spec.
+func (w *webApp) Web() WebSpec { return w.web }
+
+// WebOf reports whether ad is a web adapter and returns its spec.
+func WebOf(ad applications.Adapter) (WebSpec, bool) {
+	if w, ok := ad.(interface{ Web() WebSpec }); ok {
+		return w.Web(), true
+	}
+	return WebSpec{}, false
+}
+
+func newWeb(name, mode, hints string) applications.Adapter {
+	class := WebClassPrefix + name
+	return &webApp{
+		app: app{name: name, flatpakID: ChromiumFlatpakID, fragments: []string{strings.ToLower(class)}, keys: map[string]platform.Key{},
+			// Flathub Chromium's MPRIS DesktopEntry is its Flatpak id
+			// (UNVERIFIED on the TV); matching the bare "chromium" bus name
+			// would also catch Electron apps such as VacuumTube.
+			media: ChromiumFlatpakID,
+			home:  HomePause{Kind: "page", Why: "A film should wait while you are Home: the site's own pause key, only when the page reports a playing video."}},
+		web: WebSpec{Mode: mode, Hints: hints, Class: class},
+	}
+}
+
+// Netflix returns the Netflix web adapter (Chromium app window, hints
+// netflix.json). Plays at up to 720p in a Linux browser.
+func Netflix() applications.Adapter { return newWeb(NetflixName, WebModeApp, "netflix") }
+
+// DisneyPlus returns the Disney+ web adapter.
+func DisneyPlus() applications.Adapter { return newWeb(DisneyPlusName, WebModeApp, "disney-plus") }
+
+// Hulu returns the Hulu web adapter.
+func Hulu() applications.Adapter { return newWeb(HuluName, WebModeApp, "hulu") }
+
+// Browser returns the Browser adapter: ordinary Chromium in its own
+// profile, for keyboard and mouse, with the navigation script too.
+func Browser() applications.Adapter { return newWeb(BrowserName, WebModeBrowser, "") }
+
 // Registry resolves config adapter names to adapters.
 type Registry struct {
 	byName map[string]applications.Adapter
@@ -278,7 +359,7 @@ type Registry struct {
 // NewRegistry returns a registry holding every approved adapter.
 func NewRegistry() *Registry {
 	r := &Registry{byName: map[string]applications.Adapter{}}
-	for _, a := range []applications.Adapter{PlexHTPC(), VacuumTube(), Moonlight(), Spotify(), Jellyfin(), RetroArch()} {
+	for _, a := range []applications.Adapter{PlexHTPC(), VacuumTube(), Moonlight(), Spotify(), Jellyfin(), RetroArch(), Netflix(), DisneyPlus(), Hulu(), Browser()} {
 		r.byName[a.Name()] = a
 	}
 	return r

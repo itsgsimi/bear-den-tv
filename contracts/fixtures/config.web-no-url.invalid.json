@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "revision": 1,
+  "device": {
+    "display_name": "Bear Den",
+    "preferred_display": "auto"
+  },
+  "ui": {
+    "theme": "den-dark",
+    "accent": "#79A889",
+    "background": "den-gradient",
+    "text_scale": 1.0,
+    "tile_density": "comfortable",
+    "safe_margin_percent": 3,
+    "reduced_motion": false,
+    "high_contrast_focus": false,
+    "hero_enabled": true,
+    "clock_enabled": true
+  },
+  "applications": [
+    {
+      "id": "netflix",
+      "label": "Netflix",
+      "adapter": "netflix",
+      "launch": {
+        "kind": "flatpak",
+        "app_id": "org.chromium.Chromium",
+        "args": []
+      },
+      "home_policy": "pause-if-supported",
+      "remote_enabled": true,
+      "web": {}
+    }
+  ],
+  "sections": [
+    {
+      "id": "favorites",
+      "title": "Your Apps",
+      "kind": "applications",
+      "enabled": true,
+      "application_ids": [
+        "netflix"
+      ],
+      "hide_when_empty": false
+    }
+  ],
+  "plex_content": {
+    "enabled": false,
+    "connection_ref": null
+  },
+  "remote": {
+    "enabled": false,
+    "transport": "trusted-lan-http",
+    "port": 8090,
+    "interfaces": [],
+    "allowed_hosts": [],
+    "mdns": true,
+    "http_layout_editing": false,
+    "pairing_expiry_seconds": 120,
+    "pairing_max_attempts": 5,
+    "https": {
+      "certificate_file": null,
+      "private_key_file": null
+    }
+  },
+  "cache": {
+    "artwork_max_mib": 512
+  },
+  "startup": {
+    "autostart_enabled": false
+  },
+  "privacy": {
+    "telemetry_enabled": false
+  },
+  "onboarding": {
+    "completed": false,
+    "lan_consent": false
+  }
+}

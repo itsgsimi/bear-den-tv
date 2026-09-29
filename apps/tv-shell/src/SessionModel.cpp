@@ -198,6 +198,12 @@ bool SessionModel::validateSnapshot(const QJsonObject &snapshot, QString *error)
                 *error = QStringLiteral("state.applications[].hidden must be a boolean");
             return false;
         }
+        // Optional: a web app the owner can turn on and off (Settings → Streaming sites).
+        if (app.contains(QStringLiteral("enabled")) && !app.value(QStringLiteral("enabled")).isBool()) {
+            if (error)
+                *error = QStringLiteral("state.applications[].enabled must be a boolean");
+            return false;
+        }
     }
     const QJsonObject remote = snapshot.value(QStringLiteral("remote")).toObject();
     if (!requireKeys(remote, {QStringLiteral("enabled"), QStringLiteral("transport"), QStringLiteral("listening"), QStringLiteral("addresses"), QStringLiteral("https"),

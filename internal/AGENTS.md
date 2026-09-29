@@ -12,13 +12,14 @@ Wire shapes come from [`contracts/`](../contracts/AGENTS.md) and nowhere else.
 
 | Package | Owns | Key files |
 |---|---|---|
-| [`session`](session/coordinator.go) | the core: epoch, target, state snapshot, action routing; implements `remote.Backend` (phones) and `shellipc.Handler` (shell) | `coordinator.go` (Options, `retargetLocked`, `publish`), `route.go` (`route`, `doLaunch`, `doHome`, `doClose`), `state.go` (`buildStateFor`, `capabilitiesLocked`), `backend.go`, `ipc.go`, `tuning.go`, `nowplaying.go` (`state.now_playing`: the foreground player's reading, memory only), `power.go` (sleep timer, display off and wake: `state.power`), `cec.go` (TV control over HDMI-CEC: `state.cec`, `tv.power`, standby/wake hooks, TV volume), `achievements.go` (Den badges: the event points, `achievements.*` IPC, `state.achievements`) |
+| [`session`](session/coordinator.go) | the core: epoch, target, state snapshot, action routing; implements `remote.Backend` (phones) and `shellipc.Handler` (shell) | `coordinator.go` (Options, `retargetLocked`, `publish`), `route.go` (`route`, `doLaunch`, `doHome`, `doClose`), `state.go` (`buildStateFor`, `capabilitiesLocked`), `web.go` (web apps: `WebApps` seam, routing to the page after a verified foreground, pointer capabilities and rate limits, Home's page pause, IPC `app.enable`), `backend.go`, `ipc.go`, `tuning.go`, `nowplaying.go` (`state.now_playing`: the foreground player's reading, memory only), `power.go` (sleep timer, display off and wake: `state.power`), `cec.go` (TV control over HDMI-CEC: `state.cec`, `tv.power`, standby/wake hooks, TV volume), `achievements.go` (Den badges: the event points, `achievements.*` IPC, `state.achievements`) |
 | [`contract`](contract/contract.go) | Go types for protocol 1 and JSON Schema validation of the embedded `contracts/*.json` | `contract.go`, `validate.go` |
 | [`achievements`](achievements/achievements.go) | Den badges: the badge catalogue (`Badges`, data), events that move named counters (`Launched`, `HomeShown`, `Paired`, `PassIssued`, `SleepTimerSet`, `Parade`) on local calendar days of the injected clock, awards once, `Snapshot`/`Phone` for `state.achievements`, `Reset`; nothing counted while config `achievements.enabled` is false | `achievements.go` |
 | [`actions`](actions/dedup.go) | request de-duplication and server-side hold leases, on an injected clock | `dedup.go`, `holds.go` |
 | [`applications`](applications/applications.go) | `Adapter` and `Launcher` interfaces | `applications.go` |
 | [`applications/adapters`](applications/adapters/adapters.go) | per-app knowledge: Flatpak id, approved args, WM_CLASS or Wayland app_id match, action → key | `adapters.go` |
 | [`applications/flatpak`](applications/flatpak/flatpak.go) | the Flatpak launcher (fixed argv `flatpak info\|run\|ps\|kill`) | `flatpak.go`, `runner.go` |
+| [`applications/web`](applications/web/web.go) | web apps (streaming sites, the Browser tile): Flathub Chromium per app with its own profile, the DevTools pipe (`--remote-debugging-pipe`, no port), the navigation script in the `bearden` isolated world, the closed set of trusted input it performs ([ADR 0010](../docs/decisions/0010-web-apps-over-cdp-pipe.md)) | `web.go` (profile dir, argv, `AllowedKeys`), `cdp.go` (the pipe client), `browser.go` (`Manager`: Launch, Apply, Pointer, PauseIfPlaying, Close), `script.go` (embedded `nav.js` + hints) |
 | [`applications/tuning`](applications/tuning/tuning.go) | playback detection and per-app settings ([`docs/APP_PERFORMANCE.md`](../docs/APP_PERFORMANCE.md)) | `detect.go` (`Apps` table), `plans.go` (`Plan<App>`) |
 | [`config`](config/config.go) | `config.json`: defaults, validation, atomic writes, last-known-good, layout workflow | `config.go`, `validate.go`, `store.go`, `layout.go` |
 | [`pairing`](pairing/pairing.go) | invitations, redemption, device/session records (`remote.Devices`), guest passes (`IssuePass`, `PassEnd`, the expiry sweep on the injected clock) | `pairing.go`, `guest.go`, `qr.go` |
@@ -50,6 +51,9 @@ Embeds live in the repository root [`embed.go`](../embed.go): `contracts/`,
 | `newHarness(t, configure...)` | [`session/session_test.go`](session/session_test.go) | a real `Coordinator` on `fake.Desktop`, `fakeLock`, `fakeLauncher`, an on-disk `config.Store`, in-memory SQLite, a real shell socket. `h.req(action, args)` builds a request at the current epoch, `h.submit(viewer, req)`, `h.eventually(what, cond)`, viewers `h.ctl` (controller) and `h.owner` |
 | `fakeShell` | same file | answers `input`/`home` like the real shell (`observed` with focus detail), records inputs in `h.inputs` |
 | `fakeLauncher`, `fakeLock`, `fakeTuner` | same file | launching maps a window on the fake desktop; lock pushes through `set`; the tuner returns a canned report and records apps it applied |
+| `fakeWeb`, `lyingDesk` | [`session/web_test.go`](session/web_test.go) | a web manager that maps a window with the adapter's class and records what reached the page; a desktop that names another window when the foreground is re-read |
+| `fake.Web` | [`platform/fake/web.go`](platform/fake/web.go) | the pretend web manager behind `bear-den-tv dev` (a DEMO page, no Chromium); `dev --dev-browser PATH` runs the real manager on a Chromium binary instead |
+| `fakeChromium` | [`applications/web/pipe_test.go`](applications/web/pipe_test.go) | the other end of the DevTools pipe: scripted replies, events, and a record of every command |
 | `fake.Desktop`, `fake.Launcher` | [`platform/fake`](platform/fake/fake.go) | in-memory windows (`AddWindow`, `SetActive`, `RemoveWindow`), delivered keys (`Keys()`); also backs `bear-den-tv dev` |
 | `fake.Display` | [`platform/fake/display.go`](platform/fake/display.go) | display power: `Off`/`On` calls (`Calls()`), `Changed()` while settings are not restored, `Wake()` plays a TV key, `SetIdle`, an `OnOff` hook; also backs `bear-den-tv dev` |
 | `fake.TV` | [`platform/fake/tv.go`](platform/fake/tv.go) | HDMI-CEC TV: power state changed by `PowerOn`/`Standby`, `Calls()` in order, `SetCapability` (no adapter), `Fail`, `Hang`, `SetAnswers`; also backs `bear-den-tv dev` |
@@ -153,6 +157,13 @@ An app is data in a few closed tables; no engine code branches on it.
    scripts/target.sh ssh 'DISPLAY=:0 build/bin/bdtv-probe' > /tmp/probe.json
    ```
 
+A **web app** (a website in Chromium) is also a row: `newWeb(name, mode, hints)` in
+`adapters.go`, a `WebRule` (allowed hosts) in `config.DefaultAdapters`, a hints
+file in [`apps/web-nav/hints/`](../apps/web-nav/AGENTS.md) (UNVERIFIED until
+checked on the real site), and its row in the defaults with `web.url`,
+`hide_when_missing` and, for a streaming service, `enabled: false`
+([`contracts/config.md`](../contracts/config.md) rule 11).
+
 Done when: the tests pass, the WM_CLASS in `adapters.go` matches the probe
 (or is marked UNVERIFIED), and, if it ships by default, a fresh `make dev` shows its tile.
 
@@ -231,7 +242,7 @@ keep its header comment and `usage()` text in step with it.
 
 | Command | File |
 |---|---|
-| `session`, `dev` | `session.go` (wires every package; `dev` uses `fake.Desktop`, loopback, DEMO weather; `--dev-fixtures` adds DEMO content) |
+| `session`, `dev` | `session.go` (wires every package; `dev` uses `fake.Desktop`, loopback, DEMO weather, a pretend web app page; `--dev-fixtures` adds DEMO content; `--dev-browser PATH` runs web apps in a real Chromium binary, `webdev.go`) |
 | `doctor`, `pair [--guest tonight\|24h\|7d]`, `devices`, `remote` | `cli.go` |
 | `artwork fetch` | `artwork.go` |
 | `autostart`, `shortcut` `enable\|disable\|status` | `autostart.go`, `shortcut.go` |

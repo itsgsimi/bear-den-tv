@@ -11,6 +11,7 @@ Every process speaks the same versioned contract. Go (coordinator), C++/QML (TV 
 | `config.schema.json` + `config.md` | Structural schema for `config.json`; semantic rules live in `internal/config` and are listed in `config.md` |
 | `layout.schema.json` | The home-screen layout (sections, items, `ui` appearance settings) |
 | `theme.schema.json` | A theme package's `theme.json` manifest ([`docs/THEMES.md`](../docs/THEMES.md)) |
+| `web-hints.schema.json` | A web app's navigation hints (`apps/web-nav/hints/<adapter>.json`, embedded; never from phones or config; [ADR 0010](../docs/decisions/0010-web-apps-over-cdp-pipe.md)) |
 | `fixtures/` | Canonical example messages used by contract tests in all three languages |
 
 Rules that hold everywhere:

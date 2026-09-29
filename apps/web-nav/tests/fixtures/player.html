@@ -1,0 +1,58 @@
+<!doctype html>
+<!-- Local fixture that mimics a streaming site's player page: a <video> fed
+     by a canvas stream (no media files), and the site's own keyboard
+     shortcuts (space or k toggles, arrows skip 10 s by counting, f toggles
+     fullscreen). Like Netflix, it treats a direct currentTime change as an
+     error (data-seek-error), so the script must seek by keys. Used by
+     tests/nav.spec.ts; no real service is involved. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>DEMO Player</title>
+<style>
+  body { margin: 0; background: #000; color: #eee; font-family: sans-serif; }
+  #player { position: relative; width: 960px; height: 540px; margin: 20px auto; }
+  video { width: 100%; height: 100%; background: #111; }
+  #controls { display: flex; gap: 12px; padding: 12px; }
+  #controls button { font-size: 18px; padding: 8px 16px; }
+</style>
+</head>
+<body>
+<div id="player" class="demo-player">
+  <video id="video" muted playsinline></video>
+</div>
+<div id="controls">
+  <button id="back-to-browse">Back to browse</button>
+  <button id="episodes">Episodes</button>
+</div>
+<script>
+  const video = document.getElementById('video');
+  const canvas = document.createElement('canvas');
+  canvas.width = 64; canvas.height = 36;
+  const g = canvas.getContext('2d');
+  let hue = 0;
+  setInterval(() => { hue = (hue + 7) % 360; g.fillStyle = `hsl(${hue} 60% 40%)`; g.fillRect(0, 0, 64, 36); }, 100);
+  video.srcObject = canvas.captureStream(10);
+  video.play();
+  let seeks = 0;
+  document.body.dataset.seeks = '0';
+  video.addEventListener('seeking', () => { document.body.dataset.seekError = 'yes'; });
+  document.addEventListener('keydown', (e) => {
+    const t = e.target;
+    if (t && (t.tagName === 'BUTTON' || t.tagName === 'INPUT')) return; // a focused button takes space itself
+    if (e.key === ' ' || e.key === 'k') {
+      e.preventDefault();
+      if (video.paused) video.play(); else video.pause();
+    } else if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+      e.preventDefault();
+      seeks += e.key === 'ArrowRight' ? 10 : -10;
+      document.body.dataset.seeks = String(seeks);
+    } else if (e.key === 'f') {
+      if (document.fullscreenElement) document.exitFullscreen(); else document.getElementById('player').requestFullscreen();
+    }
+    document.body.dataset.lastKeyTrusted = String(e.isTrusted);
+  });
+  document.getElementById('back-to-browse').addEventListener('click', () => history.back());
+</script>
+</body>
+</html>

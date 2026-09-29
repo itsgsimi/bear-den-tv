@@ -210,6 +210,13 @@ func (c *Coordinator) appStatesLocked(apps []configApp) []contract.AppState {
 		st.Running = st.Foreground || rt.launchState == "running" || rt.instance != nil
 		// An optional app has no tile until discovery has seen it installed.
 		st.Hidden = a.HideWhenMissing && !st.Installed
+		// A web app the owner can turn on and off (Settings → Streaming
+		// sites) says so; turned off, it has no tile.
+		if c.isWebAdapter(a.Adapter) {
+			on := a.IsEnabled()
+			st.Enabled = &on
+			st.Hidden = st.Hidden || !on
+		}
 		out = append(out, st)
 	}
 	return out
@@ -264,9 +271,14 @@ func (c *Coordinator) capabilitiesLocked() map[string]contract.Capability {
 		caps[a] = c.inputCapLocked(a, desk, shellUp)
 	}
 	// text.submit only into a focused shell text field (Settings → Weather
-	// search); never into external apps.
+	// search) or a focused field on a web app's page; never into other
+	// external apps.
+	_, webInFront := c.webSpecFor(strOr(c.target.AppID))
+	webInFront = webInFront && c.target.Kind == "app"
 	if c.target.Kind == "shell" && shellUp && c.shellTextField {
 		caps[contract.ActionTextSubmit] = available(backendShellText)
+	} else if webInFront {
+		caps[contract.ActionTextSubmit] = c.webInputCapLocked(contract.ActionTextSubmit, strOr(c.target.AppID), c.target.Label, desk)
 	} else {
 		caps[contract.ActionTextSubmit] = unavailable("No text field is focused.")
 	}
@@ -309,6 +321,13 @@ func (c *Coordinator) capabilitiesLocked() map[string]contract.Capability {
 	caps[contract.ActionMediaPlay] = media
 	caps[contract.ActionMediaPause] = media
 	caps[contract.ActionMediaSeek] = media
+	if webInFront {
+		// A web page's video, through the site's own keys (web.go).
+		for _, a := range []string{contract.ActionMediaPlay, contract.ActionMediaPause, contract.ActionMediaSeek} {
+			caps[a] = c.webInputCapLocked(a, strOr(c.target.AppID), c.target.Label, desk)
+		}
+	}
+	c.pointerCapsLocked(caps, desk)
 
 	if c.opts.Audio == nil {
 		caps[contract.ActionAudioVolume] = unavailable("PC volume control is not available.")
@@ -339,6 +358,9 @@ func (c *Coordinator) inputCapLocked(action string, desk map[string]platform.Cap
 			cp = available(backendShell)
 		}
 	case "app":
+		if _, isWeb := c.webSpecFor(strOr(c.target.AppID)); isWeb {
+			return c.webInputCapLocked(action, strOr(c.target.AppID), c.target.Label, desk)
+		}
 		ad, ok := c.adapterFor(strOr(c.target.AppID))
 		switch {
 		case !desk[platform.CapInput].Available:

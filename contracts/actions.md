@@ -36,13 +36,16 @@
 | `media.seek_relative` | `{"seconds": -30}` (−600..600, non-zero) | controller | Only with a verified seek capability. |
 | `audio.volume_delta` | `{"delta": 5}` (−100..100, non-zero) | controller | PC/PulseAudio default sink; labeled "PC volume". With HDMI-CEC enabled and `cec.volume_target: "tv"`: the TV's volume instead (see [TV control over HDMI-CEC](#tv-control-over-hdmi-cec)). |
 | `audio.mute` | `{"muted": true}` | controller | PC/PulseAudio default sink; the TV with `cec.volume_target: "tv"`. |
-| `text.submit` | `{"text": "..."}` (1..256 chars, no control chars) | controller | Only into a target with a validated text adapter (shell search/pairing fields). Off for external apps. |
+| `text.submit` | `{"text": "..."}` (1..256 chars, no control chars) | controller | Only into a target with a validated text adapter: a focused shell text field, or a focused field on a web app's page (the page reports it; the text replaces the field's value, then Enter). Off for other external apps. |
 | `shell.restart` | `{}` | owner | Recovery only: restart a crashed/stuck shell through the coordinator supervisor. Never kills external players. |
 | `power.sleep_timer` | `{"minutes": 45}` (0 cancels; else 15, 30, 45, 60, 90 or 120) | controller | Sets, replaces or cancels the sleep timer on the coordinator clock (`state.power.sleep_at_ms`). `observed` with `detail.sleep_at_ms` (null after a cancel). 60 s before it fires `state.power.warning` turns true, the TV shows "Going to sleep in 1 minute" and any input cancels it. When it fires: pause through MPRIS only if the foreground app's own player is verified (never a guessed key), then the `home` path, then the display off; while locked only the display goes off. Ignores stale epochs. |
 | `display.off` | `{}` | controller | Turns the display off now (X11 DPMS; `state.power.display = "off"`). `observed` when the display reports off, `delivered` when that could not be read back, `observed` with `detail.already_off` when it was off. Any input turns it on again. Ignores stale epochs. |
+| `pointer.move` | `{"dx": 12, "dy": -7}` (each −400..400, CSS pixels) | controller | Touchpad: moves the pointer on a web app's page. See [Web apps](#web-apps). `delivered`. |
+| `pointer.click` | `{"button": "left"}` (`left` or `right`) | controller | Touchpad: clicks where the pointer is. `delivered`. |
+| `pointer.scroll` | `{"dy": 240}` (−2000..2000, non-zero) | controller | Touchpad: scrolls the page under the pointer. `delivered`. |
 | `tv.power` | `{"power": "on"}` or `{"power": "standby"}` | controller | HDMI-CEC, only while `capabilities["tv.power"]` is available (an adapter is present and the owner turned on `cec.enabled`). `on`: Image View On, then Active Source, so the TV wakes and switches to Bear Den's input. `standby`: Standby to the TV. `delivered` when the TV acknowledged the frames, `observed` (`detail.tv_power`) when it then reports that power state. Ignores stale epochs. |
 
-**Guest passes** ([`http.md`](http.md#guest-passes)) are not `controller`: a device with `guest` may send only `nav.*`, `select`, `back`, `home`, `app.launch`, `media.play`, `media.pause`, `media.seek_relative`, `audio.volume_delta`, `audio.mute` and `text.submit` (`contract.GuestActions`). Every other action, including `app.close` in any mode, `shell.restart` and any action added later, is refused to guests with `failed/forbidden`. A new action joins the guest list only on purpose.
+**Guest passes** ([`http.md`](http.md#guest-passes)) are not `controller`: a device with `guest` may send only `nav.*`, `select`, `back`, `home`, `app.launch`, `media.play`, `media.pause`, `media.seek_relative`, `audio.volume_delta`, `audio.mute` and `text.submit` (`contract.GuestActions`). Every other action, including `app.close` in any mode, `shell.restart`, the `pointer.*` touchpad and any action added later, is refused to guests with `failed/forbidden`. A new action joins the guest list only on purpose.
 
 Unknown or disabled actions ⇒ `failed/unsupported` with a `message` explaining why (for example "VacuumTube pause has not been verified on this installation").
 
@@ -60,6 +63,22 @@ Optional, off unless an HDMI-CEC adapter is present and the owner turned on `cec
 - **Wake.** The press that wakes a display Bear Den turned off, any action after Bear Den put the TV in standby, a TV key while the display was off, and every `home` send Image View On and Active Source, so the TV comes on and shows Bear Den's input. These run in the background: an action never waits on the HDMI-CEC bus.
 - **Volume.** With `cec.volume_target: "tv"`, `audio.volume_delta` sends one Volume Up or Volume Down key press (User Control Pressed, then Released) per started 5 % of `delta` (at most 5), and `audio.mute` sends Mute Function (`muted: true`) or Restore Volume Function (`false`), to the audio system when one answers on the bus, else to the TV. `delivered` only: the TV does not report its volume. When the TV is chosen but HDMI-CEC is not working, both are unavailable with the reason; they never fall back to the PC silently.
 - **Timeouts.** Every HDMI-CEC call is bounded (3 s); a TV that does not answer leaves `state.cec.tv_power` `unknown`.
+
+## Web apps
+
+The web adapters (`netflix`, `disney-plus`, `hulu`, `browser`; [`config.md`](config.md) rule 11) run in Flathub Chromium, driven over the DevTools pipe ([ADR 0010](../docs/decisions/0010-web-apps-over-cdp-pipe.md)). With one in front:
+
+| Action | What happens | Outcome |
+|---|---|---|
+| `nav.*` | The navigation script moves its focus ring to the nearest focusable element in that direction (links, buttons, `[role=button]`, `[tabindex]`, `cursor: pointer` cards; inside an open overlay only) and reports where it landed. At a row's end, up/down scroll the page. | `observed`, `detail`: `page` (`moved`, `edge`, `scrolled`), `focus_role`, `focus_index`, `text_field`. Never a label (titles are private). |
+| `select` | A trusted click at the focused element's centre; on a text field, focus only. | `delivered` (`page: click`), or `observed` (`page: text_field`). |
+| `back` | First that applies: leave a text field, leave full screen, close an overlay (its Close button, else Escape), history back. At the start page nothing happens. | `observed` (`left_field`, `at_root`) or `delivered` (`exited_fullscreen`, `closing_overlay`, `history_back`). |
+| `media.play`, `media.pause`, `media.seek_relative` | Only while the page reports a `<video>`. The site's documented keys (space/k, arrows; per-site hints), never setting `currentTime`. | Play/pause `observed` when the page then reports the video playing/paused (`detail.video`), else `delivered`; seek `delivered`. |
+| `text.submit` | Only while the page reports a focused text field. | `delivered`. |
+| `pointer.*` | The touchpad: a cursor Bear Den keeps inside the page, trusted mouse events. | `delivered`. |
+| `home` | If the app's `home_policy` is `pause-if-supported` and the page reports a playing video: its pause key first. | Home's usual result, `detail.paused` true or false. |
+
+Rules: input is sent only after the web app's own window is re-read as the active window (`target_unfocused` otherwise); XTEST keys never reach a web app. Capabilities (backend `web-cdp`) are unavailable with a reason when the session has no web manager, the desktop cannot confirm the foreground, or Bear Den holds no DevTools connection to the app ("Close it and open it again from Home"). `pointer.*` are available only with a web app in front ("The touchpad works only in web apps." otherwise), are never holdable, and are rate limited per sender: 60 `pointer.move`, 30 `pointer.scroll`, 5 `pointer.click` a second (`contract.PointerRates`); more is `failed/rate_limited`. A refusal from the page (no video, no focusable element, an effect outside the closed set) is `failed/unsupported` with its reason.
 
 ## Result
 

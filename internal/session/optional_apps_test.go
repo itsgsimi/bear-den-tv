@@ -35,7 +35,10 @@ func TestOptionalAppsHiddenWhenMissing(t *testing.T) {
 			"rocks.shy.VacuumTube": true, "com.moonlight_stream.Moonlight": true, "com.spotify.Client": true,
 		}}
 	})
-	want := map[string]bool{"plex-htpc": false, "youtube": false, "moonlight": false, "spotify": false, "jellyfin": true, "retroarch": true}
+	// Chromium is not installed either: every web app is hidden (and the
+	// streaming sites are also off by default).
+	want := map[string]bool{"plex-htpc": false, "youtube": false, "moonlight": false, "spotify": false, "jellyfin": true, "retroarch": true,
+		"netflix": true, "disney-plus": true, "hulu": true, "browser": true}
 	check := func(who string, apps []contract.AppState) {
 		t.Helper()
 		if len(apps) != len(want) {

@@ -1,0 +1,80 @@
+<!doctype html>
+<!-- Local fixture that mimics a streaming site's browse page: a header, rows
+     of DEMO poster cards (some links, some cursor:pointer divs), a row that
+     scrolls sideways, and a details overlay (role=dialog) with a Close
+     button. Used by tests/nav.spec.ts; no real service is involved. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>DEMO Browse</title>
+<style>
+  body { margin: 0; font-family: sans-serif; background: #141414; color: #eee; }
+  header { display: flex; gap: 24px; padding: 16px 40px; background: #000; }
+  header a { color: #eee; text-decoration: none; padding: 8px 12px; }
+  h2 { margin: 24px 40px 8px; font-size: 20px; }
+  .row { display: flex; gap: 12px; padding: 0 40px; overflow-x: auto; }
+  .card { flex: 0 0 220px; height: 124px; border-radius: 6px; background: #444; display: flex; align-items: end; padding: 8px; box-sizing: border-box; color: #fff; text-decoration: none; }
+  .card.div { cursor: pointer; background: #355; }
+  .card .inner { cursor: pointer; }
+  .spacer { height: 900px; }
+  #details { position: fixed; inset: 80px 200px; background: #222; border: 2px solid #666; padding: 24px; display: none; }
+  #details.open { display: block; }
+  #details button { font-size: 18px; margin-right: 12px; padding: 8px 16px; }
+</style>
+</head>
+<body>
+<header>
+  <a id="nav-home" href="#home">Home</a>
+  <a id="nav-shows" href="#shows">Shows</a>
+  <a id="nav-search" href="search.html">Search</a>
+</header>
+<h2>DEMO Continue watching</h2>
+<div class="row" id="row-1">
+  <a class="card" id="r1c1" href="#r1c1">DEMO One</a>
+  <a class="card" id="r1c2" href="#r1c2">DEMO Two</a>
+  <a class="card" id="r1c3" href="#r1c3">DEMO Three</a>
+  <a class="card" id="r1c4" href="#r1c4">DEMO Four</a>
+</div>
+<h2>DEMO Popular</h2>
+<div class="row" id="row-2">
+  <div class="card div" id="r2c1"><span class="inner">DEMO Five</span></div>
+  <div class="card div" id="r2c2">DEMO Six</div>
+  <div class="card div" id="r2c3">DEMO Seven</div>
+  <div class="card div" id="r2c4">DEMO Eight</div>
+  <div class="card div" id="r2c5">DEMO Nine</div>
+  <div class="card div" id="r2c6">DEMO Ten</div>
+  <div class="card div" id="r2c7">DEMO Eleven</div>
+  <div class="card div" id="r2c8">DEMO Twelve</div>
+  <div class="card div" id="r2c9">DEMO Thirteen</div>
+</div>
+<h2>DEMO More</h2>
+<div class="row" id="row-3">
+  <div class="card div" id="r3c1">DEMO Fourteen</div>
+  <div class="card div" id="r3c2">DEMO Fifteen</div>
+</div>
+<div class="spacer"></div>
+<div id="details" role="dialog" aria-modal="true" aria-label="DEMO details">
+  <p id="details-title"></p>
+  <button id="play">Play</button>
+  <button id="more">More like this</button>
+  <button id="close" aria-label="Close">X</button>
+</div>
+<script>
+  // Clicking a card opens the overlay; the overlay's Close hides it. Every
+  // click is recorded on <body data-clicked> for the tests.
+  document.addEventListener('click', (e) => {
+    const card = e.target.closest('.card');
+    const btn = e.target.closest('button');
+    if (card) {
+      e.preventDefault();
+      document.body.dataset.clicked = card.id;
+      document.getElementById('details-title').textContent = card.textContent;
+      document.getElementById('details').classList.add('open');
+    } else if (btn) {
+      document.body.dataset.clicked = btn.id;
+      if (btn.id === 'close') document.getElementById('details').classList.remove('open');
+    }
+  });
+</script>
+</body>
+</html>

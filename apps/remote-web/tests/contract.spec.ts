@@ -77,8 +77,20 @@ const SCHEMA_FOR: Record<string, string> = {
   'layout.art-style-bad.invalid.json': 'layout.schema.json',
   
   'config.weather-no-place.invalid.json': 'config.schema.json',
+  'action.request.pointer-move.valid.json': 'action.schema.json#/$defs/request',
+  'action.request.pointer-click.valid.json': 'action.schema.json#/$defs/request',
+  'action.request.pointer-scroll.valid.json': 'action.schema.json#/$defs/request',
+  'action.request.pointer-move-too-far.invalid.json': 'action.schema.json#/$defs/request',
+  'action.request.pointer-click-coordinates.invalid.json': 'action.schema.json#/$defs/request',
+  'state.phone-web-app.valid.json': 'state.schema.json',
+  'state.enabled-not-bool.invalid.json': 'state.schema.json',
+  'config.web-apps.valid.json': 'config.schema.json',
+  'config.web-http.invalid.json': 'config.schema.json',
+  'config.web-no-url.invalid.json': 'config.schema.json',
 };
-const SEMANTIC_ONLY = new Set(['config.dangling-ref.invalid.json', 'config.token-leak.invalid.json', 'config.weather-precise.invalid.json']);
+const SEMANTIC_ONLY = new Set(['config.dangling-ref.invalid.json', 'config.token-leak.invalid.json', 'config.weather-precise.invalid.json',
+  // Rule 11 (config.md): user info, another host and launch args are Go-only semantic checks.
+  'config.web-credentials.invalid.json', 'config.web-wrong-host.invalid.json', 'config.web-launch-args.invalid.json']);
 
 describe('contracts/fixtures', () => {
   const files = readdirSync(fixtures).filter((f) => f.endsWith('.json'));

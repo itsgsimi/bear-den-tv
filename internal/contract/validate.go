@@ -30,6 +30,7 @@ const (
 	schemaLayout        = "layout.schema.json"
 	schemaConfig        = "config.schema.json"
 	schemaTheme         = "theme.schema.json"
+	schemaWebHints      = "web-hints.schema.json"
 )
 
 // MaxMessageBytes bounds every raw document handed to the validators; larger
@@ -69,7 +70,7 @@ func compile() (map[string]*jsonschema.Schema, error) {
 	compileOnce.Do(func() {
 		c := jsonschema.NewCompiler()
 		c.DefaultDraft(jsonschema.Draft2020)
-		for _, name := range []string{"action.schema.json", "state.schema.json", "layout.schema.json", "config.schema.json", "theme.schema.json"} {
+		for _, name := range []string{"action.schema.json", "state.schema.json", "layout.schema.json", "config.schema.json", "theme.schema.json", "web-hints.schema.json"} {
 			raw, err := fs.ReadFile(bdtv.Contracts, "contracts/"+name)
 			if err != nil {
 				compileErr = fmt.Errorf("contract: read %s: %w", name, err)
@@ -89,7 +90,7 @@ func compile() (map[string]*jsonschema.Schema, error) {
 			}
 		}
 		compiled = map[string]*jsonschema.Schema{}
-		for _, loc := range []string{schemaActionRequest, schemaActionResult, schemaHoldMessage, schemaState, schemaLayout, schemaConfig, schemaTheme} {
+		for _, loc := range []string{schemaActionRequest, schemaActionResult, schemaHoldMessage, schemaState, schemaLayout, schemaConfig, schemaTheme, schemaWebHints} {
 			s, err := c.Compile(schemaBase + loc)
 			if err != nil {
 				compileErr = fmt.Errorf("contract: compile %s: %w", loc, err)
@@ -245,6 +246,14 @@ func ValidateLayout(raw []byte) (Layout, error) {
 // theme.schema.json. File existence is checked by internal/themes.
 func ValidateTheme(raw []byte) error {
 	_, err := validateRaw(schemaTheme, raw)
+	return err
+}
+
+// ValidateWebHints checks a navigation hint file (apps/web-nav/hints/*.json)
+// against web-hints.schema.json; internal/applications/web refuses to inject
+// hints that fail it.
+func ValidateWebHints(raw []byte) error {
+	_, err := validateRaw(schemaWebHints, raw)
 	return err
 }
 

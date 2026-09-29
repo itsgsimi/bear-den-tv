@@ -6,7 +6,7 @@
 
 1. `applications[].id` and `sections[].id` are unique within their arrays and never collide with the reserved words `active`, `shell`.
 2. Every `sections[].application_ids[]` entry references an existing `applications[].id`.
-3. `applications[].launch.args` must be a subset of the adapter's approved argument list: `vacuumtube` ⇒ `--fullscreen`, `--no-window-decorations`; `jellyfin` ⇒ `--fullscreen`, `--tv`; `retroarch` ⇒ `--fullscreen`; `plex-htpc`, `moonlight` and `spotify` ⇒ none. `launch.app_id` must equal the adapter's known Flatpak id (`rocks.shy.VacuumTube`, `tv.plex.PlexHTPC`, `com.moonlight_stream.Moonlight`, `com.spotify.Client`, `org.jellyfin.JellyfinDesktop`, `org.libretro.RetroArch`).
+3. `applications[].launch.args` must be a subset of the adapter's approved argument list: `vacuumtube` ⇒ `--fullscreen`, `--no-window-decorations`; `jellyfin` ⇒ `--fullscreen`, `--tv`; `retroarch` ⇒ `--fullscreen`; `plex-htpc`, `moonlight` and `spotify` ⇒ none; the web adapters `netflix`, `disney-plus`, `hulu`, `browser` ⇒ none (the coordinator builds Chromium's arguments itself, rule 11). `launch.app_id` must equal the adapter's known Flatpak id (`rocks.shy.VacuumTube`, `tv.plex.PlexHTPC`, `com.moonlight_stream.Moonlight`, `com.spotify.Client`, `org.jellyfin.JellyfinDesktop`, `org.libretro.RetroArch`, and `org.chromium.Chromium` for every web adapter).
 4. `remote.enabled` requires `onboarding.lan_consent == true` and every `remote.interfaces[]` to be an interface that exists on this host and is not loopback or a virtual interface (names starting `docker`, `br`, `veth`, `tun`, `tap`, `wg`, `virbr`, `vmnet`, `lxc`, `cni`, `flannel`, `tailscale`, `utun`). Non-existent interfaces fail loud at load ("interface wlan9 not present") and the listener stays down; the shell shows the reconfiguration route.
 5. `remote.transport == "https"` with `remote.enabled` requires readable `certificate_file` and `private_key_file` that parse as a PEM certificate/key pair.
 6. `remote.http_layout_editing` is only honored in `trusted-lan-http`; in `https` layout editing is governed by device permission alone.
@@ -14,6 +14,8 @@
 8. `revision` must be greater than the revision of the currently loaded configuration when written through the API (optimistic concurrency); on disk it must be ≥ 1.
 9. `schema_version` other than 1 ⇒ the file is refused, the last-known-good copy is loaded, and the shell shows an error banner.
 10. `weather.place.latitude` and `weather.place.longitude` carry at most 2 decimals (about 1 km): the coordinator never stores a more precise location. `weather.enabled` requires a `place` (also structural) and `units` is `celsius` or `fahrenheit`.
+
+11. **Web adapters** (`netflix`, `disney-plus`, `hulu`, `browser`): `web.url` is the page Chromium opens. It must be `https`, name a host (not an IP address), carry no user name or password, no port and no fragment, no spaces or control characters, at most 512 characters; for `netflix`, `disney-plus` and `hulu` the host must be `netflix.com`, `disneyplus.com`, `hulu.com` or a subdomain (and `web.url` is required); the `browser` takes any such host, and without `web` it opens `about:blank` (no search engine). Only web adapters may carry `web` or `enabled`, and each web adapter is used by at most one application (its window class and profile are its own). Errors never repeat the URL.
 
 ## Persistence
 
@@ -38,6 +40,13 @@ Preview (`POST /api/v1/layout/preview`) sends a draft to the shell over IPC with
 
 - `applications[].hide_when_missing` (boolean, absent = `false`): an optional app. While its Flatpak is not installed (or not yet discovered) the coordinator marks it `hidden` in `state.applications[]` and neither the shell nor phones draw a tile for it; the core apps leave it out and show "Not installed" instead. The built-in defaults ship Spotify, Jellyfin and RetroArch this way, after the three core apps, in the "Your Apps" rail.
 - Defaults only seed a fresh install: an existing `config.json` keeps its own `applications` list, so an existing box gains the optional apps only by adding their rows (copy them from [`fixtures/config.default.valid.json`](fixtures/config.default.valid.json)).
+- Additive: `schema_version` stays 1.
+
+## Web apps (optional fields)
+
+- `applications[].web` (`{"url"}`) for the web adapters (rule 11). Owner-edited on the TV; phones never send page addresses. The built-in defaults open `https://www.netflix.com/`, `https://www.disneyplus.com/`, `https://www.hulu.com/` and, for the browser, nothing (`about:blank`).
+- `applications[].enabled` (boolean, absent = `true`): `false` means the owner turned the app off; the coordinator marks it `hidden` and refuses to launch it. Written by the trusted local `app.enable` ([`ipc.md`](ipc.md): TV Settings → Streaming sites). The defaults ship Netflix, Disney+ and Hulu with `enabled: false` and all four web apps with `hide_when_missing: true` (no tiles while Chromium is not installed).
+- Each web app runs with its own Chromium profile in `$XDG_DATA_HOME/bear-den-tv/web/<app-id>` (sign-ins live there, never in this file).
 - Additive: `schema_version` stays 1.
 
 ## Playback tuning (optional fields)

@@ -1,0 +1,12 @@
+{
+  "id": "netflix",
+  "verified": false,
+  "note": "UNVERIFIED: never tried on the real site. Keys from Netflix's published keyboard shortcuts (space play/pause, arrows 10 s, f fullscreen); selectors are guesses at its layout and are ignored when they match nothing.",
+  "prefer": [".title-card a", ".title-card-container a"],
+  "skip": [".slider-refocus"],
+  "modal": [".previewModal--container", "[data-uia='modal']"],
+  "close": [".previewModal-close", "[data-uia='previewModal-closebtn']"],
+  "player": ".watch-video",
+  "back": ["field", "fullscreen", "overlay", "history"],
+  "media": {"toggle": " ", "seek_back": "ArrowLeft", "seek_forward": "ArrowRight", "seek_step_s": 10, "fullscreen": "f"}
+}

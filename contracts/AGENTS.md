@@ -12,6 +12,7 @@ the rules that hold everywhere: [`README.md`](README.md).
 | [`layout.schema.json`](layout.schema.json) | `ui` + `sections`, the editable home layout | `ValidateLayout` |
 | [`config.schema.json`](config.schema.json) + [`config.md`](config.md) | `config.json` structure; semantic rules in `config.md` are enforced by `internal/config` | `ValidateConfigStructure` |
 | [`theme.schema.json`](theme.schema.json) | a theme package's `theme.json` ([`docs/THEMES.md`](../docs/THEMES.md)) | `ValidateTheme` |
+| [`web-hints.schema.json`](web-hints.schema.json) | per-site hints for the web apps' navigation script ([`apps/web-nav`](../apps/web-nav/AGENTS.md)); checked in Go (`internal/applications/web` refuses a bad file) and by Ajv in the navigation script's Playwright tests | `ValidateWebHints` |
 | [`ipc.md`](ipc.md) | coordinator ↔ shell Unix socket (framing, handshake, message types) | typed messages in `internal/shellipc/messages.go` |
 | [`http.md`](http.md) | HTTP + WebSocket API for phones | `internal/remote` |
 | [`fixtures/`](fixtures/README.md) | canonical valid and invalid documents | [`tests/contract/fixtures_test.go`](../tests/contract/fixtures_test.go) |

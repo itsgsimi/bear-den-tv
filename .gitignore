@@ -3,6 +3,8 @@ apps/tv-shell/build/
 apps/remote-web/node_modules/
 apps/remote-web/test-results/
 apps/remote-web/playwright-report/
+apps/web-nav/test-results/
+apps/web-nav/playwright-report/
 node_modules/
 *.log
 /dist/

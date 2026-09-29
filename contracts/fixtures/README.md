@@ -15,6 +15,11 @@ Canonical messages consumed by contract tests in Go ([`tests/contract/fixtures_t
 | `action.request.power-sleep-timer.valid.json` | `action.schema.json#/$defs/request` (`power.sleep_timer`, 45 minutes) |
 | `action.request.sleep-timer-odd-minutes.invalid.json` | rejected: `power.sleep_timer` `minutes` must be 0, 15, 30, 45, 60, 90 or 120 |
 | `action.request.display-off.valid.json` | `action.schema.json#/$defs/request` (`display.off`, no args) |
+| `action.request.pointer-move.valid.json` | `action.schema.json#/$defs/request` (touchpad move) |
+| `action.request.pointer-click.valid.json` | `action.schema.json#/$defs/request` (touchpad left click) |
+| `action.request.pointer-scroll.valid.json` | `action.schema.json#/$defs/request` (touchpad scroll) |
+| `action.request.pointer-move-too-far.invalid.json` | rejected: `pointer.move` `dx` is at most 400 |
+| `action.request.pointer-click-coordinates.invalid.json` | rejected: phones never send coordinates (`pointer.click` takes only `button`) |
 | `action.request.tv-power.valid.json` | `action.schema.json#/$defs/request` (`tv.power`, standby) |
 | `action.request.tv-power-off.invalid.json` | rejected: `tv.power` `power` must be `on` or `standby` |
 | `action.result.observed.valid.json` | `action.schema.json#/$defs/result` |
@@ -25,6 +30,8 @@ Canonical messages consumed by contract tests in Go ([`tests/contract/fixtures_t
 | `state.phone-now-playing.valid.json` | `state.schema.json` (phone view with DEMO `now_playing` and `remote.now_playing`) |
 | `state.phone-optional-apps.valid.json` | `state.schema.json` (phone view: an installed optional app, and a missing one with `hidden: true`) |
 | `state.hidden-not-bool.invalid.json` | rejected: `applications[].hidden` must be a boolean |
+| `state.phone-web-app.valid.json` | `state.schema.json` (phone view: the Browser in front with the touchpad and text available, Netflix turned off: `enabled: false`, `hidden: true`) |
+| `state.enabled-not-bool.invalid.json` | rejected: `applications[].enabled` must be a boolean |
 | `state.now-playing-bad-status.invalid.json` | rejected: `now_playing.status` must be `playing`, `paused` or `stopped` |
 | `state.now-playing-no-title.invalid.json` | rejected: `now_playing.title` must not be empty (no title means no `now_playing`) |
 | `state.phone-sleep-warning.valid.json` | `state.schema.json` (phone view: a 45-minute sleep timer in its last minute, `power.suspend` unavailable) |
@@ -46,6 +53,12 @@ Canonical messages consumed by contract tests in Go ([`tests/contract/fixtures_t
 | `state.locked-achievements.invalid.json` | rejected: a locked session never carries `achievements` |
 | `state.phone-celebrate.invalid.json` | rejected: `achievements.celebrate` is for the shell only (a phone view has `me`) |
 | `config.default.valid.json` | `config.schema.json` (built-in defaults) |
+| `config.web-apps.valid.json` | `config.schema.json` (a Netflix row and a Browser with its own start page) |
+| `config.web-http.invalid.json` | rejected structurally: `web.url` must start with `https://` |
+| `config.web-no-url.invalid.json` | rejected structurally: a streaming adapter needs `web.url` |
+| `config.web-credentials.invalid.json` | rejected semantically: `web.url` carries a user name and password (rule 11) |
+| `config.web-wrong-host.invalid.json` | rejected semantically: Netflix's page must be on `netflix.com` (rule 11) |
+| `config.web-launch-args.invalid.json` | rejected semantically: web adapters take no launch arguments (rule 3) |
 | `config.achievements-not-bool.invalid.json` | rejected structurally: `achievements.enabled` must be a boolean |
 | `config.now-playing-not-bool.invalid.json` | rejected structurally: `remote.now_playing` must be a boolean |
 | `config.cec-bad-volume-target.invalid.json` | rejected structurally: `cec.volume_target` must be `pc` or `tv` |

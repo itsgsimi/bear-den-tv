@@ -1,0 +1,50 @@
+<!doctype html>
+<!-- Local fixture that mimics a streaming site's search page: a search box
+     that filters DEMO results as you type, and a submit on Enter. Also a
+     tile the generic scan cannot see (no cursor, no role) that only the
+     hints' "prefer" finds, and a promo the hints "skip". Used by
+     tests/nav.spec.ts; no real service is involved. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>DEMO Search</title>
+<style>
+  body { margin: 0; background: #141414; color: #eee; font-family: sans-serif; padding: 40px; }
+  input { font-size: 24px; width: 600px; padding: 8px; }
+  #results { display: flex; gap: 12px; margin-top: 24px; }
+  .result { width: 200px; height: 110px; background: #444; }
+  .result a { color: #fff; display: block; width: 100%; height: 100%; }
+  #extras { display: flex; gap: 12px; margin-top: 24px; }
+  .hidden-tile { width: 200px; height: 110px; background: #553; }
+  .promo { width: 200px; height: 110px; background: #535; }
+</style>
+</head>
+<body>
+<form id="form">
+  <input id="q" type="search" placeholder="Search DEMO titles" autocomplete="off">
+</form>
+<div id="results"></div>
+<div id="extras">
+  <a class="promo" id="promo" href="#promo">DEMO promo</a>
+  <div class="hidden-tile" id="quiet-tile">DEMO quiet tile</div>
+</div>
+<script>
+  const titles = ['DEMO Alpha', 'DEMO Beta', 'DEMO Gamma'];
+  const q = document.getElementById('q');
+  const results = document.getElementById('results');
+  const render = () => {
+    results.innerHTML = '';
+    for (const t of titles.filter((x) => x.toLowerCase().includes(q.value.toLowerCase()))) {
+      const d = document.createElement('div');
+      d.className = 'result';
+      const a = document.createElement('a');
+      a.href = '#' + t; a.textContent = t; a.id = 'res-' + t.split(' ')[1].toLowerCase();
+      d.appendChild(a); results.appendChild(d);
+    }
+  };
+  q.addEventListener('input', render);
+  document.getElementById('form').addEventListener('submit', (e) => { e.preventDefault(); document.body.dataset.submitted = q.value; });
+  render();
+</script>
+</body>
+</html>

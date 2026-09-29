@@ -25,6 +25,7 @@ import (
 	"bear-den-tv/internal/applications/adapters"
 	"bear-den-tv/internal/applications/flatpak"
 	"bear-den-tv/internal/applications/tuning"
+	"bear-den-tv/internal/applications/web"
 	"bear-den-tv/internal/clock"
 	"bear-den-tv/internal/config"
 	"bear-den-tv/internal/doctor"
@@ -54,6 +55,7 @@ type sessionFlags struct {
 	devFixtures bool
 	devPlexFake bool
 	devListen   string
+	devBrowser  string
 	dataDir     string
 	noShell     bool
 	shellBinary string
@@ -71,6 +73,7 @@ func cmdSession(args []string, dev bool) error {
 		fs.BoolVar(&f.devPlexFake, "dev-plex-fake", false, "Plex sign-in and rows against a local fake plex.tv and server (DEMO titles; links on the 3rd poll)")
 		fs.StringVar(&f.devListen, "dev-listen", "127.0.0.1:8787", "loopback address for the phone remote (no LAN exposure)")
 		fs.StringVar(&f.dataDir, "data-dir", "", "isolated config/data root (default: a per-user temp directory)")
+		fs.StringVar(&f.devBrowser, "dev-browser", "", "run web apps in this Chromium binary (a real browser window; default: a pretend page on the fake desktop)")
 	} else {
 		// Testing affordance: while set, the phone remote listens only on this
 		// loopback address (reached over an SSH tunnel) and the consent-gated
@@ -297,6 +300,22 @@ func runSession(f sessionFlags) error {
 		det.Overrides = func(adapter string) tuning.Overrides { return store.Current().PlaybackOverrides(adapter) }
 		tuner = det
 	}
+	// Web apps (streaming sites, the Browser tile): Flathub Chromium over the
+	// DevTools pipe on the TV; in dev a pretend page on the fake desktop, or
+	// a real Chromium binary with --dev-browser.
+	var webApps session.WebApps
+	dataHome := filepath.Dir(paths.DataDir) // $XDG_DATA_HOME; profiles in bear-den-tv/web/<app-id>
+	switch {
+	case !f.dev:
+		webApps = web.NewManager(web.Options{DataHome: dataHome, Starter: web.FlatpakStarter(), Logger: log})
+	case f.devBrowser != "":
+		fd := desk.(*fake.Desktop)
+		webApps = devBrowser{Manager: web.NewManager(web.Options{DataHome: dataHome, Logger: log,
+			Starter: web.ExecStarter{Env: flatpak.PassthroughEnv(os.Environ()), Prefix: []string{f.devBrowser}}}), desk: fd}
+		log.Info("dev: web apps run in a real Chromium", "binary", f.devBrowser)
+	default:
+		webApps = fake.NewWeb(desk.(*fake.Desktop))
+	}
 	var plexOpt session.PlexLink // stays nil without a connector (a nil *Manager would not)
 	if plexLink != nil {
 		plexOpt = plexLink
@@ -305,7 +324,7 @@ func runSession(f sessionFlags) error {
 		Themes: themeReg, Tuner: tuner,
 		Logger: log, Desktop: desk, Lock: lockObs, Audio: audioB, Media: media, Display: display, TV: tv, Suspend: suspendR,
 		Launcher: launcher, Adapters: adapters.NewRegistry(), Config: store, Pairing: pair,
-		Supervisor: sup, DevMode: f.dev && (f.devFixtures || f.devPlexFake), Feed: feed, Weather: wx, Plex: plexOpt,
+		Supervisor: sup, DevMode: f.dev && (f.devFixtures || f.devPlexFake), Feed: feed, Weather: wx, Plex: plexOpt, Web: webApps,
 		// Den badges: local counters in state.db; nothing counted while
 		// config achievements.enabled is false (docs/security.md#den-badges).
 		Achievements: achievements.New(achievements.Options{DB: db, Logger: log, Enabled: func() bool { return store.Current().AchievementsEnabled() }}),

@@ -158,6 +158,28 @@ type Application struct {
 	// default): no tile while its Flatpak is not installed
 	// (state.applications[].hidden) instead of "Not installed".
 	HideWhenMissing bool `json:"hide_when_missing,omitempty"`
+	// Enabled: nil = on. false means the owner turned the app off (TV
+	// Settings → Streaming sites); it has no tile. Web adapters only.
+	Enabled *bool `json:"enabled,omitempty"`
+	// Web is the page a web adapter opens (config.md rule 11); nil for
+	// Flatpak apps, and for the browser it means Bear Den's blank page.
+	Web *Web `json:"web,omitempty"`
+}
+
+// Web is config.applications[].web.
+type Web struct {
+	URL string `json:"url,omitempty"`
+}
+
+// IsEnabled reports whether the app is on (enabled absent or true).
+func (a Application) IsEnabled() bool { return a.Enabled == nil || *a.Enabled }
+
+// WebURL is the page a web adapter opens; "" means the blank page.
+func (a Application) WebURL() string {
+	if a.Web == nil {
+		return ""
+	}
+	return a.Web.URL
 }
 
 // PlexContent is config.plex_content; the token lives in the secret store.
@@ -262,6 +284,14 @@ func (c Config) Clone() Config {
 	for i, a := range c.Applications {
 		out.Applications[i] = a
 		out.Applications[i].Launch.Args = append([]string(nil), a.Launch.Args...)
+		if a.Enabled != nil {
+			v := *a.Enabled
+			out.Applications[i].Enabled = &v
+		}
+		if a.Web != nil {
+			w := *a.Web
+			out.Applications[i].Web = &w
+		}
 	}
 	out.SetLayout(c.Layout())
 	out.PlexContent.LibraryIDs = append([]string(nil), c.PlexContent.LibraryIDs...)

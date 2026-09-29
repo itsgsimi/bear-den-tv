@@ -9,10 +9,14 @@
     {"id":"moonlight","label":"Moonlight","adapter":"moonlight","launch":{"kind":"flatpak","app_id":"com.moonlight_stream.Moonlight","args":[]},"home_policy":"leave-running","remote_enabled":true},
     {"id":"spotify","label":"Spotify","adapter":"spotify","launch":{"kind":"flatpak","app_id":"com.spotify.Client","args":[]},"home_policy":"leave-running","remote_enabled":true,"hide_when_missing":true},
     {"id":"jellyfin","label":"Jellyfin","adapter":"jellyfin","launch":{"kind":"flatpak","app_id":"org.jellyfin.JellyfinDesktop","args":["--fullscreen","--tv"]},"home_policy":"pause-if-supported","remote_enabled":true,"hide_when_missing":true},
-    {"id":"retroarch","label":"RetroArch","adapter":"retroarch","launch":{"kind":"flatpak","app_id":"org.libretro.RetroArch","args":["--fullscreen"]},"home_policy":"pause-if-supported","remote_enabled":true,"hide_when_missing":true}
+    {"id":"retroarch","label":"RetroArch","adapter":"retroarch","launch":{"kind":"flatpak","app_id":"org.libretro.RetroArch","args":["--fullscreen"]},"home_policy":"pause-if-supported","remote_enabled":true,"hide_when_missing":true},
+    {"id":"netflix","label":"Netflix","adapter":"netflix","launch":{"kind":"flatpak","app_id":"org.chromium.Chromium","args":[]},"home_policy":"pause-if-supported","remote_enabled":true,"hide_when_missing":true,"enabled":false,"web":{"url":"https://www.netflix.com/"}},
+    {"id":"disney-plus","label":"Disney+","adapter":"disney-plus","launch":{"kind":"flatpak","app_id":"org.chromium.Chromium","args":[]},"home_policy":"pause-if-supported","remote_enabled":true,"hide_when_missing":true,"enabled":false,"web":{"url":"https://www.disneyplus.com/"}},
+    {"id":"hulu","label":"Hulu","adapter":"hulu","launch":{"kind":"flatpak","app_id":"org.chromium.Chromium","args":[]},"home_policy":"pause-if-supported","remote_enabled":true,"hide_when_missing":true,"enabled":false,"web":{"url":"https://www.hulu.com/"}},
+    {"id":"browser","label":"Browser","adapter":"browser","launch":{"kind":"flatpak","app_id":"org.chromium.Chromium","args":[]},"home_policy":"pause-if-supported","remote_enabled":true,"hide_when_missing":true}
   ],
   "sections": [
-    {"id":"favorites","title":"Your Apps","kind":"applications","enabled":true,"application_ids":["plex-htpc","youtube","moonlight","spotify","jellyfin","retroarch"],"hide_when_empty":false},
+    {"id":"favorites","title":"Your Apps","kind":"applications","enabled":true,"application_ids":["plex-htpc","youtube","moonlight","spotify","jellyfin","retroarch","netflix","disney-plus","hulu","browser"],"hide_when_empty":false},
     {"id":"plex-continue","title":"Continue Watching","kind":"plex-continue-watching","enabled":false,"hide_when_empty":true},
     {"id":"plex-recent","title":"Recently Added","kind":"plex-recently-added","enabled":false,"hide_when_empty":true}
   ],

@@ -12,6 +12,7 @@ import (
 
 	"bear-den-tv/internal/actions"
 	"bear-den-tv/internal/applications"
+	"bear-den-tv/internal/applications/adapters"
 	"bear-den-tv/internal/config"
 	"bear-den-tv/internal/contract"
 	"bear-den-tv/internal/platform"
@@ -122,6 +123,8 @@ func (c *Coordinator) route(ctx context.Context, s sender, req contract.ActionRe
 		return c.doDisplayOff(ctx, req)
 	case contract.ActionTVPower:
 		return c.doTVPower(ctx, req)
+	case contract.ActionPointerMove, contract.ActionPointerClick, contract.ActionPointerScroll:
+		return c.doPointer(ctx, s, req, target)
 	case contract.ActionShellRestart:
 		if c.opts.Supervisor == nil {
 			return c.fail(req, contract.CodeUnsupported, "The shell is not supervised by this coordinator.")
@@ -216,6 +219,9 @@ func (c *Coordinator) routeInput(ctx context.Context, req contract.ActionRequest
 		reply, err := sh.Call(ctx, req.RequestID, shellipc.Input{Type: shellipc.TypeInput, RequestID: req.RequestID, Action: req.Action, Args: args, ContextEpoch: req.ContextEpoch})
 		return c.shellReply(req, reply, err)
 	case "app":
+		if _, isWeb := c.webSpecFor(strOr(target.AppID)); isWeb {
+			return c.routeWeb(ctx, req, target)
+		}
 		c.mu.Lock()
 		win := c.targetWindow
 		c.mu.Unlock()
@@ -326,7 +332,11 @@ func (c *Coordinator) doHome(ctx context.Context, _ sender, req contract.ActionR
 	if sh == nil {
 		return c.fail(req, contract.CodeNoTarget, "The TV shell is not running.")
 	}
+	var paused map[string]any
 	if _, t, _ := c.current(); t.Kind != "shell" {
+		if t.Kind == "app" {
+			paused = c.pauseWebForHome(ctx, t)
+		}
 		win, ok := c.findShellWindow(ctx)
 		if !ok {
 			return c.fail(req, contract.CodeNoTarget, "The shell window could not be found.")
@@ -339,6 +349,12 @@ func (c *Coordinator) doHome(ctx context.Context, _ sender, req contract.ActionR
 	res := c.shellReply(req, reply, err)
 	if res.Outcome != contract.OutcomeObserved {
 		return res
+	}
+	for k, v := range paused {
+		if res.Detail == nil {
+			res.Detail = map[string]any{}
+		}
+		res.Detail[k] = v
 	}
 	if !c.waitTarget(ctx, ActivateObserveTimeout, func(t contract.Target) bool { return t.Kind == "shell" }) {
 		res = c.result(req, contract.OutcomeDelivered, res.Detail)
@@ -381,8 +397,12 @@ func (c *Coordinator) doLaunch(ctx context.Context, s sender, req contract.Actio
 		return c.fail(req, contract.CodeInvalid, "That application is not registered.")
 	}
 	ad, ok := c.opts.Adapters.ForName(app.Adapter)
-	if !ok || c.opts.Launcher == nil {
+	webSpec, isWeb := adapters.WebOf(ad)
+	if !ok || c.opts.Launcher == nil || (isWeb && c.opts.Web == nil) {
 		return c.fail(req, contract.CodeUnsupported, app.Label+" cannot be launched on this installation.")
+	}
+	if !app.IsEnabled() {
+		return c.fail(req, contract.CodeUnsupported, app.Label+" is turned off. Turn it on in Settings → Streaming sites.")
 	}
 	isApp := func(t contract.Target) bool { return t.Kind == "app" && strOr(t.AppID) == appID }
 
@@ -439,7 +459,16 @@ func (c *Coordinator) doLaunch(ctx context.Context, s sender, req contract.Actio
 		return c.fail(req, contract.CodeLaunchFailed, app.Label+" is not installed.")
 	}
 	c.setLaunch(appID, "launching", "", nil)
-	inst, err := c.opts.Launcher.Launch(ctx, app.Launch.AppID, app.Launch.Args)
+	var inst applications.Instance
+	var err error
+	if isWeb {
+		inst, err = c.opts.Web.Launch(ctx, app, webSpec)
+		if err != nil {
+			c.log.Warn("session: web app did not start", "app", appID, "err", err)
+		}
+	} else {
+		inst, err = c.opts.Launcher.Launch(ctx, app.Launch.AppID, app.Launch.Args)
+	}
 	if err != nil {
 		c.setLaunch(appID, "failed", app.Label+" could not be started.", nil)
 		return c.fail(req, contract.CodeLaunchFailed, app.Label+" could not be started.")
@@ -572,6 +601,16 @@ func (c *Coordinator) doClose(ctx context.Context, req contract.ActionRequest) c
 	if !ok {
 		return c.fail(req, contract.CodeInvalid, "That application is not registered.")
 	}
+	if boolArg(req.Args, "force") && c.isWebAdapter(app.Adapter) && c.opts.Web != nil && c.opts.Web.Running(appID) {
+		// A web app's Chromium is the process Bear Den started: end it
+		// (never `flatpak kill`, which could name another web app's
+		// instance of the same Chromium).
+		if err := c.opts.Web.Close(ctx, appID, true); err != nil {
+			return c.fail(req, contract.CodeInternal, app.Label+" could not be stopped.")
+		}
+		c.setLaunch(appID, "exited", "", nil)
+		return c.result(req, contract.OutcomeDelivered, map[string]any{"app_id": appID, "forced": true})
+	}
 	if boolArg(req.Args, "force") {
 		c.mu.Lock()
 		inst := c.appLocked(appID).instance
@@ -646,6 +685,11 @@ func (c *Coordinator) doMedia(ctx context.Context, req contract.ActionRequest, t
 	}
 	if req.Target != "active" && req.Target != strOr(target.AppID) {
 		return c.fail(req, contract.CodeTargetUnfocused, "That application is not in the foreground.")
+	}
+	if _, isWeb := c.webSpecFor(strOr(target.AppID)); isWeb && target.Kind == "app" {
+		// The site's own shortcuts through the page, never MPRIS or
+		// currentTime (Netflix errors on direct seeks).
+		return c.routeWeb(ctx, req, target)
 	}
 	c.mu.Lock()
 	m := c.media

@@ -89,7 +89,10 @@ type Options struct {
 	Achievements *achievements.Tracker
 	// Supervisor restarts the shell for shell.restart; nil when --no-shell.
 	Supervisor *shellipc.Supervisor
-	DevMode    bool
+	// Web runs the web apps (streaming sites, the Browser tile) over the
+	// DevTools pipe (web.go); nil reports them unavailable.
+	Web     WebApps
+	DevMode bool
 	// AppsRefresh overrides DefaultAppsRefresh (tests).
 	AppsRefresh time.Duration
 	// Diagnostics produces the redacted doctor report for owners.
@@ -153,7 +156,8 @@ type Coordinator struct {
 	// inactive, when logind withholds the GPU; it is restarted on unlock so it
 	// renders with the GPU instead of software (measured: ~170% vs ~25% CPU).
 	shellStartedLocked bool
-	lockKnown          bool // the lock observer has reported at least once
+	lockKnown          bool                      // the lock observer has reported at least once
+	pointerBuckets     map[string]*pointerBucket // pointer rate limits (web.go)
 
 	subs    map[chan struct{}]struct{}
 	results map[chan contract.ActionResult]string // channel → device id ("" = shell)
@@ -195,6 +199,9 @@ func New(opts Options) *Coordinator {
 	}
 	c.holds = actions.NewHolds(opts.Clock, c.limits, c.holdTap, c.publish)
 	c.np.kick = make(chan struct{}, 1)
+	if opts.Web != nil {
+		opts.Web.Watch(c.publish) // page status changes capabilities (text field, video)
+	}
 	c.cec.kick = make(chan struct{}, 1)
 	c.initAchievements()
 	return c
@@ -399,6 +406,11 @@ func (c *Coordinator) reconcileApps(ctx context.Context) {
 	for _, a := range cfg.Applications {
 		rt := c.appLocked(a.ID)
 		running := hasWindow[a.ID] || live[a.Launch.AppID]
+		if c.isWebAdapter(a.Adapter) {
+			// Every web app is the same Chromium Flatpak: its own window or
+			// its own DevTools connection says whether it runs.
+			running = hasWindow[a.ID] || (c.opts.Web != nil && c.opts.Web.Running(a.ID))
+		}
 		switch {
 		case rt.launchState == "launching":
 			// doLaunch owns the transition out of launching.

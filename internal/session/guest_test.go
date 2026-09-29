@@ -38,6 +38,12 @@ func validArgs(action string) map[string]any {
 		return map[string]any{"muted": true}
 	case contract.ActionTextSubmit:
 		return map[string]any{"text": "hello"}
+	case contract.ActionPointerMove:
+		return map[string]any{"dx": 10.0, "dy": -5.0}
+	case contract.ActionPointerClick:
+		return map[string]any{"button": "left"}
+	case contract.ActionPointerScroll:
+		return map[string]any{"dy": 120.0}
 	}
 	return map[string]any{}
 }
@@ -62,7 +68,7 @@ func TestGuestMaySendOnlyTheAllowList(t *testing.T) {
 	}
 	// Names the parallel sleep-timer work adds (power.*, display.*) and any
 	// other future action: refused to guests before they exist.
-	for _, action := range []string{"power.off", "power.sleep_timer", "display.off", "anything.new"} {
+	for _, action := range []string{"power.off", "power.sleep_timer", "display.off", "anything.new", "pointer.move", "pointer.click", "pointer.scroll"} {
 		if ok, _ := h.c.phoneMay(guest, contract.ActionRequest{Action: action}); ok {
 			t.Errorf("guest allowed %q, which is not on the allow-list", action)
 		}

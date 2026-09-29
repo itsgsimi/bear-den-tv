@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bear-den-tv.local/contracts/web-hints.schema.json",
+  "title": "Bear Den TV per-site navigation hints",
+  "description": "Data that tunes the navigation script (apps/web-nav) for one web adapter: which elements to prefer or skip, where the player is, how Back and the media keys behave. Hints ship inside the binary (apps/web-nav/hints/<adapter>.json); they never come from phones or config. The script must work without them (the generic behaviour).",
+  "type": "object",
+  "properties": {
+    "id": {"type": "string", "pattern": "^[a-z][a-z0-9-]{0,31}$", "description": "The web adapter the hints belong to."},
+    "verified": {"type": "boolean", "description": "false until the hints were checked on the real site; every shipped file is false (UNVERIFIED)."},
+    "note": {"type": "string", "maxLength": 400},
+    "prefer": {"$ref": "#/$defs/selectors", "description": "Extra elements that are focus targets (poster cards the generic scan might miss)."},
+    "skip": {"$ref": "#/$defs/selectors", "description": "Elements (and their descendants) never focused."},
+    "initial": {"$ref": "#/$defs/selectors", "description": "Where focus starts on a page, first visible match wins."},
+    "modal": {"$ref": "#/$defs/selectors", "description": "Overlays that trap focus, besides [role=dialog], [aria-modal=true] and dialog[open]."},
+    "close": {"$ref": "#/$defs/selectors", "description": "Close buttons inside an overlay, tried before the generic ones."},
+    "player": {"type": "string", "minLength": 1, "maxLength": 200, "description": "The player container that receives the media keys."},
+    "back": {
+      "type": "array",
+      "description": "The Back sequence, first step that applies wins. Default: field, fullscreen, overlay, history.",
+      "items": {"enum": ["field", "fullscreen", "overlay", "history"]},
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "media": {
+      "type": "object",
+      "description": "The site's documented keyboard shortcuts. Seeking is always by keys, never by setting currentTime.",
+      "properties": {
+        "toggle": {"$ref": "#/$defs/key"},
+        "seek_back": {"$ref": "#/$defs/key"},
+        "seek_forward": {"$ref": "#/$defs/key"},
+        "seek_step_s": {"type": "integer", "minimum": 1, "maximum": 60},
+        "fullscreen": {"$ref": "#/$defs/key"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "required": ["id", "verified"],
+  "additionalProperties": false,
+  "$defs": {
+    "selectors": {"type": "array", "items": {"type": "string", "minLength": 1, "maxLength": 200}, "maxItems": 16},
+    "key": {"enum": [" ", "k", "j", "l", "f", "ArrowLeft", "ArrowRight", "Escape", "Enter"], "description": "The closed set of keys the coordinator will press for a page (internal/applications/web AllowedKeys)."}
+  }
+}

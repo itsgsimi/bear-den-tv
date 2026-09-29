@@ -6,7 +6,7 @@ export CMAKE_PREFIX_PATH := $(BDTV_TOOLCHAIN)/env
 export GOTOOLCHAIN := local
 BUILD ?= build
 
-.PHONY: help deps-check build go web check-web-dist shell shell-target package test test-go test-web test-shell lint shots perf dev doctor clean
+.PHONY: help deps-check build go web check-web-dist webnav test-webnav shell shell-target package test test-go test-web test-shell lint shots perf dev doctor clean
 
 help: ## List targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "}{printf "  %-14s %s\n", $$1, $$2}'
@@ -14,7 +14,7 @@ help: ## List targets
 deps-check: ## Verify the pinned toolchain is present
 	@go version && cmake --version | head -1 && node --version && qmake6 -query QT_VERSION 2>/dev/null || (echo "run scripts/bootstrap-toolchain.sh" && exit 1)
 
-build: web go shell ## Build everything into $(BUILD)/
+build: web webnav go shell ## Build everything into $(BUILD)/
 
 go: ## Build the coordinator/CLI binaries
 	mkdir -p $(BUILD)/bin
@@ -29,7 +29,16 @@ apps/remote-web/node_modules/.installed: apps/remote-web/package-lock.json
 web: apps/remote-web/node_modules/.installed ## Build the phone remote into apps/remote-web/dist (embedded by go)
 	cd apps/remote-web && npm run build
 
-check-web-dist: ## Fail if committed apps/remote-web/dist differs from a fresh make web (CI runs this)
+# The navigation script injected into web apps (apps/web-nav), its own npm
+# package; dist/nav.js is committed and embedded by go like the remote.
+apps/web-nav/node_modules/.installed: apps/web-nav/package-lock.json
+	cd apps/web-nav && npm ci --no-audit --no-fund
+	touch $@
+
+webnav: apps/web-nav/node_modules/.installed ## Build the web apps navigation script into apps/web-nav/dist (embedded by go)
+	cd apps/web-nav && npm run build
+
+check-web-dist: ## Fail if committed apps/remote-web/dist or apps/web-nav/dist differs from a fresh build (CI runs this)
 	scripts/check-web-dist.sh
 
 # The shell is installed by copy + rename: overwriting a running executable in
@@ -65,7 +74,7 @@ shell-target: ## Build the TV shell for the TV machine (glibc 2.28 baseline) int
 package: ## Build the installable .deb into build/dist (packaging/build-deb.sh; smoke test: packaging/smoke-deb.sh)
 	packaging/build-deb.sh
 
-test: test-go test-web test-shell ## Run all automated tests
+test: test-go test-web test-webnav test-shell ## Run all automated tests
 
 test-go: ## Go unit + contract tests with the race detector
 	go test -race -count=1 ./...
@@ -73,15 +82,20 @@ test-go: ## Go unit + contract tests with the race detector
 test-web: apps/remote-web/node_modules/.installed ## Phone remote unit tests (Playwright runs too, but no browser tests exist yet)
 	cd apps/remote-web && npm test
 
+# Needs Playwright's Chromium once: cd apps/web-nav && npx playwright install chromium
+test-webnav: webnav ## Navigation script browser tests (headless Playwright Chromium, local fixture pages only)
+	cd apps/web-nav && npm test
+
 test-shell: ## QML/C++ shell tests (offscreen)
 	cmake -S apps/tv-shell -B $(BUILD)/tv-shell -G Ninja -DCMAKE_BUILD_TYPE=Debug -DBDTV_BUILD_TESTS=ON
 	cmake --build $(BUILD)/tv-shell
 	cd $(BUILD)/tv-shell && QT_QPA_PLATFORM=offscreen ctest --output-on-failure
 
-lint: apps/remote-web/node_modules/.installed ## gofmt/vet, eslint/tsc, qmllint (toolchain qmllint via the shell build dir)
+lint: apps/remote-web/node_modules/.installed apps/web-nav/node_modules/.installed ## gofmt/vet, eslint/tsc, qmllint (toolchain qmllint via the shell build dir)
 	test -z "$$(gofmt -l cmd internal tests embed.go | tee /dev/stderr)"
 	go vet ./...
 	cd apps/remote-web && npm run lint
+	cd apps/web-nav && npm run lint
 	@if [ -f $(BUILD)/tv-shell/build.ninja ]; then \
 	  cmake --build $(BUILD)/tv-shell --target all_qmllint; \
 	else \

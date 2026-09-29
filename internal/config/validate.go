@@ -10,9 +10,11 @@ import (
 	"fmt"
 	"math"
 	"net"
+	"net/url"
 	"sort"
 	"strings"
 
+	"bear-den-tv/internal/applications/adapters"
 	"bear-den-tv/internal/contract"
 )
 
@@ -28,13 +30,36 @@ var forbiddenKeys = map[string]bool{"token": true, "x_plex_token": true, "passwo
 type AdapterSpec struct {
 	FlatpakID    string
 	ApprovedArgs []string
+	// Web marks a web adapter (Chromium opens a page; rule 11); nil for a
+	// Flatpak app, which may not carry a web block.
+	Web *WebRule
 }
+
+// WebRule is what a web adapter's page may be (config.md rule 11).
+type WebRule struct {
+	// Hosts are the registrable domains the page must be on (the host
+	// itself or a subdomain of one); empty means any host (the browser).
+	Hosts []string
+	// URLRequired: the adapter has no page of its own without one.
+	URLRequired bool
+}
+
+// ChromiumFlatpakID is the only browser web adapters launch (Flathub's
+// Chromium; docs/decisions/0010-web-apps-over-cdp-pipe.md). Defined once, in
+// the adapter table.
+const ChromiumFlatpakID = adapters.ChromiumFlatpakID
 
 // DefaultAdapters lists the adapters shipped with this build.
 var DefaultAdapters = map[string]AdapterSpec{
-	"plex-htpc":  {FlatpakID: "tv.plex.PlexHTPC"},
-	"vacuumtube": {FlatpakID: "rocks.shy.VacuumTube", ApprovedArgs: []string{"--fullscreen", "--no-window-decorations"}},
-	"moonlight":  {FlatpakID: "com.moonlight_stream.Moonlight"},
+	// Web adapters (rule 11): Chromium from Flathub, no launch arguments
+	// from config; the coordinator builds Chromium's argv itself.
+	"netflix":     {FlatpakID: ChromiumFlatpakID, Web: &WebRule{Hosts: []string{"netflix.com"}, URLRequired: true}},
+	"disney-plus": {FlatpakID: ChromiumFlatpakID, Web: &WebRule{Hosts: []string{"disneyplus.com"}, URLRequired: true}},
+	"hulu":        {FlatpakID: ChromiumFlatpakID, Web: &WebRule{Hosts: []string{"hulu.com"}, URLRequired: true}},
+	"browser":     {FlatpakID: ChromiumFlatpakID, Web: &WebRule{}},
+	"plex-htpc":   {FlatpakID: "tv.plex.PlexHTPC"},
+	"vacuumtube":  {FlatpakID: "rocks.shy.VacuumTube", ApprovedArgs: []string{"--fullscreen", "--no-window-decorations"}},
+	"moonlight":   {FlatpakID: "com.moonlight_stream.Moonlight"},
 	// Optional apps (hide_when_missing in the defaults).
 	"spotify":   {FlatpakID: "com.spotify.Client"},
 	"jellyfin":  {FlatpakID: "org.jellyfin.JellyfinDesktop", ApprovedArgs: []string{"--fullscreen", "--tv"}},
@@ -193,6 +218,7 @@ func ValidatePortable(c Config, rules Rules) error {
 		errs.add("revision must be >= 1")
 	}
 	appIDs := map[string]bool{}
+	webAdapters := map[string]bool{}
 	for _, a := range c.Applications {
 		if reservedIDs[a.ID] {
 			errs.add("application id %q is reserved", a.ID)
@@ -214,6 +240,7 @@ func ValidatePortable(c Config, rules Rules) error {
 				errs.add("application %q launch argument %q is not approved for adapter %s", a.ID, arg, a.Adapter)
 			}
 		}
+		validateWeb(errs, a, spec, webAdapters)
 	}
 	sectionIDs := map[string]bool{}
 	for _, s := range c.Sections {
@@ -273,6 +300,79 @@ func ValidatePortable(c Config, rules Rules) error {
 		return errs
 	}
 	return nil
+}
+
+// validateWeb applies rule 11 to one application: only web adapters carry a
+// web block or enabled; their page is an https URL without user info or
+// port on the adapter's own host; and each web adapter appears once (its
+// window class and profile are its own). seen collects the web adapters.
+func validateWeb(errs *Errors, a Application, spec AdapterSpec, seen map[string]bool) {
+	if spec.Web == nil {
+		if a.Web != nil {
+			errs.add("application %q: only web adapters take a web block", a.ID)
+		}
+		if a.Enabled != nil {
+			errs.add("application %q: only web adapters can be turned off", a.ID)
+		}
+		return
+	}
+	if seen[a.Adapter] {
+		errs.add("application %q: adapter %s is already used by another application", a.ID, a.Adapter)
+	}
+	seen[a.Adapter] = true
+	raw := a.WebURL()
+	if raw == "" {
+		if spec.Web.URLRequired {
+			errs.add("application %q: adapter %s needs web.url", a.ID, a.Adapter)
+		}
+		return
+	}
+	if err := CheckWebURL(raw, spec.Web.Hosts); err != nil {
+		errs.add("application %q web.url: %v", a.ID, err)
+	}
+}
+
+// CheckWebURL is rule 11 for one page address: https, a host name (not an IP
+// literal), no user name or password, no explicit port, no fragment, no
+// spaces or control characters, and, when hosts is not empty, the host is
+// one of them or a subdomain of one. The error never repeats the URL.
+func CheckWebURL(raw string, hosts []string) error {
+	if len(raw) > 512 {
+		return errors.New("longer than 512 characters")
+	}
+	for _, r := range raw {
+		if r <= ' ' || r == 0x7f {
+			return errors.New("contains spaces or control characters")
+		}
+	}
+	u, err := url.Parse(raw)
+	if err != nil {
+		return errors.New("does not parse as a URL")
+	}
+	switch {
+	case u.Scheme != "https":
+		return errors.New("must use https")
+	case u.User != nil:
+		return errors.New("must not carry a user name or password")
+	case u.Port() != "":
+		return errors.New("must not name a port")
+	case u.Fragment != "" || strings.Contains(raw, "#"):
+		return errors.New("must not carry a fragment")
+	case u.Opaque != "" || u.Hostname() == "":
+		return errors.New("needs a host")
+	case net.ParseIP(strings.Trim(u.Hostname(), "[]")) != nil:
+		return errors.New("must name a host, not an IP address")
+	}
+	host := strings.ToLower(u.Hostname())
+	if len(hosts) == 0 {
+		return nil
+	}
+	for _, h := range hosts {
+		if host == h || strings.HasSuffix(host, "."+h) {
+			return nil
+		}
+	}
+	return fmt.Errorf("must be on %s", strings.Join(hosts, " or "))
 }
 
 // RoundCoordinate rounds a latitude or longitude to 2 decimals (about 1 km),

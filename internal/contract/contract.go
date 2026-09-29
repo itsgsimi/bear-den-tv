@@ -66,6 +66,11 @@ const (
 	ActionDisplayOff   = "display.off"
 	// ActionTVPower turns the TV on or to standby over HDMI-CEC (cec.go).
 	ActionTVPower = "tv.power"
+	// Pointer actions: the phone's touchpad for web apps (contracts/actions.md
+	// "Pointer"). Only web adapters offer them, never to guests.
+	ActionPointerMove   = "pointer.move"
+	ActionPointerClick  = "pointer.click"
+	ActionPointerScroll = "pointer.scroll"
 )
 
 // AllActions lists every action name in protocol 1, in contract order.
@@ -74,7 +79,22 @@ var AllActions = []string{
 	ActionAppLaunch, ActionAppClose, ActionMediaPlay, ActionMediaPause, ActionMediaSeek,
 	ActionAudioVolume, ActionAudioMute, ActionTextSubmit, ActionShellRestart,
 	ActionSleepTimer, ActionDisplayOff, ActionTVPower,
+	ActionPointerMove, ActionPointerClick, ActionPointerScroll,
 }
+
+// IsPointer reports whether the action is one of the touchpad's pointer actions.
+func IsPointer(action string) bool {
+	switch action {
+	case ActionPointerMove, ActionPointerClick, ActionPointerScroll:
+		return true
+	}
+	return false
+}
+
+// PointerRates is how many of each pointer action one device may send per
+// second (contracts/actions.md "Pointer"); more is failed/rate_limited. A
+// phone coalesces its finger's movement to one move per animation frame.
+var PointerRates = map[string]int{ActionPointerMove: 60, ActionPointerScroll: 30, ActionPointerClick: 5}
 
 // SleepChoices are the power.sleep_timer minutes a timer may be set to
 // (0 cancels), in the order phones and the TV offer them.
@@ -304,6 +324,9 @@ type AppState struct {
 	// Hidden: an optional app (config hide_when_missing) that is not
 	// installed; the shell and phones draw no tile for it.
 	Hidden bool `json:"hidden,omitempty"`
+	// Enabled is present only for apps the owner can turn on and off on the
+	// TV (web adapters, Settings → Streaming sites); false means turned off.
+	Enabled *bool `json:"enabled,omitempty"`
 }
 
 // HoldState is state.schema.json#/properties/remote/properties/hold.

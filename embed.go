@@ -1,5 +1,6 @@
-// Package bdtv is the module root. It embeds the shared contracts and the built
-// phone remote so the coordinator binary is self-contained.
+// Package bdtv is the module root. It embeds the shared contracts, the built
+// phone remote and the web apps' navigation script so the coordinator binary
+// is self-contained.
 package bdtv
 
 import "embed"
@@ -14,6 +15,13 @@ var Contracts embed.FS
 //
 //go:embed all:apps/remote-web/dist
 var WebDist embed.FS
+
+// WebNav holds the navigation script the coordinator injects into web apps
+// (apps/web-nav/dist/nav.js, built with `make webnav`) and its per-site
+// hint files (apps/web-nav/hints/*.json, contracts/web-hints.schema.json).
+//
+//go:embed apps/web-nav/dist/nav.js apps/web-nav/hints/*.json
+var WebNav embed.FS
 
 // Themes holds the built-in theme packages (themes/<id>/theme.json and art).
 // The TV shell compiles the same folder in; see docs/THEMES.md.

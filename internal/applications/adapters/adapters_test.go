@@ -13,7 +13,7 @@ import (
 
 func TestRegistry(t *testing.T) {
 	r := NewRegistry()
-	if got := r.Names(); !reflect.DeepEqual(got, []string{"jellyfin", "moonlight", "plex-htpc", "retroarch", "spotify", "vacuumtube"}) {
+	if got := r.Names(); !reflect.DeepEqual(got, []string{"browser", "disney-plus", "hulu", "jellyfin", "moonlight", "netflix", "plex-htpc", "retroarch", "spotify", "vacuumtube"}) {
 		t.Fatalf("%v", got)
 	}
 	if _, ok := r.ForName("kodi"); ok {
@@ -22,7 +22,7 @@ func TestRegistry(t *testing.T) {
 	if a, ok := ForName("plex-htpc"); !ok || a.FlatpakID() != "tv.plex.PlexHTPC" {
 		t.Fatal("plex-htpc")
 	}
-	if len(r.All()) != 6 {
+	if len(r.All()) != 10 {
 		t.Fatal("All")
 	}
 }
@@ -221,5 +221,51 @@ func TestOptionalApps(t *testing.T) {
 		if a.PauseVerified() {
 			t.Errorf("%s: pause must stay unverified", c.name)
 		}
+	}
+}
+
+// Web adapters: Chromium only, no XTEST keys at all (input goes through the
+// page), windows told apart by the per-adapter WM_CLASS Bear Den starts
+// Chromium with, and never by a plain Chromium window.
+func TestWebAdapters(t *testing.T) {
+	cases := []struct{ name, mode, hints string }{
+		{NetflixName, WebModeApp, "netflix"},
+		{DisneyPlusName, WebModeApp, "disney-plus"},
+		{HuluName, WebModeApp, "hulu"},
+		{BrowserName, WebModeBrowser, ""},
+	}
+	for _, c := range cases {
+		a, ok := ForName(c.name)
+		if !ok {
+			t.Fatalf("%s missing", c.name)
+		}
+		spec, ok := WebOf(a)
+		if !ok || spec.Mode != c.mode || spec.Hints != c.hints || spec.Class != "BearDenWeb-"+c.name {
+			t.Errorf("%s: web spec %+v", c.name, spec)
+		}
+		if a.FlatpakID() != ChromiumFlatpakID || len(a.ApprovedArgs()) != 0 {
+			t.Errorf("%s: flatpak %s args %v", c.name, a.FlatpakID(), a.ApprovedArgs())
+		}
+		for _, action := range []string{"nav.up", "select", "back", "media.play"} {
+			if k, ok := a.KeyFor(action); ok {
+				t.Errorf("%s: %s maps to XTEST key %q", c.name, action, k)
+			}
+		}
+		if !a.MatchWindow(platform.WindowInfo{Class: []string{"www.example.com", "BearDenWeb-" + c.name}}) {
+			t.Errorf("%s: own window not matched", c.name)
+		}
+		if a.MatchWindow(platform.WindowInfo{Class: []string{"chromium-browser", "Chromium"}}) {
+			t.Errorf("%s: a plain Chromium window matched", c.name)
+		}
+		if a.MediaMatch() != ChromiumFlatpakID || HomePauseOf(a).Kind != "page" {
+			t.Errorf("%s: media %q home %+v", c.name, a.MediaMatch(), HomePauseOf(a))
+		}
+	}
+	nf, _ := ForName(NetflixName)
+	if nf.MatchWindow(platform.WindowInfo{Class: []string{"x", "BearDenWeb-hulu"}}) {
+		t.Error("netflix matched hulu's window")
+	}
+	if _, ok := WebOf(PlexHTPC()); ok {
+		t.Error("plex-htpc reported as a web adapter")
 	}
 }
