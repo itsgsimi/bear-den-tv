@@ -31,6 +31,11 @@ Item {
     visible: active
 
     function maybeStart() {
+        // Forget ids the coordinator no longer lists (acknowledged, or reset),
+        // so a badge earned again after a reset is celebrated again.
+        const kept = {}
+        for (const id of queue) if (shown[id]) kept[id] = true
+        shown = kept
         if (!allowed || active) return
         const fresh = queue.filter(id => !shown[id])
         if (fresh.length === 0) return

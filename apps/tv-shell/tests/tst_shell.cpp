@@ -572,6 +572,12 @@ private slots:
         withCelebrate(QStringLiteral("shell"));
         QTest::qWait(300);
         QVERIFY(!layer->property("visible").toBool());
+        // Once the coordinator drops it (acknowledged, or badges reset), the
+        // same badge earned again is celebrated again.
+        QVERIFY(session->applySnapshot(fixture()));
+        QTest::qWait(50);
+        withCelebrate(QStringLiteral("shell"));
+        QTRY_VERIFY_WITH_TIMEOUT(layer->property("visible").toBool(), 1000);
     }
 
     // Guest passes: pairing.guest/pass_expires_at_ms and devices[].guest/
