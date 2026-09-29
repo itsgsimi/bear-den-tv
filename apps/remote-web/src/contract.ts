@@ -28,6 +28,28 @@ export type ActionName =
 /** power.sleep_timer minutes: 0 cancels, otherwise one of the fixed choices. */
 export type SleepMinutes = 0 | 15 | 30 | 45 | 60 | 90 | 120;
 
+/**
+ * What a guest pass may send (contract.GuestActions in Go, contracts/actions.md).
+ * The server enforces it; the phone only hides what a guest cannot use. Any
+ * action not listed here is refused to guests.
+ */
+export const GUEST_ACTIONS: ReadonlySet<ActionName> = new Set<ActionName>([
+  'nav.up',
+  'nav.down',
+  'nav.left',
+  'nav.right',
+  'select',
+  'back',
+  'home',
+  'app.launch',
+  'media.play',
+  'media.pause',
+  'media.seek_relative',
+  'audio.volume_delta',
+  'audio.mute',
+  'text.submit',
+]);
+
 /** Argument object per action; `{}` for argument-free actions. */
 export type ActionArgs = {
   'nav.up': Record<string, never>;

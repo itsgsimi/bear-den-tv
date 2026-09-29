@@ -66,6 +66,14 @@ plus four attributes that `app.css` keys on:
   switches in TSX from the same value: `Art` picks the SVG or the PNG, `Vines`
   the Bézier renderer (`ClassicCorner`) or the pixel grid one.
 
+A phone on a guest pass (`me.permissions` `["guest"]`, `me.expires_at_ms`;
+[`contracts/http.md`](../../contracts/http.md#guest-passes)) sees only what it
+may use: `mayUse` in `state.ts` mirrors `GUEST_ACTIONS` from `contract.ts`
+(the server enforces it), so Close app and restart are not drawn, and
+`GuestChip` in `shell.tsx` shows "Guest · ends 04:00". When a guest's session
+ends (`revoked` or a 401) the pair screen says "Your guest pass has ended"
+(`pass_ended`).
+
 Theme art is fetched same-origin from `/themes/...`. Controller phones may receive
 `state.now_playing` (the Now playing card); phones never receive
 `state.weather`, so the phone shows no weather.
@@ -135,7 +143,7 @@ without the field.
 
 | Suite | Where | Runs |
 |---|---|---|
-| Unit | [`tests/unit/`](tests/unit/state.spec.ts) (`state.spec.ts`, `hold.spec.ts`, `vines.spec.ts`, `nowplaying.spec.ts`, `sleep.spec.ts`) | vitest under Node, fake timers, injected fakes |
+| Unit | [`tests/unit/`](tests/unit/state.spec.ts) (`state.spec.ts`, `hold.spec.ts`, `vines.spec.ts`, `nowplaying.spec.ts`, `sleep.spec.ts`, `guest.spec.ts`) | vitest under Node, fake timers, injected fakes |
 | Contract | [`tests/contract.spec.ts`](tests/contract.spec.ts) | Ajv 2020 loads the layout, action, state and config schemas; every `contracts/fixtures` file must be in `SCHEMA_FOR` or `SEMANTIC_ONLY`; client-built requests, holds and edited layouts must validate |
 | Browser | `tests/e2e/` (Playwright, `playwright.config.ts`, `serve-dist.mjs`) | **empty today**; `npm test` passes `--pass-with-no-tests` so the empty suite does not fail the run |
 
