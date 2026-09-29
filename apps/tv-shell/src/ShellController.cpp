@@ -244,6 +244,8 @@ void ShellController::onReply(const QString &requestId, const QString &type, con
         emit requestFailed(tr("Paired phones"), error);
     else if (type == QLatin1String("remote.now_playing"))
         emit requestFailed(tr("Now playing on phones"), error);
+    else if (type == QLatin1String("cec.configure"))
+        emit requestFailed(tr("TV control over HDMI"), error);
     else if (type == QLatin1String("playback.set"))
         emit requestFailed(tr("Advanced playback"), error);
     else
@@ -326,6 +328,11 @@ void ShellController::screenOff()
 void ShellController::powerActivity()
 {
     m_ipc->sendPowerActivity();
+}
+
+void ShellController::setCEC(bool enabled, const QString &volumeTarget)
+{
+    m_ipc->sendCECConfigure(enabled, volumeTarget == QLatin1String("tv") ? QStringLiteral("tv") : QStringLiteral("pc"));
 }
 
 void ShellController::answerConfirm(const QString &confirmId, bool accepted)

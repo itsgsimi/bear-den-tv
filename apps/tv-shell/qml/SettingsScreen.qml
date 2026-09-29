@@ -1,8 +1,9 @@
 // Settings: phone remote, pairing, devices, Now playing on phones
 // (remote.now_playing over IPC), appearance (sent to the coordinator as a
 // layout update), weather, playback, diagnostics, the sleep timer and Screen
-// off (the power.sleep_timer and display.off actions, state.power), and a
-// maintenance exit.
+// off (the power.sleep_timer and display.off actions, state.power), TV
+// control over HDMI (CEC) and its volume row (cec.configure, state.cec), and
+// a maintenance exit.
 
 import QtQuick
 import BearDen
@@ -37,6 +38,18 @@ Item {
     readonly property var power: Session.power
     readonly property bool sleepRunning: power.sleep_at_ms !== undefined && power.sleep_at_ms !== null
     readonly property var screenOffCap: Session.capabilities["display.off"] || ({})
+    // state.cec: TV control over HDMI-CEC (empty from an older coordinator).
+    readonly property var cec: Session.cec
+    readonly property bool cecOn: cec.enabled === true
+    readonly property string cecTarget: cec.volume_target === "tv" ? "tv" : "pc"
+    function cecDescription() {
+        if (cec.available !== true)
+            return cec.reason || qsTr("Not available on this TV box")
+        if (!cecOn) return qsTr("Turn the TV on and off with Bear Den, and switch it to this input")
+        if (cec.tv_power === "standby") return qsTr("The TV is in standby")
+        if (cec.tv_power === "on") return qsTr("The TV is on and follows Bear Den")
+        return qsTr("The TV did not say whether it is on")
+    }
     function sleepLabel(minutes) {
         if (!minutes) return qsTr("Off")
         if (minutes === 60) return qsTr("1 hour")
@@ -78,8 +91,14 @@ Item {
         { id: "screen-off", kind: "link", label: qsTr("Turn the screen off"),
           description: screenOffCap.available ? qsTr("Any key turns it back on") : (screenOffCap.reason || qsTr("Not available here")),
           value: "" },
+        { id: "cec", kind: "toggle", label: qsTr("TV control over HDMI (CEC)"), description: cecDescription(), value: cecOn ? "on" : "off" }
+    ].concat(cecOn && cec.available === true ? [
+        { id: "cec-volume", kind: "choice", label: qsTr("Phone volume buttons"),
+          description: cecTarget === "tv" ? qsTr("Change the TV's volume over HDMI") : qsTr("Change this box's volume"),
+          value: cecTarget === "tv" ? qsTr("TV") : qsTr("PC") }
+    ] : []).concat([
         { id: "exit", kind: "danger", label: qsTr("Exit Bear Den TV"), description: qsTr("For maintenance: returns to the desktop until the next start"), value: "" }
-    ]
+    ])
 
     function enter() { Themes.reload(); report() }
     function report() { Nav.reportFocus("settings", rows[focusIndex].id, 0) }
@@ -104,6 +123,7 @@ Item {
         case "art": editUi(u => u.art_style = cycle(["pixel", "classic"], u.art_style || "pixel", delta)); return true
         case "margin": editUi(u => u.safe_margin_percent = cycle(margins, u.safe_margin_percent, delta)); return true
         case "sleep": Shell.setSleepTimer(cycle(sleepChoices, sleepRunning ? power.sleep_minutes : 0, delta)); return true
+        case "cec-volume": Shell.setCEC(true, delta > 0 ? "tv" : "pc"); return true
         }
         return false
     }
@@ -113,6 +133,9 @@ Item {
         case "pairing": openScreen("pairing"); break
         case "devices": openScreen("devices"); break
         case "now-playing": Shell.setNowPlaying(remote.now_playing === false); break
+        // Stored even without an adapter: it takes effect when one appears.
+        case "cec": Shell.setCEC(!cecOn, cecTarget); break
+        case "cec-volume": Shell.setCEC(true, cecTarget === "tv" ? "pc" : "tv"); break
         case "weather": openScreen("weather"); break
         case "playback": openScreen("playback"); break
         case "advanced-playback": openScreen("advanced-playback"); break

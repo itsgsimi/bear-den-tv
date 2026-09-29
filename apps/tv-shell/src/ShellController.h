@@ -118,6 +118,10 @@ public:
     // Settings → Now playing on phones (remote.now_playing): whether paired
     // phones see what the app in front is playing.
     Q_INVOKABLE void setNowPlaying(bool enabled);
+    // Settings → TV control over HDMI (CEC) and its volume row
+    // (cec.configure): on/off, and whether the phone's volume buttons drive
+    // the PC ("pc") or the TV ("tv").
+    Q_INVOKABLE void setCEC(bool enabled, const QString &volumeTarget);
     // Settings → Sleep timer and Screen off: the power.sleep_timer (0 cancels)
     // and display.off actions; powerActivity tells the coordinator a TV key
     // was swallowed to wake the display or stay awake (contracts/ipc.md).

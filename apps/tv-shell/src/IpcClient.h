@@ -87,6 +87,8 @@ public:
     QString sendWeatherConfigure(bool enabled, const QJsonValue &place, const QString &units, bool scene);
     QString sendPlaybackSet(const QString &adapter, const QString &setting, const QString &value);
     QString sendRemoteNowPlaying(bool enabled);
+    /// cec.configure: TV control over HDMI-CEC on/off and volume_target "pc"|"tv".
+    QString sendCECConfigure(bool enabled, const QString &volumeTarget);
     void sendShellExit(const QString &reason);
     // power.activity: a TV key the shell swallowed while the display was off
     // or the sleep warning showed (contracts/ipc.md). No reply.

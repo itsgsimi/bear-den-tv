@@ -155,7 +155,11 @@ array of `{id, kind, label, description, value}` with `kind` one of `link`,
    over Off, 15 … 120 min through `Shell.setSleepTimer`, showing
    `Session.power.sleep_minutes`), `screen-off` (`Shell.screenOff()` 0.8 s
    after OK, so the key's release does not wake the display; only while
-   `display.off` is available), `exit`. A snapshot rebuilds `rows`; the
+   `display.off` is available), `cec` (TV control over HDMI (CEC): a toggle
+   through `Shell.setCEC(enabled, volumeTarget)` (IPC `cec.configure`),
+   showing `Session.cec.reason` when no adapter is usable), `cec-volume`
+   (only while `Session.cec` is available and enabled: ◀ ▶ or OK between
+   PC and TV), `exit`. A snapshot rebuilds `rows`; the
    list keeps the focused row in view (`onModelChanged`).
    `sleepRowSetsTheTimerAndScreenOff` walks 18 rows down to `sleep`.
    `headerPillsOpenScreensAndBackReturns` walks 17 rows down from `remote`
@@ -163,7 +167,8 @@ array of `{id, kind, label, description, value}` with `kind` one of `link`,
    `advancedPlaybackSendsPlaybackSet` 16 to `advanced-playback`,
    `weatherScreenSearchesAndConfigures` 14 to `weather`, and
    `nowPlayingRowTogglesTheSetting` 3 to `now-playing`. A row inserted above
-   any of them shifts those counts.
+   any of them shifts those counts. `cecRowsShowTheReasonAndConfigure`
+   walks down until it reaches `cec`.
 
 Done when: `make test-shell` passes and
 `scripts/sandbox.sh shot --screen settings` shows the row (you looked).
