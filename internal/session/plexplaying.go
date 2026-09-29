@@ -127,6 +127,7 @@ func (c *Coordinator) watchPlexPlaying(ctx context.Context) {
 	timer := c.clock.NewTimer(PlexPlayingPoll)
 	defer timer.Stop()
 	armed, read, failures := true, true, 0
+	why := "start"
 	var deadline time.Time
 	for {
 		if read {
@@ -141,6 +142,7 @@ func (c *Coordinator) watchPlexPlaying(ctx context.Context) {
 			} else {
 				rctx, cancel := context.WithTimeout(ctx, plexPlayingTimeout)
 				c.plexNP.asks.Add(1)
+				c.log.Debug("session: asking the Plex server what plays", "why", why, "failures", failures)
 				p, err := c.opts.PlexPlaying.NowPlaying(rctx)
 				cancel()
 				delay := PlexPlayingPoll
@@ -169,10 +171,11 @@ func (c *Coordinator) watchPlexPlaying(ctx context.Context) {
 		case <-c.plexNP.kick:
 			c.plexNP.loop.set(false, armed, deadline)
 			// A kick asks at once, except during a backoff.
-			read = failures == 0 || !armed
+			read, why = failures == 0 || !armed, "kick"
+
 		case <-tick:
 			c.plexNP.loop.set(false, armed, deadline)
-			armed, read = false, true
+			armed, read, why = false, true, "timer"
 		}
 	}
 }

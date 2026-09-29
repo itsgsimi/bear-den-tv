@@ -85,14 +85,17 @@ func (f *Fake) Advance(d time.Duration) {
 		}
 		next.active = false
 		f.remove(next)
-		f.mu.Unlock()
-		if next.fn != nil {
-			next.fn()
-		} else {
+		if next.fn == nil {
+			// Sent under the lock, so Stop and Reset (which drain under the
+			// same lock) never leave a stale tick behind.
 			select {
 			case next.ch <- next.when:
 			default:
 			}
+		}
+		f.mu.Unlock()
+		if next.fn != nil {
+			next.fn()
 		}
 	}
 }
@@ -137,13 +140,26 @@ type fakeTimer struct {
 
 func (t *fakeTimer) C() <-chan time.Time { return t.ch }
 
+// Stop and Reset drop a tick that fired but was never received, like
+// time.Timer since Go 1.23: after they return, no stale value arrives.
 func (t *fakeTimer) Stop() bool {
 	t.clock.mu.Lock()
 	defer t.clock.mu.Unlock()
 	was := t.active
 	t.active = false
 	t.clock.remove(t)
+	t.drain()
 	return was
+}
+
+func (t *fakeTimer) drain() {
+	if t.ch == nil {
+		return
+	}
+	select {
+	case <-t.ch:
+	default:
+	}
 }
 
 func (t *fakeTimer) Reset(d time.Duration) bool {
@@ -151,6 +167,7 @@ func (t *fakeTimer) Reset(d time.Duration) bool {
 	defer t.clock.mu.Unlock()
 	was := t.active
 	t.clock.remove(t)
+	t.drain()
 	t.clock.seq++
 	t.seq = t.clock.seq
 	t.when = t.clock.now.Add(d)

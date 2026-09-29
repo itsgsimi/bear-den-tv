@@ -78,3 +78,32 @@ func TestRealClockMonotonic(t *testing.T) {
 		t.Fatal("time did not advance")
 	}
 }
+
+// A timer that fired while nobody was receiving must not deliver that stale
+// tick after Reset or Stop (time.Timer's behaviour since Go 1.23); loops that
+// re-arm a timer rely on it.
+func TestFakeResetAndStopDropAnUnreceivedTick(t *testing.T) {
+	f := NewFake(time.Unix(0, 0))
+	tm := f.NewTimer(time.Second)
+	f.Advance(time.Second) // fires; nobody receives
+	tm.Reset(10 * time.Second)
+	select {
+	case <-tm.C():
+		t.Fatal("stale tick after Reset")
+	default:
+	}
+	f.Advance(10 * time.Second)
+	select {
+	case <-tm.C():
+	default:
+		t.Fatal("no tick at the new deadline")
+	}
+	tm.Reset(time.Second)
+	f.Advance(time.Second) // fires again; nobody receives
+	tm.Stop()
+	select {
+	case <-tm.C():
+		t.Fatal("stale tick after Stop")
+	default:
+	}
+}

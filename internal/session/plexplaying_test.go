@@ -60,11 +60,27 @@ func newPlexNPHarness(t *testing.T) *plexNPHarness {
 	return &plexNPHarness{npHarness: &npHarness{harness: h, clk: clk, media: media, logs: logs}, plex: fp}
 }
 
+// settle waits until the Plex loop has handled every kick sent so far (the
+// foreground change and the phone opening each kick it) and waits with
+// nothing due, without kicking it again or moving the clock.
+func (h *plexNPHarness) settle() {
+	h.t.Helper()
+	h.eventually("the Plex loop settled", func() bool {
+		return len(h.c.plexNP.kick) == 0 && h.c.plexNP.loop.idle(h.clk.Now())
+	})
+}
+
 // pass kicks (or, with d > 0, advances the clock by d), waits until the
 // Plex loop is idle again (parked, no kick pending, nothing due) and returns
-// the asks sent so far.
+// the asks sent so far. It first waits for the loop to be idle before moving
+// the clock: advancing while the loop is still between an ask and re-arming
+// its timer would start that timer after the jump, and the poll the test
+// expects would never come.
 func (h *plexNPHarness) pass(d time.Duration) int64 {
 	h.t.Helper()
+	h.eventually("the Plex loop parked before the clock moves", func() bool {
+		return len(h.c.plexNP.kick) == 0 && h.c.plexNP.loop.idle(h.clk.Now())
+	})
 	if d > 0 {
 		h.clk.Advance(d)
 	} else {
@@ -191,6 +207,7 @@ func TestPlexServerUnidentifiedAndErrorsBackOff(t *testing.T) {
 	h.plex.set(plexlink.Playing{Status: plexlink.PlayingUnidentified, Reason: why}, nil)
 	h.front("plexhtpc")
 	h.openPhone()
+	h.settle()
 	h.eventually("the reason on the phone", func() bool {
 		return h.phones.Snapshot(context.Background(), &h.ctl).Capabilities[contract.ActionMediaPause].Reason == why
 	})
@@ -207,11 +224,12 @@ func TestPlexServerUnidentifiedAndErrorsBackOff(t *testing.T) {
 
 	// The server cannot be asked: nothing shown, and the next ask waits for
 	// the backoff (10 s), not the poll (5 s).
+	h.settle()
 	h.plex.set(plexlink.Playing{}, errors.New("plex: server returned 403 for /status/sessions"))
 	h.pass(PlexPlayingPoll)
 	asks := h.c.plexNP.asks.Load()
 	if got := h.pass(PlexPlayingPoll); got != asks {
-		t.Fatal("asked again before the backoff")
+		t.Fatalf("asked again before the backoff; log:\n%s", h.logs.String())
 	}
 	if got := h.pass(PlexPlayingBackoff[0] - PlexPlayingPoll); got != asks+1 {
 		t.Fatalf("no ask after the backoff (%d)", got-asks)
