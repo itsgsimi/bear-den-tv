@@ -14,5 +14,5 @@ The original design brief recommends a standalone Qt 6 / Go / TypeScript project
 
 ## Consequences
 
-- On the target, the conda `libglvnd` GLX path deadlocks in `glXQueryServerString` under Qt's xcb plugin; `QT_XCB_GL_INTEGRATION=xcb_egl` initialises correctly. The launcher ([`scripts/start-session.sh`](../../scripts/start-session.sh)) sets it. A distro-built Qt would not need this; packaging (`packaging/`) must either bundle the conda Qt runtime with this environment variable or build against a distro Qt ≥ 6.5 and drop it.
+- On the target, the conda `libglvnd` GLX path deadlocks in `glXQueryServerString` under Qt's xcb plugin; `QT_XCB_GL_INTEGRATION=xcb_egl` initialises correctly. The launcher ([`scripts/start-session.sh`](../../scripts/start-session.sh)) sets it. A distro-built Qt would not need this; packaging (`packaging/`) must either bundle the conda Qt runtime with this environment variable or build against a distro Qt ≥ 6.5 and drop it. *Update 2026-09-29: `make package` took the first path: the .deb bundles the toolchain's Qt runtime and its shell wrapper ([`packaging/bear-den-tv-shell.sh`](../../packaging/bear-den-tv-shell.sh)) sets `QT_XCB_GL_INTEGRATION=xcb_egl` ([`operations.md` → Packaging](../operations.md#packaging)).*
 - `modernc.org/sqlite` and `golang.org/x/*` are pinned to Go-1.24-compatible versions.
