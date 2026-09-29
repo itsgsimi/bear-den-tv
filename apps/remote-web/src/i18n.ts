@@ -26,6 +26,9 @@ const ACTION_NAMES: Record<string, string> = {
   'power.sleep_timer': 'Sleep timer',
   'display.off': 'Screen off',
   'tv.power': 'TV power',
+  'pointer.move': 'Touchpad',
+  'pointer.click': 'Click',
+  'pointer.scroll': 'Scroll',
 };
 
 export const t = {
@@ -82,6 +85,14 @@ export const t = {
   },
 
   // Remote screen.
+  touchpad: {
+    title: 'Touchpad',
+    area: 'Touchpad for the web page on the TV',
+    hint: 'Drag to move the pointer · tap to click · two fingers to scroll',
+    click: 'Click',
+    rightClick: 'Right-click',
+  },
+
   remote: {
     controlling: 'Controlling',
     unverified: '(unverified)',

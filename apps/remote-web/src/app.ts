@@ -10,7 +10,7 @@
 // `revoked` (message or close 4001) and any 401 end the session and return to Pair.
 
 import { ApiClient, ApiError, EventsSocket, type ApiEnvironment, type SocketStatus } from './api.ts';
-import type { ActionArgs, ActionName, ActionRequest, ActionResult, ActionTarget, HoldEvent, Layout, LayoutPending, NavAction, Session } from './contract.ts';
+import type { ActionArgs, ActionName, ActionRequest, ActionResult, ActionTarget, HoldEvent, Layout, LayoutPending, NavAction, PointerAction, Session } from './contract.ts';
 import { PROTOCOL } from './contract.ts';
 import { HoldController, bindHoldLifecycle, type HoldEndReason } from './hold.ts';
 import { t } from './i18n.ts';
@@ -68,6 +68,8 @@ export interface App {
   pairWithCode(code: string): Promise<void>;
   retryInfo(): Promise<void>;
   tap<A extends ActionName>(action: A, args: ActionArgs[A]): Promise<void>;
+  /** Touchpad (web apps): sends quietly; only a refusal other than a rate limit is shown. */
+  pointer<A extends PointerAction>(action: A, args: ActionArgs[A]): Promise<void>;
   pressStart(action: NavAction): void;
   pressEnd(): void;
   refreshState(): Promise<void>;
@@ -259,6 +261,33 @@ export function createApp(env: ApiEnvironment, page: PageEnvironment, win: Windo
     }
   }
 
+  // Pointer moves arrive many times a second: they skip the last-result
+  // line and the pending list, and a rate-limited one is simply dropped
+  // (the touchpad sends the remaining distance with the next move).
+  async function pointer<A extends PointerAction>(action: A, args: ActionArgs[A]): Promise<void> {
+    const request: ActionRequest<A> = {
+      protocol: PROTOCOL,
+      request_id: uuidV4(),
+      context_epoch: currentEpoch(store.getState()),
+      target: 'active',
+      action,
+      args,
+    };
+    try {
+      const result = await api.action(request);
+      if (result.outcome === 'failed' && result.code !== 'rate_limited') {
+        if (result.code === 'stale_epoch') void refreshState();
+        showToast('error', result.message || t.errors.generic(result.code));
+      }
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        endSession('unauthenticated');
+        return;
+      }
+      showToast('error', describeError(err));
+    }
+  }
+
   function describeError(err: unknown): string {
     if (err instanceof ApiError) {
       if (err.status === 0) return t.errors.network;
@@ -409,6 +438,7 @@ export function createApp(env: ApiEnvironment, page: PageEnvironment, win: Windo
       if (await loadInfo()) store.dispatch({ type: 'pair_required' });
     },
     tap,
+    pointer,
     pressStart(action) {
       const state = store.getState();
       const capability = capabilityFor(state.snapshot, action);

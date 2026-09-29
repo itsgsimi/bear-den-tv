@@ -9,7 +9,8 @@
 // The last result is shown with its outcome (accepted/delivered/observed/failed)
 // kept distinct; nothing here pretends a press was observed when it was delivered.
 // A guest pass sees only what it may use (`mayUse`): no Close app, no restart,
-// no sleep timer or screen off.
+// no sleep timer or screen off. With a web app in front the Touchpad
+// (touchpad.tsx) appears under the D-pad.
 import { useEffect, useState } from 'preact/hooks';
 import type { ComponentChildren, JSX } from 'preact';
 import type { App } from '../app.ts';
@@ -20,6 +21,7 @@ import { Vines } from '../vines.tsx';
 import { NowPlayingPanel, nowPlayingOf } from './nowplaying.tsx';
 import { SleepPanel } from './sleep.tsx';
 import { TvPanel, volumeHeading } from './tv.tsx';
+import { TouchpadPanel } from './touchpad.tsx';
 import { type AppState, type PendingAction, capabilityFor, closableApp, isSecureTransport, mayUse, permissionsOf, visibleApps } from '../state.ts';
 
 const TEXT_MAX = 256;
@@ -85,6 +87,8 @@ export function RemoteView({ app, state }: { app: App; state: AppState }): JSX.E
           <CloseButton app={app} state={state} />
         </div>
       ) : null}
+
+      <TouchpadPanel app={app} state={state} />
 
       <LastResult state={state} />
 

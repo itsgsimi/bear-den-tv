@@ -147,7 +147,7 @@ export function Art({
 }
 
 /** Adapters with Bear Den's own icon (tools/pixelart and tools/classicart appicons.py). */
-export const APP_ICONS: readonly string[] = ['plex-htpc', 'vacuumtube', 'moonlight', 'spotify', 'jellyfin', 'retroarch'];
+export const APP_ICONS: readonly string[] = ['plex-htpc', 'vacuumtube', 'moonlight', 'spotify', 'jellyfin', 'retroarch', 'netflix', 'disney-plus', 'hulu', 'browser'];
 const APP_ICON_GRID = 32;
 
 /**

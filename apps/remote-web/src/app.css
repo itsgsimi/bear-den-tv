@@ -504,6 +504,13 @@ input[type='range'] { width: 100%; accent-color: var(--accent); min-height: 32px
 .outcome-failed .last-outcome { color: var(--error); background: rgba(224, 122, 106, 0.12); }
 .last-message { flex-basis: 100%; color: var(--text-2); }
 .group { margin-top: 0.5rem; }
+/* Touchpad for web apps (views/touchpad.tsx): the pad owns every gesture. */
+.touchpad {
+  height: 13rem; margin-top: 0.5rem; display: flex; align-items: flex-end; justify-content: center;
+  border: 2px dashed rgba(var(--sage-rgb, 121, 168, 137), 0.6); border-radius: var(--r22, 0);
+  background: rgba(46, 52, 58, 0.7); touch-action: none; user-select: none; -webkit-user-select: none;
+}
+.touchpad-hint { padding: 0.6rem; font-size: 0.8rem; opacity: 0.75; text-align: center; pointer-events: none; }
 /* Now playing (views/nowplaying.tsx): a card above the playback buttons. The
    bar is a native <progress> (no inline styles under the CSP); under Pixel it
    is square with 4px notches, Classic rounds it through the radius variables. */

@@ -94,7 +94,7 @@ describe('classic vines', () => {
 
 describe('app tile icons', () => {
   it('every app uses Bear Den\'s own icon: the pixel PNG at a whole-number scale, or the classic SVG', () => {
-    expect(APP_ICONS).toEqual(['plex-htpc', 'vacuumtube', 'moonlight', 'spotify', 'jellyfin', 'retroarch']);
+    expect(APP_ICONS).toEqual(['plex-htpc', 'vacuumtube', 'moonlight', 'spotify', 'jellyfin', 'retroarch', 'netflix', 'disney-plus', 'hulu', 'browser']);
     for (const adapter of APP_ICONS) {
       const px = props(AppArt({ adapter, size: 70 }));
       expect(px.src).toBe(`art/pixel/app-${adapter}.png`);
