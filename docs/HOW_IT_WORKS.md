@@ -1,10 +1,12 @@
 # How Bear Den TV works
 
 Bear Den TV turns a small Linux box into a TV: a home screen you drive with a
-phone, which opens Plex, YouTube (VacuumTube) and Moonlight and always brings
-you back with Home. It does this **without wrapping, embedding or modifying the
-apps**. They are ordinary Flatpak apps; Bear Den decides which one is on screen,
-makes it fullscreen, and routes the remote's buttons to whatever is in front.
+phone, which opens Plex, YouTube (VacuumTube), Moonlight and, once installed,
+Spotify, Jellyfin Desktop and RetroArch, plus Netflix, Disney+, Hulu and a
+Browser in Chromium, and always brings you back with Home. It does this
+**without wrapping, embedding or modifying the apps**. They are ordinary
+Flatpak apps; Bear Den decides which one is on screen, makes it fullscreen,
+and routes the remote's buttons to whatever is in front.
 
 This page explains the moving parts. The contracts are in
 [`contracts/`](../contracts/README.md); decisions are in
@@ -23,7 +25,7 @@ This page explains the moving parts. The contracts are in
                                          │        ▼                                      │
                                          │ bear-den-tv-shell  (Qt 6 / QML home screen)   │
                                          │                                               │
-                                         │ Plex HTPC · VacuumTube · Moonlight (Flatpak)  │
+                                         │ apps (Flatpak) · Chromium for web apps        │
                                          └──────────────────────────────────────────────┘
 ```
 
@@ -32,6 +34,7 @@ This page explains the moving parts. The contracts are in
 | **Coordinator** | `cmd/bear-den-tv`, `internal/` (Go) | the session: which app is in front, launching and closing apps, routing input, pairing and permissions, configuration, the LAN service |
 | **Home screen ("shell")** | `apps/tv-shell` (Qt 6 QML/C++) | everything you see on the TV between apps: tiles, focus, settings, pairing, themes, bears |
 | **Phone remote** | `apps/remote-web` (TypeScript, Preact) | the remote UI on the phone; served by the coordinator (embedded in its binary) |
+| **Navigation script** | `apps/web-nav` (TypeScript) | D-pad control of web pages, injected into Chromium by the coordinator (embedded in its binary) |
 | **Contracts** | `contracts/` | the shapes the three talk in (actions, state, IPC, config, layout, theme), validated in Go, C++ and TypeScript |
 | **Themes** | `themes/` (built in), `~/.local/share/bear-den-tv/themes/` (yours) | theme packages: a `theme.json` plus art, read by both the shell and the coordinator |
 
@@ -67,13 +70,17 @@ When you pick a tile (on the TV or the phone):
 4. Otherwise it is started with `flatpak run <app id>`, and the coordinator
    waits (up to 30 s) until the app's window is **actually in front**. Windows
    are recognised by their X11 `WM_CLASS`: a lower-case substring match on
-   `plex`, `vacuumtube` or `moonlight`
+   `plex`, `vacuumtube`, `moonlight`, `spotify`, `jellyfin` or `retroarch`,
+   and for web apps the class Bear Den gives Chromium (`BearDenWeb-<adapter>`)
    ([`adapters.go`](../internal/applications/adapters/adapters.go)). On
    Wayland the window's `app_id` plays that part (the Flatpak id, or the same
    substrings); see [Wayland](#wayland) below.
 5. The window is switched to **fullscreen** (EWMH `_NET_WM_STATE_FULLSCREEN`).
 6. While an app is in front, the home screen **stops drawing** (no animations,
    no frames), so the app gets the whole machine.
+
+Optional apps (Spotify, Jellyfin Desktop, RetroArch) have no tile until
+their Flatpak is installed (`hide_when_missing` in the config).
 
 ### Web apps
 
@@ -106,8 +113,11 @@ profile runs once, headless, so Chromium fetches Widevine. Details:
 
 - **Home** (phone button or the shell's own key) asks the window manager to
   activate the home screen's window (EWMH `_NET_ACTIVE_WINDOW`); the app keeps
-  running behind it. That is why returning to an app is instant, and why
-  Moonlight or Plex keep playing in the background.
+  running behind it. That is why returning to an app is instant. Before
+  that, Home pauses a playing app only where the pause can be verified: Plex
+  HTPC, VacuumTube and Jellyfin through their own MPRIS player (sent Pause,
+  then seen Paused), a web app with the site's pause key. Moonlight, Spotify
+  and RetroArch keep running as they are.
 - The home screen restores focus to the tile you left.
 - Every 3 seconds the coordinator reconciles running apps against the
   window list and Flatpak instances. When an app closes (or crashes), it is
@@ -174,6 +184,51 @@ capability. Only a headless sway in a container has been tested
   (permission `guest`, a remote with fewer powers that ends by itself).
 - Secrets never go into `config.json`, exports, logs or phone payloads.
   [`docs/security.md`](security.md) has the details.
+
+## Now playing, the sleep timer and the TV itself
+
+- **Now playing.** While the app in front has an MPRIS player, the
+  coordinator reads its title, position and state (only that app's player,
+  kept in memory) and sends them to controller phones and guest passes,
+  never while locked. The owner can turn it off (TV Settings → Now playing
+  on phones).
+- **Sleep timer and screen off.** The coordinator keeps the timer on its
+  clock: a warning a minute before, then a verified pause, Home, and the
+  display off through X11 DPMS, putting back the exact previous DPMS
+  settings on wake. The press that wakes the screen does nothing else.
+  Suspend is never offered (logind is only asked whether it could).
+- **HDMI-CEC** (off by default, needs a CEC device). The coordinator talks
+  to the TV through the kernel's CEC API: standby after the display went
+  off, on and to Bear Den's input on a press or Home, and optionally the
+  TV's volume keys. Details: [ADR 0008](decisions/0008-hdmi-cec.md).
+
+## Plex rows
+
+Home can show Continue Watching and Recently Added from the owner's Plex
+server. Signing in happens on the TV (Settings → Plex): the coordinator
+gets a link code from plex.tv, the owner enters it at plex.tv/link, and the
+token goes into the desktop keyring (never a file). The coordinator then
+talks only to the chosen server, refreshes the rows when Home shows and
+every 10 minutes while it stays in front (never behind an app), and caches
+the posters. Selecting a card opens Plex HTPC. Code: `internal/plexlink`,
+`internal/providers/plex`; commands in
+[`operations.md` → Plex](operations.md#plex).
+
+## Den badges
+
+A few local counters (apps opened, days Home was shown, rainy days, guest
+passes, ...) earn playful badges, shown in TV Settings → Badges and on
+controller phones. Only ids, counts and days are stored, in `state.db`;
+counting can be turned off and reset
+([ADR 0009](decisions/0009-den-badges-local-counters.md)).
+
+## App icons
+
+Each tile shows, in order: the owner's brand folder icon, then (by default)
+the icon the installed Flatpak exports when that Flatpak is the app itself,
+then Bear Den's own drawing, then a monogram. Settings → App icons → Bear
+Den style skips the app's own. Phones get the same icon as a sanitised PNG
+from the coordinator ([ADR 0012](decisions/0012-app-icons-apps-own-by-default.md)).
 
 ## Local weather
 
@@ -244,7 +299,11 @@ Chromebox, and gets out of the way on anything faster.
 
 [`docs/APP_PERFORMANCE.md`](APP_PERFORMANCE.md) has every rule.
 
-## Deploying to the TV
+## Installing and deploying
+
+There are two ways onto a TV box. An owner installs the `.deb` from
+`make package` (Qt bundled; see [`operations.md` → Packaging](operations.md#packaging));
+no release has been published yet. A developer deploys from a checkout:
 
 [`scripts/deploy-target.sh`](../scripts/deploy-target.sh) builds everything on the workstation in seconds,
 then:

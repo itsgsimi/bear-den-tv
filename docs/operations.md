@@ -2,6 +2,34 @@
 
 Every command here exists in the current tree. What has been seen working on a real TV is recorded in [`docs/IMPLEMENTATION_STATUS.md`](IMPLEMENTATION_STATUS.md).
 
+## Owner tasks
+
+Everything an owner does, and where it is described. On the TV most of it
+is in **Settings**; from a terminal on the TV the same commands are
+`bear-den-tv ...` (package) or `build/bin/bear-den-tv ...` (checkout), and
+`bear-den-tv help` lists them. Nothing here has been seen on the TV unless
+[`IMPLEMENTATION_STATUS.md`](IMPLEMENTATION_STATUS.md) says so.
+
+| Task | On the TV | Command | Section |
+|---|---|---|---|
+| Install or remove Bear Den | — | `sudo apt install ./bear-den-tv_*.deb`, `sudo apt remove --purge bear-den-tv` | [Packaging](#packaging) |
+| Start, stop, start at login | Settings → Exit Bear Den TV | `start-session.sh --watch\|stop`, `bear-den-tv autostart enable` | [Starting, stopping, autostart](#starting-stopping-autostart) |
+| Turn on the phone remote | Settings → Phone remote | `bear-den-tv remote enable --interface IF --accept-lan-exposure` | [Phone remote](#phone-remote) |
+| Pair a phone, or give a guest pass | Settings → Pair a phone | `bear-den-tv pair [--guest tonight\|24h\|7d]` | [Phone remote](#phone-remote), [Guest passes](#guest-passes) |
+| Remove a phone | Settings → Paired phones | `bear-den-tv devices revoke <id\|*>` | [Phone remote](#phone-remote) |
+| Install, update or remove apps | a "Not installed" tile, Settings → Add apps, Keep apps up to date | `bear-den-tv apps install <app-id>`, `flatpak uninstall --user <id>` | [App installs](#app-installs) |
+| Turn on Netflix, Disney+ or Hulu | Settings → Streaming sites | — | [Streaming sites and the Browser](#streaming-sites-and-the-browser) |
+| Sign the TV in to Plex | Settings → Plex | `bear-den-tv plex sign-in` | [Plex](#plex) |
+| Playback settings per app | Settings → Playback, Advanced playback | `bear-den-tv apps detect [--apply]` | [App playback settings](#app-playback-settings) |
+| Sleep timer, screen off | Settings → Sleep timer, Turn the screen off | — (the phone's Sleep section) | [Sleep timer and screen off](#sleep-timer-and-screen-off) |
+| TV power and volume over HDMI-CEC | Settings → TV control over HDMI (CEC) | — | [TV control over HDMI-CEC](#tv-control-over-hdmi-cec) |
+| Now playing on phones | Settings → Now playing on phones | — | [Phone remote](#phone-remote) |
+| Den badges | Settings → Badges | `bear-den-tv badges status\|on\|off\|reset` | [Den badges](#den-badges) |
+| Local weather | Settings → Weather | `bear-den-tv weather ...` | [Local weather](#local-weather) |
+| Theme, style, art style, app icons | Settings → Theme, Style, Art style, App icons | `bear-den-tv themes list` | [Themes](#themes), [App icons](#app-icons) |
+| Run on Wayland | — | `bear-den-tv doctor --probe` | [Wayland](#wayland) |
+| See what's wrong | Settings → Diagnostics | `bear-den-tv doctor` | [Diagnostics](#diagnostics) |
+
 ## Development toolchain (no root)
 
 ```sh
@@ -292,6 +320,18 @@ build/bin/bear-den-tv themes path             # where your own themes go
 A new or changed theme shows up when Settings opens on the TV, and within 10 s
 on phones. [`docs/THEMES.md`](THEMES.md) is the theme designer's guide.
 
+## App icons
+
+**Settings → App icons** (or App icons in the phone's Layout editor) chooses
+what each tile shows: **App's own** (the default) is the icon the installed
+Flatpak exports; **Bear Den style** is Bear Den's own drawing. An app that is
+not installed, and the streaming sites (they run in Chromium), show Bear
+Den's either way. An icon you put in
+`~/.local/share/bear-den-tv/brand/<adapter>/icon.{png,svg,jpg,webp}` comes
+before both (phones skip SVG). Details:
+[`docs/THEMES.md` → App icons](THEMES.md#app-icons),
+[ADR 0012](decisions/0012-app-icons-apps-own-by-default.md).
+
 ## Local weather
 
 Off by default. Turn it on in TV **Settings → Weather**, or from the CLI
@@ -473,6 +513,10 @@ build/bin/bear-den-tv pair            # show a pairing code/URL
 build/bin/bear-den-tv pair --guest tonight   # a guest pass: until 04:00 tomorrow morning (also 24h, 7d)
 build/bin/bear-den-tv devices [revoke <id|*>]
 ```
+
+**Settings → Now playing on phones** (on by default) decides whether paired
+phones see the title and progress of what is playing
+([`docs/security.md`](security.md)).
 
 ### Guest passes
 
