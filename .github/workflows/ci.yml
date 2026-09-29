@@ -77,7 +77,17 @@ jobs:
         run: . scripts/env.sh && make apps/web-nav/node_modules/.installed && cd apps/web-nav && npx playwright install --with-deps chromium
 
       - name: Test and lint
-        run: . scripts/env.sh && make test && make lint
+        run: |
+          . scripts/env.sh
+          set -o pipefail
+          make test 2>&1 | tee "$RUNNER_TEMP/test.log"
+          make lint 2>&1 | tee "$RUNNER_TEMP/lint.log"
+
+      # Public annotations name what failed: raw job logs need admin rights
+      # to download, annotations don't.
+      - name: Annotate failures
+        if: failure()
+        run: scripts/ci-annotate.sh "$RUNNER_TEMP/test.log" "$RUNNER_TEMP/lint.log"
 
       # Runs even when tests fail, so both problems are reported in one run.
       - name: Committed web builds (remote-web, web-nav) match a fresh build
