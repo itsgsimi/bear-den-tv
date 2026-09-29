@@ -7,6 +7,8 @@
 // address before the claim request, else `/api/v1/session`; a session starts the
 // socket, whose every open fetches `/api/v1/state`. Actions are one HTTP POST each
 // with the epoch of the last rendered snapshot; nothing is queued or replayed.
+// Playback actions name the app playing behind Home when there is one
+// (`targetFor`, state.now_playing.foreground false), never "active" (the shell).
 // `revoked` (message or close 4001) and any 401 end the session and return to Pair.
 
 import { ApiClient, ApiError, EventsSocket, type ApiEnvironment, type SocketStatus } from './api.ts';
@@ -15,6 +17,7 @@ import { PROTOCOL } from './contract.ts';
 import { HoldController, bindHoldLifecycle, type HoldEndReason } from './hold.ts';
 import { t } from './i18n.ts';
 import {
+  behindHomeApp,
   canWriteLayout,
   capabilityFor,
   createStore,
@@ -57,6 +60,20 @@ const DEFAULT_HOLD_RENEW_MS = 200;
 
 /** Actions whose target is the shell rather than whatever is in the foreground. */
 const SHELL_TARGETED: ReadonlySet<ActionName> = new Set<ActionName>(['home', 'app.launch', 'app.close', 'shell.restart', 'power.sleep_timer', 'display.off', 'tv.power', 'app.install', 'app.install_cancel']);
+
+/** Playback actions: with an app playing behind Home they name that app (state.now_playing.foreground false). */
+const MEDIA_ACTIONS: ReadonlySet<ActionName> = new Set<ActionName>(['media.play', 'media.pause', 'media.seek_relative']);
+
+/**
+ * @param action The action.
+ * @param snapshot Latest snapshot.
+ * @returns The request target: the shell for SHELL_TARGETED, the app behind Home for playback while one plays there, else the active window.
+ */
+export function targetFor(action: ActionName, snapshot: StateSnapshot | null): ActionTarget {
+  if (SHELL_TARGETED.has(action)) return 'shell';
+  if (MEDIA_ACTIONS.has(action)) return behindHomeApp(snapshot) ?? 'active';
+  return 'active';
+}
 
 export interface App {
   readonly store: Store;
@@ -240,7 +257,7 @@ export function createApp(env: ApiEnvironment, page: PageEnvironment, win: Windo
 
   async function tap<A extends ActionName>(action: A, args: ActionArgs[A]): Promise<void> {
     const state = store.getState();
-    const target: ActionTarget = SHELL_TARGETED.has(action) ? 'shell' : 'active';
+    const target = targetFor(action, state.snapshot);
     const request: ActionRequest<A> = {
       protocol: PROTOCOL,
       request_id: uuidV4(),

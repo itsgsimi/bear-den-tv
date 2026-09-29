@@ -1,7 +1,10 @@
-// Now playing: what the foreground app's own MPRIS player reports, kept in
-// memory for phones with the controller permission (state.now_playing;
-// contracts/http.md "Now playing", docs/security.md). Never logged, persisted
-// or put in the shell view, diagnostics or exports.
+// Now playing: what an app's own MPRIS player reports, kept in memory for
+// phones with the controller permission or a guest pass (state.now_playing;
+// contracts/http.md "Now playing", docs/security.md): the app in front, or,
+// while the shell is in front, the app that was in front before Home as long
+// as its player reports Playing or Paused (now_playing.foreground false; the
+// media actions then name that app as their target, doMedia). Never logged,
+// persisted or put in the shell view, diagnostics or exports.
 
 package session
 
@@ -28,10 +31,11 @@ const nowPlayingReadTimeout = 2 * time.Second
 
 // nowPlaying is the latest reading of the foreground app's player.
 type nowPlaying struct {
-	appID  string
-	player platform.MediaPlayer
-	info   platform.MediaInfo
-	readAt int64 // coordinator monotonic ms (the clock of generated_at_ms)
+	appID      string
+	foreground bool // false: appID is behind Home
+	player     platform.MediaPlayer
+	info       platform.MediaInfo
+	readAt     int64 // coordinator monotonic ms (the clock of generated_at_ms)
 }
 
 // npState is the now-playing bookkeeping inside Coordinator.
@@ -59,17 +63,72 @@ func (c *Coordinator) clearNowPlayingLocked() bool {
 }
 
 // nowPlayingSubjectLocked is the player whose state may be shown: the
-// foreground app's own player (found by its adapter's MediaMatch, exactly as
-// media actions use it), only while unlocked and while the owner allows it.
-func (c *Coordinator) nowPlayingSubjectLocked(cfg config.Config) (platform.MediaPlayer, string) {
-	if c.locked || !cfg.Remote.ShowNowPlaying() || c.target.Kind != "app" {
+// foreground app's own player (found by mediaMatchFor, exactly as media
+// actions use it), or with the shell in front the player of the app behind
+// Home (foreground false); only while unlocked and while the owner allows it.
+func (c *Coordinator) nowPlayingSubjectLocked(cfg config.Config) (platform.MediaPlayer, string, bool) {
+	if c.locked || !cfg.Remote.ShowNowPlaying() {
+		return nil, "", false
+	}
+	switch c.target.Kind {
+	case "app":
+		appID := strOr(c.target.AppID)
+		if c.media == nil || c.media.appID != appID || c.media.player == nil {
+			return nil, "", false
+		}
+		return c.media.player, appID, true
+	case "shell":
+		if b := c.behind; b != nil && b.player != nil {
+			return b.player, b.appID, false
+		}
+	}
+	return nil, "", false
+}
+
+// noteBehindLocked follows the app behind Home on a change of target from
+// prev: an app giving way to the shell stays behind it with the player it
+// had (found again by probeMedia when it had none yet); another app in
+// front ends it. Lock and unknown windows leave it as it is.
+func (c *Coordinator) noteBehindLocked(prev contract.Target) {
+	switch {
+	case c.target.Kind == "shell" && prev.Kind == "app":
+		appID := strOr(prev.AppID)
+		if m := c.media; m != nil && m.appID == appID {
+			b := *m
+			c.behind = &b
+		} else {
+			c.behind = &mediaProbe{appID: appID}
+		}
+	case c.target.Kind == "app":
+		c.behind = nil
+	}
+}
+
+// behindControlLocked is the app behind Home whose playback phones may
+// control from the shell: its own player was found, allows control, reports
+// Playing or Paused (the reading phones see), and it is not a web app (a web
+// page's video is controlled only through the page, with the app in front).
+// Otherwise nil, with the reason when there is a reading to explain.
+func (c *Coordinator) behindControlLocked() (*mediaProbe, string) {
+	b := c.behind
+	if c.target.Kind != "shell" || b == nil || b.player == nil {
 		return nil, ""
 	}
-	appID := strOr(c.target.AppID)
-	if c.media == nil || c.media.appID != appID || c.media.player == nil {
+	cur := c.np.cur
+	if cur == nil || cur.foreground || cur.appID != b.appID || c.nowPlayingLocked() == nil {
 		return nil, ""
 	}
-	return c.media.player, appID
+	label := b.appID
+	if app, ok := c.opts.Config.Current().Application(b.appID); ok {
+		label = app.Label
+	}
+	if _, isWeb := c.webSpecFor(b.appID); isWeb {
+		return nil, "Open " + label + " to control it."
+	}
+	if !b.canCtl {
+		return nil, label + " does not expose verified media controls."
+	}
+	return b, label
 }
 
 // watchNowPlaying keeps c.np.cur in step with the foreground app's player:
@@ -90,7 +149,7 @@ func (c *Coordinator) watchNowPlaying(ctx context.Context) {
 		if read {
 			cfg := c.opts.Config.Current()
 			c.mu.Lock()
-			player, appID := c.nowPlayingSubjectLocked(cfg)
+			player, appID, fg := c.nowPlayingSubjectLocked(cfg)
 			c.mu.Unlock()
 			if player != watched {
 				stopWatch()
@@ -106,7 +165,7 @@ func (c *Coordinator) watchNowPlaying(ctx context.Context) {
 					}
 				}
 			}
-			c.refreshNowPlaying(ctx, player, appID)
+			c.refreshNowPlaying(ctx, player, appID, fg)
 			poll.Reset(NowPlayingPoll)
 			pollPending = true
 		}
@@ -148,20 +207,20 @@ func (c *Coordinator) nowPlayingPollWanted() bool {
 
 // refreshNowPlaying reads player (nil clears) and publishes when what phones
 // would see changed. A failed read fails closed: nothing is shown.
-func (c *Coordinator) refreshNowPlaying(ctx context.Context, player platform.MediaPlayer, appID string) {
+func (c *Coordinator) refreshNowPlaying(ctx context.Context, player platform.MediaPlayer, appID string, fg bool) {
 	var next *nowPlaying
 	if player != nil {
 		rctx, cancel := context.WithTimeout(ctx, nowPlayingReadTimeout)
 		info, err := player.Info(rctx)
 		cancel()
 		if err == nil {
-			next = &nowPlaying{appID: appID, player: player, info: info}
+			next = &nowPlaying{appID: appID, foreground: fg, player: player, info: info}
 		}
 	}
 	cfg := c.opts.Config.Current()
 	c.mu.Lock()
 	// The foreground may have changed while the player was being read.
-	if cur, curApp := c.nowPlayingSubjectLocked(cfg); next != nil && (cur != player || curApp != appID) {
+	if cur, curApp, curFg := c.nowPlayingSubjectLocked(cfg); next != nil && (cur != player || curApp != appID || curFg != fg) {
 		next = nil
 	}
 	prev := c.np.cur
@@ -170,7 +229,7 @@ func (c *Coordinator) refreshNowPlaying(ctx context.Context, player platform.Med
 	case next == nil:
 		changed = prev != nil
 		c.np.cur = nil
-	case prev != nil && prev.player == next.player && sameMedia(prev.info, next.info) && next.info.Status != "Playing":
+	case prev != nil && prev.player == next.player && prev.foreground == next.foreground && sameMedia(prev.info, next.info) && next.info.Status != "Playing":
 		changed = false // a paused or stopped player re-read to the same state
 	default:
 		next.readAt = c.nowMs()
@@ -189,10 +248,19 @@ func sameMedia(a, b platform.MediaInfo) bool {
 
 // nowPlayingLocked is state.now_playing for the current target, or nil when
 // there is nothing honest to show (no title, an unknown status, a reading
-// for another app).
+// for another app, a stopped player behind Home).
 func (c *Coordinator) nowPlayingLocked() *contract.NowPlaying {
 	cur := c.np.cur
-	if cur == nil || c.locked || c.target.Kind != "app" || strOr(c.target.AppID) != cur.appID {
+	if cur == nil || c.locked {
+		return nil
+	}
+	switch {
+	case cur.foreground && c.target.Kind == "app" && strOr(c.target.AppID) == cur.appID:
+	case !cur.foreground && c.target.Kind == "shell" && c.behind != nil && c.behind.appID == cur.appID:
+		if cur.info.Status != "Playing" && cur.info.Status != "Paused" {
+			return nil
+		}
+	default:
 		return nil
 	}
 	info := cur.info
@@ -209,7 +277,8 @@ func (c *Coordinator) nowPlayingLocked() *contract.NowPlaying {
 	if title == "" || status == "" {
 		return nil
 	}
-	np := &contract.NowPlaying{AppID: cur.appID, Title: title, Status: status, PositionAt: cur.readAt, Rate: info.Rate}
+	fg := cur.foreground
+	np := &contract.NowPlaying{AppID: cur.appID, Foreground: &fg, Title: title, Status: status, PositionAt: cur.readAt, Rate: info.Rate}
 	if np.Rate < 0 {
 		np.Rate = 0
 	}

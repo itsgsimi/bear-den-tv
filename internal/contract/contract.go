@@ -715,13 +715,17 @@ const (
 // NowPlayingTextMax is the longest title or subtitle sent, in characters.
 const NowPlayingTextMax = 200
 
-// NowPlaying is state.schema.json#/properties/now_playing: what the
-// foreground app's own MPRIS player reports, for phones with the controller
-// permission only. Title and Subtitle are private media names: they go to
+// NowPlaying is state.schema.json#/properties/now_playing: what an app's own
+// MPRIS player reports while the app is in front or plays behind Home
+// (Foreground false), for phones with the controller permission or a guest
+// pass only. Title and Subtitle are private media names: they go to
 // those phones and nowhere else, so LogValue and String redact them
 // (docs/security.md).
 type NowPlaying struct {
-	AppID      string  `json:"app_id"`
+	AppID string `json:"app_id"`
+	// Foreground is false while AppID plays (or is paused) behind Home with
+	// the shell in front; the coordinator always sets it.
+	Foreground *bool   `json:"foreground,omitempty"`
 	Title      string  `json:"title"`
 	Subtitle   string  `json:"subtitle,omitempty"`
 	Status     string  `json:"status"` // playing | paused | stopped

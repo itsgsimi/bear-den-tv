@@ -6,7 +6,8 @@
 import { describe, expect, it } from 'vitest';
 import type { VNode } from 'preact';
 import type { NowPlaying, StateSnapshot } from '../../src/contract.ts';
-import { initialState, reduce } from '../../src/state.ts';
+import { targetFor } from '../../src/app.ts';
+import { behindHomeApp, initialState, reduce } from '../../src/state.ts';
 import { appLabelFor, extrapolatePosition, formatClock, NowPlayingCard, nowPlayingOf, shouldTick } from '../../src/views/nowplaying.tsx';
 
 type Props = Record<string, unknown> & { children?: unknown };
@@ -123,6 +124,44 @@ describe('Now playing card', () => {
   it('labels the reading with its own app', () => {
     expect(appLabelFor(snapshot(DEMO), DEMO)).toBe('Plex');
     expect(appLabelFor(snapshot(DEMO), { ...DEMO, app_id: 'gone' })).toBe('Plex'); // the target label
+  });
+});
+
+describe('behind Home', () => {
+  const BEHIND: NowPlaying = { ...DEMO, app_id: 'youtube', foreground: false, title: 'DEMO Video: Building a Cabin', subtitle: 'DEMO Channel' };
+
+  it('says the app plays behind Home', () => {
+    const tree = walk(NowPlayingCard({ np: BEHIND, appLabel: 'YouTube', positionMs: 180_000 }));
+    const card = byTestId(tree, 'now-playing');
+    expect(card?.props['data-behind']).toBe('true');
+    expect(card?.props.class).toContain('np-behind');
+    expect(card?.props['aria-label']).toBe('Playing in YouTube · behind Home');
+    expect(text(byTestId(tree, 'now-playing-behind'))).toBe('Playing in YouTube · behind Home');
+    const paused = walk(NowPlayingCard({ np: { ...BEHIND, status: 'paused' }, appLabel: 'YouTube', positionMs: 180_000 }));
+    expect(text(byTestId(paused, 'now-playing-behind'))).toBe('Paused in YouTube · behind Home');
+  });
+
+  it('says nothing about Home for the app in front', () => {
+    for (const np of [DEMO, { ...DEMO, foreground: true }]) {
+      const tree = walk(NowPlayingCard({ np, appLabel: 'Plex', positionMs: 754_000 }));
+      expect(byTestId(tree, 'now-playing')?.props['data-behind']).toBe('false');
+      expect(byTestId(tree, 'now-playing-behind')).toBeUndefined();
+    }
+  });
+
+  it('names the app behind Home as the playback target, never "active"', () => {
+    const shell = { ...snapshot(BEHIND), target: { kind: 'shell', app_id: null, label: 'Bear Den TV', observed: true } } as StateSnapshot;
+    expect(behindHomeApp(shell)).toBe('youtube');
+    expect(targetFor('media.pause', shell)).toBe('youtube');
+    expect(targetFor('media.play', shell)).toBe('youtube');
+    expect(targetFor('media.seek_relative', shell)).toBe('youtube');
+    expect(targetFor('nav.left', shell)).toBe('active');
+    expect(targetFor('home', shell)).toBe('shell');
+    // In front, or nothing known: the active window, as before.
+    expect(behindHomeApp(snapshot(DEMO))).toBeNull();
+    expect(targetFor('media.pause', snapshot(DEMO))).toBe('active');
+    expect(targetFor('media.pause', snapshot({ ...DEMO, foreground: true }))).toBe('active');
+    expect(targetFor('media.pause', null)).toBe('active');
   });
 });
 

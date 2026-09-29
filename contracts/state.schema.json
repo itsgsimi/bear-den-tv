@@ -269,9 +269,10 @@
     },
     "now_playing": {
       "type": ["object", "null"],
-      "description": "Phones with the controller permission or a guest pass only: what the foreground app's own MPRIS player reports. Omitted for the shell, anonymous viewers and phones with neither, while the session is locked, when config remote.now_playing is false, and when nothing is known; null means the same as absent. Never logged, persisted or included in diagnostics (docs/security.md).",
+      "description": "Phones with the controller permission or a guest pass only: what an app's own MPRIS player reports while that app is in front or, with foreground false, while it plays or is paused behind Home. Omitted for the shell, anonymous viewers and phones with neither, while the session is locked, when config remote.now_playing is false, and when nothing is known; null means the same as absent. Never logged, persisted or included in diagnostics (docs/security.md).",
       "properties": {
-        "app_id": {"type": "string", "minLength": 1, "description": "The foreground application (state.applications[].id) whose player this is."},
+        "app_id": {"type": "string", "minLength": 1, "description": "The application (state.applications[].id) whose player this is: the app in front, or with foreground false the app behind Home."},
+        "foreground": {"type": "boolean", "description": "true (absent from older coordinators means the same): app_id is in front. false: Bear Den's shell is in front and app_id plays or is paused behind Home (status is then never stopped); media.play, media.pause and media.seek_relative for it name app_id as their target, never \"active\"."},
         "title": {"type": "string", "minLength": 1, "maxLength": 200, "description": "xesam:title, cut to 200 characters. Private media: shown to phones only."},
         "subtitle": {"type": "string", "minLength": 1, "maxLength": 200, "description": "xesam:artist joined with ', ', else xesam:album; absent when the player reports neither."},
         "status": {"enum": ["playing", "paused", "stopped"]},
@@ -281,6 +282,8 @@
         "rate": {"type": "number", "minimum": 0, "description": "Playback rate (MPRIS Rate; 1 when the player does not report it)."}
       },
       "required": ["app_id", "title", "status", "position_at", "rate"],
+      "if": {"properties": {"foreground": {"const": false}}, "required": ["foreground"]},
+      "then": {"properties": {"status": {"enum": ["playing", "paused"]}}},
       "additionalProperties": false
     },
     "achievements": {

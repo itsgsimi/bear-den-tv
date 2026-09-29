@@ -333,6 +333,14 @@ func (c *Coordinator) capabilitiesLocked() map[string]contract.Capability {
 		}
 	} else if c.target.Kind == "unknown" {
 		media = unavailable("The foreground window is not recognized.")
+	} else if c.target.Kind == "shell" {
+		// The app playing behind Home, for requests that name it
+		// (state.now_playing.foreground false; doMedia).
+		if b, why := c.behindControlLocked(); b != nil {
+			media = available(backendMPRIS)
+		} else if why != "" {
+			media = unavailable(why)
+		}
 	}
 	caps[contract.ActionMediaPlay] = media
 	caps[contract.ActionMediaPause] = media

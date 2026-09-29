@@ -685,6 +685,10 @@ func (c *Coordinator) mediaMatchFor(appID string) (platform.MediaMatch, bool) {
 // probeMedia looks for an MPRIS player for the foreground application.
 func (c *Coordinator) probeMedia(ctx context.Context) {
 	_, t, _ := c.current()
+	if t.Kind == "shell" {
+		c.probeBehind(ctx)
+		return
+	}
 	if t.Kind != "app" || c.opts.Media == nil {
 		if t.Kind == "app" {
 			c.mu.Lock()
@@ -713,6 +717,34 @@ func (c *Coordinator) probeMedia(ctx context.Context) {
 	c.publish()
 }
 
+// probeBehind looks for the player of the app behind Home when none was
+// found while it was in front (it may have started playing late).
+func (c *Coordinator) probeBehind(ctx context.Context) {
+	c.mu.Lock()
+	b := c.behind
+	c.mu.Unlock()
+	if b == nil || b.player != nil || c.opts.Media == nil {
+		c.kickNowPlaying()
+		return
+	}
+	probe := &mediaProbe{appID: b.appID, probedAt: c.clock.Now()}
+	if m, ok := c.mediaMatchFor(b.appID); ok {
+		ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
+		defer cancel()
+		if p, found, err := c.opts.Media.Find(ctx, m); err == nil && found {
+			probe.player = p
+			probe.canCtl, _ = p.CanControl(ctx)
+		}
+	}
+	c.mu.Lock()
+	if _, cur, _ := c.currentLocked(); cur.Kind == "shell" && c.behind == b {
+		c.behind = probe
+	}
+	c.mu.Unlock()
+	c.kickNowPlaying()
+	c.publish()
+}
+
 func (c *Coordinator) currentLocked() (int64, contract.Target, bool) {
 	return c.epoch, c.target, c.locked
 }
@@ -722,17 +754,33 @@ func (c *Coordinator) doMedia(ctx context.Context, req contract.ActionRequest, t
 	if !cp.Available {
 		return c.fail(req, code, cp.Reason)
 	}
-	if req.Target != "active" && req.Target != strOr(target.AppID) {
-		return c.fail(req, contract.CodeTargetUnfocused, "That application is not in the foreground.")
+	var m *mediaProbe
+	if target.Kind == "shell" {
+		// The app playing behind Home, named explicitly: never "active",
+		// which is the shell (nowplaying.go, behindControlLocked).
+		c.mu.Lock()
+		b, label := c.behindControlLocked()
+		c.mu.Unlock()
+		switch {
+		case b == nil:
+			return c.fail(req, contract.CodeUnsupported, ShellLabel+" is not a media player.")
+		case req.Target != b.appID:
+			return c.fail(req, contract.CodeTargetUnfocused, label+" is playing behind Home: name it as the target.")
+		}
+		m, target.Label = b, label
+	} else {
+		if req.Target != "active" && req.Target != strOr(target.AppID) {
+			return c.fail(req, contract.CodeTargetUnfocused, "That application is not in the foreground.")
+		}
+		if _, isWeb := c.webSpecFor(strOr(target.AppID)); isWeb && target.Kind == "app" {
+			// The site's own shortcuts through the page, never MPRIS or
+			// currentTime (Netflix errors on direct seeks).
+			return c.routeWeb(ctx, req, target)
+		}
+		c.mu.Lock()
+		m = c.media
+		c.mu.Unlock()
 	}
-	if _, isWeb := c.webSpecFor(strOr(target.AppID)); isWeb && target.Kind == "app" {
-		// The site's own shortcuts through the page, never MPRIS or
-		// currentTime (Netflix errors on direct seeks).
-		return c.routeWeb(ctx, req, target)
-	}
-	c.mu.Lock()
-	m := c.media
-	c.mu.Unlock()
 	if m == nil || m.player == nil {
 		return c.fail(req, contract.CodeUnsupported, "No verified media controls.")
 	}

@@ -1,6 +1,9 @@
-// Now playing card: what the foreground app's own player reports
-// (`state.now_playing`, contracts/http.md "Now playing"): the app, the title
-// (ellipsized), an optional subtitle, play/pause state and a progress bar.
+// Now playing card: what an app's own player reports (`state.now_playing`,
+// contracts/http.md "Now playing"): the app, the title (ellipsized), an
+// optional subtitle, play/pause state and a progress bar. With
+// `foreground: false` the app plays (or is paused) behind Home: the card says
+// "Playing in YouTube · behind Home" and the playback buttons name that app
+// as their target (behindHomeApp, used by tap() in app.ts).
 // Contract: the coordinator sends a reading, not a stream; the position is
 // extrapolated here from position_ms + rate × (generated_at_ms − position_at +
 // time since the snapshot arrived), only while playing. The card re-renders
@@ -13,6 +16,8 @@ import type { NowPlaying, StateSnapshot } from '../contract.ts';
 import { t } from '../i18n.ts';
 import { Icon } from '../icons.tsx';
 import type { AppState } from '../state.ts';
+
+export { behindHomeApp } from '../state.ts';
 
 /** How often a playing card re-renders its position. */
 export const TICK_MS = 1000;
@@ -73,8 +78,16 @@ export function NowPlayingCard({ np, appLabel, positionMs }: NowPlayingCardProps
   if (!np) return null;
   const length = np.length_ms;
   const progress = positionMs !== null && length !== undefined && length > 0;
+  const behind = np.foreground === false;
   return (
-    <div class={`now-playing np-${np.status}`} data-testid="now-playing" data-status={np.status} aria-label={t.remote.nowPlayingIn(appLabel)} role="group">
+    <div
+      class={`now-playing np-${np.status}${behind ? ' np-behind' : ''}`}
+      data-testid="now-playing"
+      data-status={np.status}
+      data-behind={behind ? 'true' : 'false'}
+      aria-label={behind ? t.remote.nowPlayingBehind(np.status, appLabel) : t.remote.nowPlayingIn(appLabel)}
+      role="group"
+    >
       <div class="np-head">
         <span class="np-caption small">{t.remote.nowPlaying}</span>
         <span class="np-app chip">{appLabel}</span>
@@ -83,6 +96,11 @@ export function NowPlayingCard({ np, appLabel, positionMs }: NowPlayingCardProps
           {t.remote.nowPlayingStatus(np.status)}
         </span>
       </div>
+      {behind ? (
+        <p class="np-behind-note small" data-testid="now-playing-behind">
+          {t.remote.nowPlayingBehind(np.status, appLabel)}
+        </p>
+      ) : null}
       <p class="np-title" title={np.title} data-testid="now-playing-title">
         {np.title}
       </p>

@@ -629,3 +629,12 @@ export function tileStatus(app: Application, ready: Record<string, number>): Til
   if (app.running) return { kind: 'running' };
   return null;
 }
+
+/**
+ * @param snapshot Latest snapshot or null.
+ * @returns The app playing (or paused) behind Home, which playback requests must name as their target (state.now_playing.foreground false), or null when the reading is for the app in front or there is none.
+ */
+export function behindHomeApp(snapshot: StateSnapshot | null): string | null {
+  const np = snapshot?.now_playing;
+  return np && np.foreground === false ? np.app_id : null;
+}

@@ -145,6 +145,8 @@ export const t = {
     nowPlayingIn: (app: string) => `Now playing in ${app}`,
     nowPlayingStatus: (status: NowPlayingStatus): string => (status === 'playing' ? 'Playing' : status === 'paused' ? 'Paused' : 'Stopped'),
     nowPlayingProgress: (position: string, length: string) => `${position} of ${length}`,
+    /** The card of an app still playing (or paused) with Bear Den in front: "Playing in YouTube · behind Home". */
+    nowPlayingBehind: (status: NowPlayingStatus, app: string): string => `${status === 'playing' ? 'Playing' : 'Paused'} in ${app} · behind Home`,
     pcVolume: 'PC volume',
     tvVolume: 'TV volume',
     volumeDown: 'Volume down',

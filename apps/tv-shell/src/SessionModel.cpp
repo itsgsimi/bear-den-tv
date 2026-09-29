@@ -392,6 +392,9 @@ bool SessionModel::validateSnapshot(const QJsonObject &snapshot, QString *error)
             || !requireType(np, QStringLiteral("position_at"), QJsonValue::Double, where, error)
             || !requireType(np, QStringLiteral("rate"), QJsonValue::Double, where, error))
             return false;
+        // foreground (optional): false while the app plays behind Home.
+        if (np.contains(QStringLiteral("foreground")) && !requireType(np, QStringLiteral("foreground"), QJsonValue::Bool, where, error))
+            return false;
     }
     if (snapshot.contains(QStringLiteral("power"))) {
         // state.power (optional): sleep_at_ms (integer or null), warning, display on|off.

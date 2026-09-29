@@ -298,9 +298,15 @@ func TestNowPlayingOnlyTheForegroundAppsOwnPlayer(t *testing.T) {
 		t.Fatalf("after a background change: %+v", np)
 	}
 
-	// Home (the shell in front): nothing.
+	// Home (the shell in front): Plex, the app that was in front, paused
+	// behind Home; never YouTube's player, though it plays.
 	h.desk.SetActive(h.shellW)
-	h.waitNP("home clears it", func(np *contract.NowPlaying) bool { return np == nil })
+	np = h.waitNP("plex behind home", func(np *contract.NowPlaying) bool {
+		return np != nil && np.Foreground != nil && !*np.Foreground
+	})
+	if np.AppID != "plex-htpc" || np.Title != "DEMO Plex Title" {
+		t.Fatalf("behind Home: %+v", np)
+	}
 
 	// The app exits (its window goes away): nothing.
 	h.desk.SetActive(ytWin)

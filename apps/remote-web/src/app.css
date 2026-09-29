@@ -533,6 +533,8 @@ input[type='range'] { width: 100%; accent-color: var(--accent); min-height: 32px
 .np-title, .np-subtitle { margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .np-title { font-size: 1.05rem; font-weight: 800; color: var(--cream); }
 .np-subtitle { color: var(--text-2); }
+.np-behind-note { margin: 0; color: var(--text-2); font-weight: 700; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.now-playing.np-behind { border-left-style: dashed; }
 .np-bar {
   appearance: none;
   -webkit-appearance: none;

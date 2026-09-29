@@ -453,6 +453,16 @@ private slots:
         QCOMPARE(session->contextEpoch(), epoch + 200);
         snap.insert(QStringLiteral("now_playing"), QJsonValue::Null);
         QVERIFY2(session->applySnapshot(snap), qPrintable(session->lastError()));
+        // Behind Home (foreground false) is accepted; a non-boolean is not.
+        np.insert(QStringLiteral("foreground"), false);
+        snap.insert(QStringLiteral("now_playing"), np);
+        QVERIFY2(session->applySnapshot(snap), qPrintable(session->lastError()));
+        snap.insert(QStringLiteral("context_epoch"), epoch + 250);
+        np.insert(QStringLiteral("foreground"), QStringLiteral("no"));
+        snap.insert(QStringLiteral("now_playing"), np);
+        QVERIFY(!session->applySnapshot(snap));
+        QVERIFY2(session->lastError().contains(QStringLiteral("state.now_playing")), qPrintable(session->lastError()));
+        np.remove(QStringLiteral("foreground"));
 
         snap.insert(QStringLiteral("context_epoch"), epoch + 300);
         np.insert(QStringLiteral("status"), QStringLiteral("buffering"));

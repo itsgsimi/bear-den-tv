@@ -515,12 +515,14 @@ export interface PlexSignIn {
 export type NowPlayingStatus = 'playing' | 'paused' | 'stopped';
 
 /**
- * state.now_playing: what the foreground app's own MPRIS player reports
- * (contracts/http.md, "Now playing"). position_at is in the coordinator's
- * clock (the one generated_at_ms uses), never the phone's.
+ * state.now_playing: what an app's own MPRIS player reports, in front or
+ * behind Home (contracts/http.md, "Now playing"). position_at is in the
+ * coordinator's clock (the one generated_at_ms uses), never the phone's.
  */
 export interface NowPlaying {
   app_id: string;
+  /** false: the shell is in front and app_id plays or is paused behind Home (media actions then target app_id). Absent means true. */
+  foreground?: boolean;
   title: string;
   subtitle?: string;
   status: NowPlayingStatus;

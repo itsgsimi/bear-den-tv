@@ -157,20 +157,24 @@ type Coordinator struct {
 	shellState     string
 	apps           map[string]*appRuntime
 	media          *mediaProbe
-	np             npState    // now playing for phones (nowplaying.go); memory only
-	pw             powerState // sleep timer and display (power.go)
-	cec            cecState   // TV control over HDMI-CEC (cec.go)
-	notifications  []contract.Notification
-	previewing     bool
-	remote         contract.RemoteState
-	confirms       map[string]int64 // confirm_id → pending layout revision
-	audioCap       platform.Capability
-	fullscreened   map[platform.WindowID]bool // app windows already asked to go fullscreen
-	closing        map[string]*closeWatch     // app id → watch for windows opened while closing
-	homeAfterExit  bool                       // an app exited; bring the shell back once no app is launching (reconcileApps)
-	playback       *contract.Playback         // latest playback detection summary (shell view)
-	tune           tuneState
-	lastShellJSON  []byte // last state sent to the shell (dedupe)
+	// behind is the app that was in front when the shell came forward, and
+	// its player if one was found: it may keep playing behind Home
+	// (nowplaying.go). Cleared when another app comes to the front.
+	behind        *mediaProbe
+	np            npState    // now playing for phones (nowplaying.go); memory only
+	pw            powerState // sleep timer and display (power.go)
+	cec           cecState   // TV control over HDMI-CEC (cec.go)
+	notifications []contract.Notification
+	previewing    bool
+	remote        contract.RemoteState
+	confirms      map[string]int64 // confirm_id → pending layout revision
+	audioCap      platform.Capability
+	fullscreened  map[platform.WindowID]bool // app windows already asked to go fullscreen
+	closing       map[string]*closeWatch     // app id → watch for windows opened while closing
+	homeAfterExit bool                       // an app exited; bring the shell back once no app is launching (reconcileApps)
+	playback      *contract.Playback         // latest playback detection summary (shell view)
+	tune          tuneState
+	lastShellJSON []byte // last state sent to the shell (dedupe)
 	// shellStartedLocked: the shell connected while the session was locked or
 	// inactive, when logind withholds the GPU; it is restarted on unlock so it
 	// renders with the GPU instead of software (measured: ~170% vs ~25% CPU).
@@ -648,6 +652,7 @@ func (c *Coordinator) onForeground(fg platform.Foreground) {
 	changed := prev.Kind != c.target.Kind || strOr(prev.AppID) != strOr(c.target.AppID)
 	if changed {
 		c.epoch++
+		c.noteBehindLocked(prev)
 		c.media = nil
 		c.clearNowPlayingLocked()
 	}

@@ -37,6 +37,9 @@ Canonical messages consumed by contract tests in Go ([`tests/contract/fixtures_t
 | `state.enabled-not-bool.invalid.json` | rejected: `applications[].enabled` must be a boolean |
 | `state.now-playing-bad-status.invalid.json` | rejected: `now_playing.status` must be `playing`, `paused` or `stopped` |
 | `state.now-playing-no-title.invalid.json` | rejected: `now_playing.title` must not be empty (no title means no `now_playing`) |
+| `state.phone-now-playing-behind-home.valid.json` | `state.schema.json` (phone view: the shell in front, YouTube paused behind Home: `now_playing.foreground: false`, media controls available for it) |
+| `state.now-playing-behind-home-stopped.invalid.json` | rejected: with `foreground: false` the status must be `playing` or `paused` |
+| `state.now-playing-foreground-not-bool.invalid.json` | rejected: `now_playing.foreground` must be a boolean |
 | `state.phone-sleep-warning.valid.json` | `state.schema.json` (phone view: a 45-minute sleep timer in its last minute, `power.suspend` unavailable) |
 | `state.power-bad-display.invalid.json` | rejected: `power.display` must be `on` or `off` |
 | `state.phone-cec.valid.json` | `state.schema.json` (phone view: HDMI-CEC enabled, TV on, volume buttons driving the TV) |
