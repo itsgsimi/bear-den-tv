@@ -212,3 +212,48 @@ type MediaLocator interface {
 	// (nil,false) when none exists. match is the Flatpak app id or desktop entry.
 	Find(ctx context.Context, match string) (MediaPlayer, bool, error)
 }
+
+// TVControl drives the TV over HDMI-CEC (platform/cec, ADR 0008): the wire
+// in the HDMI cable, never the network. Every call is bounded by ctx and
+// calls are serialized; a call that finds no usable adapter returns an error
+// and the next Probe says why.
+type TVControl interface {
+	// Probe looks for the adapter and opens it, without sending anything on
+	// the bus, and reports whether it is usable (Backend "hdmi-cec") or why not.
+	Probe(ctx context.Context) Capability
+	// PowerOn sends Image View On to the TV.
+	PowerOn(ctx context.Context) error
+	// Standby sends Standby to the TV.
+	Standby(ctx context.Context) error
+	// ActiveSource broadcasts Active Source with Bear Den's physical address,
+	// so the TV switches to its input.
+	ActiveSource(ctx context.Context) error
+	// VolumeKey presses and releases one volume key (User Control Pressed,
+	// then Released) on the audio system, or the TV when none answers.
+	VolumeKey(ctx context.Context, k TVKey) error
+	// PowerStatus asks the TV for its power status (Give Device Power Status)
+	// and waits a bounded time for the answer.
+	PowerStatus(ctx context.Context) (TVPower, error)
+	// Close gives up the logical address this process claimed, if any, and
+	// closes the adapter; a later Probe opens it again.
+	Close() error
+}
+
+// TVKey is a volume key sent over HDMI-CEC (CEC User Control codes).
+type TVKey string
+
+const (
+	TVVolumeUp   TVKey = "volume_up"   // 0x41
+	TVVolumeDown TVKey = "volume_down" // 0x42
+	TVMute       TVKey = "mute"        // 0x65 Mute Function (explicit, not the 0x43 toggle)
+	TVUnmute     TVKey = "unmute"      // 0x66 Restore Volume Function
+)
+
+// TVPower is what the TV reports about its power.
+type TVPower string
+
+const (
+	TVPowerOn      TVPower = "on"      // on, or in transition standby → on
+	TVPowerStandby TVPower = "standby" // standby, or in transition on → standby
+	TVPowerUnknown TVPower = "unknown"
+)
