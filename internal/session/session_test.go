@@ -229,7 +229,14 @@ func (h *harness) windowsOf(class string) int {
 
 func (h *harness) eventually(what string, cond func() bool) {
 	h.t.Helper()
-	deadline := time.Now().Add(3 * time.Second)
+	h.eventuallyWithin(3*time.Second, what, cond)
+}
+
+// eventuallyWithin is eventually with another bound: only for waits on a
+// real outside process (Chromium in web_e2e_test.go), never for the fakes.
+func (h *harness) eventuallyWithin(bound time.Duration, what string, cond func() bool) {
+	h.t.Helper()
+	deadline := time.Now().Add(bound)
 	for !cond() {
 		if time.Now().After(deadline) {
 			h.t.Fatalf("timed out waiting for %s", what)

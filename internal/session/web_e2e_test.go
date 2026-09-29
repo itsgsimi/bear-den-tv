@@ -46,6 +46,13 @@ func (w windowedWeb) Launch(ctx context.Context, app config.Application, spec ad
 	return inst, err
 }
 
+// chromiumWait bounds the waits on Chromium's own progress (starting,
+// parsing the page): the same bound as the web package's end-to-end test.
+// The harness's 3 s is for in-process fakes; on two busy cores (CI) the
+// grid page could still be parsing after 3 s ("Nothing on this page can
+// take focus" for every retry). Each wait still ends on its condition.
+const chromiumWait = 10 * time.Second
+
 func TestE2ECoordinatorDrivesChromiumWithPhoneActions(t *testing.T) {
 	bin := webtest.Require(t)
 	dir, _ := filepath.Abs("../../apps/web-nav/tests/fixtures")
@@ -78,7 +85,7 @@ func TestE2ECoordinatorDrivesChromiumWithPhoneActions(t *testing.T) {
 	}
 
 	launchWeb(h, "browser")
-	h.eventually("the page's first report", func() bool {
+	h.eventuallyWithin(chromiumWait, "the page's first report", func() bool {
 		st, ok := mgr.Status("browser")
 		return ok && st.Viewport.W > 0
 	})
@@ -89,7 +96,7 @@ func TestE2ECoordinatorDrivesChromiumWithPhoneActions(t *testing.T) {
 	// The grid may still be loading: retry the first move until the page
 	// has focus targets.
 	var res contract.ActionResult
-	h.eventually("a first move on the grid", func() bool {
+	h.eventuallyWithin(chromiumWait, "a first move on the grid", func() bool {
 		res = h.submit(h.ctl, h.req(contract.ActionNavRight, nil))
 		return res.Outcome == contract.OutcomeObserved
 	})
@@ -103,7 +110,7 @@ func TestE2ECoordinatorDrivesChromiumWithPhoneActions(t *testing.T) {
 	if res = h.submit(h.ctl, h.req(contract.ActionSelect, nil)); res.Outcome != contract.OutcomeDelivered || res.Detail["page"] != "click" {
 		t.Fatalf("select: %+v", res)
 	}
-	h.eventually("back closes the overlay the click opened", func() bool {
+	h.eventuallyWithin(chromiumWait, "back closes the overlay the click opened", func() bool {
 		res = h.submit(h.ctl, h.req(contract.ActionBack, nil))
 		return res.Detail["page"] == "closing_overlay"
 	})
@@ -123,5 +130,5 @@ func TestE2ECoordinatorDrivesChromiumWithPhoneActions(t *testing.T) {
 	if res = h.c.doClose(context.Background(), h.req(contract.ActionAppClose, map[string]any{"app_id": "browser", "force": true})); res.Outcome != contract.OutcomeDelivered {
 		t.Fatalf("close: %+v", res)
 	}
-	h.eventually("Chromium to exit", func() bool { return !mgr.Running("browser") })
+	h.eventuallyWithin(chromiumWait, "Chromium to exit", func() bool { return !mgr.Running("browser") })
 }

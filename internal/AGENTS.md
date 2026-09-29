@@ -74,7 +74,8 @@ Embeds live in the repository root [`embed.go`](../embed.go): `contracts/`,
 | `testutil` | [`remote/testutil`](remote/testutil/backend.go) | `FakeBackend`, in-memory `Devices`, `FakeClock` for server tests |
 
 Note: the session harness runs on `clock.Real` with short timeouts
-(`AppsRefresh: 30ms`, `eventually` polls up to 3 s); use `clock.Fake` for pure
+(`AppsRefresh: 30ms`, `eventually` polls up to 3 s; `eventuallyWithin` is
+only for waits on a real Chromium, in `web_e2e_test.go`); use `clock.Fake` for pure
 timing logic (as the `actions`, `pairing`, `config` and `providers` tests do).
 Known test gaps (checked 2026-09-29): `internal/remote` has only a route-table test ([`remote/routes_test.go`](remote/routes_test.go)) and the app icon route's ([`remote/appicon_test.go`](remote/appicon_test.go): the real server with `testutil` fakes); [`pairing/guest_remote_test.go`](pairing/guest_remote_test.go) drives the real server with `remote/testutil` and a WebSocket to prove a guest pass ends with close 4001; there is no negative suite for cookies, CSRF, Host/Origin or rate limits. `internal/doctor` has no tests yet, and the shell supervisor's restart path has none ([`shellipc/supervisor_test.go`](shellipc/supervisor_test.go) checks the environment only). The Plex connector is tested against [`providers/plex/plexfake`](providers/plex/plexfake/plexfake.go), a loopback stand-in for plex.tv and one Plex Media Server (PIN linking, resources, libraries, hubs, onDeck, DEMO posters; `SetDown`, `SetPhotoHandler`, `Requests()` to assert the token only ever travels in the header). Weather has its own tests: [`weather/weather_test.go`](weather/weather_test.go) (fake clock) and [`session/weather_test.go`](session/weather_test.go) (IPC search/configure and the snapshot).
 
