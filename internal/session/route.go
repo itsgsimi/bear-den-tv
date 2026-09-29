@@ -398,6 +398,16 @@ func (c *Coordinator) doLaunch(ctx context.Context, s sender, req contract.Actio
 		c.setLaunch(appID, "failed", app.Label+" could not be started.", nil)
 		return c.fail(req, contract.CodeLaunchFailed, app.Label+" could not be started.")
 	}
+	if !c.opts.Desktop.Capabilities()[platform.CapObserveForeground].Available {
+		// A desktop that cannot see windows (GNOME or KDE on Wayland) can
+		// only say the app was started: delivered, never observed, and not
+		// a failure because no window was seen. Liveness then comes from
+		// the launcher's instance list (reconcileApps).
+		c.setLaunch(appID, "running", "", &inst)
+		res := c.result(req, contract.OutcomeDelivered, map[string]any{"app_id": appID, "observed": false})
+		res.Message = app.Label + " was started; this desktop cannot confirm it came to the front."
+		return res
+	}
 	c.setLaunch(appID, "launching", "", &inst)
 	c.finish(s, req, c.result(req, contract.OutcomeDelivered, map[string]any{"app_id": appID}))
 	if c.waitTarget(ctx, LaunchObserveTimeout, isApp) {

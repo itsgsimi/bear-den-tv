@@ -1,7 +1,8 @@
 // Package probe gathers one JSON-serializable snapshot of everything the
 // desktop and application adapters can observe on this machine: display
 // session, adapter capabilities, X server facts (XTEST, window manager, key
-// resolution, windows, foreground), lock state, MPRIS players, the audio sink,
+// resolution, windows, foreground), the Wayland compositor family and its
+// toplevels, lock state, MPRIS players, the audio sink,
 // Flatpak discovery for the approved applications, and running instances. It
 // backs `bear-den-tv doctor` and the bdtv-probe dev command; every step is
 // bounded by a timeout and records its own error instead of aborting the run.
@@ -22,6 +23,7 @@ import (
 	"bear-den-tv/internal/platform/detect"
 	"bear-den-tv/internal/platform/lock"
 	"bear-den-tv/internal/platform/mpris"
+	"bear-den-tv/internal/platform/wayland"
 	"bear-den-tv/internal/platform/x11"
 )
 
@@ -36,6 +38,7 @@ type ProbeReport struct {
 	DisplaySession string            `json:"display_session"`
 	Adapter        AdapterReport     `json:"adapter"`
 	X11            *X11Report        `json:"x11,omitempty"`
+	Wayland        *WaylandReport    `json:"wayland,omitempty"`
 	Lock           LockReport        `json:"lock"`
 	MPRIS          MPRISReport       `json:"mpris"`
 	Audio          AudioReport       `json:"audio"`
@@ -61,6 +64,17 @@ type AdapterReport struct {
 // X11Report is present only when the X11 adapter connected.
 type X11Report struct {
 	x11.Info
+	Foreground      platform.Foreground   `json:"foreground"`
+	ForegroundError string                `json:"foreground_error,omitempty"`
+	Windows         []platform.WindowInfo `json:"windows"`
+	WindowsError    string                `json:"windows_error,omitempty"`
+}
+
+// WaylandReport is present when the Wayland adapter was built: the
+// compositor family it recognized and, where it can see windows, the
+// toplevels by app_id (docs/decisions/0007-wayland-profile.md).
+type WaylandReport struct {
+	Family          string                `json:"family"`
 	Foreground      platform.Foreground   `json:"foreground"`
 	ForegroundError string                `json:"foreground_error,omitempty"`
 	Windows         []platform.WindowInfo `json:"windows"`
@@ -179,6 +193,18 @@ func ReportWith(ctx context.Context, opts Options) ProbeReport {
 				x.Windows = ws
 			}
 			r.X11 = x
+		case *wayland.Adapter:
+			w := &WaylandReport{Family: a.Family(), Windows: []platform.WindowInfo{}}
+			var err error
+			if w.Foreground, err = a.ObserveForeground(ctx); err != nil {
+				w.ForegroundError = err.Error()
+			}
+			if ws, err := a.ListWindows(ctx); err != nil {
+				w.WindowsError = err.Error()
+			} else if ws != nil {
+				w.Windows = ws
+			}
+			r.Wayland = w
 		}
 	})
 
