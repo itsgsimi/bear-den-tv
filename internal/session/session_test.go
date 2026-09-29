@@ -498,8 +498,14 @@ func TestLockedRefusesEverythingAndRedacts(t *testing.T) {
 	}
 }
 
+// TestHoldRepeatsIntoShell holds nav.right into the shell on a fake clock:
+// every poll renews the lease and then moves time 50 ms, so the lease (600 ms
+// without a renew) cannot expire however slowly the runner goes. Three
+// repeats need 350 + 2 × 167 ms > 600 ms of held time, so they prove the
+// renewals kept the lease alive.
 func TestHoldRepeatsIntoShell(t *testing.T) {
-	h := newHarness(t)
+	clk := clock.NewFake(time.Unix(1_800_000_000, 0))
+	h := newHarness(t, func(o *Options) { o.Clock = clk })
 	st := h.phones.HoldStart(context.Background(), h.ctl, contract.HoldMessage{Type: "hold.start", HoldID: "h1", Action: "nav.right", ContextEpoch: h.c.Epoch()})
 	if st.State != "active" {
 		t.Fatalf("hold start = %+v", st)
@@ -508,17 +514,19 @@ func TestHoldRepeatsIntoShell(t *testing.T) {
 	if busy.State != "busy" {
 		t.Fatalf("second device hold = %+v", busy)
 	}
-	for i := 0; i < 5; i++ {
-		time.Sleep(150 * time.Millisecond)
-		h.phones.HoldRenew(context.Background(), h.ctl, "h1")
+	inputs := func() int {
+		h.mu.Lock()
+		defer h.mu.Unlock()
+		return len(h.inputs)
 	}
+	h.eventually("three repeats of the held nav", func() bool {
+		if r := h.phones.HoldRenew(context.Background(), h.ctl, "h1"); r.State != "active" {
+			t.Fatalf("renewed hold = %+v", r)
+		}
+		clk.Advance(50 * time.Millisecond)
+		return inputs() >= 3
+	})
 	h.phones.HoldStop(context.Background(), h.ctl, "h1", "stop")
-	h.mu.Lock()
-	n := len(h.inputs)
-	h.mu.Unlock()
-	if n < 2 {
-		t.Fatalf("held nav produced %d inputs, want repeats", n)
-	}
 	if h.c.holds.Active().Active {
 		t.Fatal("hold still active after stop")
 	}
