@@ -105,6 +105,10 @@ Item {
         // down to, above CEC (whose test expects Plex right after it).
         { id: "badges", kind: "link", label: qsTr("Badges"), description: qsTr("Den badges: playful milestones, counted on this TV only"),
           value: Session.achievements.enabled === false ? qsTr("Off") : qsTr("%1 of %2").arg((Session.achievements.earned || []).length).arg((Session.achievements.progress || []).length) },
+        // Settings → Streaming sites (web apps with state.applications[].enabled);
+        // after Badges so the rows tests walk to keep their places.
+        { id: "streaming", kind: "link", label: qsTr("Streaming sites"), description: qsTr("Netflix, Disney+, Hulu and the Browser, in Chromium"),
+          value: qsTr("%1 on").arg(Session.applications.filter(a => a.enabled === true).length) },
         { id: "cec", kind: "toggle", label: qsTr("TV control over HDMI (CEC)"), description: cecDescription(), value: cecOn ? "on" : "off" }
     ].concat(cecOn && cec.available === true ? [
         { id: "cec-volume", kind: "choice", label: qsTr("Phone volume buttons"),
@@ -160,6 +164,7 @@ Item {
         case "screen-off": if (screenOffCap.available) screenOffDelay.restart(); break
         case "plex": openScreen("plex"); break
         case "badges": openScreen("badges"); break
+        case "streaming": openScreen("streaming"); break
         case "motion": editUi(u => u.reduced_motion = !u.reduced_motion); break
         case "contrast": editUi(u => u.high_contrast_focus = !u.high_contrast_focus); break
         case "hero": editUi(u => u.hero_enabled = !u.hero_enabled); break

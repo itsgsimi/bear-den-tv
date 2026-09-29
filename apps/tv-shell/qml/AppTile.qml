@@ -23,6 +23,8 @@ Item {
         if (item.launchState === "launching") return { text: qsTr("Starting…"), color: Theme.accent }
         if (item.launchState === "failed" || item.launchState === "crashed") return { text: qsTr("Launch failed"), color: Theme.danger }
         if (item.running) return { text: app.foreground ? qsTr("On screen") : qsTr("Running"), color: Theme.success }
+        // The streaming sites' first-run note (Apps.note): until first opened.
+        if (item.launchState === "idle" && Apps.note(adapter).length > 0) return { text: Apps.note(adapter), color: Theme.accent }
         return null
     }
     width: Theme.tileWidth

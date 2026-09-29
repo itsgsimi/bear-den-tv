@@ -19,7 +19,7 @@ FocusScope {
     readonly property var screens: ({
         "home": home, "settings": settings, "remote-setup": remoteSetup,
         "pairing": pairing, "devices": devices, "diagnostics": diagnostics, "playback": playback,
-        "advanced-playback": advancedPlayback, "weather": weather, "plex": plex, "badges": badges
+        "advanced-playback": advancedPlayback, "weather": weather, "plex": plex, "badges": badges, "streaming": streaming
     })
     readonly property var topDialog: confirmDialog.visible ? confirmDialog
                                    : messageDialog.visible ? messageDialog
@@ -31,7 +31,7 @@ FocusScope {
         if (topDialog) return "dialog"
         if (screen === "remote-setup") return "setup"
         if (screen === "playback" || screen === "advanced-playback") return "diagnostics"   // the contract's screen names
-        if (screen === "weather" || screen === "plex" || screen === "badges") return "settings"
+        if (screen === "weather" || screen === "plex" || screen === "badges" || screen === "streaming") return "settings"
         return screen
     }
     function syncNav() { Nav.screen = navScreenName() }
@@ -293,6 +293,16 @@ FocusScope {
             Behavior on opacity { NumberAnimation { duration: Theme.ms(220); easing.type: Easing.OutCubic } }
             Behavior on y { NumberAnimation { duration: Theme.ms(260); easing.type: Easing.OutCubic } }
             onConfirm: (title, body, label, accept) => confirmDialog.open({ title: title, body: body, confirmLabel: label, onAccept: accept })
+        }
+        StreamingScreen {
+            id: streaming
+            width: parent.width; height: parent.height
+            active: root.screen === "streaming" && !root.topDialog
+            opacity: root.screen === "streaming" ? 1 : 0
+            visible: opacity > 0
+            y: root.screen === "streaming" ? 0 : 24 * Theme.scale
+            Behavior on opacity { NumberAnimation { duration: Theme.ms(220); easing.type: Easing.OutCubic } }
+            Behavior on y { NumberAnimation { duration: Theme.ms(260); easing.type: Easing.OutCubic } }
         }
         BadgesScreen {
             id: badges

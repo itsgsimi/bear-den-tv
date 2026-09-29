@@ -16,6 +16,10 @@ QtObject {
         case "spotify": return qsTr("Music and podcasts")
         case "jellyfin": return qsTr("Your own media server")
         case "retroarch": return qsTr("Classic games, one place")
+        case "netflix": return qsTr("Netflix in the browser")
+        case "disney-plus": return qsTr("Disney+ in the browser")
+        case "hulu": return qsTr("Hulu in the browser")
+        case "browser": return qsTr("The web, with a keyboard or your phone")
         }
         return ""
     }
@@ -27,6 +31,10 @@ QtObject {
         case "spotify": return qsTr("Music and podcasts on the TV's speakers.")
         case "jellyfin": return qsTr("Films and shows from your own Jellyfin server.")
         case "retroarch": return qsTr("Play your classic games. A controller works best.")
+        case "netflix": return qsTr("Netflix's website, full screen. Sign in once with a keyboard or your phone's touchpad.")
+        case "disney-plus": return qsTr("Disney+'s website, full screen. Sign in once with a keyboard or your phone's touchpad.")
+        case "hulu": return qsTr("Hulu's website, full screen. Sign in once with a keyboard or your phone's touchpad.")
+        case "browser": return qsTr("Chromium in its own profile. Use a keyboard and mouse, the remote, or your phone's touchpad.")
         }
         return ""
     }
@@ -34,6 +42,20 @@ QtObject {
     function hint(adapter) {
         switch (adapter) {
         case "spotify": return qsTr("Play from your phone: open Spotify and pick this TV in the device list.")
+        case "netflix":
+        case "disney-plus":
+        case "hulu": return qsTr("Plays at up to 720p in a Linux browser.")
+        case "browser": return qsTr("Stuck? The Touchpad on your phone reaches anything on the page.")
+        }
+        return ""
+    }
+    // A short note on the tile until the app is first opened in this session
+    // ("" = none): the streaming sites' honest quality cap.
+    function note(adapter) {
+        switch (adapter) {
+        case "netflix":
+        case "disney-plus":
+        case "hulu": return qsTr("Up to 720p")
         }
         return ""
     }
@@ -46,6 +68,11 @@ QtObject {
         case "spotify": return { top: "#17402A", bottom: "#0C1410", glow: "#1DB954" }     // Spotify green on black
         case "jellyfin": return { top: "#34245A", bottom: "#0E1226", glow: "#AA5CC3" }    // Jellyfin purple into blue
         case "retroarch": return { top: "#2E2654", bottom: "#0E0C1C", glow: "#E0564A" }   // indigo + arcade red
+        // Web apps: Bear Den's own badge colours (tools/*/appicons.py), not the services'.
+        case "netflix": return { top: "#3A1A28", bottom: "#120810", glow: "#D8404A" }      // plum + popcorn red
+        case "disney-plus": return { top: "#242E6A", bottom: "#0A0E26", glow: "#FFD34F" }  // night blue + star gold
+        case "hulu": return { top: "#163A26", bottom: "#08140E", glow: "#4ED88A" }         // pine + mint
+        case "browser": return { top: "#1A4A58", bottom: "#081A20", glow: "#6AB4C8" }      // teal + sky
         }
         return null
     }
@@ -63,6 +90,11 @@ QtObject {
         case "spotify": return { scene: "nook", prop: "heart", react: { kind: "mama", pose: "wave", carry: "heart" } }
         case "jellyfin": return { scene: "theatre", prop: "popcorn", react: { kind: "dad", pose: "sit", carry: "popcorn" } }
         case "retroarch": return { scene: "retro", prop: "controller", react: { kind: "cub", pose: "reach", carry: "controller" } }
+        // Web apps share the existing rooms (no rooms of their own yet).
+        case "netflix": return { scene: "cinema", prop: "popcorn", react: { kind: "mama", pose: "sit", carry: "popcorn" } }
+        case "disney-plus": return { scene: "theatre", prop: "heart", react: { kind: "cub", pose: "sit", carry: "heart" } }
+        case "hulu": return { scene: "cabin", prop: "remote", react: { kind: "dad", pose: "sit", carry: "remote" } }
+        case "browser": return { scene: "nook", prop: "remote", react: { kind: "mama", pose: "wave", carry: "" } }
         }
         return { scene: "cabin", prop: "", react: { kind: "mama", pose: "wave", carry: "" } }
     }

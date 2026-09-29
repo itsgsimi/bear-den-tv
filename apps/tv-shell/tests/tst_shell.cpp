@@ -511,6 +511,95 @@ private slots:
         goHome();
     }
 
+    // Settings → Streaming sites lists the web apps (entries with `enabled`),
+    // OK sends app.enable with the opposite value, Back returns to the row;
+    // on Home a turned-off site has no tile and an enabled one does.
+    void streamingSitesScreenAndTiles()
+    {
+        SessionModel *session = SessionModel::instance();
+        IpcClient *ipc = ShellController::instance()->ipc();
+        auto last = [ipc]() {
+            const QList<QJsonObject> sent = ipc->sentMessages();
+            for (auto it = sent.crbegin(); it != sent.crend(); ++it)
+                if (it->value(QStringLiteral("type")).toString() == QLatin1String("app.enable"))
+                    return *it;
+            return QJsonObject{};
+        };
+        QJsonObject snap = fixture();
+        QJsonArray apps = snap.value(QStringLiteral("applications")).toArray();
+        auto web = [](const QString &id, const QString &label, bool enabled) {
+            return QJsonObject{{QStringLiteral("id"), id}, {QStringLiteral("label"), label}, {QStringLiteral("adapter"), id},
+                               {QStringLiteral("installed"), true}, {QStringLiteral("version"), QJsonValue()}, {QStringLiteral("installation"), QStringLiteral("user")},
+                               {QStringLiteral("running"), false}, {QStringLiteral("foreground"), false}, {QStringLiteral("launch_state"), QStringLiteral("idle")},
+                               {QStringLiteral("last_error"), QJsonValue()}, {QStringLiteral("enabled"), enabled}, {QStringLiteral("hidden"), !enabled}};
+        };
+        apps.append(web(QStringLiteral("netflix"), QStringLiteral("Netflix"), false));
+        apps.append(web(QStringLiteral("hulu"), QStringLiteral("Hulu"), true));
+        apps.append(web(QStringLiteral("browser"), QStringLiteral("Browser"), true));
+        snap.insert(QStringLiteral("applications"), apps);
+        QJsonObject layout = snap.value(QStringLiteral("layout")).toObject();
+        QJsonArray sections = layout.value(QStringLiteral("sections")).toArray();
+        for (int i = 0; i < sections.size(); ++i) {
+            QJsonObject s = sections.at(i).toObject();
+            if (s.value(QStringLiteral("id")).toString() != QLatin1String("favorites"))
+                continue;
+            QJsonArray ids = s.value(QStringLiteral("application_ids")).toArray();
+            for (const char *id : {"netflix", "hulu", "browser"})
+                ids.append(QString::fromLatin1(id));
+            s.insert(QStringLiteral("application_ids"), ids);
+            sections.replace(i, s);
+        }
+        layout.insert(QStringLiteral("sections"), sections);
+        snap.insert(QStringLiteral("layout"), layout);
+        QVERIFY2(session->applySnapshot(snap), qPrintable(session->lastError()));
+        const auto restore = qScopeGuard([session, this] { session->applySnapshot(fixture()); });
+
+        // Home: Plex, YouTube, then Hulu and the Browser; Netflix (off) has no tile.
+        goHome();
+        toFavorites();
+        for (int i = 0; i < 6; ++i)
+            act(QStringLiteral("nav.left"));
+        QStringList seen{m_nav->itemId()};
+        for (int i = 0; i < 6; ++i) {
+            act(QStringLiteral("nav.right"));
+            if (seen.last() != m_nav->itemId())
+                seen << m_nav->itemId();
+        }
+        QVERIFY2(!seen.contains(QStringLiteral("netflix")), qPrintable(seen.join(u',')));
+        QVERIFY2(seen.contains(QStringLiteral("hulu")) && seen.contains(QStringLiteral("browser")), qPrintable(seen.join(u',')));
+        for (int i = 0; i < 2 && m_nav->itemId() != QLatin1String("hulu"); ++i)
+            act(QStringLiteral("nav.left"));
+        shot(QStringLiteral("home-web-tiles"));
+
+        toHeader();
+        act(QStringLiteral("nav.right"));
+        act(QStringLiteral("select"));
+        QCOMPARE(m_nav->screen(), QStringLiteral("settings"));
+        for (int i = 0; i < 40 && m_nav->itemId() != QLatin1String("streaming"); ++i)
+            act(QStringLiteral("nav.down"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("streaming"));
+        act(QStringLiteral("select"));
+        QCOMPARE(m_nav->screen(), QStringLiteral("settings"));
+        QCOMPARE(m_nav->sectionId(), QStringLiteral("streaming"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("netflix"));
+        shot(QStringLiteral("settings-streaming"));
+        ipc->clearSent();
+        act(QStringLiteral("select"));
+        QCOMPARE(last().value(QStringLiteral("app_id")).toString(), QStringLiteral("netflix"));
+        QCOMPARE(last().value(QStringLiteral("enabled")), QJsonValue(true));
+        act(QStringLiteral("nav.down"));
+        act(QStringLiteral("nav.down"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("browser"));
+        act(QStringLiteral("select"));
+        QCOMPARE(last().value(QStringLiteral("app_id")).toString(), QStringLiteral("browser"));
+        QCOMPARE(last().value(QStringLiteral("enabled")), QJsonValue(false));
+        act(QStringLiteral("back"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("streaming"));
+        for (int i = 0; i < 40; ++i) // leave Settings at its first row for the tests after
+            act(QStringLiteral("nav.up"));
+        goHome();
+    }
+
     // A badge in achievements.celebrate is celebrated on Home, never over an
     // app or another screen (it waits), and is then acknowledged with IPC
     // achievements.celebrated so it is not shown twice.
@@ -1596,7 +1685,8 @@ private slots:
     void appArtResolutionOrder()
     {
         const QStringList adapters{QStringLiteral("plex-htpc"), QStringLiteral("vacuumtube"), QStringLiteral("moonlight"),
-                                   QStringLiteral("spotify"), QStringLiteral("jellyfin"), QStringLiteral("retroarch")};
+                                   QStringLiteral("spotify"), QStringLiteral("jellyfin"), QStringLiteral("retroarch"),
+                                   QStringLiteral("netflix"), QStringLiteral("disney-plus"), QStringLiteral("hulu"), QStringLiteral("browser")};
         ShellController *shell = ShellController::instance();
         for (const QString &a : adapters) {
             QVERIFY2(!shell->flatpakIdFor(a).isEmpty(), qPrintable(a));

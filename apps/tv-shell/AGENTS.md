@@ -16,7 +16,7 @@ module, so tests exercise the shipped QML.
 |---|---|---|
 | `Session` (singleton) | [`SessionModel`](src/SessionModel.h) | the latest state snapshot (incl. `weather`, `power`, `plex` and `achievements`, empty when absent), validated by `validateSnapshot`/`validateLayout` then applied whole (rejected snapshots keep the previous state); `application(id)`, `layoutForEdit()`, rails as `sections` |
 | `Nav` (singleton) | [`Navigator`](src/Navigator.h) | the one input path: key events and coordinator `input` become named actions; `apply(action)` returns the `input_result`; `reportFocus(section, item, scrollX)`, `noteAtRoot()`, `screen`, `textFieldFocused`; `focusReported` carries `text_field` and is re-emitted when only that changes |
-| `Shell` (singleton) | [`ShellController`](src/ShellController.h) | the IPC bridge. Methods: `launchApp`, `closeApp`, `issuePairing(pass)` (`""` a family phone, `tonight`/`24h`/`7d` a guest pass), `cancelPairing`, `revokeDevice`, `configureRemote(enabled, interface)`, `updateLayout(layout)`, `setPlayback(adapter, setting, value)`, `setNowPlaying(enabled)` (IPC `remote.now_playing`), `weatherSearch(query)` (answer in `weatherPlaces`/`weatherSearchOk`/`weatherSearchError`/`weatherSearching`), `weatherConfigure(enabled, place, units, scene)` (place `null` keeps the stored one; answer in `weatherConfigured(ok, error)`), `setSleepTimer(minutes)` (0 cancels) and `screenOff()` (the `power.sleep_timer` and `display.off` actions), `powerActivity()` (IPC `power.activity`), `plexSignIn`, `plexCancel`, `plexChooseServer(id)`, `plexChooseLibraries(ids)`, `plexSignOut` (IPC `plex.*`; answer in `plexReplied(type, ok, error)`, the flow itself in `Session.plex`), `setAchievements(enabled)`, `resetAchievements()`, `achievementsCelebrated(ids)`, `achievementEvent(event)` (IPC `achievements.*`, Den badges), `answerConfirm`, `exitShell`, `flatpakIdFor`, `appArt`, `lanInterfaces`. Properties: connection state (`connectionState`, `connected`, `rejectReason`, `attempt`), `offline`, `devBuild`, `version`, `startScreen`, `launchingAppId`, `screensaverSeconds`, and the check overrides `bearsSeconds`, `bearsAct`, `restSeconds`, `monthOverride`, `lightningSeconds` |
+| `Shell` (singleton) | [`ShellController`](src/ShellController.h) | the IPC bridge. Methods: `launchApp`, `closeApp`, `issuePairing(pass)` (`""` a family phone, `tonight`/`24h`/`7d` a guest pass), `cancelPairing`, `revokeDevice`, `configureRemote(enabled, interface)`, `updateLayout(layout)`, `setPlayback(adapter, setting, value)`, `setNowPlaying(enabled)` (IPC `remote.now_playing`), `setAppEnabled(appId, enabled)` (IPC `app.enable`, Settings → Streaming sites), `weatherSearch(query)` (answer in `weatherPlaces`/`weatherSearchOk`/`weatherSearchError`/`weatherSearching`), `weatherConfigure(enabled, place, units, scene)` (place `null` keeps the stored one; answer in `weatherConfigured(ok, error)`), `setSleepTimer(minutes)` (0 cancels) and `screenOff()` (the `power.sleep_timer` and `display.off` actions), `powerActivity()` (IPC `power.activity`), `plexSignIn`, `plexCancel`, `plexChooseServer(id)`, `plexChooseLibraries(ids)`, `plexSignOut` (IPC `plex.*`; answer in `plexReplied(type, ok, error)`, the flow itself in `Session.plex`), `setAchievements(enabled)`, `resetAchievements()`, `achievementsCelebrated(ids)`, `achievementEvent(event)` (IPC `achievements.*`, Den badges), `answerConfirm`, `exitShell`, `flatpakIdFor`, `appArt`, `lanInterfaces`. Properties: connection state (`connectionState`, `connected`, `rejectReason`, `attempt`), `offline`, `devBuild`, `version`, `startScreen`, `launchingAppId`, `screensaverSeconds`, and the check overrides `bearsSeconds`, `bearsAct`, `restSeconds`, `monthOverride`, `lightningSeconds` |
 | `Theme` (singleton) | [`Theme`](src/Theme.h) | design tokens from `layout.ui` and window size: colours, `scale`, type and tile sizes, `ms()`/`duration`, `reducedMotion`, `resting`, `screensaver`, `tintFor(id)` |
 | `Themes` (singleton) | [`ThemeRegistry`](src/ThemeRegistry.h) | installed theme packages: `list`, `get(id)`, `canonical(id)`, `ornament()`, `reload()` ([`themes/AGENTS.md`](../../themes/AGENTS.md)) |
 | `FocusMemory` (singleton) | [`FocusMemory`](src/FocusMemory.h) | remembered item, index and scroll per section; `lastSectionId` |
@@ -58,7 +58,7 @@ plugin), and a wlroots compositor reports that class as its app_id
 | Group | Files |
 |---|---|
 | Root and focus graph | `Main.qml` (window), [`ShellRoot.qml`](qml/ShellRoot.qml) (screen stack, dialogs, rest/screensaver timers, `handle(action)`) |
-| Screens | `HomeScreen`, `SettingsScreen`, `RemoteSetupScreen`, `PairingScreen` ("Who is it for?": family phone or guest pass), `DevicesScreen` (guests with a badge and the time left), `DiagnosticsScreen`, `PlaybackScreen`, `AdvancedPlaybackScreen`, `WeatherScreen` (Settings → Weather: toggles, search field, places; reports `settings`), `PlexScreen` (Settings → Plex: sign in with a code and QR, choose a server and libraries, sign out; follows `Session.plex.status`; leaving mid-flow sends `plex.cancel`; reports `settings`), `BadgesScreen` (Settings → Badges: the shelf of Den badges, 8 per row, then Counting and Reset badges (asks first); reports `settings`), `ConnectingScreen`, `LockedScreen`, `Screensaver` |
+| Screens | `HomeScreen`, `SettingsScreen`, `RemoteSetupScreen`, `PairingScreen` ("Who is it for?": family phone or guest pass), `DevicesScreen` (guests with a badge and the time left), `DiagnosticsScreen`, `PlaybackScreen`, `AdvancedPlaybackScreen`, `WeatherScreen` (Settings → Weather: toggles, search field, places; reports `settings`), `StreamingScreen` (Settings → Streaming sites: one toggle per web app, the entries of `Session.applications` that carry `enabled`, OK sends `Shell.setAppEnabled` → IPC `app.enable`; reports `settings`), `PlexScreen` (Settings → Plex: sign in with a code and QR, choose a server and libraries, sign out; follows `Session.plex.status`; leaving mid-flow sends `plex.cancel`; reports `settings`), `BadgesScreen` (Settings → Badges: the shelf of Den badges, 8 per row, then Counting and Reset badges (asks first); reports `settings`), `ConnectingScreen`, `LockedScreen`, `Screensaver` |
 | Dialogs and overlays | `ConfirmDialog`, `MessageDialog`, `AppUnavailableDialog`, `LaunchOverlay`, `ErrorBanner`, `Toast`, `SleepWarning` (the sleep timer's last minute: "Going to sleep in 1 minute", the cub dozing; while it shows, or while `Session.power.display` is `off`, `ShellRoot.handle` swallows keys and calls `Shell.powerActivity()`), `BadgeCelebration` (a new Den badge on Home: the medal on a card with confetti on `World.beat`; only while Home is in front with no dialog or screensaver, so a badge earned behind an app waits; then IPC `achievements.celebrated`) |
 | Home pieces | `Header` (brand, pills, status, weather chip, clock), `NavPill`, `StatusChip`, `HeroPanel`, `Rail`, `AppTile`, `AppIcon`, `ContentCard`, `SetupCard`, `BrandBackdrop`, `DemoBadge`, `ProgressBar`, `FocusFrame` |
 | Screen pieces | `ScreenFrame`, `SettingsRow`, `FocusButton`, `KeyHints`, `BadgeMedal` (one Den badge medal, pixel PNG or classic SVG) |
@@ -155,7 +155,7 @@ array of `{id, kind, label, description, value}` with `kind` one of `link`,
    over Off, 15 … 120 min through `Shell.setSleepTimer`, showing
    `Session.power.sleep_minutes`), `screen-off` (`Shell.screenOff()` 0.8 s
    after OK, so the key's release does not wake the display; only while
-   `display.off` is available), `badges` (opens Settings → Badges), `cec` (TV control over HDMI (CEC): a toggle
+   `display.off` is available), `badges` (opens Settings → Badges), `streaming` (opens Settings → Streaming sites; value "N on"), `cec` (TV control over HDMI (CEC): a toggle
    through `Shell.setCEC(enabled, volumeTarget)` (IPC `cec.configure`),
    showing `Session.cec.reason` when no adapter is usable), `cec-volume`
    (only while `Session.cec` is available and enabled: ◀ ▶ or OK between
@@ -170,7 +170,8 @@ array of `{id, kind, label, description, value}` with `kind` one of `link`,
    `plexScreenDrivesSignIn` goes to the bottom and one up to `plex` (it sits
    just above `exit`). A row inserted above any of them shifts those counts.
    `cecRowsShowTheReasonAndConfigure` walks down until it reaches `cec`.
-   `badgesScreenShelfToggleAndReset` walks down until it reaches `badges`.
+   `badgesScreenShelfToggleAndReset` walks down until it reaches `badges`, and
+   `streamingSitesScreenAndTiles` until `streaming`.
    Tests that walk "to the top first" press ▲ 30 or 40 times.
 
 Done when: `make test-shell` passes and
@@ -179,9 +180,13 @@ Done when: `make test-shell` passes and
 ## App tiles and branding
 
 Supported apps are a closed set keyed by **adapter name** (`plex-htpc`,
-`vacuumtube`, `moonlight`, and the optional `spotify`, `jellyfin`,
-`retroarch`, whose tiles are skipped while `hidden`); engine code never
-branches on a display name.
+`vacuumtube`, `moonlight`, the optional `spotify`, `jellyfin`,
+`retroarch`, and the web apps `netflix`, `disney-plus`, `hulu`, `browser`;
+tiles are skipped while `hidden`); engine code never
+branches on a display name. `Apps.note(adapter)` is a short line a tile shows
+while the app has not been opened since Bear Den started (the streaming
+sites' "Up to 720p"); the web apps reuse existing rooms (cinema, theatre,
+cabin, nook).
 For a new app, after [`internal/AGENTS.md` → Add an app](../../internal/AGENTS.md#add-an-app):
 
 | Where | What |

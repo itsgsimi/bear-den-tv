@@ -9,6 +9,10 @@ app's brand colours with a pair of bear ears on top) holding a motif:
     spotify     a record player
     jellyfin    a home-theatre screen with two bears on a couch
     retroarch   an arcade cabinet with a bear on its screen
+    netflix     a striped popcorn bucket (web app)
+    disney-plus a magic wand with a star and sparkles (web app)
+    hulu        a mint-green 1960s TV set on a stand (web app)
+    browser     a globe with a gold compass needle (web app)
 
 All share one 32×32 grid, the same badge, light from the top left and a dark
 1-pixel outline. Writes apps/tv-shell/assets/pixel/app-<adapter>.png and the
@@ -38,6 +42,11 @@ BADGE = {
     'spotify': {'top': '#2FCF6A', 'bottom': '#10703A', 'ear': '#0C5A2C', 'inner': '#7FE0A2'},
     'jellyfin': {'top': '#9A5CC8', 'bottom': '#1E78B8', 'ear': '#5A2E82', 'inner': '#C9A0E8'},
     'retroarch': {'top': '#3E3478', 'bottom': '#141030', 'ear': '#221C4A', 'inner': '#7A6AC8'},
+    # Web apps (Chromium): our own colours, never the services' logos.
+    'netflix': {'top': '#5A2A40', 'bottom': '#220E18', 'ear': '#3A1626', 'inner': '#9A5A74'},
+    'disney-plus': {'top': '#3A4AA8', 'bottom': '#141A48', 'ear': '#222C6A', 'inner': '#7A8AE0'},
+    'hulu': {'top': '#1E5A3A', 'bottom': '#0A2416', 'ear': '#123A24', 'inner': '#5A9A74'},
+    'browser': {'top': '#2A7A90', 'bottom': '#0E3440', 'ear': '#16505E', 'inner': '#6AB4C8'},
 }
 
 
@@ -212,6 +221,116 @@ def cabinet(img):
     img.put(15, 26, '#FFD34F')
 
 
+def popcorn(img):
+    """Netflix tile: a striped popcorn bucket, heaped, one kernel falling."""
+    red, red_d, white, white_d = '#D8404A', '#8A1E28', '#F6EAD0', '#C8B894'
+    corn, corn_d, corn_l = '#FFE6A0', '#E0B050', '#FFF8DC'
+    # The heap: overlapping kernels above the rim.
+    for (x, y, r) in ((11, 13, 2.6), (15, 11, 3.0), (20, 12.5, 2.6), (13, 15, 2.4), (18, 15, 2.6), (9, 16, 1.8), (22, 16, 1.8)):
+        img.disc(x, y, r, corn)
+    for (x, y) in ((10, 14), (14, 12), (19, 13), (16, 15), (21, 15), (12, 16)):
+        img.put(x, y, corn_d)
+    for (x, y) in ((14, 9), (19, 11), (11, 12)):
+        img.put(x, y, corn_l)
+    img.disc(25, 9, 1.2, corn)                    # a kernel on its way out
+    img.put(25, 9, corn_d)
+    # The bucket: wider at the top, red and cream stripes.
+    top, bottom = 17, 28
+    for y in range(top, bottom + 1):
+        inset = (y - top) * 3 // (bottom - top)
+        x0, x1 = 8 + inset, 23 - inset
+        for x in range(x0, x1 + 1):
+            stripe = ((x - 8) // 3) % 2 == 0
+            col = (red if stripe else white) if x < x1 - 1 else (red_d if stripe else white_d)
+            img.put(x, y, col)
+    img.hline(7, 24, 17, white)                   # the rim
+    img.hline(7, 24, 18, white_d)
+    img.hline(11, 20, 28, red_d)
+
+
+def wand(img):
+    """Disney+ tile: a magic wand with a star tip and a trail of sparkles."""
+    gold, gold_d, gold_l = '#FFD34F', '#C89A1E', '#FFF4C8'
+    stick, stick_l = '#9A9AB8', '#F2F2FA'
+    img.line(9, 27, 18, 16, stick)                # the wand, lower left to the star
+    img.line(10, 27, 19, 16, stick)
+    img.line(9, 26, 18, 15, stick_l)
+    img.rect(8, 26, 3, 3, gold_d)                 # its golden end cap
+    # A five-pointed star at the tip.
+    cx, cy, ro, ri = 21, 12, 6.2, 2.6
+    pts = []
+    for k in range(10):
+        a = -math.pi / 2 + k * math.pi / 5
+        r = ro if k % 2 == 0 else ri
+        pts.append((cx + r * math.cos(a), cy + r * math.sin(a)))
+    img.poly(pts, gold)
+    img.put(20, 10, gold_l)
+    img.put(21, 11, gold_l)
+    img.put(23, 15, gold_d)
+    img.put(19, 15, gold_d)
+    # Sparkles: small four-point stars.
+    for (x, y, c) in ((8, 11, gold_l), (13, 8, gold), (26, 21, gold_l), (15, 22, gold)):
+        img.put(x, y, c)
+        img.put(x - 1, y, c, 0.6)
+        img.put(x + 1, y, c, 0.6)
+        img.put(x, y - 1, c, 0.6)
+        img.put(x, y + 1, c, 0.6)
+    img.put(24, 25, gold_d)
+    img.put(11, 19, gold_d)
+
+
+def retro_set(img):
+    """Hulu tile: a boxy mint-green 1960s TV set on a stand, one antenna,
+    a dial and a speaker grille, a moonlit hill on its screen (not
+    YouTube's red TV with rabbit ears and a bear)."""
+    mint, mint_d, mint_l = '#4ED88A', '#1E8A4E', '#9AF0BE'
+    img.line(19, 11, 24, 6, '#C9C9D0')            # one antenna, to the right
+    img.put(24, 6, CREAM)
+    img.rect(4, 11, 24, 14, mint)                 # the cabinet
+    img.hline(5, 26, 11, mint_l)
+    img.rect(4, 23, 24, 2, mint_d)
+    img.rect(6, 13, 14, 9, INK)                   # screen, rounded corners
+    img.rect(7, 14, 12, 7, '#1E3A5A')
+    img.put(7, 14, INK)
+    img.put(18, 14, INK)
+    img.put(7, 20, INK)
+    img.put(18, 20, INK)
+    img.disc(15, 16, 1.2, '#FFF6D8')             # the moon
+    img.rect(8, 19, 10, 2, '#2E6A4A')             # a hill
+    img.rect(10, 18, 5, 1, '#2E6A4A')
+    img.disc(23.5, 15, 2, CREAM)                  # the dial
+    img.put(23, 14, INK)
+    for y in (19, 21):                            # speaker grille
+        img.hline(21, 26, y, mint_d)
+    img.rect(12, 25, 8, 1, mint_d)                # the stand
+    img.line(10, 28, 13, 25, INK)
+    img.line(22, 28, 19, 25, INK)
+
+
+def compass(img):
+    """Browser tile: a globe with a gold compass needle across it."""
+    sea, sea_d, land, land_d = '#5AB8E8', '#2A7AB0', '#6AD08A', '#3A9A5A'
+    cx, cy = 16, 18
+    img.disc(cx, cy, 9, sea)
+    for x in range(cx - 9, cx + 10):              # shade the lower right
+        for y in range(cy - 9, cy + 10):
+            if (x - cx) ** 2 + (y - cy) ** 2 <= 81 and (x - cx) + (y - cy) > 6 and img.get(x, y)[3]:
+                img.put(x, y, sea_d)
+    img.poly([(10, 13), (15, 12), (16, 16), (12, 19), (9, 17)], land)       # two continents
+    img.poly([(18, 19), (23, 17), (24, 22), (20, 25)], land)
+    img.put(12, 18, land_d)
+    img.put(22, 23, land_d)
+    for y in (14, 22):                            # latitude lines
+        for x in range(cx - 8, cx + 9):
+            if (x - cx) ** 2 + (y - cy) ** 2 < 78 and img.get(x, y)[3]:
+                img.put(x, y, '#FFFFFF', 0.3)
+    # The compass needle: red north, cream south, a pivot.
+    img.poly([(16, 17), (21, 11), (17, 18)], '#FFD34F')
+    img.poly([(16, 19), (11, 25), (15, 18)], '#8A5A30')
+    img.disc(16, 18, 1.2, INK)
+    img.put(16, 18, CREAM)
+
+
 ICONS = {
     'plex-htpc': reel,
     'vacuumtube': tv,
@@ -219,6 +338,10 @@ ICONS = {
     'spotify': turntable,
     'jellyfin': theatre,
     'retroarch': cabinet,
+    'netflix': popcorn,
+    'disney-plus': wand,
+    'hulu': retro_set,
+    'browser': compass,
 }
 
 

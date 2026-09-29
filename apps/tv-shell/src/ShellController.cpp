@@ -322,6 +322,11 @@ void ShellController::setNowPlaying(bool enabled)
     m_ipc->sendRemoteNowPlaying(enabled);
 }
 
+void ShellController::setAppEnabled(const QString &appId, bool enabled)
+{
+    m_ipc->sendAppEnable(appId, enabled);
+}
+
 void ShellController::setSleepTimer(int minutes)
 {
     m_ipc->sendRequest(QStringLiteral("power.sleep_timer"), QJsonObject{{QStringLiteral("minutes"), minutes}});
@@ -409,6 +414,11 @@ QString ShellController::flatpakIdFor(const QString &adapter) const
         {QStringLiteral("spotify"), QStringLiteral("com.spotify.Client")},
         {QStringLiteral("jellyfin"), QStringLiteral("org.jellyfin.JellyfinDesktop")},
         {QStringLiteral("retroarch"), QStringLiteral("org.libretro.RetroArch")},
+        // Web apps all run in Flathub Chromium (internal/applications/web).
+        {QStringLiteral("netflix"), QStringLiteral("org.chromium.Chromium")},
+        {QStringLiteral("disney-plus"), QStringLiteral("org.chromium.Chromium")},
+        {QStringLiteral("hulu"), QStringLiteral("org.chromium.Chromium")},
+        {QStringLiteral("browser"), QStringLiteral("org.chromium.Chromium")},
     };
     return ids.value(adapter);
 }

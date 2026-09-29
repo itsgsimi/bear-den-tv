@@ -479,6 +479,18 @@ QString IpcClient::sendRemoteNowPlaying(bool enabled)
     return track(id, QStringLiteral("remote.now_playing"));
 }
 
+QString IpcClient::sendAppEnable(const QString &appId, bool enabled)
+{
+    const QString id = newRequestId();
+    send(QJsonObject{
+        {QStringLiteral("type"), QStringLiteral("app.enable")},
+        {QStringLiteral("request_id"), id},
+        {QStringLiteral("app_id"), appId},
+        {QStringLiteral("enabled"), enabled},
+    });
+    return track(id, QStringLiteral("app.enable"));
+}
+
 void IpcClient::sendPowerActivity()
 {
     send(QJsonObject{{QStringLiteral("type"), QStringLiteral("power.activity")}});

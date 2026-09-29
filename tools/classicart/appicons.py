@@ -10,6 +10,10 @@ logo:
     spotify     a record player
     jellyfin    a home-theatre screen with two bears on a couch
     retroarch   an arcade cabinet with a bear on its screen
+    netflix     a striped popcorn bucket (web app)
+    disney-plus a magic wand with a star and sparkles (web app)
+    hulu        a mint-green 1960s TV set on a stand (web app)
+    browser     a globe with a gold compass needle (web app)
 
 Writes apps/tv-shell/assets/classic/app-<adapter>.svg and the phone remote's
 copies in apps/remote-web/static/art/app-<adapter>.svg.
@@ -34,6 +38,10 @@ BADGE = {
     'spotify': {'top': '#2FCF6A', 'bottom': '#10703A', 'ear': '#0C5A2C', 'inner': '#7FE0A2'},
     'jellyfin': {'top': '#9A5CC8', 'bottom': '#1E78B8', 'ear': '#5A2E82', 'inner': '#C9A0E8'},
     'retroarch': {'top': '#3E3478', 'bottom': '#141030', 'ear': '#221C4A', 'inner': '#7A6AC8'},
+    'netflix': {'top': '#5A2A40', 'bottom': '#220E18', 'ear': '#3A1626', 'inner': '#9A5A74'},
+    'disney-plus': {'top': '#3A4AA8', 'bottom': '#141A48', 'ear': '#222C6A', 'inner': '#7A8AE0'},
+    'hulu': {'top': '#1E5A3A', 'bottom': '#0A2416', 'ear': '#123A24', 'inner': '#5A9A74'},
+    'browser': {'top': '#2A7A90', 'bottom': '#0E3440', 'ear': '#16505E', 'inner': '#6AB4C8'},
 }
 
 
@@ -155,6 +163,64 @@ def cabinet(s):
     s.rect(15.5, 26.2, 1, 1, '#FFD34F', rx=0.2)
 
 
+def popcorn(s):
+    corn = s.radial([(0, '#FFF8DC'), (0.7, '#FFE6A0'), (1, '#E0B050')], fx=0.35, fy=0.3)
+    for x, y, r in ((11, 13.4, 2.8), (15.5, 11.2, 3.2), (20.4, 12.8, 2.8), (13.2, 15.4, 2.6), (18.4, 15.4, 2.8), (9.2, 16.2, 2), (22.6, 16.2, 2)):
+        s.circle(x, y, r, corn)
+    s.circle(25.2, 9, 1.3, corn)
+    stripes = s.linear([(0, '#D8404A'), (0.1875, '#D8404A'), (0.1875, '#F6EAD0'), (0.375, '#F6EAD0'), (0.375, '#D8404A'),
+                        (0.5625, '#D8404A'), (0.5625, '#F6EAD0'), (0.75, '#F6EAD0'), (0.75, '#D8404A'), (1, '#D8404A')], x2=1, y2=0)
+    s.path('M7.6 17.4 L24.4 17.4 L21.6 28.6 L10.4 28.6 Z', stripes)
+    s.path('M7.6 17.4 L24.4 17.4 L21.6 28.6 L10.4 28.6 Z', s.linear([(0, '#000000', 0), (0.7, '#000000', 0), (1, '#000000', 0.3)], x2=1, y2=0))
+    s.rect(6.8, 16.6, 18.4, 2, s.linear([(0, '#FFFFFF'), (1, '#D8C6A2')]), rx=0.8)
+
+
+def wand(s):
+    s.line(9.4, 27, 18.6, 15.8, '#F2F2FA', 1.4)
+    s.line(10, 27.4, 19, 16.4, '#9A9AB8', 0.6)
+    s.rect(7.8, 25.6, 3.2, 3.2, '#C89A1E', rx=0.8)
+    cx, cy, ro, ri = 21, 12, 6.4, 2.7
+    pts = []
+    for k in range(10):
+        a = -math.pi / 2 + k * math.pi / 5
+        r = ro if k % 2 == 0 else ri
+        pts.append((round(cx + r * math.cos(a), 2), round(cy + r * math.sin(a), 2)))
+    s.glow(cx, cy, 7, 7, '#FFF4C8', 0.35)
+    s.poly(pts, s.radial([(0, '#FFF4C8'), (0.6, '#FFD34F'), (1, '#C89A1E')], fx=0.4, fy=0.35))
+    for x, y, r in ((8, 11, 1.3), (13, 8, 1.1), (26, 21, 1.3), (15, 22, 1)):
+        s.path(f'M{x} {y - r * 1.6} Q{x} {y} {x + r * 1.6} {y} Q{x} {y} {x} {y + r * 1.6} Q{x} {y} {x - r * 1.6} {y} Q{x} {y} {x} {y - r * 1.6} Z', '#FFF4C8')
+
+
+def retro_set(s):
+    s.line(19, 11, 24, 6, '#C9C9D0', 0.8)
+    s.circle(24, 6, 0.8, CREAM)
+    s.line(10, 28.6, 13, 25, INK, 1)
+    s.line(22, 28.6, 19, 25, INK, 1)
+    s.rect(4, 11, 24, 14.4, s.linear([(0, '#9AF0BE'), (0.12, '#4ED88A'), (0.85, '#4ED88A'), (1, '#1E8A4E')]), rx=2)
+    s.rect(6, 13, 14, 9.4, INK, rx=2.4)
+    s.rect(7, 14, 12, 7.4, s.linear([(0, '#1E3A5A'), (1, '#2A4A6A')]), rx=1.8)
+    s.circle(15, 16.2, 1.3, '#FFF6D8')
+    s.path('M7.4 20.6 Q11 17.4 14.6 19.2 Q16.6 18.6 18.6 20 L18.6 21 Q18.6 21.4 18 21.4 L8 21.4 Q7.4 21.4 7.4 20.8 Z', '#2E6A4A')
+    s.circle(23.5, 15.2, 2.1, s.radial([(0, '#FFFFFF'), (1, CREAM_D)], fx=0.35, fy=0.3))
+    s.line(23.5, 15.2, 22.8, 14, INK, 0.5)
+    for y in (19, 21):
+        s.rect(21, y - 0.4, 5.4, 0.8, '#1E8A4E', rx=0.4)
+    s.rect(12, 24.8, 8, 1.2, '#1E8A4E', rx=0.4)
+
+
+def compass(s):
+    cx, cy = 16, 18.4
+    s.circle(cx, cy, 9.4, s.radial([(0, '#8AD8F8'), (0.7, '#5AB8E8'), (1, '#2A7AB0')], fx=0.35, fy=0.3))
+    s.path('M9.6 13 L15 11.8 L16.2 16.2 L12.2 19.6 L8.8 17.4 Z', '#6AD08A')
+    s.path('M18 19 L23.4 17 L24.4 22.4 L20 25.4 Z', '#6AD08A')
+    for y in (14, 22.8):
+        s.line(cx - 7.8, y, cx + 7.8, y, '#FFFFFF', 0.4, 0.35)
+    s.poly([(16, 17.4), (21.4, 11), (17, 18.6)], '#FFD34F')
+    s.poly([(16, 19.4), (10.6, 25.8), (15, 18.2)], '#8A5A30')
+    s.circle(16, 18.4, 1.3, INK)
+    s.circle(16, 18.4, 0.5, CREAM)
+
+
 ICONS = {
     'plex-htpc': reel,
     'vacuumtube': tv,
@@ -162,6 +228,10 @@ ICONS = {
     'spotify': turntable,
     'jellyfin': theatre,
     'retroarch': cabinet,
+    'netflix': popcorn,
+    'disney-plus': wand,
+    'hulu': retro_set,
+    'browser': compass,
 }
 
 

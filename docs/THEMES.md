@@ -867,6 +867,10 @@ recognised by its label and colour.
 | `spotify` | a record player |
 | `jellyfin` | a home-theatre screen with two bears on a couch |
 | `retroarch` | an arcade cabinet with a bear on its screen |
+| `netflix` | a striped popcorn bucket (web app; badge in Bear Den's plum, not the service's colours) |
+| `disney-plus` | a magic wand with a star and sparkles (no castle, no arc) |
+| `hulu` | a mint-green 1960s TV set on a stand, one antenna, a moonlit hill on its screen (not YouTube's red TV) |
+| `browser` | a globe with a gold compass needle |
 
 - **Pixel:** 32×32 art pixels, drawn by `tools/pixelart/appicons.py`
   (`apps/tv-shell/assets/pixel/app-<adapter>.png`); `AppIcon` shows it at the

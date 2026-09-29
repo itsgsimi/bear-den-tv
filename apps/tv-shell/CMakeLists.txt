@@ -54,6 +54,7 @@ set(BDTV_QML_FILES
   qml/WeatherScreen.qml
   qml/PlexScreen.qml
   qml/BadgesScreen.qml
+  qml/StreamingScreen.qml
   qml/BadgeCelebration.qml
   qml/BadgeMedal.qml
   qml/Badges.qml
