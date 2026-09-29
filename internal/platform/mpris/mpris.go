@@ -1,14 +1,19 @@
 // Package mpris locates and controls MPRIS2 players on the session bus. It
 // only ever calls the idempotent Pause/Play/Seek methods (never PlayPause) and
 // refuses a call the player's Can* properties do not permit, so the coordinator
-// never reports a delivery the player could not act on.
+// never reports a delivery the player could not act on. It also reads what a
+// player is playing (Metadata, Position, Rate: Player.Info) and watches that
+// one player's change signals (Player.Watch) for phones' Now playing card
+// (contracts/http.md). Titles are never put in PlayerInfo, errors or logs.
 package mpris
 
 import (
 	"context"
 	"fmt"
+	"math"
 	"sort"
 	"strings"
+	"time"
 
 	"bear-den-tv/internal/platform"
 	"bear-den-tv/internal/platform/dbusx"
@@ -226,4 +231,161 @@ func (p *Player) CanControl(ctx context.Context) (bool, error) {
 // CanPause returns the player's CanPause property.
 func (p *Player) CanPause(ctx context.Context) (bool, error) {
 	return p.boolProp(ctx, "CanPause")
+}
+
+// Info implements platform.MediaPlayer. Only PlaybackStatus is required;
+// Metadata, Position and Rate are optional in practice (players omit or fail
+// them), so a missing one leaves its fields zero rather than failing the read.
+func (p *Player) Info(ctx context.Context) (platform.MediaInfo, error) {
+	info := platform.MediaInfo{Rate: 1}
+	st, err := p.Status(ctx)
+	if err != nil {
+		return info, fmt.Errorf("mpris: PlaybackStatus on %s: %w", p.Name, err)
+	}
+	info.Status = st
+	if v, err := p.bus.Property(ctx, p.Name, objectPath, playerIface, "Metadata"); err == nil {
+		if md, ok := dbusx.Dict(v); ok {
+			applyMetadata(&info, md)
+		}
+	}
+	if v, err := p.bus.Property(ctx, p.Name, objectPath, playerIface, "Position"); err == nil {
+		if us, ok := toInt64(dbusx.Unwrap(v)); ok && us >= 0 {
+			info.Position, info.HasPosition = time.Duration(us)*time.Microsecond, true
+		}
+	}
+	if v, err := p.bus.Property(ctx, p.Name, objectPath, playerIface, "Rate"); err == nil {
+		if r, ok := toFloat(dbusx.Unwrap(v)); ok && r >= 0 && !math.IsInf(r, 0) && !math.IsNaN(r) {
+			info.Rate = r
+		}
+	}
+	return info, nil
+}
+
+// applyMetadata maps the MPRIS Metadata keys the phone shows: xesam:title,
+// xesam:artist (a list; some players send one string), xesam:album and
+// mpris:length (microseconds; players variously send int64, uint64 or int32).
+func applyMetadata(info *platform.MediaInfo, md map[string]any) {
+	if s, ok := md["xesam:title"].(string); ok {
+		info.Title = strings.TrimSpace(s)
+	}
+	switch a := md["xesam:artist"].(type) {
+	case []string:
+		for _, s := range a {
+			if s = strings.TrimSpace(s); s != "" {
+				info.Artists = append(info.Artists, s)
+			}
+		}
+	case []any:
+		for _, x := range a {
+			if s, ok := dbusx.Unwrap(x).(string); ok && strings.TrimSpace(s) != "" {
+				info.Artists = append(info.Artists, strings.TrimSpace(s))
+			}
+		}
+	case string:
+		if s := strings.TrimSpace(a); s != "" {
+			info.Artists = []string{s}
+		}
+	}
+	if s, ok := md["xesam:album"].(string); ok {
+		info.Album = strings.TrimSpace(s)
+	}
+	if us, ok := toInt64(md["mpris:length"]); ok && us > 0 {
+		info.Length = time.Duration(us) * time.Microsecond
+	}
+}
+
+func toInt64(v any) (int64, bool) {
+	switch n := v.(type) {
+	case int64:
+		return n, true
+	case int32:
+		return int64(n), true
+	case int:
+		return int64(n), true
+	case uint64:
+		if n > math.MaxInt64 {
+			return 0, false
+		}
+		return int64(n), true
+	case uint32:
+		return int64(n), true
+	case float64:
+		if math.IsNaN(n) || math.IsInf(n, 0) {
+			return 0, false
+		}
+		return int64(n), true
+	}
+	return 0, false
+}
+
+func toFloat(v any) (float64, bool) {
+	switch n := v.(type) {
+	case float64:
+		return n, true
+	case float32:
+		return float64(n), true
+	}
+	if i, ok := toInt64(v); ok {
+		return float64(i), true
+	}
+	return 0, false
+}
+
+// Watch implements platform.MediaPlayer: it emits on PropertiesChanged of
+// the Player interface and on Seeked, from this player only. Signals carry
+// the sender's unique name, so the well-known name is resolved first; a
+// player that cannot be resolved is an error (never another player's signals).
+func (p *Player) Watch(ctx context.Context) (<-chan struct{}, error) {
+	owner, err := dbusx.OwnerOf(ctx, p.bus, p.Name)
+	if err != nil {
+		return nil, fmt.Errorf("mpris: owner of %s: %w", p.Name, err)
+	}
+	ctx, cancel := context.WithCancel(ctx)
+	props, err := p.bus.Subscribe(ctx, "org.freedesktop.DBus.Properties", "PropertiesChanged")
+	if err != nil {
+		cancel()
+		return nil, err
+	}
+	seeks, err := p.bus.Subscribe(ctx, playerIface, "Seeked")
+	if err != nil {
+		cancel()
+		return nil, err
+	}
+	out := make(chan struct{}, 1)
+	notify := func() {
+		select {
+		case out <- struct{}{}:
+		default: // one pending wake-up is enough; the reader re-reads everything
+		}
+	}
+	mine := func(s dbusx.Signal) bool {
+		return (s.Sender == owner || s.Sender == p.Name) && s.Path == objectPath
+	}
+	go func() {
+		defer close(out)
+		defer cancel()
+		for props != nil || seeks != nil {
+			select {
+			case <-ctx.Done():
+				return
+			case s, ok := <-props:
+				if !ok {
+					props = nil
+					continue
+				}
+				if mine(s) && len(s.Body) > 0 && s.Body[0] == playerIface {
+					notify()
+				}
+			case s, ok := <-seeks:
+				if !ok {
+					seeks = nil
+					continue
+				}
+				if mine(s) {
+					notify()
+				}
+			}
+		}
+	}()
+	return out, nil
 }

@@ -7,6 +7,9 @@ package platform
 import (
 	"context"
 	"errors"
+	"fmt"
+	"log/slog"
+	"time"
 )
 
 // WindowID is a backend-specific window identity (X11 window id, or an opaque
@@ -128,7 +131,44 @@ type MediaPlayer interface {
 	Play(ctx context.Context) error
 	SeekRelative(ctx context.Context, seconds int) error
 	CanControl(ctx context.Context) (bool, error)
+	// Info reads what the player says it is playing: status, metadata,
+	// position and rate. Fields the player does not report stay zero.
+	Info(ctx context.Context) (MediaInfo, error)
+	// Watch emits whenever the player signals a change of its metadata,
+	// status or rate, or a seek, until ctx is done; the channel is then
+	// closed. Signals are coalesced; the position itself is not signalled
+	// while it advances, so readers re-read it (Info) on their own schedule.
+	Watch(ctx context.Context) (<-chan struct{}, error)
 }
+
+// MediaInfo is one reading of a player (MPRIS PlaybackStatus, Metadata,
+// Position, Rate). Title, Artists and Album name private media: the
+// coordinator shows them only to authorized phones and never logs them.
+type MediaInfo struct {
+	// Status is Playing, Paused, Stopped or Unknown.
+	Status string
+	// Title is xesam:title; empty when the player reports none.
+	Title string
+	// Artists is xesam:artist; Album is xesam:album.
+	Artists []string
+	Album   string
+	// Length is mpris:length; zero when unknown.
+	Length time.Duration
+	// Position is valid only when HasPosition is true.
+	Position    time.Duration
+	HasPosition bool
+	// Rate is the playback rate; 1 when the player does not report it.
+	Rate float64
+}
+
+// String describes the reading without its titles, so a log line or an
+// error that formats it never names what is playing.
+func (m MediaInfo) String() string {
+	return fmt.Sprintf("media{status=%s title=[title] position=%v/%v rate=%v}", m.Status, m.Position, m.Length, m.Rate)
+}
+
+// LogValue implements slog.LogValuer with the titles redacted.
+func (m MediaInfo) LogValue() slog.Value { return slog.StringValue(m.String()) }
 
 // MediaLocator finds players belonging to a running application instance.
 type MediaLocator interface {

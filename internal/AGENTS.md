@@ -48,7 +48,9 @@ Embeds live in the repository root [`embed.go`](../embed.go): `contracts/`,
 | `fakeShell` | same file | answers `input`/`home` like the real shell (`observed` with focus detail), records inputs in `h.inputs` |
 | `fakeLauncher`, `fakeLock`, `fakeTuner` | same file | launching maps a window on the fake desktop; lock pushes through `set`; the tuner returns a canned report and records apps it applied |
 | `fake.Desktop`, `fake.Launcher` | [`platform/fake`](platform/fake/fake.go) | in-memory windows (`AddWindow`, `SetActive`, `RemoveWindow`), delivered keys (`Keys()`); also backs `bear-den-tv dev` |
+| `fake.Media`, `fake.Player` | [`platform/fake/media.go`](platform/fake/media.go) | an MPRIS-style locator and player on an injected clock (position advances while playing; `Set`, `Signal`, `Fail`, `Reads()`, `Calls()`); `DemoMedia` backs `dev --dev-fixtures` with DEMO titles |
 | `dbusx.Fake` | [`platform/dbusx/fake.go`](platform/dbusx/fake.go) | scripted `Call`/`Property`/`Names`, `Emit` signals; used by the lock and mpris tests |
+| private D-Bus | [`platform/mpris/bus_test.go`](platform/mpris/bus_test.go) | starts a `dbus-daemon` for one test, exports a fake MPRIS player with godbus and reads it through the real `dbusx`/`mpris` code; skips with the reason when `dbus-daemon` is missing |
 | `fakeRunner`, `fakeProc` | [`applications/flatpak/flatpak_test.go`](applications/flatpak/flatpak_test.go) | records every `flatpak` argv (`argvs()`), scripted output and processes |
 | `testutil` | [`remote/testutil`](remote/testutil/backend.go) | `FakeBackend`, in-memory `Devices`, `FakeClock` for server tests |
 
