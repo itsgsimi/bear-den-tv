@@ -18,7 +18,7 @@ class (`--class=BearDenWeb-<adapter>`, how the coordinator tells the windows
 apart), full screen in app mode (`--start-fullscreen --app=<url>`) for the
 services, and as an ordinary maximized browser for the Browser tile.
 
-### Widevine (researched, not verified here)
+### Widevine (researched; seen in a container, not on the TV)
 
 The services need the Widevine CDM. What the Flathub packaging shows
 (github.com/flathub/org.chromium.Chromium, read 2026-09-28):
@@ -32,9 +32,15 @@ The services need the Widevine CDM. What the Flathub packaging shows
 
 So Flathub Chromium is built to use a Widevine CDM that Chromium's component
 updater downloads into the profile at run time. Community reports on whether
-that download happens for this unbranded build are mixed. We could not check
-it: nothing may be installed on the development machine and the TV was not
-used. Consequences:
+that download happens for this unbranded build are mixed. Nothing may be
+installed on the development machine and the TV was not used, but a
+container was (2026-09-28, [ADR 0011](0011-per-user-flathub-installs.md)):
+in `ubuntu:24.04`, as an unprivileged user, Flathub Chromium 154.0.8037.57
+installed with `bear-den-tv apps install netflix --here` fetched Widevine
+4.10.3050.0 into a fresh profile (`<profile>/WidevineCdm/4.10.3050.0/manifest.json`)
+65 s after starting, both with `--headless=new` and in a window on Xvfb.
+Whether the sites then play was not tried (no real site may be automated).
+Consequences:
 
 - Bear Den never downloads or copies Widevine itself.
 - Each web app's profile gets its own `WidevineCdm` folder when Chromium
@@ -46,12 +52,18 @@ used. Consequences:
   is expected to download the CDM into each profile's `WidevineCdm/<version>/`
   the first time that profile runs online (a few minutes; the
   `chrome://components` page's "Check for update" forces it). That is per
-  user and needs no root; it can be automated only by starting each web
-  app's profile once and waiting for `<profile>/WidevineCdm/*/manifest.json`
-  to appear, the one machine-checkable sign. Nothing Bear Den ships downloads
-  or copies the CDM itself (Google's licence; the community scripts that fetch
-  Google Chrome's copy into the Flatpak's folder are not used). Unverified,
-  as above.
+  user and needs no root. Bear Den automates exactly that
+  (`web.Widevine`, `internal/session/widevine.go`): after Chromium is
+  installed, and whenever a streaming site is turned on, it starts that
+  site's profile once, headless (`--headless=new --no-first-run
+  --no-default-browser-check about:blank`, no DevTools channel), waits up to
+  5 minutes for `<profile>/WidevineCdm/*/manifest.json`, the one
+  machine-checkable sign, and stops it. The state says `drm`: `preparing`,
+  `ready`, or `pending` ("Still setting up playback support"); opening the
+  site stops the quiet run and the real run fetches it instead. Nothing Bear
+  Den ships downloads or copies the CDM itself (Google's licence; the
+  community scripts that fetch Google Chrome's copy into the Flatpak's folder
+  are not used). Seen in the container only, as above.
 - Chromium missing is machine-readable, not only UI text: every web app's
   `launch.app_id` is `org.chromium.Chromium` (defined once,
   `adapters.ChromiumFlatpakID`), so discovery reports it in

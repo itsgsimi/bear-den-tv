@@ -416,6 +416,7 @@ func (c *Coordinator) doLaunch(ctx context.Context, s sender, req contract.Actio
 	}
 	isApp := func(t contract.Target) bool { return t.Kind == "app" && strOr(t.AppID) == appID }
 	c.stopUpdateFor("an app is starting") // never update during an app session
+	c.stopDRMPrep(appID)                  // one Chromium per profile: the real run takes over
 
 	// A second press while the app is still starting waits for that launch
 	// instead of starting another instance. Checking and claiming "launching"

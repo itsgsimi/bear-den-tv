@@ -91,8 +91,12 @@ installs are left to the system.
 Turning a streaming site on (Settings → Streaming sites) while Chromium is
 missing opens the same install card for Chromium ("Browser for Netflix,
 Disney+, Hulu"). After Chromium is installed, the Widevine step of
-[ADR 0010](0010-web-apps-over-cdp-pipe.md) is what decides whether the
-sites play; see that ADR and the status for what is automated.
+[ADR 0010](0010-web-apps-over-cdp-pipe.md) is automated per user, without
+root: each enabled streaming site's profile is started once, headless, until
+Chromium's own component updater has put `WidevineCdm/*/manifest.json` in
+it (65 s in the container) or 5 minutes pass; the card and Settings then say
+"Ready" or "Still setting up playback support" (`install.drm`). Bear Den
+never downloads the CDM itself.
 
 ## Consequences
 

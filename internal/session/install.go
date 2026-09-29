@@ -120,6 +120,7 @@ func (c *Coordinator) installForLocked(a configApp, rt *appRuntime) *contract.In
 		v := st.DiskBytes
 		out.DiskBytes = &v
 	}
+	out.DRM = c.drmForLocked(a, rt.install.Installed)
 	switch st.State {
 	case contract.InstallPreparing, contract.InstallDownloading, contract.InstallInstalling, contract.InstallFailed, contract.InstallDone:
 		out.State, out.Phase, out.Progress, out.Message = st.State, st.Phase, st.Progress, st.Message
@@ -378,5 +379,8 @@ func (c *Coordinator) stopUpdateFor(why string) {
 }
 
 // afterInstalled runs what a freshly installed Flatpak needs before its
-// apps are fully ready. Nothing yet.
-func (c *Coordinator) afterInstalled(string) {}
+// apps are fully ready: for Chromium, the enabled streaming sites' playback
+// support (widevine.go).
+func (c *Coordinator) afterInstalled(flatpakID string) {
+	c.prepareEnabledStreaming(flatpakID)
+}

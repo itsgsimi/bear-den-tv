@@ -101,7 +101,10 @@ type Options struct {
 	// (DefaultUpdateEvery).
 	UpdateCheck time.Duration
 	UpdateEvery time.Duration
-	DevMode     bool
+	// DRM checks and prepares the streaming sites' Widevine (widevine.go);
+	// nil omits install.drm.
+	DRM     WebDRM
+	DevMode bool
 	// AppsRefresh overrides DefaultAppsRefresh (tests).
 	AppsRefresh time.Duration
 	// Diagnostics produces the redacted doctor report for owners.
@@ -168,6 +171,7 @@ type Coordinator struct {
 	lockKnown          bool                      // the lock observer has reported at least once
 	pointerBuckets     map[string]*pointerBucket // pointer rate limits (web.go)
 	upd                updateState               // the idle app update (install.go)
+	drm                drmState                  // streaming sites' playback support (widevine.go)
 	rediscovering      map[string]bool           // Flatpak ids being discovered after an install
 
 	subs    map[chan struct{}]struct{}
@@ -463,6 +467,7 @@ func (c *Coordinator) reconcileApps(ctx context.Context) {
 		}
 	}
 	c.mu.Unlock()
+	c.refreshDRM() // a site's own run may have fetched Widevine
 	if changed {
 		c.publish()
 	}

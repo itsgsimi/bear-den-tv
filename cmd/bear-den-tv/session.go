@@ -322,6 +322,10 @@ func runSession(f sessionFlags) error {
 	// App installs from Flathub, per user (ADR 0011): the real installer on
 	// the TV; with dev --dev-installs a pretend one; otherwise none.
 	var appInstaller session.AppInstaller
+	var webDRM session.WebDRM // the streaming sites' Widevine (on the TV only)
+	if !f.dev {
+		webDRM = &web.Widevine{DataHome: dataHome, Starter: web.FlatpakStarter()}
+	}
 	var onInstallChange func()
 	var tableIDs []string
 	for _, a := range adapters.NewRegistry().All() {
@@ -355,7 +359,7 @@ func runSession(f sessionFlags) error {
 		Logger: log, Desktop: desk, Lock: lockObs, Audio: audioB, Media: media, Display: display, TV: tv, Suspend: suspendR,
 		Launcher: launcher, Adapters: adapters.NewRegistry(), Config: store, Pairing: pair,
 		Supervisor: sup, DevMode: f.dev && (f.devFixtures || f.devPlexFake || f.devInstalls), Feed: feed, Weather: wx, Plex: plexOpt, Web: webApps,
-		Installer: appInstaller,
+		Installer: appInstaller, DRM: webDRM,
 		// Den badges: local counters in state.db; nothing counted while
 		// config achievements.enabled is false (docs/security.md#den-badges).
 		Achievements: achievements.New(achievements.Options{DB: db, Logger: log, Enabled: func() bool { return store.Current().AchievementsEnabled() }}),

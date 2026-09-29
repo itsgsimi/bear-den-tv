@@ -526,10 +526,12 @@ ordinary Chromium for keyboard and mouse. Design:
 [ADR 0010](decisions/0010-web-apps-over-cdp-pipe.md); what is and is not
 verified: [`IMPLEMENTATION_STATUS.md`](IMPLEMENTATION_STATUS.md).
 
-1. **Install Chromium from Flathub** (the owner does this; Bear Den never
-   installs anything): `flatpak install --user flathub org.chromium.Chromium`.
-   Until it is installed the four tiles stay hidden. Bear Den uses only this
-   Chromium, never Google Chrome.
+1. **Chromium from Flathub:** turning a site on while Chromium is missing
+   opens the install card for it (or Settings → Add apps → Chromium; one
+   press, per user, see [App installs](#app-installs)). By hand:
+   `flatpak install --user flathub org.chromium.Chromium`. Until it is
+   installed the four tiles stay hidden. Bear Den uses only this Chromium,
+   never Google Chrome.
 2. **Turn a site on:** TV Settings → Streaming sites, OK on Netflix, Disney+
    or Hulu (they are off by default; the Browser is on). The tile appears on
    Home with "Up to 720p" until it is first opened. Turning a site off hides
@@ -540,12 +542,16 @@ verified: [`IMPLEMENTATION_STATUS.md`](IMPLEMENTATION_STATUS.md).
    (shown on the phone while a web app is in front: drag to move, tap to
    click, two fingers to scroll) reaches anything the D-pad cannot.
 4. **Widevine:** the services need Chromium's Widevine module. Flathub's
-   Chromium fetches it itself into each profile, if at all (Bear Den never
-   downloads it). To check, open the Browser tile with a keyboard, go to
-   `chrome://components` and look for "Widevine Content Decryption Module"
-   with a version other than 0.0.0.0. The streaming tiles each use their own
-   profile and fetch their own copy. Without it the sites open but refuse to
-   play.
+   Chromium fetches it itself into each profile (Bear Den never downloads
+   it). After Chromium is installed, and when you turn a site on, Bear Den
+   starts that site's profile once, headless and out of sight, until
+   `~/.local/share/bear-den-tv/web/<app-id>/WidevineCdm/*/manifest.json`
+   appears (about a minute in a container; up to 5 minutes), and the install
+   card says "Ready" or "Still setting up playback support". Opening the
+   site also lets Chromium fetch it. To check by hand, open the Browser tile
+   with a keyboard, go to `chrome://components` and look for "Widevine
+   Content Decryption Module" with a version other than 0.0.0.0. Without it
+   the sites open but refuse to play.
 
 **Where things live:** each app's profile is
 `~/.local/share/bear-den-tv/web/<app-id>/` (`netflix`, `disney-plus`, `hulu`,
