@@ -92,7 +92,9 @@ external origins. Dynamic styling goes through classes, `data-*` attributes or
 - **Named actions only.** Nothing here builds URLs to fetch, keycodes or
   commands for the TV.
 - **Rebuild `dist/`** with `make web` (`npm ci` + `npm run build`) and commit
-  it with the source change.
+  it with the source change. `make check-web-dist`
+  ([`scripts/check-web-dist.sh`](../../scripts/check-web-dist.sh), run by CI)
+  fails when the committed `dist/` differs from a fresh build.
 
 ## Add a control
 

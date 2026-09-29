@@ -6,7 +6,7 @@ export CMAKE_PREFIX_PATH := $(BDTV_TOOLCHAIN)/env
 export GOTOOLCHAIN := local
 BUILD ?= build
 
-.PHONY: help deps-check build go web shell shell-target test test-go test-web test-shell lint shots perf dev doctor clean
+.PHONY: help deps-check build go web check-web-dist shell shell-target test test-go test-web test-shell lint shots perf dev doctor clean
 
 help: ## List targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "}{printf "  %-14s %s\n", $$1, $$2}'
@@ -28,6 +28,9 @@ apps/remote-web/node_modules/.installed: apps/remote-web/package-lock.json
 
 web: apps/remote-web/node_modules/.installed ## Build the phone remote into apps/remote-web/dist (embedded by go)
 	cd apps/remote-web && npm run build
+
+check-web-dist: ## Fail if committed apps/remote-web/dist differs from a fresh make web (CI runs this)
+	scripts/check-web-dist.sh
 
 # The shell is installed by copy + rename: overwriting a running executable in
 # place fails ("Text file busy") and would silently leave the old binary.
