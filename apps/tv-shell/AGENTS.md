@@ -171,13 +171,15 @@ Done when: `make test-shell` passes and
 ## App tiles and branding
 
 Supported apps are a closed set keyed by **adapter name** (`plex-htpc`,
-`vacuumtube`, `moonlight`); engine code never branches on a display name.
+`vacuumtube`, `moonlight`, and the optional `spotify`, `jellyfin`,
+`retroarch`, whose tiles are skipped while `hidden`); engine code never
+branches on a display name.
 For a new app, after [`internal/AGENTS.md` → Add an app](../../internal/AGENTS.md#add-an-app):
 
 | Where | What |
 |---|---|
-| [`qml/Apps.qml`](qml/Apps.qml) | `tagline`, `about` and `brand` (`{top, bottom, glow}`) per adapter; without a brand the tile falls back to the item's tint |
-| [`qml/AppTile.qml`](qml/AppTile.qml) | the peeking cub's `prop` ornament per adapter (`popcorn`, `remote`, `controller`); the ornament is a PNG in `assets/ornaments/` (draw it in `tools/pixelart/ornaments.py`; assets are globbed into the build) |
+| [`qml/Apps.qml`](qml/Apps.qml) | `tagline`, `about`, `hint` (a how-to line on the featured panel) and `brand` (`{top, bottom, glow}`) per adapter, and `stage` (its room: draw it in `tools/pixelart/hero.py` and `tools/classicart/hero.py`); without a brand the tile falls back to the item's tint |
+| [`qml/AppTile.qml`](qml/AppTile.qml) | the peeking cub's `prop` ornament per adapter (`popcorn`, `remote`, `controller`, `heart`), with its fit per ornament; the ornament is a PNG in `assets/ornaments/` (draw it in `tools/pixelart/ornaments.py`; assets are globbed into the build) |
 | `ShellController::flatpakIdFor` in [`src/ShellController.cpp`](src/ShellController.cpp) | adapter → Flatpak id; used for the exported Flatpak icon and the install hint in `AppUnavailableDialog.qml` |
 | `Theme::tintFor` in [`src/Theme.cpp`](src/Theme.cpp) | a fixed hue per **application id** (`plex-htpc`, `youtube`, `moonlight`); other ids hash to a hue |
 

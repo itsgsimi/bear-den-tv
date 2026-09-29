@@ -232,6 +232,7 @@ Item {
             name: root.prop
             readonly property var fit: root.prop === "popcorn" ? { w: 0.4, aspect: 80 / 64, dx: 0.62, lift: 0.9, turn: 8 }
                                      : root.prop === "remote" ? { w: 0.2, aspect: 90 / 40, dx: -0.6, lift: 0.88, turn: -20 }
+                                     : root.prop === "heart" ? { w: 0.3, aspect: 8 / 9, dx: 0.6, lift: 0.9, turn: 10 }
                                      : { w: 0.64, aspect: 64 / 100, dx: 0, lift: 0.78, turn: 0 }
             width: root.cubSize * fit.w
             height: width * fit.aspect

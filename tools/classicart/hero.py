@@ -3,8 +3,10 @@ smooth counterparts of tools/pixelart/hero.py, drawn on the same 176×92 grid
 so the same rig (qml/HeroRig.js: size, the icon's `screen` rectangle, times of
 day, intro) places them. Writes apps/tv-shell/assets/classic/:
 
-- hero-cinema.svg, hero-arcade.svg, hero-cabin-<night|dawn|day|dusk>.svg: the
-  rooms (the cabin's window shows the time of day);
+- hero-cinema.svg, hero-arcade.svg, hero-nook.svg (Spotify's music nook),
+  hero-theatre.svg (Jellyfin's home theatre in the woods), hero-retro.svg
+  (RetroArch's retro corner), hero-cabin-<night|dawn|day|dusk>.svg: the rooms
+  (the cabin's window shows the time of day);
 - hero-<scene>-glow.svg: each room's light (projector beam, TV glow, neon),
   which HeroScene pulses on World's heartbeat instead of pixel frames;
 - hero-static-0.svg, hero-static-1.svg: the cabin TV's intro static, over the
@@ -22,6 +24,9 @@ TIMES = ['night', 'dawn', 'day', 'dusk']
 CINEMA_SCREEN = (50, 10, 76, 42)
 CABIN_SCREEN = (70, 26, 40, 30)
 ARCADE_SCREEN = (68, 18, 40, 30)
+NOOK_SCREEN = (74, 12, 40, 30)
+THEATRE_SCREEN = (56, 10, 64, 36)
+RETRO_SCREEN = (68, 22, 40, 30)
 
 
 def canvas(label, note):
@@ -230,6 +235,162 @@ def arcade_glow(s):
         s.circle(x, 5, 0.7, '#FFF4C8', 0.9)
 
 
+# --- Music nook (Spotify) -----------------------------------------------------------
+def nook(s):
+    s.rect(0, 0, W, 74, s.linear([(0, '#2A4234'), (1, '#1E3226')]))
+    for x in range(0, W, 8):
+        s.rect(x, 0, 4, 74, '#FFFFFF', opacity=0.035)
+    s.glow(150, 30, 50, 40, '#FFC46E', 0.3)
+    s.rect(0, 74, W, 18, s.linear([(0, '#6A4426'), (1, '#3A2414')]))
+    for y in (78, 83, 88):
+        s.line(0, y, W, y, '#000000', 0.5, 0.25)
+    s.ellipse(112, 84, 46, 5.5, s.radial([(0, '#4A9A6A'), (1, '#2A5A3A')]))
+    sx, sy, sw, sh = NOOK_SCREEN
+    s.rect(sx - 4.5, sy - 4.5, sw + 9, sh + 9, s.linear([(0, '#A87040'), (1, '#6A4424')]), rx=1.5)
+    s.rect(sx - 1, sy - 1, sw + 2, sh + 2, '#1A120C', rx=0.8)
+    s.rect(sx, sy, sw, sh, s.radial([(0, '#2A3A30'), (1, '#141E18')]))
+    # Cabinet, records, the player.
+    s.rect(10, 50, 52, 26, s.linear([(0, '#9A6A3E'), (0.1, '#6A4424'), (1, '#4A2E18')]), rx=1.5)
+    s.rect(13, 54, 46, 19, '#2A1C12', rx=1)
+    cols = ['#C84A3A', '#E0B040', '#3A7AC8', '#E8E0D0', '#8A4AA8', '#3AA868', '#D87A3A']
+    for i, x in enumerate(range(14, 58, 3)):
+        s.rect(x, 56 + (i % 3 == 0), 2.4, 17 - (i % 3 == 0), cols[i % len(cols)], rx=0.4)
+    s.rect(12, 75, 3, 3, '#2A1C12', rx=0.6)
+    s.rect(57, 75, 3, 3, '#2A1C12', rx=0.6)
+    s.rect(16, 43, 40, 7.5, s.linear([(0, '#C08A58'), (0.3, '#8A5A34'), (1, '#5E3A1E')]), rx=1.2)
+    s.ellipse(32, 44, 11, 3.2, s.radial([(0, '#3A3A3A'), (0.3, '#161616'), (0.7, '#2A2A2A'), (1, '#111111')]))
+    s.ellipse(32, 44, 1.6, 0.7, '#F2C14E')
+    s.circle(51.5, 41, 1.4, s.radial([(0, '#FFFFFF'), (1, '#9A9AA4')], fx=0.35, fy=0.3))
+    s.path('M51.5 41 L47 45', 'none', stroke='#E6E6EC', sw=0.8)
+    # A bear with headphones, sitting by the music.
+    bx, by = 136, 50
+    fur = s.radial([(0, '#A87048'), (1, '#6A4226')], fx=0.4, fy=0.3)
+    s.ellipse(bx, 66, 13, 10, fur)
+    s.ellipse(bx, 68, 7, 6, '#C09068')
+    s.circle(bx - 9, by - 7, 3.2, '#6A4226')
+    s.circle(bx + 9, by - 7, 3.2, '#6A4226')
+    s.circle(bx - 9, by - 7, 1.6, '#C09068')
+    s.circle(bx + 9, by - 7, 1.6, '#C09068')
+    s.circle(bx, by, 9, fur)
+    s.ellipse(bx, by + 4, 4.2, 3.2, '#E0B888')
+    s.ellipse(bx, by + 2.6, 1.6, 1.1, '#1A120C')
+    s.path(f'M{bx - 5} {by - 1} Q{bx - 3.5} {by - 2.6} {bx - 2} {by - 1}', 'none', stroke='#1A120C', sw=0.8)
+    s.path(f'M{bx + 2} {by - 1} Q{bx + 3.5} {by - 2.6} {bx + 5} {by - 1}', 'none', stroke='#1A120C', sw=0.8)
+    s.path(f'M{bx - 9.5} {by - 1} Q{bx - 9} {by - 13} {bx} {by - 12} Q{bx + 9} {by - 13} {bx + 9.5} {by - 1}',
+           'none', stroke='#2A2A2E', sw=1.4)
+    s.rect(bx - 12, by - 3.5, 3.4, 7, '#2FCF6A', rx=1.4)
+    s.rect(bx + 8.6, by - 3.5, 3.4, 7, '#2FCF6A', rx=1.4)
+    s.ellipse(bx - 13, 73, 3.6, 2.6, '#6A4226')
+    s.ellipse(bx + 13, 73, 3.6, 2.6, '#6A4226')
+    # A lamp.
+    s.rect(163, 34, 1.8, 40, '#2A2A2E')
+    s.path('M157 34 L160 24 L168 24 L171 34 Z', s.linear([(0, '#FFF0C8'), (1, '#E0B070')]))
+
+
+def nook_glow(s):
+    s.glow(164, 36, 26, 22, '#FFD08A', 0.45)
+    s.glow(32, 38, 22, 14, '#FFE6A0', 0.22)
+    for k, (x, y, col) in enumerate(((42, 34, '#FFE6A0'), (49, 26, '#A8E8C0'), (56, 18, '#FFFFFF'))):
+        s.ellipse(x, y, 1.3, 1, col, 0.9)
+        s.line(x + 1.2, y, x + 1.2, y - 4.5, col, 0.5, 0.9)
+        s.path(f'M{x + 1.2} {y - 4.5} Q{x + 3} {y - 3.6} {x + 2.6} {y - 2}', 'none', stroke=col, sw=0.5)
+
+
+# --- Home theatre in the woods (Jellyfin) ---------------------------------------------
+def theatre(s):
+    s.rect(0, 0, W, 72, s.linear([(0, '#0C0A22'), (0.7, '#2A1E4A'), (1, '#3A2A5A')]))
+    rng = Rng(21)
+    for _ in range(30):
+        s.circle(rng.uniform(0, W), rng.uniform(0, 40), rng.uniform(0.2, 0.45), '#E8E4FF', rng.uniform(0.5, 1))
+    s.glow(150, 12, 9, 9, '#F4EEDA', 0.35)
+    s.path('M150 7.6 A4.4 4.4 0 1 0 154.2 13.4 A3.6 3.6 0 0 1 150 7.6 Z', '#F4EEDA')
+    for k, x in enumerate(range(-6, W + 10, 13)):
+        if 40 < x < 136:
+            continue
+        pine(s, x, 77, 34 + (k * 7) % 14, '#10201A')
+    s.rect(0, 70, W, 22, s.linear([(0, '#22382A'), (1, '#10180F')]))
+    sx, sy, sw, sh = THEATRE_SCREEN
+    s.rect(sx - 5, sy - 3, 2, 64, '#3A2A1A', rx=0.6)
+    s.rect(sx + sw + 3, sy - 3, 2, 64, '#3A2A1A', rx=0.6)
+    s.rect(sx - 3.5, sy - 3.5, sw + 7, 2.2, '#6A4424', rx=0.8)
+    s.rect(sx - 2, sy - 1, sw + 4, sh + 2, '#E0D8F0', rx=0.8)
+    s.rect(sx, sy, sw, sh, s.radial([(0, '#1C2034'), (1, '#0A0C16')]))
+    s.path('M4 5 ' + ' '.join(f'Q{x + 4.5} {6 + 3 * math.sin((x + 4.5) / 176 * math.pi * 3)} {x + 9} {4 + 3 * math.sin((x + 9) / 176 * math.pi * 3)}'
+                              for x in range(4, W - 10, 9)), 'none', stroke='#3A2A1A', sw=0.4)
+    for lx in (36, 100):
+        s.rect(lx, 75.5, 32, 5.5, s.linear([(0, '#9A6A3E'), (1, '#4A2E18')]), rx=2.6)
+        s.ellipse(lx + 1, 78.2, 2.4, 2.6, s.radial([(0, '#E8C890'), (1, '#A87848')]))
+    s.rect(140, 70, 14, 10, s.linear([(0, '#6A4424'), (1, '#3A2414')]), rx=1)
+    s.rect(141, 63.5, 12, 6.5, '#2A2A30', rx=1.2)
+    s.circle(142, 66.5, 1.2, s.radial([(0, '#FFFBE8'), (1, '#E8C870')]))
+
+
+def theatre_glow(s):
+    sx, sy, sw, sh = THEATRE_SCREEN
+    s.glow(sx + sw / 2, sy + sh / 2 + 10, 80, 48, '#C8B8FF', 0.28)
+    beam = s.linear_abs([(0, '#FFF6D8', 0.45), (1, '#FFF6D8', 0.03)], 142, 66, sx + sw / 2, sy + sh / 2)
+    s.poly([(142, 65.4), (142, 67.6), (sx + 8, sy + sh - 2), (sx + sw - 6, sy + 4)], beam)
+    for i, x in enumerate(range(8, W - 6, 9)):
+        y = 5 + 3 * math.sin(x / 176 * math.pi * 3)
+        col = ['#FFD34F', '#FF8A8A', '#8AD8FF'][i % 3]
+        s.glow(x + 1, y + 1, 3, 3, col, 0.6)
+        s.circle(x + 1, y + 1, 0.9, col)
+    rng = Rng(5)
+    for _ in range(7):
+        x, y = rng.uniform(4, W - 4), rng.uniform(48, 72)
+        s.glow(x, y, 2.2, 2.2, '#D8FF8A', 0.7)
+
+
+# --- Retro corner (RetroArch) ------------------------------------------------------------
+def retro(s):
+    s.rect(0, 0, W, 70, s.linear([(0, '#42305A'), (1, '#2E2040')]))
+    for y in range(0, 70, 10):
+        for x in range((y // 10) % 2 * 5, W, 10):
+            s.path(f'M{x} {y + 3} L{x + 1.2} {y + 4.5} L{x} {y + 6} L{x - 1.2} {y + 4.5} Z', '#FFFFFF', 0.06)
+    s.rect(0, 68, W, 24, s.linear([(0, '#5A3A28'), (1, '#2E1C12')]))
+    s.ellipse(92, 84, 50, 6, s.radial([(0, '#9A4468'), (1, '#5A2440')]))
+    s.rect(8, 22, 44, 3, '#7A5234', rx=0.6)
+    for i, x in enumerate(range(10, 40, 4)):
+        h = 10 + (i * 3) % 5
+        s.rect(x, 22 - h, 3.2, h, ['#C84A3A', '#3A7AC8', '#E0B040', '#3AA868', '#8A4AA8'][i % 5], rx=0.4)
+    s.path('M42 16 L49 16 L48 22 L43 22 Z', '#B06A3A')
+    s.circle(45.5, 13, 4, s.radial([(0, '#5AAA6A'), (1, '#2A6A3A')]))
+    s.path('M20 50 L24 36 L28 36 L32 50 Z', s.linear([(0, '#FF7A8A'), (1, '#C0304A')], x2=1, y2=0))
+    s.rect(19, 50, 14, 4, '#2A2A30', rx=1)
+    s.rect(22, 33, 8, 3, '#2A2A30', rx=1)
+    s.rect(40, 60, 108, 5, s.linear([(0, '#B07A4A'), (1, '#6A4424')]), rx=1)
+    s.rect(44, 65, 4, 13, '#6A4424', rx=0.6)
+    s.rect(140, 65, 4, 13, '#6A4424', rx=0.6)
+    sx, sy, sw, sh = RETRO_SCREEN
+    s.ellipse(sx + sw / 2 + 3, 60, 32, 1.8, '#000000', 0.3)
+    s.rect(sx - 8, sy - 7, sw + 22, sh + 15, s.linear([(0, '#EAE2CC'), (0.5, '#C8BFA8'), (1, '#9A927E')]), rx=3)
+    s.rect(sx - 3, sy - 3, sw + 6, sh + 6, '#2A2A30', rx=3)
+    s.rect(sx, sy, sw, sh, s.radial([(0, '#1A2034'), (1, '#06080E')]), rx=2.4)
+    for k in range(3):
+        s.line(sx + sw + 5, sy + 2 + k * 2, sx + sw + 11, sy + 2 + k * 2, '#8A826E', 0.7)
+    s.circle(sx + sw + 8, sy + 14, 2, s.radial([(0, '#8A8474'), (1, '#4A4438')], fx=0.35, fy=0.3))
+    s.circle(sx + sw + 8, sy + 21, 2, s.radial([(0, '#8A8474'), (1, '#4A4438')], fx=0.35, fy=0.3))
+    s.circle(sx + sw + 8, sy + 27, 0.9, '#4FD86A')
+    s.rect(122, 55, 14, 5, s.linear([(0, '#3A3A44'), (1, '#16161C')]), rx=1.4)
+    s.line(128.5, 55, 128.5, 47, '#9A9AA4', 0.9)
+    s.circle(128.5, 46, 2.4, s.radial([(0, '#FF9A9A'), (1, '#C0283A')], fx=0.35, fy=0.3))
+    s.circle(133.5, 57, 0.8, '#FFD34F')
+    s.path('M122 58 Q118 60 114 59', 'none', stroke='#1E1E24', sw=0.7)
+    s.rect(152, 12, 18, 24, s.linear([(0, '#22224A'), (1, '#12122A')]), rx=0.6)
+    s.rect(152, 12, 18, 1, '#E0B040')
+    for (x, y) in ((156, 18), (164, 16), (160, 24), (166, 30), (155, 30)):
+        s.circle(x, y, 0.5, '#FFF4C8')
+
+
+def retro_glow(s):
+    sx, sy, sw, sh = RETRO_SCREEN
+    s.glow(sx + sw / 2, sy + sh / 2, 40, 32, '#8AB0FF', 0.24)
+    s.glow(26, 42, 16, 16, '#FF7A8A', 0.35)
+    s.glow(34, 26, 40, 34, '#FFB86E', 0.18)
+    for k, y in enumerate((46, 41)):
+        s.circle(25.5 + k * 2, y, 1.4, '#FFD06A', 0.9)
+
+
 def build(root):
     out = os.path.join(root, 'apps', 'tv-shell', 'assets', 'classic')
     os.makedirs(out, exist_ok=True)
@@ -249,6 +410,12 @@ def build(root):
     save('hero-cabin-glow', cabin_glow, 'cabin TV light')
     save('hero-arcade', arcade, 'arcade')
     save('hero-arcade-glow', arcade_glow, 'arcade neon')
+    save('hero-nook', nook, 'music nook')
+    save('hero-nook-glow', nook_glow, 'music nook lamp and notes')
+    save('hero-theatre', theatre, 'home theatre in the woods')
+    save('hero-theatre-glow', theatre_glow, 'home theatre lights')
+    save('hero-retro', retro, 'retro corner')
+    save('hero-retro-glow', retro_glow, 'retro corner glow')
     for k in range(2):
         s = Svg(160, 120, 'static', 'The cabin TV\'s intro static, Classic: tools/classicart/hero.py', 40, 30)
         static(s, 11 + k)

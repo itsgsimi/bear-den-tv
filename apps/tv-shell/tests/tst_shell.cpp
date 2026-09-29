@@ -916,6 +916,11 @@ private slots:
         act(QStringLiteral("nav.right"));
         act(QStringLiteral("nav.right"));
         QCOMPARE(m_nav->itemId(), QStringLiteral("spotify"));
+        // Spotify's featured panel says how to play from a phone.
+        QObject *hint = m_window->findChild<QObject *>(QStringLiteral("heroHint"));
+        QVERIFY(hint);
+        QTRY_VERIFY(hint->property("text").toString().contains(QStringLiteral("pick this TV in the device list")));
+        QVERIFY(hint->property("visible").toBool());
     }
 
     // App icons (docs/THEMES.md → App icons): every adapter has Bear Den's own
@@ -1329,8 +1334,16 @@ Item {
             Item {
                 function missing() {
                     const out = []
-                    for (const a of ["plex-htpc", "vacuumtube", "moonlight", "something-new"])
+                    for (const a of ["plex-htpc", "vacuumtube", "moonlight", "spotify", "jellyfin", "retroarch", "something-new"])
                         if (!Rig.scenes[Apps.stage(a).scene]) out.push(a)
+                    return out.join(",")
+                }
+                // Every app has its own room and brand colours (only unknown
+                // adapters fall back to the cabin).
+                function rooms() {
+                    const out = []
+                    for (const a of ["plex-htpc", "vacuumtube", "moonlight", "spotify", "jellyfin", "retroarch"])
+                        out.push(Apps.stage(a).scene + (Apps.brand(a) ? "" : "!"))
                     return out.join(",")
                 }
             })");
@@ -1338,6 +1351,9 @@ Item {
         QVariant missing;
         QMetaObject::invokeMethod(probe, "missing", Q_RETURN_ARG(QVariant, missing));
         QCOMPARE(missing.toString(), QString());
+        QVariant rooms;
+        QMetaObject::invokeMethod(probe, "rooms", Q_RETURN_ARG(QVariant, rooms));
+        QCOMPARE(rooms.toString(), QStringLiteral("cinema,cabin,arcade,nook,theatre,retro"));
         delete probe;
 
         Theme::instance()->setForceNoAnimations(false);
@@ -1372,8 +1388,12 @@ Item {
         QStringList names{QStringLiteral("classic/hero-cinema"), QStringLiteral("classic/hero-arcade"),
                           QStringLiteral("classic/hero-static-0"), QStringLiteral("classic/hero-static-1"),
                           QStringLiteral("classic/snowcap"), QStringLiteral("classic/sleep-z"), QStringLiteral("ornaments/pumpkin")};
-        for (const char *scene : {"cinema", "cabin", "arcade"})
+        for (const char *scene : {"cinema", "cabin", "arcade", "nook", "theatre", "retro"})
             names << QStringLiteral("classic/hero-%1-glow").arg(QLatin1String(scene));
+        for (const char *scene : {"nook", "theatre", "retro"}) {
+            names << QStringLiteral("classic/hero-%1").arg(QLatin1String(scene));
+            QVERIFY2(!QImage(dir + QStringLiteral("pixel/hero-%1.png").arg(QLatin1String(scene))).isNull(), scene);
+        }
         for (const char *time : {"night", "dawn", "day", "dusk"})
             names << QStringLiteral("classic/hero-cabin-%1").arg(QLatin1String(time));
         for (const char *icon : {"sun", "moon", "sun-cloud", "moon-cloud", "cloud", "fog", "drizzle", "rain", "snow", "thunder"}) {
