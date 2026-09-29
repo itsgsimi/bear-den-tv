@@ -63,6 +63,25 @@ QtObject {
     readonly property real weatherVeil: ({ cloudy: 0.16, fog: 0.3, drizzle: 0.14, rain: 0.22, thunder: 0.3, snow: 0.08 })[weatherCondition] || 0
     readonly property color weatherVeilColor: weatherCondition === "fog" ? "#B9C0CA" : weatherCondition === "snow" ? "#DDE6F0" : "#2E3642"
     readonly property bool weatherThunder: weatherCondition === "thunder"
+    // What the corner scene and the visiting bears react to (SceneWeather.qml,
+    // BearPuppet's weatherDress; docs/THEMES.md → Weather in the corner scene):
+    //   "wet"   drizzle, rain     "storm" thunder (wet, plus the startle)
+    //   "snow"  snow              "fog"   fog
+    //   "night" clear or partly cloudy at night
+    //   ""      no weather in the scene, or cloudy/clear by day: unchanged
+    // Kept with reduced motion (the scene then shows its still version).
+    readonly property string weatherLook: {
+        switch (weatherCondition) {
+        case "drizzle": case "rain": return "wet"
+        case "thunder": return "storm"
+        case "snow": return "snow"
+        case "fog": return "fog"
+        case "clear": case "partly-cloudy": return weatherNow.is_day ? "" : "night"
+        }
+        return ""
+    }
+    // Set by WeatherSky while its lightning flash is lit: bears startle.
+    property bool flashing: false
     // The pixel icon (assets/pixel/weather-<name>.png) for a reading.
     function weatherIcon(current) {
         if (!current) return ""

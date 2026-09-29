@@ -14,6 +14,14 @@
 #                   accent colour, as choosing it in TV Settings does
 #   --no-weather    drop the demo's local weather (its rain replaces the
 #                   theme's own particles)
+#   --weather COND  local weather in the scene: clear, partly-cloudy, cloudy,
+#                   fog, drizzle, rain, snow, thunder; add :night for night
+#                   and :light or :heavy for the intensity (rain:heavy:night)
+#   --apps-only     only the first rail (Your Apps), so Home has room for the
+#                   theme's corner scene
+#   --reduced-motion  the Motion setting's reduced motion (static scene)
+#   --lightning     with --weather thunder: a flash every second
+#                   (BDTV_LIGHTNING_SECONDS=1), so the startled bears show
 #   --plain         the Plain style
 #   --classic       the Classic art style (smooth art instead of pixel art)
 #   --bears ACT     a bear visit: walk, peek, hop, parade, chase
@@ -32,7 +40,7 @@ FIXTURE=apps/tv-shell/tests/fixtures/state.demo.json
 ensure_shell() { [ -x "$SHELL_BIN" ] || make -s shell >/dev/null; }
 
 shot() {
-  local screen=home theme="" plain="" classic="" weather=1 bears="" after=2600 size=1920x1080 fixture=$FIXTURE out=""
+  local screen=home theme="" plain="" classic="" weather=1 wx="" apps="" still="" lightning="" bears="" after=2600 size=1920x1080 fixture=$FIXTURE out=""
   while [ $# -gt 0 ]; do
     case "$1" in
       --screen) screen=$2; shift 2 ;;
@@ -40,6 +48,10 @@ shot() {
       --plain) plain=1; shift ;;
       --classic) classic=1; shift ;;
       --no-weather) weather=""; shift ;;
+      --weather) wx=$2; shift 2 ;;
+      --apps-only) apps=1; shift ;;
+      --reduced-motion) still=1; shift ;;
+      --lightning) lightning=1; shift ;;
       --bears) bears=$2; shift 2 ;;
       --after) after=$2; shift 2 ;;
       --size) size=$2; shift 2 ;;
@@ -50,10 +62,10 @@ shot() {
   done
   ensure_shell
   local tmp; tmp=$(mktemp --suffix=.json)
-  python3 - "$fixture" "$tmp" "$theme" "$plain" "$weather" "${BDTV_THEMES_DIR:-}" "$classic" <<'EOF'
+  python3 - "$fixture" "$tmp" "$theme" "$plain" "$weather" "${BDTV_THEMES_DIR:-}" "$classic" "$wx" "$apps" "$still" <<'EOF'
 import json, os, sys
 d = json.load(open(sys.argv[1]))
-theme, plain, weather, user_dir, classic = sys.argv[3:8]
+theme, plain, weather, user_dir, classic, wx, apps, still = sys.argv[3:11]
 if theme:
     d["layout"]["ui"]["background"] = theme
     for base in (user_dir, "themes"):
@@ -65,11 +77,25 @@ if theme:
 if plain: d["layout"]["ui"]["theme"] = "plain-dark"
 if classic: d["layout"]["ui"]["art_style"] = "classic"
 if not weather: d.pop("weather", None)
+if wx and "weather" in d:
+    parts = wx.split(":")
+    conds = ["clear", "partly-cloudy", "cloudy", "fog", "drizzle", "rain", "snow", "thunder"]
+    if parts[0] not in conds or any(p not in ("night", "day", "light", "moderate", "heavy") for p in parts[1:]):
+        sys.exit("--weather: CONDITION[:night][:light|:heavy], CONDITION one of " + ", ".join(conds))
+    cur = d["weather"]["current"]
+    cur["condition"] = parts[0]
+    cur["is_day"] = "night" not in parts[1:]
+    for p in parts[1:]:
+        if p in ("light", "moderate", "heavy"): cur["intensity"] = p
+    d["weather"]["scene"] = True
+if apps:
+    for i, s in enumerate(d["layout"]["sections"]): s["enabled"] = i == 0
+if still: d["layout"]["ui"]["reduced_motion"] = True
 json.dump(d, open(sys.argv[2], "w"))
 EOF
-  out=${out:-build/shots/$screen-${theme:-default}${plain:+-plain}${classic:+-classic}${bears:+-$bears}.png}
+  out=${out:-build/shots/$screen-${theme:-default}${plain:+-plain}${classic:+-classic}${wx:+-${wx//:/-}}${bears:+-$bears}.png}
   mkdir -p "$(dirname "$out")"
-  env QT_QPA_PLATFORM=offscreen ${bears:+BDTV_BEARS_SECONDS=1 BDTV_BEARS_ACT=$bears} \
+  env QT_QPA_PLATFORM=offscreen ${lightning:+BDTV_LIGHTNING_SECONDS=1} ${bears:+BDTV_BEARS_SECONDS=1 BDTV_BEARS_ACT=$bears} \
     "$SHELL_BIN" --dev --fixture "$tmp" --screen "$screen" --windowed --size "$size" \
     --screenshot "$out" --screenshot-after "$after" --exit-after $((after + 600)) 2>/dev/null
   rm -f "$tmp"
@@ -93,5 +119,5 @@ case "${1:-}" in
   shot) shift; shot "$@" ;;
   gallery) shift; gallery "$@" ;;
   perf) shift; exec scripts/perf-sandbox.sh "$@" ;;
-  *) sed -n '2,25p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
+  *) sed -n '2,34p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
 esac

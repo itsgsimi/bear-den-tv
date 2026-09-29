@@ -71,7 +71,7 @@ def build_world(name, preview):
 
 def main(argv):
     preview = '--preview' in argv
-    names = [a for a in argv if not a.startswith('--')] or WORLDS + ['bears', 'ornaments', 'scenes', 'hero', 'weather']
+    names = [a for a in argv if not a.startswith('--')] or WORLDS + ['bears', 'ornaments', 'scenes', 'hero', 'weather', 'weatherprops']
     for n in names:
         if n in WORLDS:
             build_world(n, preview)

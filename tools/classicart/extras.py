@@ -6,7 +6,12 @@
   panel's top edge, a tile that repeats seamlessly (128×20, the pixel tile's
   32×5 at 4×);
 - apps/tv-shell/assets/classic/sleep-z.svg: the "z" that floats over a dozing
-  bear (the pixel one is scene-moon-z.png, 5×5 art pixels).
+  bear (the pixel one is scene-moon-z.png, 5×5 art pixels);
+- the weather props of the corner scenes and visiting bears (the pixel ones
+  are scene-wx-*.png from tools/pixelart/weatherprops.py, same proportions):
+  apps/tv-shell/assets/classic/scene-tarp.svg (a tarp on two poles, 200×216),
+  startle.svg (the "!" over a startled bear, 20×36) and umbrella-leaf.svg
+  (the leaf canopy a bear holds in the rain, 104×44).
 """
 
 import math
@@ -60,6 +65,40 @@ def sleep_z(path):
     s.save(path)
 
 
+def tarp(path):
+    s = Svg(200, 216, 'tarp', 'Rain tarp over a corner scene, Classic: tools/classicart/extras.py')
+    pole = s.linear([(0, '#8A6443'), (1, '#5A3E28')], 0, 0, 1, 0)
+    for x in (12, 184):
+        s.rect(x, 14, 7, 202, pole, rx=3)
+    canvas = s.linear([(0, '#8FA466'), (0.5, '#6B8050'), (1, '#4C5E3A')])
+    s.path('M0 8 Q100 34 200 8 L200 26 Q100 50 0 26 Z', canvas, stroke='#3A4A2A', sw=2)
+    for x in (50, 100, 150):
+        s.line(x, 12 + 18 * (1 - ((x - 100) / 100) ** 2), x, 30 + 18 * (1 - ((x - 100) / 100) ** 2), '#3E5030', sw=1.5)
+    s.path('M0 8 Q100 34 200 8', 'none', stroke='#B4C88A', sw=2)
+    s.ellipse(100, 44, 2.6, 3.6, '#CFE0F6', 0.9)
+    s.ellipse(101, 52, 2, 2.8, '#CFE0F6', 0.7)
+    s.save(path)
+
+
+def startle(path):
+    s = Svg(20, 36, '!', 'The "!" over a bear startled by lightning, Classic: tools/classicart/extras.py')
+    s.path('M5 3 H15 L12.5 22 H7.5 Z', '#FFE6A8', stroke='#17130F', sw=2.5)
+    s.circle(10, 29.5, 4, '#FFE6A8', stroke='#17130F', sw=2.5)
+    s.path('M9 5 H11 L10.3 18 H9.7 Z', '#FFFFFF', 0.8)
+    s.save(path)
+
+
+def umbrella(path):
+    s = Svg(104, 44, 'leaf', 'Leaf umbrella for a bear in the rain, Classic: tools/classicart/extras.py')
+    body = s.linear([(0, '#8CC46E'), (0.6, '#6FA35A'), (1, '#4E7A3E')])
+    rim = ''.join(f' Q{n(96 - i * 12 + 6)} {n(44 if i % 2 else 38)} {n(96 - (i + 1) * 12)} 40' for i in range(7))
+    s.path('M4 40 Q6 4 52 2 Q98 4 100 40 L96 40' + rim + ' Z', body, stroke='#2F4A24', sw=2.2)
+    s.path('M52 3 L52 40', 'none', stroke='#C4E09A', sw=2)
+    for (x0, y0, x1, y1) in ((52, 18, 22, 34), (52, 12, 30, 22), (52, 18, 82, 34), (52, 12, 74, 22)):
+        s.path(f'M{x0} {y0} Q{(x0 + x1) / 2} {y1 - 8} {x1} {y1}', 'none', stroke='#A6D07E', sw=1.4)
+    s.save(path)
+
+
 def build(root):
     orn = os.path.join(root, 'apps', 'tv-shell', 'assets', 'ornaments', 'pumpkin.svg')
     cl = os.path.join(root, 'apps', 'tv-shell', 'assets', 'classic')
@@ -67,4 +106,8 @@ def build(root):
     pumpkin(orn)
     snowcap(os.path.join(cl, 'snowcap.svg'))
     sleep_z(os.path.join(cl, 'sleep-z.svg'))
-    return [orn, os.path.join(cl, 'snowcap.svg'), os.path.join(cl, 'sleep-z.svg')]
+    tarp(os.path.join(cl, 'scene-tarp.svg'))
+    startle(os.path.join(cl, 'startle.svg'))
+    umbrella(os.path.join(cl, 'umbrella-leaf.svg'))
+    return [orn] + [os.path.join(cl, f) for f in ('snowcap.svg', 'sleep-z.svg', 'scene-tarp.svg', 'startle.svg',
+                                                   'umbrella-leaf.svg')]

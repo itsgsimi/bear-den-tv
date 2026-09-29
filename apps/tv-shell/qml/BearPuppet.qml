@@ -18,6 +18,10 @@
 // marshmallow). Mama keeps her paws free (she wears her daisy).
 // The sprite is drawn unsmoothed at a whole number of World.px per art pixel;
 // `size` is the height asked for, and the bear takes the nearest whole scale.
+// Dressed for the weather (`weatherDress`, set by BearVisitors; docs/THEMES.md
+// → Weather in the corner scene): with rain in the scene (World.weatherLook
+// "wet"/"storm") the bear holds a leaf umbrella (scene-wx-umbrella, the stem
+// from its paw) instead of what it carries; with snow it wears the beanie.
 // Classic art style (World.classic): BearPuppetClassic draws the same bear,
 // posed by the same numbers, from smooth SVG parts (70×100 units of size/100).
 
@@ -42,6 +46,12 @@ Item {
     property bool asleep: false
     property url hat: World.bears.hat || ""
     property string carry: World.bears.carry || ""
+    property bool weatherDress: false
+    readonly property string dress: !weatherDress ? ""
+        : World.weatherLook === "wet" || World.weatherLook === "storm" ? "umbrella"
+        : World.weatherLook === "snow" ? "snow" : ""
+    readonly property url wornHat: dress === "snow" ? World.ornament("hat-beanie") : hat
+    readonly property string held: dress === "umbrella" ? "" : carry
 
     readonly property var rig: Rig.kinds[kind] || Rig.kinds.cub
     readonly property int frameW: rig.frame[0]
@@ -86,8 +96,8 @@ Item {
         }
         // A hat, sitting on the head.
         Ornament {
-            visible: bear.hat.toString().length > 0
-            url: bear.hat
+            visible: bear.wornHat.toString().length > 0
+            url: bear.wornHat
             width: bear.rig.head[0] * 0.66 * bear.unit
             height: width * 0.72
             x: bear.at.head[0] * bear.unit - width / 2
@@ -95,17 +105,38 @@ Item {
         }
         // What the bear holds in its right paw.
         Ornament {
-            visible: bear.carry !== "" && bear.carry !== "stick" && bear.kind !== "mama"
-            url: bear.carry !== "stick" ? bear.carry : ""
+            visible: bear.held !== "" && bear.held !== "stick" && bear.kind !== "mama"
+            url: bear.held !== "stick" ? bear.held : ""
             width: 8 * bear.unit
             height: width
             x: bear.at.paw[0] * bear.unit - width / 2
             y: bear.at.paw[1] * bear.unit - height / 2
         }
+        // A leaf umbrella in the rain: a stem of whole art pixels from the paw
+        // up to a leaf canopy over the head.
+        Item {
+            objectName: "bearUmbrella"
+            visible: bear.dress === "umbrella"
+            readonly property int canopyTop: Math.round(bear.at.head[1]) - 14     // canopy top, art pixels
+            readonly property int stemX: Math.round(bear.at.paw[0])
+            PixelSprite {
+                name: parent.visible ? "scene-wx-umbrella" : ""
+                unit: bear.unit
+                x: (parent.stemX - 13) * bear.unit
+                y: parent.canopyTop * bear.unit
+            }
+            Rectangle {
+                x: parent.stemX * bear.unit
+                y: (parent.canopyTop + 11) * bear.unit
+                width: bear.unit
+                height: Math.max(0, Math.round(bear.at.paw[1]) - parent.canopyTop - 11) * bear.unit
+                color: "#5E7A3A"
+            }
+        }
         // A toasting stick, one art pixel thick, with a marshmallow.
         Item {
             id: stick
-            visible: bear.carry === "stick" && bear.kind !== "mama"
+            visible: bear.held === "stick" && bear.kind !== "mama"
             readonly property real angle: (-50 + 30 * bear.reach) * Math.PI / 180   // raised, or held out a little above level
             readonly property int length: Math.round(bear.stickLength * bear.size / 100 / bear.unit)
             x: bear.at.paw[0] * bear.unit

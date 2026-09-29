@@ -51,6 +51,9 @@ ShellController::ShellController(QObject *parent) : QObject(parent)
     const int month = qEnvironmentVariableIntValue("BDTV_MONTH", &ok);
     if (ok && month >= 1 && month <= 12)
         m_monthOverride = month;
+    const int lightning = qEnvironmentVariableIntValue("BDTV_LIGHTNING_SECONDS", &ok);
+    if (ok && lightning >= 0)
+        m_lightningSeconds = lightning;
     const int rest = qEnvironmentVariableIntValue("BDTV_REST_SECONDS", &ok);
     if (ok && rest > 0)
         m_restSeconds = rest;
