@@ -87,6 +87,21 @@ and keys from a closed list. The phone's Touchpad reaches what the D-pad
 cannot. Details: [ADR 0010](decisions/0010-web-apps-over-cdp-pipe.md),
 [`contracts/actions.md`](../contracts/actions.md#web-apps).
 
+### An app that isn't installed
+
+A "Not installed" tile opens an install card instead. One press on Install
+(the owner's consent; phones need the `owner` permission) has the
+coordinator run `flatpak install --user --noninteractive -y flathub <id>`
+for that app's Flatpak id from the adapter table (Chromium for the web
+apps): per user, no root, from Flathub only. The card and the tile show the
+progress from state pushes; when it is done the app opens if you are still
+on its card or tile. Settings → Add apps lists everything missing, and
+Settings → Keep apps up to date updates this user's installs once a day
+while nothing is on screen. After Chromium, each enabled streaming site's
+profile runs once, headless, so Chromium fetches Widevine. Details:
+[ADR 0011](decisions/0011-per-user-flathub-installs.md),
+[`operations.md`](operations.md#app-installs).
+
 ## Home, and coming back
 
 - **Home** (phone button or the shell's own key) asks the window manager to

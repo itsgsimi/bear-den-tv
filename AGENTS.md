@@ -22,7 +22,9 @@ It has three processes that talk through shared contracts:
 
 Plex HTPC, VacuumTube (YouTube) and Moonlight are independent Flatpak apps,
 and so are the optional Spotify, Jellyfin Desktop and RetroArch (their tiles
-appear only when installed). Bear Den launches them, brings them to the front, tunes their settings and returns
+appear only when installed). A missing one installs per user from Flathub
+on one press by the owner, without root
+([ADR 0011](docs/decisions/0011-per-user-flathub-installs.md)). Bear Den launches them, brings them to the front, tunes their settings and returns
 Home. It never wraps, embeds or patches them. Netflix, Disney+, Hulu and a
 Browser tile are web apps: Flathub Chromium, one profile each, driven over the
 DevTools pipe with Bear Den's navigation script
@@ -142,7 +144,9 @@ These are the habits this codebase was built with. Follow them.
    - Everything is user-space: `scripts/bootstrap-toolchain.sh`, then
      `. scripts/env.sh`.
    - Never install system packages, clients, autostart entries or firewall
-     rules without the owner saying so.
+     rules without the owner saying so. (The owner's Install press on the
+     TV or phone is that say-so for the adapter table's apps, per user from
+     Flathub: ADR 0011. System packages stay the owner's.)
    - The TV machine may host other home services: no reboots, and no
      Docker or network restarts without the owner. Set
      `BDTV_TARGET_HEALTH_CMD` in `target.env` to have deploys verify them.
