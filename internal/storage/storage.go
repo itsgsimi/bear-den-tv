@@ -1,6 +1,8 @@
 // Package storage is the coordinator's durable state: paired devices, cookie
 // sessions (hashes only), pairing invitations (hashes only), shell focus
-// memory, and per-application launch state, in one SQLite file. Schema changes
+// memory, per-application launch state, and the Den badge counters and
+// earned badges (achievements.go; ids, counts and days only), in one SQLite
+// file. Schema changes
 // are forward-only migrations keyed by SchemaVersion. It also defines the
 // SecretStore seam for connector tokens; a keyring-backed implementation is
 // not part of this package.
@@ -19,7 +21,7 @@ import (
 )
 
 // SchemaVersion is the current user_version; migrations run up to it.
-const SchemaVersion = 2
+const SchemaVersion = 3
 
 // migrations[i] upgrades user_version i to i+1.
 var migrations = []string{
@@ -67,6 +69,22 @@ var migrations = []string{
 	`ALTER TABLE devices ADD COLUMN expires_at_ms INTEGER;
 	ALTER TABLE invitations ADD COLUMN permissions TEXT;
 	ALTER TABLE invitations ADD COLUMN pass_expires_at_ms INTEGER;`,
+	// 3: Den badges (internal/achievements, docs/security.md#den-badges).
+	// Counters are a name, a count and the first and last local day they
+	// moved; earned badges are an id and the local day. The CHECKs keep
+	// anything else out: names and ids are lowercase ids (no spaces, so no
+	// titles) and days are YYYY-MM-DD (no times).
+	`CREATE TABLE achievement_counters (
+		name TEXT PRIMARY KEY CHECK (length(name) BETWEEN 1 AND 48 AND name GLOB '[a-z]*' AND name NOT GLOB '*[^a-z0-9:-]*'),
+		count INTEGER NOT NULL DEFAULT 0 CHECK (count >= 0),
+		first_day TEXT CHECK (first_day GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+		last_day TEXT CHECK (last_day GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]')
+	);
+	CREATE TABLE achievement_badges (
+		id TEXT PRIMARY KEY CHECK (length(id) BETWEEN 2 AND 32 AND id GLOB '[a-z]*' AND id NOT GLOB '*[^a-z0-9-]*'),
+		earned_day TEXT NOT NULL CHECK (earned_day GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+		celebrated INTEGER NOT NULL DEFAULT 0
+	);`,
 }
 
 // DefaultPath is $XDG_DATA_HOME/bear-den-tv/state.db (or ~/.local/share).

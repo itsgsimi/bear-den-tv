@@ -1,5 +1,5 @@
 // Tests for migrations, devices, invitations and secret stores (storage.go,
-// secrets.go).
+// secrets.go); Den badge rows are in achievements_test.go.
 
 package storage
 
@@ -161,7 +161,7 @@ INSERT INTO sessions VALUES ('tok', 'dev_fam', 'csrf', '2026-01-01T00:00:00Z', 7
 INSERT INTO invitations VALUES ('inv', 'th', 'ch', 99, 5, NULL, 0);
 PRAGMA user_version = 1;`
 
-// A database written by schema 1 opens as schema 2 with every paired device,
+// A database written by schema 1 opens as the current schema with every paired device,
 // its session and its permissions intact, and no expiry (family phones).
 func TestMigrateV1ToV2KeepsDevices(t *testing.T) {
 	p := filepath.Join(t.TempDir(), "state.db")
@@ -179,8 +179,8 @@ func TestMigrateV1ToV2KeepsDevices(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	if v, _ := db.Version(); v != 2 || SchemaVersion != 2 {
-		t.Fatalf("version %d (SchemaVersion %d), want 2", v, SchemaVersion)
+	if v, _ := db.Version(); v != SchemaVersion {
+		t.Fatalf("version %d, want %d", v, SchemaVersion)
 	}
 	ctx := context.Background()
 	list, err := db.ListDevices(ctx)
