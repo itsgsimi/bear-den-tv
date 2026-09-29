@@ -270,6 +270,22 @@ func selectLibraries(all []Library, ids []string) ([]Library, error) {
 	return out, nil
 }
 
+// Libraries lists every library on the connected server (Settings → Plex
+// shows them with the configured ones ticked).
+func (p *Provider) Libraries(ctx context.Context) ([]Library, error) {
+	p.mu.Lock()
+	connected := p.connected
+	p.mu.Unlock()
+	if !connected {
+		return nil, ErrNotConnected
+	}
+	libs, err := p.client.Libraries(ctx)
+	if err != nil {
+		return nil, p.redactor.Error(err)
+	}
+	return libs, nil
+}
+
 // Disconnect forgets the token and server state; the next Connect reloads.
 func (p *Provider) Disconnect() {
 	p.client.SetToken("")

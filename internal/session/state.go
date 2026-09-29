@@ -38,9 +38,9 @@ func (c *Coordinator) buildState(view viewKind) contract.State {
 
 // buildStateFor assembles a snapshot redacted for the viewer (contracts/http.md
 // and state.schema.json): pairing is shell-only, devices owner/shell only,
-// layout editor/shell only, playback and weather shell only, now_playing
+// layout editor/shell only, playback, weather and plex shell only, now_playing
 // controller phones only (never the shell); while locked no focus, devices,
-// layout, content, playback, weather or now_playing.
+// layout, content, playback, weather, plex or now_playing.
 func (c *Coordinator) buildStateFor(view viewKind, v *remote.Viewer) contract.State {
 	cfg := c.opts.Config.Current()
 	pending := c.opts.Config.Pending()
@@ -108,6 +108,7 @@ func (c *Coordinator) buildStateFor(view viewKind, v *remote.Viewer) contract.St
 				w := c.opts.Weather.Snapshot()
 				st.Weather = &w
 			}
+			st.Plex = c.plexState()
 		}
 	case viewPhone:
 		if v != nil {
@@ -159,7 +160,7 @@ func (c *Coordinator) devices() *[]contract.Device {
 
 func (c *Coordinator) content() *contract.Content {
 	if c.opts.Feed == nil {
-		return nil
+		return c.plexContent()
 	}
 	ct := c.opts.Feed.Snapshot()
 	return &ct

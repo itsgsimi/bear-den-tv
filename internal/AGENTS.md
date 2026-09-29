@@ -26,7 +26,8 @@ Wire shapes come from [`contracts/`](../contracts/AGENTS.md) and nowhere else.
 | [`shellipc`](shellipc/server.go) | [`contracts/ipc.md`](../contracts/ipc.md): Unix socket to the shell and CLI; shell supervisor | `messages.go`, `server.go`, `dial.go`, `supervisor.go` |
 | [`platform`](platform/platform.go) | the desktop seam (`DesktopAdapter`, lock, media, audio, `DisplayPower`) | `platform.go` |
 | `platform/{x11,wayland,detect,lock,mpris,audio,dbusx,probe,suspend,fake}` | X11 EWMH+XTEST adapter and DPMS display power (`dpms.go`: captures and restores the exact DPMS state); Wayland (wlr-foreign-toplevel on wlroots, honest reasons elsewhere; ADR 0007); session detection; lock observation; MPRIS; `pactl`; narrow D-Bus; probe report; logind `CanSuspend` (asks only); in-memory desktop | one file each (x11: `adapter.go`, `keys.go`, `props.go`, `dpms.go`; wayland: `wayland.go`, `client.go`, `wire.go`) |
-| [`providers`](providers/providers.go) | optional home content (`ContentProvider`, `Feed`); `plex/` connector (not wired into `session` yet), `fixtures/` DEMO items | `feed.go`, `plex/provider.go`, `fixtures/fixtures.go` |
+| [`providers`](providers/providers.go) | optional home content (`ContentProvider`, `Feed`); `plex/` connector (driven by `plexlink`), `plex/plexfake` loopback fake of plex.tv and a server (tests, `dev --dev-plex-fake`), `fixtures/` DEMO items | `feed.go`, `plex/provider.go`, `plex/account.go`, `fixtures/fixtures.go` |
+| [`plexlink`](plexlink/plexlink.go) | Plex on the TV: the sign-in flow (`state.plex`, IPC `plex.*`: keyring check, link code, servers, libraries, `plex_content` written), the Plex rows (`state.content`) and their cadence on `clock.Clock` (on Home show unless refreshed within 2 min, every 10 min while Home is in front, never behind an app; backoff 30 s, 1, 2, 5, 10 min) | `plexlink.go` |
 | [`secrets`](secrets/secrets.go) | connector tokens outside `config.json` (Secret Service, or memory) | `secrets.go`, `dbus.go`, `memory.go` |
 | [`storage`](storage/storage.go) | SQLite: devices, session hashes, invitations, focus memory, launch state | `storage.go`, `secrets.go` |
 | [`themes`](themes/themes.go) | theme packages for phones and `themes validate` (Go twin of the shell's `ThemeRegistry`) | `themes.go` |
@@ -223,6 +224,7 @@ keep its header comment and `usage()` text in step with it.
 | `apps detect\|tune\|probe` | `apps.go` |
 | `themes list\|validate DIR\|path` | `themes.go` |
 | `weather status\|search Q\|set Q [INDEX]\|off` | `weather.go` |
+| `plex status\|sign-in\|server ID\|libraries ID...\|cancel\|sign-out` | `plex.go` (also `newPlexLink`, the session wiring and `--dev-plex-fake`) |
 | `version` | `main.go` |
 
 Commands that act on the running coordinator send one typed `shellipc`

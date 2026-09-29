@@ -158,6 +158,8 @@ func (h *ShellHandler) Receive(cl *shellipc.Client, m shellipc.Message) {
 		}()
 	case shellipc.WeatherConfigure:
 		h.reply(cl, msg.RequestID, c.configureWeather(&msg), nil)
+	case shellipc.PlexSignIn, shellipc.PlexCancel, shellipc.PlexChooseServer, shellipc.PlexChooseLibraries, shellipc.PlexSignOut:
+		h.handlePlex(cl, m)
 	case shellipc.InstallRequest:
 		h.reply(cl, msg.RequestID, errors.New("guided installation is not available yet; install from Flathub on the TV"), nil)
 	case shellipc.PowerActivity:

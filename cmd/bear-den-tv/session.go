@@ -50,6 +50,7 @@ import (
 type sessionFlags struct {
 	dev         bool
 	devFixtures bool
+	devPlexFake bool
 	devListen   string
 	dataDir     string
 	noShell     bool
@@ -65,6 +66,7 @@ func cmdSession(args []string, dev bool) error {
 	fs.BoolVar(&f.verbose, "verbose", false, "debug logging")
 	if dev {
 		fs.BoolVar(&f.devFixtures, "dev-fixtures", false, "label the session DEMO (fixture content only)")
+		fs.BoolVar(&f.devPlexFake, "dev-plex-fake", false, "Plex sign-in and rows against a local fake plex.tv and server (DEMO titles; links on the 3rd poll)")
 		fs.StringVar(&f.devListen, "dev-listen", "127.0.0.1:8787", "loopback address for the phone remote (no LAN exposure)")
 		fs.StringVar(&f.dataDir, "data-dir", "", "isolated config/data root (default: a per-user temp directory)")
 	} else {
@@ -147,13 +149,20 @@ func runSession(f sessionFlags) error {
 		}
 	}
 
-	// Optional home-screen content. Only DEMO fixtures exist so far; the Plex
-	// connector is wired once its token flow is live-validated.
+	// Optional home-screen content: DEMO fixtures behind --dev-fixtures, else
+	// the Plex connector (internal/plexlink). Plex sends nothing anywhere
+	// until the owner signs in from Settings → Plex; dev has it only with
+	// --dev-plex-fake (a local fake, never plex.tv).
 	var feed *providers.Feed
 	if f.dev && f.devFixtures {
 		feed = providers.NewFeed(fixtures.New(filepath.Join(paths.CacheDir, "artwork")), contentSections(store.Current()), providers.FeedOptions{Logger: log})
 		go feed.Run(ctx, 5*time.Minute)
 	}
+	plexLink, stopPlexFake, err := newPlexLink(f, paths, store, log)
+	if err != nil {
+		return fmt.Errorf("plex: %w", err)
+	}
+	defer stopPlexFake()
 
 	// Local weather. dev never touches the network: the DEMO fixture source.
 	// A session contacts Open-Meteo only while config weather.enabled is true.
@@ -278,15 +287,23 @@ func runSession(f sessionFlags) error {
 		det.Overrides = func(adapter string) tuning.Overrides { return store.Current().PlaybackOverrides(adapter) }
 		tuner = det
 	}
+	var plexOpt session.PlexLink // stays nil without a connector (a nil *Manager would not)
+	if plexLink != nil {
+		plexOpt = plexLink
+	}
 	coord = session.New(session.Options{
 		Themes: themeReg, Tuner: tuner,
 		Logger: log, Desktop: desk, Lock: lockObs, Audio: audioB, Media: media, Display: display, Suspend: suspendR,
 		Launcher: launcher, Adapters: adapters.NewRegistry(), Config: store, Pairing: pair,
-		Supervisor: sup, DevMode: f.dev && f.devFixtures, Feed: feed, Weather: wx,
+		Supervisor: sup, DevMode: f.dev && (f.devFixtures || f.devPlexFake), Feed: feed, Weather: wx, Plex: plexOpt,
 		Diagnostics: func(ctx context.Context) map[string]any {
 			return doctor.Report(ctx, doctor.Options{Paths: paths, Version: Version, ShellBinary: f.shellBinary})
 		},
 	})
+	if plexLink != nil {
+		plexLink.SetOnChange(coord.PlexChanged)
+		go plexLink.Run(ctx)
+	}
 	host.coord = coord
 	host.pair = pair
 
@@ -304,6 +321,9 @@ func runSession(f sessionFlags) error {
 		if feed != nil {
 			feed.SetSections(contentSections(store.Current()))
 			go feed.Refresh(ctx)
+		}
+		if plexLink != nil {
+			plexLink.Reconfigure()
 		}
 		host.reconcile(ctx)
 		coord.SetRemoteStatus(host.status())

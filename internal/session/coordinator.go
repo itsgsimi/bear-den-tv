@@ -77,6 +77,9 @@ type Options struct {
 	// Suspend is what logind said about suspending (state.power.suspend);
 	// nil omits it. Bear Den never suspends.
 	Suspend *platform.Capability
+	// Plex is the Plex sign-in flow and rows (state.plex, state.content,
+	// plex.* IPC); nil when the session has no Plex connector.
+	Plex PlexLink
 	// Supervisor restarts the shell for shell.restart; nil when --no-shell.
 	Supervisor *shellipc.Supervisor
 	DevMode    bool
@@ -635,6 +638,7 @@ func (c *Coordinator) publish() {
 	// Build the shell view once and skip identical snapshots: every snapshot
 	// makes the shell re-parse and re-bind the whole UI.
 	st := c.buildState(viewShell)
+	c.observePlex(st)
 	key := stateKey(st)
 	// Never call into the IPC server while holding c.mu: it calls the
 	// handler (which takes c.mu) while holding its own lock.
