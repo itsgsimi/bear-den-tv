@@ -25,6 +25,7 @@ const ACTION_NAMES: Record<string, string> = {
   'shell.restart': 'Restart shell',
   'power.sleep_timer': 'Sleep timer',
   'display.off': 'Screen off',
+  'tv.power': 'TV power',
 };
 
 export const t = {

@@ -68,6 +68,17 @@ While an app that exposes an MPRIS player is in front, phones with the `controll
 
 Set it with the actions `power.sleep_timer` (`{"minutes": 0|15|30|45|60|90|120}`) and `display.off` ([`actions.md`](actions.md)). The timer lives in the coordinator's memory only: a coordinator restart forgets it and turns the display back on.
 
+## TV control over HDMI-CEC (`state.cec`)
+
+`state.cec` is sent to the shell and to every authenticated phone (never to anonymous viewers), also while locked: it names nothing private.
+
+- `available`: an HDMI-CEC adapter (`/dev/cecN`) was found and opened; otherwise `reason` says why (for example "No HDMI-CEC device (/dev/cec*) — most PCs need a USB CEC adapter").
+- `enabled`: the owner's `config.json` `cec.enabled` (default false). While false Bear Den sends nothing on the HDMI-CEC bus.
+- `volume_target`: `pc` or `tv`, which volume the phone's volume buttons change while CEC is enabled. Phones label the volume group "TV volume" when it is `tv` and CEC is enabled, else "PC volume".
+- `tv_power`: `on`, `standby` or `unknown`, from the TV's answer to Give Device Power Status (read after every HDMI-CEC command and once a minute while enabled).
+
+Phones show the TV power buttons (`tv.power`, [`actions.md`](actions.md#tv-control-over-hdmi-cec)) only while `capabilities["tv.power"]` is available.
+
 ## Revocation and lock
 
 On revocation the device's sessions are deleted, every WebSocket for that device receives `revoked` and is closed, and any hold lease it owned is cancelled. On session lock the coordinator bumps the epoch, sets `target.kind = locked`, cancels holds, and refuses every action with `failed/locked` until unlock; state snapshots while locked contain no `devices`, `layout`, `layout_pending`, `content`, `playback`, `weather` or `now_playing` (they are omitted) and an empty `shell.focus`.

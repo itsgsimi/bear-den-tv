@@ -17,7 +17,7 @@
 |---|---|
 | `protocol` | Must be `1`. Other values ⇒ `failed/unsupported_protocol`. |
 | `request_id` | UUID v4 string, unique per device session. The coordinator remembers the last 256 ids per session for 60 s (monotonic clock). Same id + identical payload ⇒ the original result is returned again. Same id + different payload ⇒ `failed/duplicate_mismatch`. |
-| `context_epoch` | Integer from the last `state` the sender saw. Must equal the coordinator's current epoch for every action except `home`, `app.launch`, `shell.restart`, `power.sleep_timer` and `display.off` (the power actions never touch the window in front); otherwise `failed/stale_epoch`. |
+| `context_epoch` | Integer from the last `state` the sender saw. Must equal the coordinator's current epoch for every action except `home`, `app.launch`, `shell.restart`, `power.sleep_timer`, `display.off` and `tv.power` (the power actions never touch the window in front); otherwise `failed/stale_epoch`. |
 | `target` | `"active"` (whatever the coordinator currently observes in the foreground), `"shell"`, or a registered application id. Actions on `"active"` are refused when the observed target is `unknown` or `locked`. |
 | `action` | One of the names below. |
 | `args` | Object validated per action; extra keys are rejected. |
@@ -34,12 +34,13 @@
 | `app.close` | `{"app_id": "plex-htpc", "force": false}` | controller (`force` requires owner) | Normal close = WM_DELETE to each mapped window of the app; windows the app opens in reply within 4 s are closed too (Moonlight answers a stream-window close by showing its host list), unless the app is relaunched. Available while the app is in front or left running behind Home. `force` = kill the tracked flatpak instance only, never by process name. |
 | `media.play` `media.pause` | `{}` | controller | Only when `capabilities[action].available` is true. Delivered through MPRIS (`observed` when `PlaybackStatus` changes within 2 s) or mapped key (`delivered`). |
 | `media.seek_relative` | `{"seconds": -30}` (−600..600, non-zero) | controller | Only with a verified seek capability. |
-| `audio.volume_delta` | `{"delta": 5}` (−100..100, non-zero) | controller | PC/PulseAudio default sink; labeled "PC volume". |
-| `audio.mute` | `{"muted": true}` | controller | PC/PulseAudio default sink. |
+| `audio.volume_delta` | `{"delta": 5}` (−100..100, non-zero) | controller | PC/PulseAudio default sink; labeled "PC volume". With HDMI-CEC enabled and `cec.volume_target: "tv"`: the TV's volume instead (see [TV control over HDMI-CEC](#tv-control-over-hdmi-cec)). |
+| `audio.mute` | `{"muted": true}` | controller | PC/PulseAudio default sink; the TV with `cec.volume_target: "tv"`. |
 | `text.submit` | `{"text": "..."}` (1..256 chars, no control chars) | controller | Only into a target with a validated text adapter (shell search/pairing fields). Off for external apps. |
 | `shell.restart` | `{}` | owner | Recovery only: restart a crashed/stuck shell through the coordinator supervisor. Never kills external players. |
 | `power.sleep_timer` | `{"minutes": 45}` (0 cancels; else 15, 30, 45, 60, 90 or 120) | controller | Sets, replaces or cancels the sleep timer on the coordinator clock (`state.power.sleep_at_ms`). `observed` with `detail.sleep_at_ms` (null after a cancel). 60 s before it fires `state.power.warning` turns true, the TV shows "Going to sleep in 1 minute" and any input cancels it. When it fires: pause through MPRIS only if the foreground app's own player is verified (never a guessed key), then the `home` path, then the display off; while locked only the display goes off. Ignores stale epochs. |
 | `display.off` | `{}` | controller | Turns the display off now (X11 DPMS; `state.power.display = "off"`). `observed` when the display reports off, `delivered` when that could not be read back, `observed` with `detail.already_off` when it was off. Any input turns it on again. Ignores stale epochs. |
+| `tv.power` | `{"power": "on"}` or `{"power": "standby"}` | controller | HDMI-CEC, only while `capabilities["tv.power"]` is available (an adapter is present and the owner turned on `cec.enabled`). `on`: Image View On, then Active Source, so the TV wakes and switches to Bear Den's input. `standby`: Standby to the TV. `delivered` when the TV acknowledged the frames, `observed` (`detail.tv_power`) when it then reports that power state. Ignores stale epochs. |
 
 Unknown or disabled actions ⇒ `failed/unsupported` with a `message` explaining why (for example "VacuumTube pause has not been verified on this installation").
 
@@ -48,6 +49,15 @@ Unknown or disabled actions ⇒ `failed/unsupported` with a `message` explaining
 - **Every action wakes the display.** While `state.power.display` is `off`, an authorized action turns the display on first. The press that woke it is swallowed, as a TV does, so it never reaches the shell or an app: the result is `failed/display_off` ("The screen was off. This press turned it on; press again."), except `power.sleep_timer`, which also applies, and `display.off`, which leaves the display off (`observed`, `detail.already_off`).
 - **The sleep warning.** While `state.power.warning` is true, any authorized action cancels the timer and then does its normal job; a key on the TV cancels it too (the shell swallows that key and sends IPC `power.activity`; with an app in front the coordinator notices TV input through the X idle counter).
 - **Locked.** A locked session refuses every phone action (`failed/locked`), `power.sleep_timer` and `display.off` included, like every other action; the press still wakes a display that is off, since the TV then shows only the lock screen. A timer set before the lock still fires, but only turns the display off: nothing is paused and Home is not pressed behind the lock screen.
+
+### TV control over HDMI-CEC
+
+Optional, off unless an HDMI-CEC adapter is present and the owner turned on `cec.enabled` ([`config.md`](config.md#tv-control-over-hdmi-cec-optional-field)); nothing is sent on the bus otherwise. `state.cec` reports it ([`http.md`](http.md#tv-control-over-hdmi-cec-statecec)).
+
+- **Sleep and screen off.** When the sleep timer fires and on `display.off`, the TV is sent Standby after the display step.
+- **Wake.** The press that wakes a display Bear Den turned off, any action after Bear Den put the TV in standby, a TV key while the display was off, and every `home` send Image View On and Active Source, so the TV comes on and shows Bear Den's input. These run in the background: an action never waits on the HDMI-CEC bus.
+- **Volume.** With `cec.volume_target: "tv"`, `audio.volume_delta` sends one Volume Up or Volume Down key press (User Control Pressed, then Released) per started 5 % of `delta` (at most 5), and `audio.mute` sends Mute Function (`muted: true`) or Restore Volume Function (`false`), to the audio system when one answers on the bus, else to the TV. `delivered` only: the TV does not report its volume. When the TV is chosen but HDMI-CEC is not working, both are unavailable with the reason; they never fall back to the PC silently.
+- **Timeouts.** Every HDMI-CEC call is bounded (3 s); a TV that does not answer leaves `state.cec.tv_power` `unknown`.
 
 ## Result
 

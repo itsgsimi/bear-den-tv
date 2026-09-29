@@ -414,6 +414,52 @@ private slots:
         QVERIFY(session->power().isEmpty());
     }
 
+    // state.cec (TV control over HDMI-CEC) is accepted, exposed as
+    // Session.cec, and a malformed one is rejected while the previous state stays.
+    void cecAcceptedAndChecked()
+    {
+        SessionModel *session = SessionModel::instance();
+        const int epoch = session->contextEpoch();
+        QJsonObject snap = fixture();
+        snap.insert(QStringLiteral("context_epoch"), epoch + 600);
+        QJsonObject cec{{QStringLiteral("available"), false},
+                        {QStringLiteral("reason"), QStringLiteral("No HDMI-CEC device (/dev/cec*) — most PCs need a USB CEC adapter")},
+                        {QStringLiteral("enabled"), false}, {QStringLiteral("volume_target"), QStringLiteral("pc")},
+                        {QStringLiteral("tv_power"), QStringLiteral("unknown")}};
+        snap.insert(QStringLiteral("cec"), cec);
+        QVERIFY2(session->applySnapshot(snap), qPrintable(session->lastError()));
+        QCOMPARE(session->cec().value(QStringLiteral("available")).toBool(), false);
+        QVERIFY(session->cec().value(QStringLiteral("reason")).toString().contains(QStringLiteral("/dev/cec")));
+        cec.insert(QStringLiteral("available"), true);
+        cec.remove(QStringLiteral("reason"));
+        cec.insert(QStringLiteral("enabled"), true);
+        cec.insert(QStringLiteral("volume_target"), QStringLiteral("tv"));
+        cec.insert(QStringLiteral("tv_power"), QStringLiteral("standby"));
+        snap.insert(QStringLiteral("cec"), cec);
+        QVERIFY2(session->applySnapshot(snap), qPrintable(session->lastError()));
+        QCOMPARE(session->cec().value(QStringLiteral("tv_power")).toString(), QStringLiteral("standby"));
+
+        snap.insert(QStringLiteral("context_epoch"), epoch + 700);
+        for (const auto &[key, bad] : std::initializer_list<std::pair<QString, QJsonValue>>{
+                 {QStringLiteral("tv_power"), QStringLiteral("off")},
+                 {QStringLiteral("volume_target"), QStringLiteral("soundbar")},
+                 {QStringLiteral("enabled"), QStringLiteral("yes")},
+                 {QStringLiteral("reason"), 3}}) {
+            QJsonObject broken = cec;
+            broken.insert(key, bad);
+            snap.insert(QStringLiteral("cec"), broken);
+            QVERIFY2(!session->applySnapshot(snap), qPrintable(key));
+            QVERIFY2(session->lastError().contains(QStringLiteral("state.cec")), qPrintable(session->lastError()));
+        }
+        QJsonObject missing = cec;
+        missing.remove(QStringLiteral("tv_power"));
+        snap.insert(QStringLiteral("cec"), missing);
+        QVERIFY(!session->applySnapshot(snap));
+        QCOMPARE(session->contextEpoch(), epoch + 600); // the previous state stays
+        QVERIFY(session->applySnapshot(fixture()));
+        QVERIFY(session->cec().isEmpty());
+    }
+
     // Settings → Now playing on phones: a toggle showing state.remote.now_playing
     // (missing means on), OK sends remote.now_playing with the opposite value.
     void nowPlayingRowTogglesTheSetting()

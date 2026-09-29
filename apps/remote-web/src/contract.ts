@@ -23,7 +23,8 @@ export type ActionName =
   | 'text.submit'
   | 'shell.restart'
   | 'power.sleep_timer'
-  | 'display.off';
+  | 'display.off'
+  | 'tv.power';
 
 /** power.sleep_timer minutes: 0 cancels, otherwise one of the fixed choices. */
 export type SleepMinutes = 0 | 15 | 30 | 45 | 60 | 90 | 120;
@@ -48,6 +49,7 @@ export type ActionArgs = {
   'shell.restart': Record<string, never>;
   'power.sleep_timer': { minutes: SleepMinutes };
   'display.off': Record<string, never>;
+  'tv.power': { power: 'on' | 'standby' };
 };
 
 /** `"active"`, `"shell"`, or a registered application id. */
@@ -325,6 +327,18 @@ export interface StateSnapshot {
   now_playing?: NowPlaying | null;
   /** The sleep timer and the display; absent for anonymous viewers and from older coordinators. */
   power?: Power;
+  /** TV control over HDMI-CEC; absent for anonymous viewers and from older coordinators. */
+  cec?: Cec;
+}
+
+/** state.cec (contracts/http.md, "TV control over HDMI-CEC"). */
+export interface Cec {
+  available: boolean;
+  /** Why it is not available; present only when available is false. */
+  reason?: string;
+  enabled: boolean;
+  volume_target: 'pc' | 'tv';
+  tv_power: 'on' | 'standby' | 'unknown';
 }
 
 /**

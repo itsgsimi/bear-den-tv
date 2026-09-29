@@ -247,6 +247,19 @@
       "required": ["sleep_at_ms", "warning", "display"],
       "additionalProperties": false
     },
+    "cec": {
+      "type": "object",
+      "description": "TV control over HDMI-CEC (contracts/http.md \"TV control over HDMI-CEC\"; config cec). Sent to the shell and to every authenticated phone, also while locked; never to anonymous viewers. Absent from older coordinators.",
+      "properties": {
+        "available": {"type": "boolean", "description": "An HDMI-CEC adapter (/dev/cecN) was found and opened."},
+        "reason": {"type": "string", "maxLength": 256, "description": "Why it is not available, for the TV Settings row; present only when available is false."},
+        "enabled": {"type": "boolean", "description": "The owner's config cec.enabled (default false). Bear Den sends nothing on the HDMI-CEC bus while false."},
+        "volume_target": {"enum": ["pc", "tv"], "description": "Config cec.volume_target (default pc): which volume audio.volume_delta and audio.mute change while CEC is enabled. pc while CEC is off."},
+        "tv_power": {"enum": ["on", "standby", "unknown"], "description": "The TV's answer to Give Device Power Status (in transition counts as the state it is heading to); unknown when CEC is off, unavailable or the TV did not answer."}
+      },
+      "required": ["available", "enabled", "volume_target", "tv_power"],
+      "additionalProperties": false
+    },
     "content": {
       "type": "object",
       "description": "Optional provider rows (Plex connector). Absent when no provider is configured.",

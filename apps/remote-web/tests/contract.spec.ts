@@ -44,6 +44,12 @@ const SCHEMA_FOR: Record<string, string> = {
   'action.result.display-off-woke.valid.json': 'action.schema.json#/$defs/result',
   'state.phone-sleep-warning.valid.json': 'state.schema.json',
   'state.power-bad-display.invalid.json': 'state.schema.json',
+  'action.request.tv-power.valid.json': 'action.schema.json#/$defs/request',
+  'action.request.tv-power-off.invalid.json': 'action.schema.json#/$defs/request',
+  'state.phone-cec.valid.json': 'state.schema.json',
+  'state.phone-cec-unavailable.valid.json': 'state.schema.json',
+  'state.cec-bad-tv-power.invalid.json': 'state.schema.json',
+  'config.cec-bad-volume-target.invalid.json': 'config.schema.json',
   'state.shell-home.valid.json': 'state.schema.json',
   'state.phone-controller.valid.json': 'state.schema.json',
   'state.phone-now-playing.valid.json': 'state.schema.json',
@@ -96,6 +102,8 @@ describe('client-built messages', () => {
       { protocol: PROTOCOL, request_id: uuidV4(), context_epoch: 3, target: 'shell', action: 'power.sleep_timer', args: { minutes: 90 } },
       { protocol: PROTOCOL, request_id: uuidV4(), context_epoch: 3, target: 'shell', action: 'power.sleep_timer', args: { minutes: 0 } },
       { protocol: PROTOCOL, request_id: uuidV4(), context_epoch: 3, target: 'shell', action: 'display.off', args: {} },
+      { protocol: PROTOCOL, request_id: uuidV4(), context_epoch: 3, target: 'shell', action: 'tv.power', args: { power: 'on' } },
+      { protocol: PROTOCOL, request_id: uuidV4(), context_epoch: 3, target: 'shell', action: 'tv.power', args: { power: 'standby' } },
     ];
     for (const request of requests) expect(validate(request), `${request.action}: ${JSON.stringify(validate.errors)}`).toBe(true);
   });

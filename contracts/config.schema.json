@@ -143,6 +143,16 @@
       "if": {"properties": {"enabled": {"const": true}}},
       "then": {"properties": {"place": {"type": "object"}}}
     },
+    "cec": {
+      "type": "object",
+      "description": "Optional; absent means off. TV control over HDMI-CEC (contracts/config.md): the TV follows Bear Den on and off and switches to its input; the phone's volume buttons may drive the TV.",
+      "properties": {
+        "enabled": {"type": "boolean"},
+        "volume_target": {"enum": ["pc", "tv"]}
+      },
+      "required": ["enabled", "volume_target"],
+      "additionalProperties": false
+    },
     "playback": {
       "type": "object",
       "description": "Optional. Playback settings chosen by hand in TV Settings → Advanced playback; automatic tuning uses them instead of its own choice while this box still offers them (docs/APP_PERFORMANCE.md).",

@@ -36,6 +36,8 @@ type Config struct {
 	Playback *Playback `json:"playback,omitempty"`
 	// Weather is the local weather block; nil = off (contracts/config.md).
 	Weather *Weather `json:"weather,omitempty"`
+	// CEC is TV control over HDMI-CEC; nil = off (cec.go).
+	CEC *CEC `json:"cec,omitempty"`
 }
 
 // Weather is config.weather: local weather for the Home header and scene.
@@ -275,6 +277,10 @@ func (c Config) Clone() Config {
 	if c.Weather != nil {
 		w := c.Weather.clone()
 		out.Weather = &w
+	}
+	if c.CEC != nil {
+		v := *c.CEC
+		out.CEC = &v
 	}
 	if c.Playback != nil {
 		out.Playback = &Playback{}

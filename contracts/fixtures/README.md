@@ -15,6 +15,8 @@ Canonical messages consumed by contract tests in Go ([`tests/contract/fixtures_t
 | `action.request.power-sleep-timer.valid.json` | `action.schema.json#/$defs/request` (`power.sleep_timer`, 45 minutes) |
 | `action.request.sleep-timer-odd-minutes.invalid.json` | rejected: `power.sleep_timer` `minutes` must be 0, 15, 30, 45, 60, 90 or 120 |
 | `action.request.display-off.valid.json` | `action.schema.json#/$defs/request` (`display.off`, no args) |
+| `action.request.tv-power.valid.json` | `action.schema.json#/$defs/request` (`tv.power`, standby) |
+| `action.request.tv-power-off.invalid.json` | rejected: `tv.power` `power` must be `on` or `standby` |
 | `action.result.observed.valid.json` | `action.schema.json#/$defs/result` |
 | `action.result.failed-stale.valid.json` | `action.schema.json#/$defs/result` |
 | `action.result.display-off-woke.valid.json` | `action.schema.json#/$defs/result` (`failed/display_off`: the press woke the screen and was not applied) |
@@ -25,8 +27,12 @@ Canonical messages consumed by contract tests in Go ([`tests/contract/fixtures_t
 | `state.now-playing-no-title.invalid.json` | rejected: `now_playing.title` must not be empty (no title means no `now_playing`) |
 | `state.phone-sleep-warning.valid.json` | `state.schema.json` (phone view: a 45-minute sleep timer in its last minute, `power.suspend` unavailable) |
 | `state.power-bad-display.invalid.json` | rejected: `power.display` must be `on` or `off` |
+| `state.phone-cec.valid.json` | `state.schema.json` (phone view: HDMI-CEC enabled, TV on, volume buttons driving the TV) |
+| `state.phone-cec-unavailable.valid.json` | `state.schema.json` (phone view: no HDMI-CEC device, with the reason) |
+| `state.cec-bad-tv-power.invalid.json` | rejected: `cec.tv_power` must be `on`, `standby` or `unknown` |
 | `config.default.valid.json` | `config.schema.json` (built-in defaults) |
 | `config.now-playing-not-bool.invalid.json` | rejected structurally: `remote.now_playing` must be a boolean |
+| `config.cec-bad-volume-target.invalid.json` | rejected structurally: `cec.volume_target` must be `pc` or `tv` |
 | `config.dangling-ref.invalid.json` | rejected semantically: section references unknown app |
 | `config.token-leak.invalid.json` | rejected semantically: contains a `token` key |
 | `config.weather-no-place.invalid.json` | rejected structurally: `weather.enabled` is true while `weather.place` is null |

@@ -13,7 +13,8 @@
         "media.play", "media.pause", "media.seek_relative",
         "audio.volume_delta", "audio.mute",
         "text.submit", "shell.restart",
-        "power.sleep_timer", "display.off"
+        "power.sleep_timer", "display.off",
+        "tv.power"
       ]
     },
     "targetInfo": {
@@ -53,6 +54,8 @@
          "then": {"properties": {"args": {"type": "object", "properties": {"muted": {"type": "boolean"}}, "required": ["muted"], "additionalProperties": false}}}},
         {"if": {"properties": {"action": {"const": "power.sleep_timer"}}},
          "then": {"properties": {"args": {"type": "object", "properties": {"minutes": {"enum": [0, 15, 30, 45, 60, 90, 120]}}, "required": ["minutes"], "additionalProperties": false}}}},
+        {"if": {"properties": {"action": {"const": "tv.power"}}},
+         "then": {"properties": {"args": {"type": "object", "properties": {"power": {"enum": ["on", "standby"]}}, "required": ["power"], "additionalProperties": false}}}},
         {"if": {"properties": {"action": {"const": "text.submit"}}},
          "then": {"properties": {"args": {"type": "object", "properties": {"text": {"type": "string", "minLength": 1, "maxLength": 256, "pattern": "^[^\\p{Cc}]*$"}}, "required": ["text"], "additionalProperties": false}}}}
       ]

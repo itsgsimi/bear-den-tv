@@ -53,3 +53,10 @@ Preview (`POST /api/v1/layout/preview`) sends a draft to the shell over IPC with
 - `remote.now_playing` (boolean, default `true`; the built-in default file writes `true`, and a file without the key means `true`): paired phones with the `controller` permission see what the app in front reports it is playing (`state.now_playing`, [`http.md`](http.md#now-playing-statenow_playing)). `false` removes `now_playing` from every snapshot.
 - Written by the trusted local `remote.now_playing` (`ipc.md`: TV Settings → Now playing on phones). The titles themselves are never stored here or anywhere else.
 - Additive: `schema_version` stays 1.
+
+## TV control over HDMI-CEC (optional field)
+
+- `cec` (object, absent = off): `{"enabled": false, "volume_target": "pc"}`. `enabled: true` lets Bear Den send HDMI-CEC messages to the TV over the HDMI cable (standby with the sleep timer and screen off, power on and switch to Bear Den's input on wake and Home, `tv.power`). `volume_target` is `pc` (the phone's volume buttons change the PC's volume, the default) or `tv` (they send the TV's volume keys); it applies only while `enabled` is true. A file without the block means off.
+- Written by the trusted local `cec.configure` (`ipc.md`: TV Settings → TV control over HDMI (CEC)).
+- Needs an HDMI-CEC adapter the kernel exposes as `/dev/cecN`; without one the setting is stored but nothing happens, and `state.cec.reason` says why.
+- Additive: `schema_version` stays 1.
