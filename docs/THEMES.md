@@ -882,7 +882,8 @@ recognised by its label and colour.
   them (`AppArt` in `icons.tsx`) whenever the coordinator has no icon of the
   app's own for them.
 - **App's own or Bear Den style** (Settings → App icons, the phone's Layout;
-  layout `ui.app_icons`, owner decision: the app's own by default).
+  layout `ui.app_icons`, owner decision: the app's own by default;
+  [ADR 0012](decisions/0012-app-icons-apps-own-by-default.md)).
 - **Order**, everywhere an app is shown (TV tiles, the featured panel and
   its room's screen, the launch overlay, the install card, Add apps, phone
   tiles):
