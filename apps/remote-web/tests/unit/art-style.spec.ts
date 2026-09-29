@@ -5,7 +5,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import type { VNode } from 'preact';
 import type { Appearance } from '../../src/contract.ts';
-import { AppArt, APP_ICONS, Art, artStyleOf } from '../../src/icons.tsx';
+import { AppArt, APP_ICONS, appIconUrl, Art, artStyleOf } from '../../src/icons.tsx';
 import { CLASSIC_LEAVES, CLASSIC_STEM, ClassicCorner, decorOf, Vines } from '../../src/vines.tsx';
 
 type Props = Record<string, unknown> & { children?: unknown };
@@ -96,10 +96,10 @@ describe('app tile icons', () => {
   it('every app uses Bear Den\'s own icon: the pixel PNG at a whole-number scale, or the classic SVG', () => {
     expect(APP_ICONS).toEqual(['plex-htpc', 'vacuumtube', 'moonlight', 'spotify', 'jellyfin', 'retroarch', 'netflix', 'disney-plus', 'hulu', 'browser']);
     for (const adapter of APP_ICONS) {
-      const px = props(AppArt({ adapter, size: 70 }));
+      const px = props(AppArt({ adapter, size: 70, own: false }));
       expect(px.src).toBe(`art/pixel/app-${adapter}.png`);
       expect([px.width, px.height]).toEqual([64, 64]);
-      const smooth = props(AppArt({ adapter, size: 32, art: 'classic' }));
+      const smooth = props(AppArt({ adapter, size: 32, art: 'classic', own: false }));
       expect(smooth.src).toBe(`art/app-${adapter}.svg`);
       expect([smooth.width, smooth.height]).toEqual([32, 32]);
       expect(existsSync(new URL(`../../static/art/pixel/app-${adapter}.png`, import.meta.url))).toBe(true);
@@ -113,10 +113,41 @@ describe('app tile icons', () => {
     expect(glyph.props.name).toBe('app');
   });
 
+  it('the app\'s own icon from the TV is tried first, ours stays until it loads', () => {
+    for (const [icons, q] of [[undefined, 'app'], ['app', 'app'], ['bear_den', 'bear_den']] as const) {
+      const tree = walk(AppArt({ adapter: 'plex-htpc', size: 32, icons }));
+      const stack = tree[0]!;
+      expect(stack.props.class).toBe('app-art-stack');
+      expect(stack.props['data-own']).toBe('pending');
+      const imgs = tree.filter((v) => v.type === 'img') as [VNode<Props>, VNode<Props>];
+      expect(imgs.map((v) => v.props.src)).toEqual(['art/pixel/app-plex-htpc.png', `/api/v1/apps/plex-htpc/icon?icons=${q}&installed=1`]);
+      expect(imgs[1].props.class).toContain('app-art-own');
+      expect(typeof imgs[1].props.onLoad).toBe('function');
+      expect(typeof imgs[1].props.onError).toBe('function');
+    }
+    // Only known adapters: nothing from anywhere else becomes a URL.
+    expect(appIconUrl('kodi', 'app')).toBeNull();
+    expect(appIconUrl('../../etc', 'app')).toBeNull();
+    expect(appIconUrl('plex-htpc', 'weird' as never)).toBe('/api/v1/apps/plex-htpc/icon?icons=app&installed=1');
+    // A new image once the app is installed.
+    expect(appIconUrl('moonlight', 'app', false)).toBe('/api/v1/apps/moonlight/icon?icons=app&installed=0');
+    // Loading swaps them through the wrapper's data attribute.
+    const own = walk(AppArt({ adapter: 'spotify', size: 32 })).filter((v) => v.type === 'img')[1]!;
+    const parent = { attrs: {} as Record<string, string>, setAttribute(k: string, v: string) { this.attrs[k] = v; } };
+    (own.props.onLoad as (e: unknown) => void)({ currentTarget: { parentElement: parent } });
+    expect(parent.attrs['data-own']).toBe('ok');
+    (own.props.onError as (e: unknown) => void)({ currentTarget: { parentElement: parent } });
+    expect(parent.attrs['data-own']).toBe('none');
+    const css = readFileSync(new URL('../../src/app.css', import.meta.url), 'utf8');
+    expect(css).toContain(".app-art-stack[data-own='ok'] > .app-art-own { visibility: visible; }");
+    expect(css).toContain(".app-art-stack[data-own='ok'] > .app-art-ours { visibility: hidden; }");
+  });
+
   it('the remote\'s app tiles draw AppArt, not the generic glyph', () => {
     const src = readFileSync(new URL('../../src/views/remote.tsx', import.meta.url), 'utf8');
     const tile = src.slice(src.indexOf('function AppButton'));
     expect(tile).toContain('<AppArt adapter={application.adapter}');
+    expect(tile).toContain('icons={state.snapshot?.appearance?.app_icons} installed={application.installed}');
     expect(tile).not.toContain('<Icon name="app"');
   });
 });

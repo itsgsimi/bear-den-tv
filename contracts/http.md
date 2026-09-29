@@ -57,14 +57,16 @@ name in the coordinator's adapter table (`plex-htpc`, `vacuumtube`,
 `moonlight`, `spotify`, `jellyfin`, `retroarch`, `netflix`, `disney-plus`,
 `hulu`, `browser`); anything else is `404 unknown_app`. No path, URL or file
 name comes from the phone, and a query string is ignored (phones add
-`?icons=<choice>` only to miss their cache after the setting changes).
+`?icons=<choice>&installed=0|1` only so the image changes with the setting
+and after an install).
 
 - **Who:** every authenticated phone, guest passes included: they see the
   same tiles. Unauthenticated `401`.
 - **What:** the first of (1) the owner's brand icon
   (`$XDG_DATA_HOME/bear-den-tv/brand/<adapter>/icon.png|.jpg`), (2) with
-  `layout.ui.app_icons` `app` (or missing), the installed Flatpak's exported
-  PNG (`hicolor/{256x256,128x128,512x512,192x192,96x96,64x64,48x48}/apps/<flatpak-id>.png`
+  `layout.ui.app_icons` `app` (or missing) and the app installed (as
+  `state.applications[].installed` says, so a lingering export does not
+  count), its Flatpak's exported PNG (`hicolor/{256x256,128x128,512x512,192x192,96x96,64x64,48x48}/apps/<flatpak-id>.png`
   under the user's then the system's Flatpak exports), only when the Flatpak
   is the app itself (never Chromium's icon for the streaming sites; the
   Browser tile may use it). Otherwise `404 no_icon`, and the phone draws Bear

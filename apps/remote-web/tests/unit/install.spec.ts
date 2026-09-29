@@ -9,7 +9,8 @@ import { createApp, type PageEnvironment, type WindowEnvironment } from '../../s
 import type { ApiEnvironment, SocketLike } from '../../src/api.ts';
 import type { ActionResult, Application, Install, Permission, StateSnapshot } from '../../src/contract.ts';
 import { AddAppsPanel, AddAppsSection, installEntries, mayInstall } from '../../src/views/install.tsx';
-import type { AppState } from '../../src/state.ts';
+import { tileStatusText } from '../../src/views/remote.tsx';
+import { INSTALL_READY_MS, readyAfter, tileStatus, type AppState } from '../../src/state.ts';
 import type { App } from '../../src/app.ts';
 
 type Props = Record<string, unknown> & { children?: unknown };
@@ -141,5 +142,59 @@ describe('app.install request', () => {
       ['app.install', 'shell', { app_id: 'moonlight' }],
       ['app.install_cancel', 'shell', { app_id: 'moonlight' }],
     ]);
+  });
+});
+
+// The app tile while an install runs (state.ts tileStatus, views/remote.tsx):
+// "Installing 42%" from the snapshot, "Ready" for a few seconds after it
+// finished while this phone watched, never "Not installed" meanwhile.
+describe('app tile install status', () => {
+  const running = (progress: number): Install => ({ state: 'downloading', progress, phase: 'app' });
+  it('says Installing with the percent, then Ready, then nothing', () => {
+    const moon = (installed: boolean, install: Install) => app('moonlight', 'moonlight', installed, install);
+    expect(tileStatusText(tileStatus(moon(false, idle()), {}))).toBe('Not installed');
+    expect(tileStatusText(tileStatus(moon(false, running(42)), {}))).toBe('Installing 42%');
+    expect(tileStatusText(tileStatus(moon(false, { state: 'preparing', progress: 0, phase: 'checking' }), {}))).toBe('Installing 0%');
+    expect(tileStatusText(tileStatus(moon(true, idle('done')), { moonlight: 5000 }))).toBe('Ready');
+    expect(tileStatusText(tileStatus(moon(true, idle('done')), {}))).toBeNull();
+  });
+
+  it('marks Ready only for an install this phone saw finish', () => {
+    const before = snapshot(['owner'], [app('moonlight', 'moonlight', false, running(97)), app('plex-htpc', 'plex-htpc', true, idle('done'))]);
+    const after = snapshot(['owner'], [app('moonlight', 'moonlight', true, idle('done')), app('plex-htpc', 'plex-htpc', true, idle('done'))]);
+    expect(readyAfter(before, after, {}, 1000)).toEqual({ moonlight: 1000 + INSTALL_READY_MS });
+    expect(readyAfter(null, after, {}, 1000)).toEqual({}); // first snapshot: nothing seen finishing
+    expect(readyAfter(after, after, {}, 1000)).toEqual({});
+    // Installing again drops it.
+    expect(readyAfter(after, before, { moonlight: 9000 }, 1000)).toEqual({});
+  });
+
+  it('the controller ends Ready after INSTALL_READY_MS', async () => {
+    const snaps = [
+      snapshot(['owner'], [app('moonlight', 'moonlight', false, running(97))]),
+      snapshot(['owner'], [app('moonlight', 'moonlight', true, idle('done'))]),
+    ];
+    let clock = 1000;
+    const timers: [() => void, number][] = [];
+    const fetch = async () => new Response(JSON.stringify(snaps.shift()), { status: 200 });
+    const socket: SocketLike = { readyState: 0, send: () => undefined, close: () => undefined, onopen: null, onclose: null, onerror: null, onmessage: null };
+    const env = {
+      fetch, createSocket: () => socket, setTimeout: (fn: () => void, ms: number) => timers.push([fn, ms]), clearTimeout: () => undefined,
+      setInterval: () => 0, clearInterval: () => undefined, random: () => 0.5, origin: 'http://192.0.2.10:8090',
+    } as unknown as ApiEnvironment;
+    const page: PageEnvironment = { hidden: false, addEventListener: () => undefined, removeEventListener: () => undefined };
+    const win: WindowEnvironment = {
+      addEventListener: () => undefined, removeEventListener: () => undefined, location: { hash: '', pathname: '/', search: '' },
+      history: { replaceState: () => undefined }, navigator: { userAgent: 'test' }, localStorage: null,
+    };
+    const client = createApp(env, page, win, { now: () => clock });
+    await client.refreshState();
+    expect(timers).toHaveLength(0);
+    await client.refreshState();
+    expect(client.store.getState().installReady).toEqual({ moonlight: 1000 + INSTALL_READY_MS });
+    expect(timers.map(([, ms]) => ms)).toEqual([INSTALL_READY_MS]);
+    clock += INSTALL_READY_MS;
+    timers[0]![0]();
+    expect(client.store.getState().installReady).toEqual({});
   });
 });

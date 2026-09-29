@@ -24,7 +24,7 @@ import { SleepPanel } from './sleep.tsx';
 import { TvPanel, volumeHeading } from './tv.tsx';
 import { TouchpadPanel } from './touchpad.tsx';
 import { AddAppsPanel } from './install.tsx';
-import { type AppState, type PendingAction, capabilityFor, closableApp, isSecureTransport, mayUse, permissionsOf, visibleApps } from '../state.ts';
+import { type AppState, type PendingAction, type TileStatus, capabilityFor, closableApp, isSecureTransport, mayUse, permissionsOf, tileStatus, visibleApps } from '../state.ts';
 
 const TEXT_MAX = 256;
 const VOLUME_STEP = 5;
@@ -309,10 +309,35 @@ function CloseButton({ app, state }: { app: App; state: AppState }): JSX.Element
   );
 }
 
+/**
+ * The words for a tile's status (state.ts tileStatus).
+ * @param s The status.
+ * @returns Its text, or null.
+ */
+export function tileStatusText(s: TileStatus): string | null {
+  switch (s?.kind) {
+    case 'installing':
+      return t.remote.tileInstalling(s.percent);
+    case 'ready':
+      return t.remote.tileReady;
+    case 'not_installed':
+      return t.remote.tileNotInstalled;
+    case 'launching':
+      return t.remote.launching;
+    case 'front':
+      return t.remote.inFront;
+    case 'running':
+      return t.remote.running;
+    default:
+      return null;
+  }
+}
+
 function AppButton({ app, state, application }: { app: App; state: AppState; application: Application }): JSX.Element {
   const launch = gate(state, 'app.launch');
   const reason = !application.installed ? t.remote.notInstalled(application.label) : launch.reason;
-  const status = application.launch_state === 'launching' ? t.remote.launching : application.foreground ? t.remote.inFront : application.running ? t.remote.running : null;
+  const tile = tileStatus(application, state.installReady);
+  const status = tileStatusText(tile);
   const live = application.launch_state === 'launching' ? 'launching' : application.foreground ? 'front' : application.running ? 'running' : null;
   const disabled = !application.installed || launch.disabled;
   return (
@@ -327,12 +352,11 @@ function AppButton({ app, state, application }: { app: App; state: AppState; app
         onClick={() => void app.tap('app.launch', { app_id: application.id })}
       >
         <span class="app-icon">
-          <AppArt adapter={application.adapter} size={32} art={artStyleOf(state.snapshot?.appearance)} />
+          <AppArt adapter={application.adapter} size={32} art={artStyleOf(state.snapshot?.appearance)} icons={state.snapshot?.appearance?.app_icons} installed={application.installed} />
           {live ? <span class="run-dot" aria-hidden="true" /> : null}
         </span>
         <span class="app-label">{application.label}</span>
-        {status ? <span class="app-status small">{status}</span> : null}
-        {!application.installed ? <span class="app-status small">{t.remote.notInstalled(application.label)}</span> : null}
+        {status ? <span class={`app-status small ${tile ? `is-${tile.kind}` : ''}`} data-testid="app-status">{status}</span> : null}
       </button>
       <Vines appearance={state.snapshot?.appearance} />
     </div>

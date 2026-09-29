@@ -10,7 +10,7 @@
 // `revoked` (message or close 4001) and any 401 end the session and return to Pair.
 
 import { ApiClient, ApiError, EventsSocket, type ApiEnvironment, type SocketStatus } from './api.ts';
-import type { ActionArgs, ActionName, ActionRequest, ActionResult, ActionTarget, HoldEvent, Layout, LayoutPending, NavAction, PointerAction, Session } from './contract.ts';
+import type { ActionArgs, ActionName, ActionRequest, ActionResult, ActionTarget, HoldEvent, Layout, LayoutPending, NavAction, PointerAction, Session, StateSnapshot } from './contract.ts';
 import { PROTOCOL } from './contract.ts';
 import { HoldController, bindHoldLifecycle, type HoldEndReason } from './hold.ts';
 import { t } from './i18n.ts';
@@ -20,6 +20,7 @@ import {
   createStore,
   currentEpoch,
   initialState,
+  INSTALL_READY_MS,
   layoutsEqual,
   type NoticeKind,
   type SessionEndReason,
@@ -115,7 +116,7 @@ export function createApp(env: ApiEnvironment, page: PageEnvironment, win: Windo
     onMessage: (message) => {
       switch (message.type) {
         case 'state':
-          store.dispatch({ type: 'state_received', snapshot: message.state, at: now() });
+          receiveState(message.state);
           break;
         case 'action_result':
           handleResult(message.result);
@@ -165,6 +166,17 @@ export function createApp(env: ApiEnvironment, page: PageEnvironment, win: Windo
     store.dispatch({ type: 'visibility_changed', hidden: page.hidden });
   });
 
+  // A snapshot, and when an install just finished, the timer that ends its
+  // tile's "Ready" (state.ts readyAfter / install_ready_expired).
+  function receiveState(snapshot: StateSnapshot): void {
+    const before = store.getState().installReady;
+    store.dispatch({ type: 'state_received', snapshot, at: now() });
+    const after = store.getState().installReady;
+    if (after !== before && Object.keys(after).length > 0) {
+      env.setTimeout(() => store.dispatch({ type: 'install_ready_expired', at: now() }), INSTALL_READY_MS);
+    }
+  }
+
   function showToast(kind: NoticeKind, text: string): void {
     toastSeq += 1;
     const id = toastSeq;
@@ -199,7 +211,7 @@ export function createApp(env: ApiEnvironment, page: PageEnvironment, win: Windo
   async function refreshState(): Promise<void> {
     try {
       const snapshot = await api.state();
-      store.dispatch({ type: 'state_received', snapshot, at: now() });
+      receiveState(snapshot);
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) endSession('unauthenticated');
     }

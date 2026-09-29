@@ -597,6 +597,12 @@ input[type='range'] { width: 100%; accent-color: var(--accent); min-height: 32px
 .app-tile { flex-direction: column; min-height: 88px; border-radius: var(--r16, 0); }
 .app-tile.is-foreground { border-color: var(--accent); background: linear-gradient(180deg, rgba(var(--sage-rgb), 0.2), rgba(34, 39, 44, 0.92)); }
 .app-icon { position: relative; display: grid; place-items: center; width: 36px; height: 34px; color: var(--sage); }
+/* AppArt: the TV's own icon for the app shows only once it has loaded (data-own set by its load/error handlers). */
+.app-art-stack { position: relative; display: inline-grid; place-items: center; line-height: 0; }
+.app-art-stack > .app-art-own { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); visibility: hidden; object-fit: contain; }
+.app-art-stack[data-own='ok'] > .app-art-own { visibility: visible; }
+.app-art-stack[data-own='ok'] > .app-art-ours { visibility: hidden; }
+.app-status.is-installing, .app-status.is-ready { color: var(--sage-light); }
 .run-dot { position: absolute; right: -2px; top: -2px; width: 8px; height: 8px; border-radius: var(--r-round, 0); background: var(--sage); }
 .run-dot::after { content: ''; position: absolute; inset: 0; border-radius: var(--r-round, 0); background: inherit; opacity: 0; }
 .is-front .run-dot { background: var(--success); }

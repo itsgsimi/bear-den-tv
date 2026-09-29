@@ -14,6 +14,7 @@ import (
 
 	"bear-den-tv/internal/appicons"
 	"bear-den-tv/internal/applications/adapters"
+	"bear-den-tv/internal/contract"
 	"bear-den-tv/internal/remote"
 )
 
@@ -38,7 +39,13 @@ func (c *Coordinator) AppIcon(_ context.Context, adapter string) ([]byte, error)
 	c.icons.once.Do(func() {
 		c.icons.cache = &appicons.Cache{Finder: *c.opts.IconFinder, TTL: appIconTTL, Now: c.clock.Now}
 	})
-	choice := c.opts.Config.Current().Layout().UI.IconsOf()
+	cfg := c.opts.Config.Current()
+	choice := cfg.Layout().UI.IconsOf()
+	if !c.adapterInstalled(cfg.Applications, adapter) {
+		// Not installed (as the tiles say): Bear Den's icon, whatever
+		// export may linger; the owner's brand icon still wins.
+		choice = contract.AppIconsBearDen
+	}
 	app := appicons.App{Adapter: ad.Name(), FlatpakID: ad.FlatpakID(), OwnFlatpak: adapters.OwnFlatpakIcon(ad)}
 	png, err := c.icons.cache.PNG(app, choice)
 	if errors.Is(err, appicons.ErrNoIcon) {
@@ -48,4 +55,17 @@ func (c *Coordinator) AppIcon(_ context.Context, adapter string) ([]byte, error)
 		return nil, fmt.Errorf("%w: %v", remote.ErrNoIcon, err)
 	}
 	return png, nil
+}
+
+// adapterInstalled reports whether discovery has seen an application of
+// this adapter installed (state.applications[].installed).
+func (c *Coordinator) adapterInstalled(apps []configApp, adapter string) bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for _, a := range apps {
+		if a.Adapter == adapter && c.appLocked(a.ID).install.Installed {
+			return true
+		}
+	}
+	return false
 }

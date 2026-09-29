@@ -8,7 +8,7 @@
 import { useEffect, useState } from 'preact/hooks';
 import type { JSX } from 'preact';
 import type { App } from '../app.ts';
-import type { ArtStyle, BackgroundPreset, Layout, LayoutPending, LayoutSection, LayoutUi, TileDensity } from '../contract.ts';
+import type { AppIcons, ArtStyle, BackgroundPreset, Layout, LayoutPending, LayoutSection, LayoutUi, TileDensity } from '../contract.ts';
 import { t } from '../i18n.ts';
 import { type AppState, canWriteLayout, layoutsEqual } from '../state.ts';
 
@@ -22,6 +22,7 @@ const BUILT_IN_THEMES: { id: BackgroundPreset; name: string; accent?: string }[]
 ];
 const DENSITIES: TileDensity[] = ['comfortable', 'large'];
 const ART_STYLES: ArtStyle[] = ['pixel', 'classic'];
+const APP_ICON_CHOICES: AppIcons[] = ['app', 'bear_den'];
 const HEX = /^#[0-9A-Fa-f]{6}$/;
 
 type Confirm = { kind: 'all' } | { kind: 'section'; id: string; title: string } | null;
@@ -199,6 +200,16 @@ export function EditorView({ app, state }: { app: App; state: AppState }): JSX.E
             {ART_STYLES.map((a) => (
               <option key={a} value={a}>
                 {a === 'classic' ? t.editor.artClassic : t.editor.artPixel}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label class="field">
+          <span class="field-label">{t.editor.appIcons}</span>
+          <select class="text-input" value={draft.ui.app_icons ?? 'app'} disabled={busy} data-testid="app-icons" onChange={(ev) => setUi('app_icons', ev.currentTarget.value as AppIcons)}>
+            {APP_ICON_CHOICES.map((c) => (
+              <option key={c} value={c}>
+                {c === 'bear_den' ? t.editor.appIconsBearDen : t.editor.appIconsApp}
               </option>
             ))}
           </select>

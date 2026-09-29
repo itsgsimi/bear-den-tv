@@ -10,7 +10,7 @@
 // snapshots only: no timer here.
 import type { JSX } from 'preact';
 import type { App } from '../app.ts';
-import type { Application, Install, StateSnapshot } from '../contract.ts';
+import type { AppIcons, Application, Install, StateSnapshot } from '../contract.ts';
 import { t } from '../i18n.ts';
 import { AppArt, artStyleOf } from '../icons.tsx';
 import { type AppState, capabilityFor, isGuest, permissionsOf } from '../state.ts';
@@ -84,12 +84,14 @@ export interface AddAppsSectionProps {
   available: boolean;
   reason: string | null;
   art: 'pixel' | 'classic';
+  /** The TV's app icon choice (appearance.app_icons). */
+  icons?: AppIcons;
   onInstall: (appId: string) => void;
   onCancel: (appId: string) => void;
 }
 
 /** The section itself: nothing when every app is installed. */
-export function AddAppsSection({ entries, available, reason, art, onInstall, onCancel }: AddAppsSectionProps): JSX.Element | null {
+export function AddAppsSection({ entries, available, reason, art, icons, onInstall, onCancel }: AddAppsSectionProps): JSX.Element | null {
   if (entries.length === 0) return null;
   return (
     <div class="group add-apps" aria-labelledby="add-apps-heading" data-testid="add-apps">
@@ -99,7 +101,7 @@ export function AddAppsSection({ entries, available, reason, art, onInstall, onC
         {entries.map((e) => (
           <li key={e.id} class={`install-row is-${e.install.state}`} data-testid={`install-${e.id}`}>
             <span class="app-icon">
-              <AppArt adapter={e.adapter} size={32} art={art} />
+              <AppArt adapter={e.adapter} size={32} art={art} icons={icons} installed={false} />
             </span>
             <span class="install-text">
               <span class="install-label">{e.label}</span>
@@ -136,6 +138,7 @@ export function AddAppsPanel({ app, state }: { app: App; state: AppState }): JSX
       available={cap.available}
       reason={cap.reason ?? null}
       art={artStyleOf(snapshot?.appearance)}
+      icons={snapshot?.appearance?.app_icons}
       onInstall={(id) => void app.tap('app.install', { app_id: id })}
       onCancel={(id) => void app.tap('app.install_cancel', { app_id: id })}
     />

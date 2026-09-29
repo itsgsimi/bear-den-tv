@@ -1,12 +1,13 @@
-// Inline SVG glyphs for controls, Bear Den's own app icons (`AppArt`; never an
-// official logo, docs/THEMES.md → App icons), and the illustrations (`Art`) in both art
+// Inline SVG glyphs for controls, the app tiles' icons (`AppArt`: the app's own
+// icon from the TV when it has one, else Bear Den's own, never a bundled
+// official logo; docs/THEMES.md → App icons), and the illustrations (`Art`) in both art
 // styles (docs/decisions/0006-classic-art-style.md): Pixel draws same-origin
 // PNGs from static/art/pixel at whole-number scales, Classic the smooth SVGs
 // from static/art. Contract: every icon is decorative (`aria-hidden`); the
 // owning button carries the accessible label. Icon paths use `currentColor` so
 // the theme controls their colour.
 import type { JSX } from 'preact';
-import type { Appearance, ArtStyle } from './contract.ts';
+import type { AppIcons, Appearance, ArtStyle } from './contract.ts';
 
 export type IconName =
   | 'up'
@@ -151,18 +152,59 @@ export const APP_ICONS: readonly string[] = ['plex-htpc', 'vacuumtube', 'moonlig
 const APP_ICON_GRID = 32;
 
 /**
- * An app tile's icon: Bear Den's own icon for the adapter, the same art as the
- * TV's tiles. Pixel: `art/pixel/app-<adapter>.png` (32×32 art pixels) at the
+ * Where the TV serves an app's own icon (contracts/http.md#app-icons), for an
+ * adapter the phone knows only. The server ignores the query: it changes
+ * with the TV's choice and when the app is installed, so the image (and the
+ * browser's cache) follow both. Same origin (CSP img-src 'self').
+ * @param adapter The application's adapter.
+ * @param choice `appearance.app_icons` (missing means app).
+ * @param installed The application is installed (applications[].installed).
+ * @returns The path, or null for an unknown adapter.
+ */
+export function appIconUrl(adapter: string, choice: AppIcons | undefined, installed = true): string | null {
+  if (!APP_ICONS.includes(adapter)) return null;
+  return `/api/v1/apps/${encodeURIComponent(adapter)}/icon?icons=${choice === 'bear_den' ? 'bear_den' : 'app'}&installed=${installed ? 1 : 0}`;
+}
+
+/**
+ * An app tile's icon: the app's own icon from the TV (the owner's brand icon,
+ * or with "App's own" the installed Flatpak's; `appIconUrl`) when the TV has
+ * one, otherwise Bear Den's own icon for the adapter, the same art as the TV's
+ * tiles. Pixel: `art/pixel/app-<adapter>.png` (32×32 art pixels) at the
  * largest whole-number scale that fits `size`; Classic: `art/app-<adapter>.svg`
- * at `size`. An adapter without one gets the generic grid glyph.
- * @param props Adapter name, size in CSS px and the art style.
+ * at `size`. An adapter without one gets the generic grid glyph. The TV's
+ * icon loads hidden behind ours and replaces it only once it has loaded (a
+ * 404 leaves ours), through a data attribute on the wrapper, so the view
+ * keeps no state of its own.
+ * @param props Adapter name, size in CSS px, the art style, the TV's icon
+ * choice (`appearance.app_icons`) and whether the app is installed (a new
+ * image once it is); `own: false` skips the TV's icon.
  * @returns A decorative image or glyph.
  */
-export function AppArt({ adapter, size, art = 'pixel' }: { adapter: string; size: number; art?: ArtStyle }): JSX.Element {
+export function AppArt({ adapter, size, art = 'pixel', icons, own = true, installed = true }: { adapter: string; size: number; art?: ArtStyle; icons?: AppIcons; own?: boolean; installed?: boolean }): JSX.Element {
   if (!APP_ICONS.includes(adapter)) return <Icon name="app" size={Math.round(size * 0.7)} />;
-  if (art === 'classic') {
-    return <img class="art art-classic app-art" src={`art/app-${adapter}.svg`} width={size} height={size} alt="" aria-hidden="true" draggable={false} />;
-  }
-  const px = Math.max(1, Math.floor(size / APP_ICON_GRID)) * APP_ICON_GRID;
-  return <img class="art app-art" src={`art/pixel/app-${adapter}.png`} width={px} height={px} alt="" aria-hidden="true" draggable={false} />;
+  const ours =
+    art === 'classic' ? (
+      <img class="art art-classic app-art app-art-ours" src={`art/app-${adapter}.svg`} width={size} height={size} alt="" aria-hidden="true" draggable={false} />
+    ) : (
+      <img class="art app-art app-art-ours" src={`art/pixel/app-${adapter}.png`} width={Math.max(1, Math.floor(size / APP_ICON_GRID)) * APP_ICON_GRID} height={Math.max(1, Math.floor(size / APP_ICON_GRID)) * APP_ICON_GRID} alt="" aria-hidden="true" draggable={false} />
+    );
+  const url = own ? appIconUrl(adapter, icons, installed) : null;
+  if (!url) return ours;
+  return (
+    <span class="app-art-stack" key={url} data-own="pending">
+      {ours}
+      <img
+        class="app-art app-art-own"
+        src={url}
+        width={size}
+        height={size}
+        alt=""
+        aria-hidden="true"
+        draggable={false}
+        onLoad={(ev) => ev.currentTarget.parentElement?.setAttribute('data-own', 'ok')}
+        onError={(ev) => ev.currentTarget.parentElement?.setAttribute('data-own', 'none')}
+      />
+    </span>
+  );
 }

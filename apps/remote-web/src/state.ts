@@ -5,7 +5,9 @@
 // on target, epoch, and capabilities), the connection status, pending action
 // results keyed by request_id, the local hold status, the last failure, and the
 // per-screen editing state. Selectors at the bottom derive view facts from it,
-// including what a guest pass may use (`isGuest`, `mayUse`, `guestEndsAt`).
+// including what a guest pass may use (`isGuest`, `mayUse`, `guestEndsAt`)
+// and what an app tile says (`tileStatus`: Installing 42%, Ready briefly after
+// an install finishes, `installReady`).
 
 import type {
   ActionName,
@@ -121,7 +123,18 @@ export interface AppState {
   pair: PairState;
   editor: EditorState;
   devices: DevicesState;
+  /**
+   * Apps whose install finished while this phone watched (install state went
+   * from preparing, downloading or installing to done), until when (controller
+   * clock) their tile says "Ready". app.ts clears them with `install_ready_expired`.
+   */
+  installReady: Record<string, number>;
 }
+
+/** How long a tile says "Ready" after its install finished. */
+export const INSTALL_READY_MS = 4000;
+
+const INSTALL_RUNNING = new Set(['preparing', 'downloading', 'installing']);
 
 export type Event =
   | { type: 'info_loaded'; info: Info }
@@ -132,6 +145,7 @@ export type Event =
   | { type: 'connection_changed'; connection: Connection }
   | { type: 'state_received'; snapshot: StateSnapshot; at: number }
   | { type: 'visibility_changed'; hidden: boolean }
+  | { type: 'install_ready_expired'; at: number }
   | { type: 'action_sent'; request: ActionRequest; at: number }
   | { type: 'action_result'; result: ActionResult; at: number }
   | { type: 'action_send_failed'; request_id: string; message: string; at: number }
@@ -198,6 +212,7 @@ export function initialState(deviceName = ''): AppState {
     pair: { busy: false, redeeming: false, error: null, notice: null, device_name: deviceName, infoError: null },
     editor: IDLE_EDITOR,
     devices: IDLE_DEVICES,
+    installReady: {},
   };
 }
 
@@ -250,7 +265,13 @@ export function reduce(state: AppState, event: Event): AppState {
         state.editor.status === 'ready' && snapshot.layout_pending !== undefined
           ? { ...state.editor, pending: snapshot.layout_pending, pendingAt: event.at }
           : state.editor;
-      return { ...state, snapshot, snapshotAt: event.at, session, tab, editor };
+      const installReady = readyAfter(state.snapshot, snapshot, state.installReady, event.at);
+      return { ...state, snapshot, snapshotAt: event.at, session, tab, editor, installReady };
+    }
+    case 'install_ready_expired': {
+      const left = Object.entries(state.installReady).filter(([, until]) => until > event.at);
+      if (left.length === Object.keys(state.installReady).length) return state;
+      return { ...state, installReady: Object.fromEntries(left) };
     }
     case 'action_sent':
       return {
@@ -553,4 +574,58 @@ export function latestResultFor(state: AppState, action: ActionName): PendingAct
  */
 export function currentEpoch(state: AppState): number {
   return state.snapshot?.context_epoch ?? 0;
+}
+
+/**
+ * The apps whose install finished between two snapshots join `ready` until
+ * `at + INSTALL_READY_MS`; an app that starts installing again leaves it.
+ * @param prev The previous snapshot.
+ * @param next The new snapshot.
+ * @param ready The current entries.
+ * @param at When `next` arrived (controller clock).
+ * @returns The new entries (the same object when nothing changed).
+ */
+export function readyAfter(prev: StateSnapshot | null, next: StateSnapshot, ready: Record<string, number>, at: number): Record<string, number> {
+  let out = ready;
+  const before = new Map((prev?.applications ?? []).map((a) => [a.id, a.install?.state]));
+  for (const a of next.applications ?? []) {
+    const was = before.get(a.id);
+    if (a.install?.state === 'done' && was !== undefined && INSTALL_RUNNING.has(was)) {
+      out = { ...out, [a.id]: at + INSTALL_READY_MS };
+    } else if (a.install && INSTALL_RUNNING.has(a.install.state) && a.id in out) {
+      const { [a.id]: _gone, ...rest } = out;
+      void _gone;
+      out = rest;
+    }
+  }
+  return out;
+}
+
+/** What an app tile's status line says, if anything. */
+export type TileStatus =
+  | { kind: 'installing'; percent: number }
+  | { kind: 'ready' }
+  | { kind: 'not_installed' }
+  | { kind: 'launching' }
+  | { kind: 'front' }
+  | { kind: 'running' }
+  | null;
+
+/**
+ * The tile's status, most important first: an install running (with its
+ * percent, from the snapshot), Ready just after one finished, not installed,
+ * then launching, in front or running.
+ * @param app The application.
+ * @param ready `AppState.installReady`.
+ * @returns The status, or null for none.
+ */
+export function tileStatus(app: Application, ready: Record<string, number>): TileStatus {
+  const install = app.install;
+  if (install && INSTALL_RUNNING.has(install.state)) return { kind: 'installing', percent: Math.max(0, Math.min(100, Math.round(install.progress))) };
+  if (app.id in ready) return { kind: 'ready' };
+  if (!app.installed) return { kind: 'not_installed' };
+  if (app.launch_state === 'launching') return { kind: 'launching' };
+  if (app.foreground) return { kind: 'front' };
+  if (app.running) return { kind: 'running' };
+  return null;
 }
