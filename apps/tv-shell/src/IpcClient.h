@@ -74,7 +74,8 @@ public:
     /// Shell-originated action; returns the request id.
     QString sendRequest(const QString &action, const QJsonObject &args);
     QString sendSettingsUpdate(int baseRevision, const QJsonObject &layout);
-    QString sendPairIssue();
+    /// pair.issue; a non-empty pass (tonight, 24h, 7d) issues a guest pass.
+    QString sendPairIssue(const QString &pass = QString());
     QString sendPairCancel();
     QString sendDevicesRevoke(const QString &deviceId);
     QString sendDevicesGrant(const QString &deviceId, const QStringList &permissions);

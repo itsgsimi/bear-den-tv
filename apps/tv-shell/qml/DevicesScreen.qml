@@ -1,5 +1,6 @@
 // Paired phones with connection state; OK revokes one (after confirmation),
-// the last row revokes all.
+// the last row revokes all. Guest passes (devices[].guest) carry a Guest
+// badge and the time they end and have left (contracts/http.md#guest-passes).
 
 import QtQuick
 import BearDen
@@ -11,13 +12,30 @@ Item {
     readonly property var devices: Session.devices
     readonly property int rowCount: devices.length + (devices.length > 0 ? 1 : 0)
 
-    function enter() { focusIndex = 0; report() }
+    // Wall-clock now for "time left"; refreshed on entry and every 30 s while
+    // shown (text only, no motion).
+    property double now: Date.now()
+    Timer { interval: 30000; running: root.visible; repeat: true; onTriggered: root.now = Date.now() }
+
+    function enter() { now = Date.now(); focusIndex = 0; report() }
+    function timeLeft(ms) {
+        const min = Math.max(0, Math.round((ms - root.now) / 60000))
+        if (min < 60) return qsTr("%n min left", "", min)
+        const h = Math.round(min / 60)
+        if (h < 48) return qsTr("%n h left", "", h)
+        return qsTr("%n days left", "", Math.round(h / 24))
+    }
+    function endsAt(ms) {
+        const d = new Date(ms)
+        return ms - root.now < 20 * 3600 * 1000 ? Qt.formatTime(d, "HH:mm") : Qt.formatDateTime(d, "ddd HH:mm")
+    }
     function report() {
         const id = focusIndex < devices.length ? devices[focusIndex].id : (devices.length > 0 ? "revoke-all" : "")
         Nav.reportFocus("devices", id, 0)
     }
     function describe(d) {
-        const role = d.permissions.indexOf("owner") >= 0 ? qsTr("Owner") : (d.permissions.indexOf("layout_editor") >= 0 ? qsTr("Can edit layout") : qsTr("Remote control"))
+        const role = d.guest && d.expires_at_ms ? qsTr("Guest pass · ends %1 (%2)").arg(endsAt(d.expires_at_ms)).arg(timeLeft(d.expires_at_ms))
+                   : d.permissions.indexOf("owner") >= 0 ? qsTr("Owner") : (d.permissions.indexOf("layout_editor") >= 0 ? qsTr("Can edit layout") : qsTr("Remote control"))
         return (d.connected ? qsTr("Connected now") : qsTr("Not connected")) + " · " + role
     }
     function navigate(action) {
@@ -57,6 +75,7 @@ Item {
                     width: parent.width
                     label: modelData.name
                     description: root.describe(modelData)
+                    badge: modelData.guest === true ? qsTr("Guest") : ""
                     value: qsTr("Remove")
                     focused: index === root.focusIndex
                 }

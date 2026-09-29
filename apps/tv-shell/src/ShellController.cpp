@@ -250,7 +250,7 @@ void ShellController::onReply(const QString &requestId, const QString &type, con
         emit requestFailed(tr("Request"), error);
 }
 
-void ShellController::issuePairing() { m_ipc->sendPairIssue(); }
+void ShellController::issuePairing(const QString &pass) { m_ipc->sendPairIssue(pass); }
 void ShellController::cancelPairing() { m_ipc->sendPairCancel(); }
 void ShellController::revokeDevice(const QString &deviceId) { m_ipc->sendDevicesRevoke(deviceId); }
 
