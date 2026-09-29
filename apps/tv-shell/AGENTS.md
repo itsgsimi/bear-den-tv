@@ -213,8 +213,7 @@ Chromium's for the streaming sites, the Browser tile may; an app that is
 not installed has no export); Bear Den's own icon
 (`assets/pixel/app-<adapter>.png`, or with `classic`
 `assets/classic/app-<adapter>.svg`); `AppIcon` draws a monogram when there
-is none. The icons cached by `bear-den-tv artwork fetch` are no longer
-used. Results are cached for a minute. Every place an app is shown goes
+is none. Results are cached for a minute. Every place an app is shown goes
 through `AppIcon` (tiles, the featured panel and its room's screen, the
 launch overlay, the install card, Add apps). A new app needs its icon
 in `tools/pixelart/appicons.py` and `tools/classicart/appicons.py`

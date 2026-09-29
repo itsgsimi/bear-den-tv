@@ -7,7 +7,6 @@
 //	bear-den-tv pair [--guest tonight|24h|7d]  show a pairing invitation (code + URL); --guest issues a guest pass
 //	bear-den-tv devices [revoke ID]  list or revoke paired phones
 //	bear-den-tv remote enable|disable --interface IF --accept-lan-exposure
-//	bear-den-tv artwork fetch        cache official app icons from Flathub
 //	bear-den-tv autostart enable|disable|status   start Bear Den at every desktop login
 //	bear-den-tv shortcut enable|disable|status    add Bear Den TV to the desktop and app menu
 //	bear-den-tv apps detect|tune|probe            playback detection per app; best settings
@@ -37,7 +36,6 @@ commands:
   pair      issue a pairing invitation on the running coordinator (--guest tonight|24h|7d: a guest pass)
   devices   list paired phones, or "devices revoke <id|*>"
   remote    "remote enable --interface IF --accept-lan-exposure" or "remote disable"
-  artwork   "artwork fetch": cache the official Flathub icons of the registered apps
   autostart "autostart enable|disable|status": start Bear Den at desktop login
   shortcut  "shortcut enable|disable|status": Bear Den TV icon on the desktop and in the app menu
   apps      "apps detect [--apply] [--json] [--tier T]" (alias "apps tune"): playback detection and best settings;
@@ -74,8 +72,6 @@ func main() {
 		err = cmdDevices(args)
 	case "remote":
 		err = cmdRemote(args)
-	case "artwork":
-		err = cmdArtwork(args)
 	case "autostart":
 		err = cmdAutostart(args)
 	case "shortcut":

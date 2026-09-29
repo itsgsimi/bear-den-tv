@@ -79,7 +79,7 @@ Graphical checks on the target need `DISPLAY=:0 XAUTHORITY=$HOME/.Xauthority DBU
 |---|---|
 | Configuration | `$XDG_CONFIG_HOME/bear-den-tv/config.json` (+ `config.last-known-good.json`, `config.history/`) |
 | State (devices, sessions, focus memory, Den badge counters) | `$XDG_DATA_HOME/bear-den-tv/state.db` |
-| Artwork cache | `$XDG_CACHE_HOME/bear-den-tv/artwork/` (icons), `$XDG_CACHE_HOME/bear-den-tv/plex-artwork/` (Plex posters, deleted on sign-out) |
+| Artwork cache | `$XDG_CACHE_HOME/bear-den-tv/artwork/` (the DEMO pictures of `dev --dev-fixtures`), `$XDG_CACHE_HOME/bear-den-tv/plex-artwork/` (Plex posters, deleted on sign-out) |
 | Plex client id | `$XDG_DATA_HOME/bear-den-tv/plex-client-id` (32 hex characters; not a secret, but Plex ties the sign-in to it) |
 | Web app profiles (Chromium, one per app: cookies, sign-ins, Widevine) | `$XDG_DATA_HOME/bear-den-tv/web/<app-id>/` ([Streaming sites and the Browser](#streaming-sites-and-the-browser)) |
 | IPC socket, instance lock | `$XDG_RUNTIME_DIR/bear-den-tv/` |

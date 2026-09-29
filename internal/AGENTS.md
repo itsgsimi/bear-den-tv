@@ -254,7 +254,6 @@ keep its header comment and `usage()` text in step with it.
 |---|---|
 | `session`, `dev` | `session.go` (wires every package; `dev` uses `fake.Desktop`, loopback, DEMO weather, a pretend web app page; `--dev-fixtures` adds DEMO content; `--dev-browser PATH` runs web apps in a real Chromium binary, `webdev.go`; `--dev-installs` a pretend Flathub, `fake.Installer`) |
 | `doctor [--probe]`, `pair [--guest tonight\|24h\|7d]`, `devices [revoke ID\|*]`, `remote enable --interface IF --accept-lan-exposure\|disable` | `cli.go` |
-| `artwork fetch` | `artwork.go` (caches Flathub icons; neither the shell nor phones show them any more) |
 | `autostart`, `shortcut` `enable\|disable\|status` | `autostart.go`, `shortcut.go` |
 | `apps detect\|tune\|probe` | `apps.go` |
 | `apps install APP-ID [--here]\|install-cancel APP-ID` | `appinstall.go` (IPC `app.install` and following `state`; `--here` runs `internal/applications/install` in-process) |

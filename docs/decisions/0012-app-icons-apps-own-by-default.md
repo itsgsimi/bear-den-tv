@@ -46,9 +46,11 @@ drawings as a choice.
 - An owner who prefers the house style picks Bear Den style once.
 - The featured panel's rooms stay Bear Den's art; only the room's screen
   shows the chosen icon.
-- `bear-den-tv artwork fetch` caches Flathub icons that the shell no longer
+- `bear-den-tv artwork fetch` cached Flathub icons that the shell no longer
   reads: the fetched icons belonged to apps that may not be installed, which
-  this order excludes.
+  this order excludes. **Update 2026-09-29:** the command, its download and
+  its cache folder (`$XDG_CACHE_HOME/bear-den-tv/brand`) were removed; an
+  old cache there is simply never read.
 - An app whose only icon is SVG shows Bear Den's icon on phones and its own
   on the TV.
 - Not yet seen on the TV: which of the installed apps export a PNG at 128 or
