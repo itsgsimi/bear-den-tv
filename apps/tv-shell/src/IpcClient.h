@@ -91,6 +91,12 @@ public:
     /// plex.sign_in | plex.cancel | plex.choose_server | plex.choose_libraries | plex.sign_out
     /// (contracts/ipc.md) with the given extra fields; answered with result.
     QString sendPlex(const QString &type, const QJsonObject &fields = {});
+    /// achievements.configure | achievements.reset (contracts/ipc.md) with
+    /// the given extra fields; answered with result.
+    QString sendAchievements(const QString &type, const QJsonObject &fields = {});
+    // achievements.celebrated / achievements.event: no reply (shell only).
+    void sendAchievementsCelebrated(const QStringList &ids);
+    void sendAchievementsEvent(const QString &event);
     void sendShellExit(const QString &reason);
     // power.activity: a TV key the shell swallowed while the display was off
     // or the sleep warning showed (contracts/ipc.md). No reply.

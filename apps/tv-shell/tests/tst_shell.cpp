@@ -275,7 +275,7 @@ private slots:
         toHeader();
         act(QStringLiteral("nav.right"));
         act(QStringLiteral("select"));
-        for (int i = 0; i < 20; ++i) // Settings remembers its row; walk to the top first
+        for (int i = 0; i < 30; ++i) // Settings remembers its row; walk to the top first
             act(QStringLiteral("nav.up"));
         QCOMPARE(m_nav->itemId(), QStringLiteral("remote"));
         for (int i = 0; i < 17; ++i) // remote, pairing, devices, now playing … theme, style, art style, margin, motion, contrast, hero, clock, weather, playback, advanced playback
@@ -452,6 +452,130 @@ private slots:
         QVERIFY(session->applySnapshot(fixture()));
     }
 
+    // Settings → Badges: the shelf shows every badge in the catalogue order,
+    // focus walks it and the two buttons; Counting sends achievements.configure,
+    // Reset asks first and then sends achievements.reset; Back returns to the
+    // Settings row.
+    void badgesScreenShelfToggleAndReset()
+    {
+        IpcClient *ipc = ShellController::instance()->ipc();
+        auto last = [ipc](const QString &type) {
+            const QList<QJsonObject> sent = ipc->sentMessages();
+            for (auto it = sent.crbegin(); it != sent.crend(); ++it)
+                if (it->value(QStringLiteral("type")).toString() == type)
+                    return *it;
+            return QJsonObject{};
+        };
+        goHome();
+        toHeader();
+        act(QStringLiteral("nav.right"));
+        act(QStringLiteral("select"));
+        QCOMPARE(m_nav->screen(), QStringLiteral("settings"));
+        for (int i = 0; i < 30; ++i)
+            act(QStringLiteral("nav.down"));
+        act(QStringLiteral("nav.up"));
+        act(QStringLiteral("nav.up")); // Exit, Plex, then Badges
+        QCOMPARE(m_nav->itemId(), QStringLiteral("badges"));
+        act(QStringLiteral("select"));
+        QCOMPARE(m_nav->screen(), QStringLiteral("settings")); // the contract's name for it
+        QCOMPARE(m_nav->sectionId(), QStringLiteral("badges"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("first-night-in"));
+        QObject *name = m_window->findChild<QObject *>(QStringLiteral("badgeName"));
+        QVERIFY(name);
+        QCOMPARE(name->property("text").toString(), QStringLiteral("First Night In"));
+        shot(QStringLiteral("badges-shelf"));
+        act(QStringLiteral("nav.right"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("movie-night"));
+        QCOMPARE(name->property("text").toString(), QStringLiteral("Movie Night"));
+        shot(QStringLiteral("badges-locked-focus"));
+        act(QStringLiteral("nav.down"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("style-switcher")); // 8 per row
+        act(QStringLiteral("nav.down"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("counting"));
+
+        ipc->clearSent();
+        act(QStringLiteral("select"));
+        QCOMPARE(last(QStringLiteral("achievements.configure")).value(QStringLiteral("enabled")), QJsonValue(false));
+        act(QStringLiteral("nav.right"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("reset"));
+        act(QStringLiteral("select"));
+        QCOMPARE(m_nav->screen(), QStringLiteral("dialog"));
+        QVERIFY2(last(QStringLiteral("achievements.reset")).isEmpty(), "reset without asking");
+        act(QStringLiteral("nav.left"));
+        act(QStringLiteral("select"));
+        QVERIFY(!last(QStringLiteral("achievements.reset")).isEmpty());
+        act(QStringLiteral("nav.up"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("all-seasons")); // the second row's first badge
+        act(QStringLiteral("back"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("badges"));
+        for (int i = 0; i < 30; ++i) // leave Settings at its first row for the tests after
+            act(QStringLiteral("nav.up"));
+        goHome();
+    }
+
+    // A badge in achievements.celebrate is celebrated on Home, never over an
+    // app or another screen (it waits), and is then acknowledged with IPC
+    // achievements.celebrated so it is not shown twice.
+    void badgeCelebrationWaitsForHome()
+    {
+        SessionModel *session = SessionModel::instance();
+        IpcClient *ipc = ShellController::instance()->ipc();
+        const auto restore = qScopeGuard([&] { QVERIFY(session->applySnapshot(fixture())); goHome(); });
+        QObject *layer = m_window->findChild<QObject *>(QStringLiteral("badgeCelebrationLayer"));
+        QVERIFY(layer);
+        layer->setProperty("seconds", 0.4);
+        auto celebrated = [ipc]() {
+            QStringList ids;
+            for (const QJsonObject &m : ipc->sentMessages())
+                if (m.value(QStringLiteral("type")).toString() == QLatin1String("achievements.celebrated"))
+                    for (const QJsonValue &v : m.value(QStringLiteral("ids")).toArray())
+                        ids << v.toString();
+            return ids;
+        };
+        auto withCelebrate = [&](const QString &targetKind) {
+            QJsonObject snap = fixture();
+            QJsonObject ach = snap.value(QStringLiteral("achievements")).toObject();
+            ach.insert(QStringLiteral("celebrate"), QJsonArray{QStringLiteral("good-host")});
+            snap.insert(QStringLiteral("achievements"), ach);
+            QJsonObject target = snap.value(QStringLiteral("target")).toObject();
+            target.insert(QStringLiteral("kind"), targetKind);
+            target.insert(QStringLiteral("app_id"), targetKind == QLatin1String("app") ? QJsonValue(QStringLiteral("plex-htpc")) : QJsonValue());
+            snap.insert(QStringLiteral("target"), target);
+            QVERIFY2(session->applySnapshot(snap), qPrintable(session->lastError()));
+        };
+        goHome();
+        ipc->clearSent();
+        withCelebrate(QStringLiteral("app")); // earned while Plex is in front
+        QTest::qWait(600);
+        QVERIFY2(!layer->property("visible").toBool(), "celebrated over an app");
+        QVERIFY(celebrated().isEmpty());
+
+        toHeader();
+        act(QStringLiteral("nav.right"));
+        act(QStringLiteral("select")); // Settings
+        withCelebrate(QStringLiteral("shell"));
+        QTest::qWait(600);
+        QVERIFY2(!layer->property("visible").toBool(), "celebrated over Settings");
+
+        Theme::instance()->setForceNoAnimations(false);
+        const auto still = qScopeGuard([] { Theme::instance()->setForceNoAnimations(true); });
+        layer->setProperty("seconds", 2.0);
+        goHome(); // Home appears: now it plays
+        QVERIFY(layer->property("visible").toBool());
+        QObject *nameText = m_window->findChild<QObject *>(QStringLiteral("badgeCelebrationName"));
+        QVERIFY(nameText);
+        QCOMPARE(nameText->property("text").toString(), QStringLiteral("Good Host"));
+        QTest::qWait(350);
+        shot(QStringLiteral("badge-celebration"));
+        QTRY_VERIFY_WITH_TIMEOUT(!layer->property("visible").toBool(), 4000);
+        QCOMPARE(celebrated(), QStringList{QStringLiteral("good-host")});
+        // The same id again (the coordinator's new state has not arrived yet)
+        // is never shown twice.
+        withCelebrate(QStringLiteral("shell"));
+        QTest::qWait(300);
+        QVERIFY(!layer->property("visible").toBool());
+    }
+
     // Guest passes: pairing.guest/pass_expires_at_ms and devices[].guest/
     // expires_at_ms are accepted; guest with another permission is rejected.
     void guestPassFieldsAcceptedAndChecked()
@@ -562,7 +686,7 @@ private slots:
         toHeader();
         act(QStringLiteral("nav.right"));
         act(QStringLiteral("select"));
-        for (int i = 0; i < 20; ++i)
+        for (int i = 0; i < 30; ++i)
             act(QStringLiteral("nav.up"));
         act(QStringLiteral("nav.down"));
         act(QStringLiteral("nav.down"));
@@ -852,7 +976,7 @@ private slots:
         act(QStringLiteral("nav.right"));
         act(QStringLiteral("select"));
         QCOMPARE(m_nav->screen(), QStringLiteral("settings"));
-        for (int i = 0; i < 20; ++i)
+        for (int i = 0; i < 30; ++i)
             act(QStringLiteral("nav.up"));
         for (int i = 0; i < 3; ++i) // remote, pairing, devices
             act(QStringLiteral("nav.down"));
@@ -1037,7 +1161,7 @@ private slots:
         act(QStringLiteral("nav.right"));
         act(QStringLiteral("select"));
         QCOMPARE(m_nav->screen(), QStringLiteral("settings"));
-        for (int i = 0; i < 20; ++i)
+        for (int i = 0; i < 30; ++i)
             act(QStringLiteral("nav.up"));
         for (int i = 0; i < 14; ++i) // remote … now playing, … art style, … hero, clock, weather
             act(QStringLiteral("nav.down"));
@@ -1169,7 +1293,7 @@ private slots:
         act(QStringLiteral("nav.right"));
         act(QStringLiteral("select"));
         QCOMPARE(m_nav->screen(), QStringLiteral("settings"));
-        for (int i = 0; i < 20; ++i)
+        for (int i = 0; i < 30; ++i)
             act(QStringLiteral("nav.up"));
         for (int i = 0; i < 16; ++i) // remote … now playing, … art style, … clock, weather, playback, advanced playback
             act(QStringLiteral("nav.down"));
@@ -1778,8 +1902,15 @@ Item {
         for (const char *a : {"nav.up", "nav.up", "nav.down", "nav.down", "nav.left", "nav.right", "nav.left", "nav.right"})
             act(QString::fromLatin1(a));
         QVERIFY(!visitors->property("busy").toBool());
+        IpcClient *ipc = ShellController::instance()->ipc();
+        ipc->clearSent();
         act(QStringLiteral("select"));
         QVERIFY2(visitors->property("busy").toBool(), "the secret code starts a parade");
+        bool paradeSent = false; // Parade Spotter: achievements.event "parade"
+        for (const QJsonObject &m : ipc->sentMessages())
+            paradeSent = paradeSent || (m.value(QStringLiteral("type")).toString() == QLatin1String("achievements.event")
+                                        && m.value(QStringLiteral("event")).toString() == QLatin1String("parade"));
+        QVERIFY2(paradeSent, "the parade is not reported for the badge");
         QMetaObject::invokeMethod(visitors, "stop");
         goHome();
     }

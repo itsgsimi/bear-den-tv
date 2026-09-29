@@ -88,6 +88,10 @@ Item {
         { id: "screen-off", kind: "link", label: qsTr("Turn the screen off"),
           description: screenOffCap.available ? qsTr("Any key turns it back on") : (screenOffCap.reason || qsTr("Not available here")),
           value: "" },
+        // Settings → Badges (state.achievements); after the rows tests count
+        // down to, before Plex.
+        { id: "badges", kind: "link", label: qsTr("Badges"), description: qsTr("Den badges: playful milestones, counted on this TV only"),
+          value: Session.achievements.enabled === false ? qsTr("Off") : qsTr("%1 of %2").arg((Session.achievements.earned || []).length).arg((Session.achievements.progress || []).length) },
         // Settings → Plex (state.plex); last before Exit so the rows tests walk to keep their places.
         { id: "plex", kind: "link", label: qsTr("Plex"), description: qsTr("Continue Watching and Recently Added on Home"), value: plexValue },
         { id: "exit", kind: "danger", label: qsTr("Exit Bear Den TV"), description: qsTr("For maintenance: returns to the desktop until the next start"), value: "" }
@@ -132,6 +136,7 @@ Item {
         // After a short pause, so the OK key's own release does not wake the display.
         case "screen-off": if (screenOffCap.available) screenOffDelay.restart(); break
         case "plex": openScreen("plex"); break
+        case "badges": openScreen("badges"); break
         case "motion": editUi(u => u.reduced_motion = !u.reduced_motion); break
         case "contrast": editUi(u => u.high_contrast_focus = !u.high_contrast_focus); break
         case "hero": editUi(u => u.hero_enabled = !u.hero_enabled); break

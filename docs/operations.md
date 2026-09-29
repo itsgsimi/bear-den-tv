@@ -442,6 +442,11 @@ like. Everything stays in `state.db` on the TV and only ids, counts and days
 are kept, never titles or times ([`docs/security.md`](security.md#den-badges)).
 Controller phones can look at the shelf; guests cannot.
 
+On the TV: **Settings → Badges** shows the shelf (earned medals with the day,
+the rest as silhouettes with a hint and progress). **Counting** turns counting
+off or on; **Reset badges** asks, then deletes everything. A badge earned
+while an app is in front is celebrated the next time Home appears.
+
 ```sh
 build/bin/bear-den-tv badges status   # counting on/off, earned badges with their day, progress
 build/bin/bear-den-tv badges off      # stop counting at once (earned badges stay)

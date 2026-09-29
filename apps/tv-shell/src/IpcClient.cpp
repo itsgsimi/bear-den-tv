@@ -494,6 +494,26 @@ QString IpcClient::sendPlex(const QString &type, const QJsonObject &fields)
     return track(id, type);
 }
 
+QString IpcClient::sendAchievements(const QString &type, const QJsonObject &fields)
+{
+    const QString id = newRequestId();
+    QJsonObject message = fields;
+    message.insert(QStringLiteral("type"), type);
+    message.insert(QStringLiteral("request_id"), id);
+    send(message);
+    return track(id, type);
+}
+
+void IpcClient::sendAchievementsCelebrated(const QStringList &ids)
+{
+    send(QJsonObject{{QStringLiteral("type"), QStringLiteral("achievements.celebrated")}, {QStringLiteral("ids"), QJsonArray::fromStringList(ids)}});
+}
+
+void IpcClient::sendAchievementsEvent(const QString &event)
+{
+    send(QJsonObject{{QStringLiteral("type"), QStringLiteral("achievements.event")}, {QStringLiteral("event"), event}});
+}
+
 void IpcClient::sendShellExit(const QString &reason)
 {
     send(QJsonObject{{QStringLiteral("type"), QStringLiteral("shell.exit")}, {QStringLiteral("reason"), reason}});

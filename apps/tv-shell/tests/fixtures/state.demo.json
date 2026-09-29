@@ -497,5 +497,6 @@
   "units": "celsius",
   "scene": true,
   "current": {"temperature": 12, "condition": "rain", "intensity": "moderate", "is_day": true, "observed_at": "2026-09-23T14:00:00Z"}
- }
+ },
+ "achievements": {"enabled": true, "earned": [{"id": "first-night-in", "day": "2026-09-02"}, {"id": "couch-explorer", "day": "2026-09-05"}, {"id": "style-switcher", "day": "2026-09-12"}, {"id": "rainy-day", "day": "2026-09-19"}, {"id": "good-host", "day": "2026-09-20"}, {"id": "parade-spotter", "day": "2026-09-27"}], "progress": [{"id": "first-night-in", "count": 1, "goal": 1}, {"id": "movie-night", "count": 4, "goal": 10}, {"id": "couch-explorer", "count": 3, "goal": 3}, {"id": "night-owl", "count": 2, "goal": 5}, {"id": "early-cub", "count": 0, "goal": 5}, {"id": "rainy-day", "count": 3, "goal": 3}, {"id": "snow-day", "count": 0, "goal": 1}, {"id": "thunder-buddy", "count": 0, "goal": 1}, {"id": "all-seasons", "count": 2, "goal": 4}, {"id": "style-switcher", "count": 2, "goal": 2}, {"id": "theme-tourist", "count": 3, "goal": 5}, {"id": "family-den", "count": 1, "goal": 2}, {"id": "good-host", "count": 1, "goal": 1}, {"id": "sleepy-bear", "count": 1, "goal": 5}, {"id": "parade-spotter", "count": 1, "goal": 1}, {"id": "loyal-den", "count": 12, "goal": 30}]}
 }

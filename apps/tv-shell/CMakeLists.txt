@@ -53,6 +53,10 @@ set(BDTV_QML_FILES
   qml/WeatherSky.qml
   qml/WeatherScreen.qml
   qml/PlexScreen.qml
+  qml/BadgesScreen.qml
+  qml/BadgeCelebration.qml
+  qml/BadgeMedal.qml
+  qml/Badges.qml
   qml/DenMascot.qml
   qml/CornerDecor.qml
   qml/FocusDecor.qml
@@ -106,6 +110,7 @@ foreach(f IN LISTS BDTV_QML_FILES)
 endforeach()
 set_source_files_properties(qml/Apps.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
 set_source_files_properties(qml/World.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
+set_source_files_properties(qml/Badges.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
 
 qt_add_library(beardenshell STATIC)
 qt_add_qml_module(beardenshell

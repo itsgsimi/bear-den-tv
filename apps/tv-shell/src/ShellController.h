@@ -139,6 +139,14 @@ public:
     Q_INVOKABLE void plexChooseServer(const QString &serverId);
     Q_INVOKABLE void plexChooseLibraries(const QStringList &libraryIds);
     Q_INVOKABLE void plexSignOut();
+    // Settings → Badges (contracts/ipc.md achievements.*): turn counting on
+    // or off, reset every badge; achievementsCelebrated says Home showed the
+    // celebration for these ids (state.achievements.celebrate);
+    // achievementEvent reports a shell-only event ("parade").
+    Q_INVOKABLE void setAchievements(bool enabled);
+    Q_INVOKABLE void resetAchievements();
+    Q_INVOKABLE void achievementsCelebrated(const QStringList &ids);
+    Q_INVOKABLE void achievementEvent(const QString &event);
     Q_INVOKABLE void answerConfirm(const QString &confirmId, bool accepted);
     Q_INVOKABLE void exitShell();
     // Flatpak id for a registered adapter ("" when unknown); the closed set

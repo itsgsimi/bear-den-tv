@@ -251,6 +251,8 @@ void ShellController::onReply(const QString &requestId, const QString &type, con
         emit requestFailed(tr("Now playing on phones"), error);
     else if (type == QLatin1String("playback.set"))
         emit requestFailed(tr("Advanced playback"), error);
+    else if (type.startsWith(QLatin1String("achievements.")))
+        emit requestFailed(tr("Badges"), error);
     else
         emit requestFailed(tr("Request"), error);
 }
@@ -332,6 +334,18 @@ void ShellController::powerActivity()
 {
     m_ipc->sendPowerActivity();
 }
+
+void ShellController::setAchievements(bool enabled)
+{
+    m_ipc->sendAchievements(QStringLiteral("achievements.configure"), QJsonObject{{QStringLiteral("enabled"), enabled}});
+}
+void ShellController::resetAchievements() { m_ipc->sendAchievements(QStringLiteral("achievements.reset")); }
+void ShellController::achievementsCelebrated(const QStringList &ids)
+{
+    if (!ids.isEmpty())
+        m_ipc->sendAchievementsCelebrated(ids);
+}
+void ShellController::achievementEvent(const QString &event) { m_ipc->sendAchievementsEvent(event); }
 
 void ShellController::plexSignIn() { m_ipc->sendPlex(QStringLiteral("plex.sign_in")); }
 void ShellController::plexCancel() { m_ipc->sendPlex(QStringLiteral("plex.cancel")); }
