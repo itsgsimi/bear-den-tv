@@ -85,6 +85,8 @@ const SCHEMA_FOR: Record<string, string> = {
   'config.now-playing-not-bool.invalid.json': 'config.schema.json',
   'layout.default.valid.json': 'layout.schema.json',
   'layout.art-style-bad.invalid.json': 'layout.schema.json',
+  'layout.app-icons-bear-den.valid.json': 'layout.schema.json',
+  'layout.app-icons-bad.invalid.json': 'layout.schema.json',
   
   'config.weather-no-place.invalid.json': 'config.schema.json',
   'action.request.pointer-move.valid.json': 'action.schema.json#/$defs/request',

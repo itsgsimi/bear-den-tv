@@ -36,6 +36,19 @@
 
 Preview (`POST /api/v1/layout/preview`) sends a draft to the shell over IPC without writing it; the draft ends on `preview_end`, on apply, or after 60 s.
 
+## App icons (optional layout field)
+
+`ui.app_icons` (layout, so the TV's Settings and the phone's Layout editor
+both change it): `app` (the default; a missing value means `app`) shows each
+app's own icon, the one its installed Flatpak exports, when that Flatpak is
+the app itself; `bear_den` shows Bear Den's own drawings. The owner's brand
+folder (`$XDG_DATA_HOME/bear-den-tv/brand/<adapter>/`) wins either way; apps
+that are not installed, and the streaming sites (they run in Chromium and
+never take Chromium's icon), always show Bear Den's. Phones read the choice
+as `state.appearance.app_icons` and fetch the icon from
+[`GET /api/v1/apps/{adapter}/icon`](http.md#app-icons). Resolution order:
+[`docs/THEMES.md` → App icons](../docs/THEMES.md#app-icons).
+
 ## Optional apps (optional field)
 
 - `applications[].hide_when_missing` (boolean, absent = `false`): an optional app. While its Flatpak is not installed (or not yet discovered) the coordinator marks it `hidden` in `state.applications[]` and neither the shell nor phones draw a tile for it; the core apps leave it out and show "Not installed" instead. The built-in defaults ship Spotify, Jellyfin and RetroArch this way, after the three core apps, in the "Your Apps" rail.

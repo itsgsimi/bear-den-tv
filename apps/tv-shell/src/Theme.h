@@ -29,6 +29,9 @@ class Theme : public QObject {
     Q_PROPERTY(QString style READ style NOTIFY tokensChanged)
     // Art style (layout.ui.art_style): "pixel" or "classic" (smooth art).
     Q_PROPERTY(QString artStyle READ artStyle NOTIFY tokensChanged)
+    // App icons (layout.ui.app_icons): "app" (the app's own icon, the
+    // default) or "bear_den" (Bear Den's drawings); Shell.appArt's third input.
+    Q_PROPERTY(QString appIcons READ appIcons NOTIFY tokensChanged)
     Q_PROPERTY(qreal textScale READ textScale NOTIFY tokensChanged)
     Q_PROPERTY(QString tileDensity READ tileDensity NOTIFY tokensChanged)
     Q_PROPERTY(qreal safeMarginPercent READ safeMarginPercent NOTIFY tokensChanged)
@@ -107,6 +110,7 @@ public:
     QString background() const { return m_background; }
     QString style() const { return m_style; }
     QString artStyle() const { return m_artStyle; }
+    QString appIcons() const { return m_appIcons; }
     qreal textScale() const { return m_textScale; }
     QString tileDensity() const { return m_tileDensity; }
     qreal safeMarginPercent() const { return m_safeMarginPercent; }
@@ -196,6 +200,7 @@ private:
     QString m_background{QStringLiteral("den-gradient")};
     QString m_style{QStringLiteral("den-dark")};
     QString m_artStyle{QStringLiteral("pixel")};
+    QString m_appIcons{QStringLiteral("app")};
     qreal m_textScale = 1.0;
     QString m_tileDensity{QStringLiteral("comfortable")};
     qreal m_safeMarginPercent = 3.0;

@@ -78,3 +78,5 @@ Canonical messages consumed by contract tests in Go ([`tests/contract/fixtures_t
 | `config.weather-precise.invalid.json` | rejected semantically: weather coordinates carry more than 2 decimals (privacy, `config.md` rule 10) |
 | `layout.default.valid.json` | `layout.schema.json` (no `art_style`: optional, means pixel) |
 | `layout.art-style-bad.invalid.json` | rejected: `ui.art_style` must be `pixel` or `classic` |
+| `layout.app-icons-bear-den.valid.json` | `layout.schema.json` (`ui.app_icons` `bear_den`: Bear Den's own icons) |
+| `layout.app-icons-bad.invalid.json` | rejected: `ui.app_icons` must be `app` or `bear_den` |

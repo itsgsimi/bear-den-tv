@@ -335,6 +335,8 @@ export interface Appearance {
   pixel?: boolean;
   /** The TV's art style (layout ui.art_style); missing means pixel. */
   art_style?: ArtStyle;
+  /** The TV's app icon choice (layout ui.app_icons); missing means app. */
+  app_icons?: AppIcons;
   palette?: { stem?: string; light?: string; dark?: string; bloom?: string; glow?: string };
   /** The tile decoration: style and a same-origin tip ornament URL. */
   focus?: { style: FocusStyle; tip?: string; tip_upright?: boolean };
@@ -346,6 +348,8 @@ export interface Appearance {
 export type TileDensity = 'comfortable' | 'large';
 /** Pixel art on one grid, or smooth Classic art (layout ui.art_style). */
 export type ArtStyle = 'pixel' | 'classic';
+/** The app's own icon (its Flatpak's), or Bear Den's drawings (layout ui.app_icons). */
+export type AppIcons = 'app' | 'bear_den';
 
 export interface LayoutUi {
   theme: 'den-dark' | 'plain-dark' | 'performance';
@@ -360,6 +364,8 @@ export interface LayoutUi {
   clock_enabled: boolean;
   /** Optional; missing means pixel. */
   art_style?: ArtStyle;
+  /** Optional; missing means app. */
+  app_icons?: AppIcons;
 }
 
 export type SectionKind = 'applications' | 'plex-continue-watching' | 'plex-recently-added' | 'plex-collection';

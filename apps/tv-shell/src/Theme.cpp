@@ -72,6 +72,8 @@ void Theme::applyUi(const QVariantMap &ui)
         m_clockEnabled = ui.value(QStringLiteral("clock_enabled")).toBool();
     // Always a full ui here, so a missing art_style means pixel.
     m_artStyle = ui.value(QStringLiteral("art_style")).toString() == QLatin1String("classic") ? QStringLiteral("classic") : QStringLiteral("pixel");
+    // Missing means app (the app's own icon).
+    m_appIcons = ui.value(QStringLiteral("app_icons")).toString() == QLatin1String("bear_den") ? QStringLiteral("bear_den") : QStringLiteral("app");
     emit tokensChanged();
 }
 

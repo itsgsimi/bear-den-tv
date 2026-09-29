@@ -43,10 +43,38 @@ Trusted-LAN HTTP mode additionally refuses: `PUT /api/v1/layout*` unless `remote
 | `GET /api/v1/devices` | owner | Device list. |
 | `DELETE /api/v1/devices/{id}` | owner + CSRF, or self | Revokes: sessions invalidated, WebSockets closed with 4001 within 1 s. |
 | `GET /api/v1/diagnostics` | owner, HTTPS or loopback | Redacted `doctor` output. |
+| `GET /api/v1/apps/{adapter}/icon` | cookie (guests too) | The app's own icon as PNG, or `404 no_icon` when Bear Den's own drawing applies; see [App icons](#app-icons). |
 
 Error body shape: `{"error":"<code>","message":"<human text>"}`.
 
 There is no HTTP route for playback settings, local weather or Plex sign-in: those are changed on the TV or with the local CLI over IPC ([`ipc.md`](ipc.md) `playback.set`, `weather.search`, `weather.configure`, `plex.*`), and phones never receive `state.weather` or `state.plex` (the Plex link code is shown on the TV only). Phones do receive `state.content`: the Home rows' titles, subtitles and progress, with `artwork` as a path on the TV that phones cannot fetch.
+
+## App icons
+
+`GET /api/v1/apps/{adapter}/icon` serves the icon a phone tile shows when it
+is not Bear Den's own drawing (the phone bundles those). `{adapter}` must be a
+name in the coordinator's adapter table (`plex-htpc`, `vacuumtube`,
+`moonlight`, `spotify`, `jellyfin`, `retroarch`, `netflix`, `disney-plus`,
+`hulu`, `browser`); anything else is `404 unknown_app`. No path, URL or file
+name comes from the phone, and a query string is ignored (phones add
+`?icons=<choice>` only to miss their cache after the setting changes).
+
+- **Who:** every authenticated phone, guest passes included: they see the
+  same tiles. Unauthenticated `401`.
+- **What:** the first of (1) the owner's brand icon
+  (`$XDG_DATA_HOME/bear-den-tv/brand/<adapter>/icon.png|.jpg`), (2) with
+  `layout.ui.app_icons` `app` (or missing), the installed Flatpak's exported
+  PNG (`hicolor/{256x256,128x128,512x512,192x192,96x96,64x64,48x48}/apps/<flatpak-id>.png`
+  under the user's then the system's Flatpak exports), only when the Flatpak
+  is the app itself (never Chromium's icon for the streaming sites; the
+  Browser tile may use it). Otherwise `404 no_icon`, and the phone draws Bear
+  Den's own icon (then a monogram).
+- **Safety:** SVG is never served (the coordinator has no SVG rasteriser, so
+  an SVG-only brand icon or export is skipped); a source file over 1 MiB or
+  over 1024×1024 pixels is skipped; the PNG or JPEG is decoded and re-encoded
+  as PNG (validates it and drops metadata).
+- **Headers:** `Content-Type: image/png`, `X-Content-Type-Options: nosniff`,
+  `Content-Security-Policy: default-src 'none'`, `Cache-Control: private, max-age=300`.
 
 ## Optional apps (`state.applications[].hidden`)
 

@@ -129,7 +129,7 @@ func (c *Coordinator) buildStateFor(view viewKind, v *remote.Viewer) contract.St
 				a := c.opts.Themes.Appearance(ui)
 				st.Appearance = &a
 			} else {
-				st.Appearance = &contract.Appearance{Background: ui.Background, Theme: ui.Theme, Accent: ui.Accent, ArtStyle: contract.ArtPixel}
+				st.Appearance = &contract.Appearance{Background: ui.Background, Theme: ui.Theme, Accent: ui.Accent, ArtStyle: contract.ArtPixel, AppIcons: ui.IconsOf()}
 				if ui.Classic() {
 					st.Appearance.ArtStyle = contract.ArtClassic
 				}

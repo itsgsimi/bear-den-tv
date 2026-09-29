@@ -409,7 +409,7 @@ func (r *Registry) Appearance(ui contract.UI) contract.Appearance {
 	defer r.mu.RUnlock()
 	t := r.themes[r.canonicalLocked(ui.Background)]
 	classic := ui.Classic()
-	a := contract.Appearance{Background: ui.Background, Theme: ui.Theme, Accent: ui.Accent, ArtStyle: contract.ArtPixel, Themes: r.listLocked()}
+	a := contract.Appearance{Background: ui.Background, Theme: ui.Theme, Accent: ui.Accent, ArtStyle: contract.ArtPixel, AppIcons: ui.IconsOf(), Themes: r.listLocked()}
 	if classic {
 		a.ArtStyle = contract.ArtClassic
 	}

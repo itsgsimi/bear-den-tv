@@ -18,7 +18,8 @@
         "high_contrast_focus": {"type": "boolean"},
         "hero_enabled": {"type": "boolean"},
         "clock_enabled": {"type": "boolean"},
-        "art_style": {"enum": ["pixel", "classic"], "description": "Art style: pixel (pixel art on one grid, the default) or classic (smooth vector art and pictures). Independent of theme (Style). Missing means pixel."}
+        "art_style": {"enum": ["pixel", "classic"], "description": "Art style: pixel (pixel art on one grid, the default) or classic (smooth vector art and pictures). Independent of theme (Style). Missing means pixel."},
+        "app_icons": {"enum": ["app", "bear_den"], "description": "App icons: app (the default: the installed Flatpak's own exported icon, where the Flatpak is the app itself) or bear_den (Bear Den's own drawings). The owner's brand folder wins either way. Missing means app."}
       },
       "required": ["theme", "accent", "background", "text_scale", "tile_density", "safe_margin_percent", "reduced_motion", "high_contrast_focus", "hero_enabled", "clock_enabled"],
       "additionalProperties": false

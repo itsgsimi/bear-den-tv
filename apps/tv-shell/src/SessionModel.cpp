@@ -96,6 +96,10 @@ bool SessionModel::validateLayout(const QJsonObject &layout, QString *error)
     if (ui.contains(QStringLiteral("art_style"))
         && !requireEnum(ui, QStringLiteral("art_style"), {QStringLiteral("pixel"), QStringLiteral("classic")}, QStringLiteral("layout.ui"), error))
         return false;
+    // Optional (missing means app: the app's own icon).
+    if (ui.contains(QStringLiteral("app_icons"))
+        && !requireEnum(ui, QStringLiteral("app_icons"), {QStringLiteral("app"), QStringLiteral("bear_den")}, QStringLiteral("layout.ui"), error))
+        return false;
     const double textScale = ui.value(QStringLiteral("text_scale")).toDouble(-1);
     if (textScale < 0.8 || textScale > 2.0) {
         if (error)

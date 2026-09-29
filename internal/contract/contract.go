@@ -264,6 +264,23 @@ type UI struct {
 	HeroEnabled       bool    `json:"hero_enabled"`
 	ClockEnabled      bool    `json:"clock_enabled"`
 	ArtStyle          string  `json:"art_style,omitempty"` // pixel (default when empty) | classic
+	AppIcons          string  `json:"app_icons,omitempty"` // app (default when empty) | bear_den
+}
+
+// App icon choices (UI.AppIcons): the app's own icon (its installed
+// Flatpak's export) or Bear Den's drawings; the owner's brand folder wins
+// either way (docs/THEMES.md → App icons).
+const (
+	AppIconsApp     = "app"
+	AppIconsBearDen = "bear_den"
+)
+
+// IconsOf returns the app icon choice, empty meaning app.
+func (u UI) IconsOf() string {
+	if u.AppIcons == AppIconsBearDen {
+		return AppIconsBearDen
+	}
+	return AppIconsApp
 }
 
 // Art styles (UI.ArtStyle): pixel art on one grid, or smooth classic art.
@@ -515,6 +532,7 @@ type Appearance struct {
 	Name       string            `json:"name,omitempty"`
 	Pixel      bool              `json:"pixel"`               // the backdrop in use is pixel art: draw without smoothing
 	ArtStyle   string            `json:"art_style,omitempty"` // pixel | classic (layout ui.art_style)
+	AppIcons   string            `json:"app_icons,omitempty"` // app | bear_den (layout ui.app_icons)
 	Palette    map[string]string `json:"palette,omitempty"`
 	Focus      *AppearanceFocus  `json:"focus,omitempty"`
 	Phone      *AppearancePhone  `json:"phone,omitempty"`

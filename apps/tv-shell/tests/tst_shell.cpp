@@ -2158,6 +2158,22 @@ private slots:
         QVERIFY(!SessionModel::instance()->applySnapshot(snap));
         QVERIFY(SessionModel::instance()->applySnapshot(fixture())); // no art_style: pixel
         QCOMPARE(Theme::instance()->artStyle(), QStringLiteral("pixel"));
+
+        // App icons (layout.ui.app_icons): missing means app; bear_den is
+        // taken; anything else rejects the snapshot.
+        QCOMPARE(Theme::instance()->appIcons(), QStringLiteral("app"));
+        ui = fixture().value(QStringLiteral("layout")).toObject().value(QStringLiteral("ui")).toObject();
+        ui.insert(QStringLiteral("app_icons"), QStringLiteral("bear_den"));
+        layout.insert(QStringLiteral("ui"), ui);
+        snap.insert(QStringLiteral("layout"), layout);
+        QVERIFY(SessionModel::instance()->applySnapshot(snap));
+        QCOMPARE(Theme::instance()->appIcons(), QStringLiteral("bear_den"));
+        ui.insert(QStringLiteral("app_icons"), QStringLiteral("flathub"));
+        layout.insert(QStringLiteral("ui"), ui);
+        snap.insert(QStringLiteral("layout"), layout);
+        QVERIFY(!SessionModel::instance()->applySnapshot(snap));
+        QVERIFY(SessionModel::instance()->applySnapshot(fixture()));
+        QCOMPARE(Theme::instance()->appIcons(), QStringLiteral("app"));
     }
 
     // Classic art style, the basics: boxes are antialiased rounded

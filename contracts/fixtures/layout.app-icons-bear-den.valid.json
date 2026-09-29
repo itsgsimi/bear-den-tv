@@ -1,0 +1,8 @@
+{
+  "ui": {"theme":"den-dark","accent":"#79A889","background":"den-gradient","text_scale":1.0,"tile_density":"comfortable","safe_margin_percent":3,"reduced_motion":false,"high_contrast_focus":false,"hero_enabled":true,"clock_enabled":true,"app_icons":"bear_den"},
+  "sections": [
+    {"id":"favorites","title":"Your Apps","kind":"applications","enabled":true,"application_ids":["plex-htpc","youtube"],"hide_when_empty":false},
+    {"id":"plex-continue","title":"Continue Watching","kind":"plex-continue-watching","enabled":false,"hide_when_empty":true},
+    {"id":"plex-recent","title":"Recently Added","kind":"plex-recently-added","enabled":false,"hide_when_empty":true}
+  ]
+}

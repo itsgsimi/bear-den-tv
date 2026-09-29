@@ -251,3 +251,15 @@ func TestClassicArtStyleForPhones(t *testing.T) {
 		t.Fatalf("classic art should be served: %v", err)
 	}
 }
+
+// App icons (layout ui.app_icons) reach phones as appearance.app_icons:
+// missing and unknown mean app, bear_den is kept.
+func TestAppIconsForPhones(t *testing.T) {
+	reg, _ := Load(nil, fstest.MapFS{}, fstest.MapFS{})
+	for in, want := range map[string]string{"": "app", "app": "app", "bear_den": "bear_den"} {
+		a := reg.Appearance(contract.UI{Background: "den", Theme: "den-dark", Accent: "#123456", AppIcons: in})
+		if a.AppIcons != want {
+			t.Fatalf("ui.app_icons %q: appearance.app_icons = %q, want %q", in, a.AppIcons, want)
+		}
+	}
+}

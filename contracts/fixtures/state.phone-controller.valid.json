@@ -25,7 +25,7 @@
              "hold": {"active": false, "device_id": null, "action": null},
              "limits": {"repeat_delay_ms": 350, "repeat_hz": 6, "hold_renew_ms": 200, "hold_expiry_ms": 600, "max_message_bytes": 16384}},
   "me": {"device_id": "dev_01", "device_name": "Test phone", "permissions": ["controller"], "transport_secure": false},
-  "appearance": {"background": "forest", "theme": "den-dark", "accent": "#8DBF7F", "pixel": false, "art_style": "classic"},
+  "appearance": {"background": "forest", "theme": "den-dark", "accent": "#8DBF7F", "pixel": false, "art_style": "classic", "app_icons": "bear_den"},
   "notifications": [],
   "achievements": {"enabled": true, "earned": [{"id": "first-night-in", "day": "2026-09-02"}, {"id": "couch-explorer", "day": "2026-09-05"}, {"id": "style-switcher", "day": "2026-09-12"}, {"id": "parade-spotter", "day": "2026-09-27"}], "progress": [{"id": "first-night-in", "count": 1, "goal": 1}, {"id": "movie-night", "count": 4, "goal": 10}, {"id": "couch-explorer", "count": 3, "goal": 3}, {"id": "night-owl", "count": 2, "goal": 5}, {"id": "early-cub", "count": 0, "goal": 5}, {"id": "rainy-day", "count": 1, "goal": 3}, {"id": "snow-day", "count": 0, "goal": 1}, {"id": "thunder-buddy", "count": 0, "goal": 1}, {"id": "all-seasons", "count": 2, "goal": 4}, {"id": "style-switcher", "count": 2, "goal": 2}, {"id": "theme-tourist", "count": 3, "goal": 5}, {"id": "family-den", "count": 1, "goal": 2}, {"id": "good-host", "count": 0, "goal": 1}, {"id": "sleepy-bear", "count": 1, "goal": 5}, {"id": "parade-spotter", "count": 1, "goal": 1}, {"id": "loyal-den", "count": 12, "goal": 30}]}
 }
