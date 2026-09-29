@@ -10,7 +10,7 @@
 # shot options:
 #   --screen NAME   home (default), settings, playback, advanced-playback,
 #                   pairing, devices, diagnostics, remote-setup, weather, plex,
-#                   badges
+#                   badges, streaming, add-apps
 #   --theme ID      any installed theme (themes/, or BDTV_THEMES_DIR), with its
 #                   accent colour, as choosing it in TV Settings does
 #   --no-weather    drop the demo's local weather (its rain replaces the
