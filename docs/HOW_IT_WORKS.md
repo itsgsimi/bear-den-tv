@@ -75,6 +75,18 @@ When you pick a tile (on the TV or the phone):
 6. While an app is in front, the home screen **stops drawing** (no animations,
    no frames), so the app gets the whole machine.
 
+### Web apps
+
+Netflix, Disney+ and Hulu have no Linux apps, so Bear Den opens their websites
+in Chromium from Flathub, full screen, one profile per app, and a Browser tile
+opens ordinary Chromium. The coordinator starts Chromium itself with
+`--remote-debugging-pipe` (two private fds, nothing listening), injects its
+navigation script (`apps/web-nav`) into an isolated world of every page, and
+turns the phone's named actions into the script's moves plus trusted clicks
+and keys from a closed list. The phone's Touchpad reaches what the D-pad
+cannot. Details: [ADR 0010](decisions/0010-web-apps-over-cdp-pipe.md),
+[`contracts/actions.md`](../contracts/actions.md#web-apps).
+
 ## Home, and coming back
 
 - **Home** (phone button or the shell's own key) asks the window manager to

@@ -53,6 +53,7 @@ Graphical checks on the target need `DISPLAY=:0 XAUTHORITY=$HOME/.Xauthority DBU
 | State (devices, sessions, focus memory, Den badge counters) | `$XDG_DATA_HOME/bear-den-tv/state.db` |
 | Artwork cache | `$XDG_CACHE_HOME/bear-den-tv/artwork/` (icons), `$XDG_CACHE_HOME/bear-den-tv/plex-artwork/` (Plex posters, deleted on sign-out) |
 | Plex client id | `$XDG_DATA_HOME/bear-den-tv/plex-client-id` (32 hex characters; not a secret, but Plex ties the sign-in to it) |
+| Web app profiles (Chromium, one per app: cookies, sign-ins, Widevine) | `$XDG_DATA_HOME/bear-den-tv/web/<app-id>/` ([Streaming sites and the Browser](#streaming-sites-and-the-browser)) |
 | IPC socket, instance lock | `$XDG_RUNTIME_DIR/bear-den-tv/` |
 | Connector tokens | Desktop Secret Service (never files) |
 
@@ -515,6 +516,61 @@ build/bin/bear-den-tv badges reset    # delete every counter and earned badge
 Off is stored as `achievements.enabled: false` in `config.json`
 ([`contracts/config.md`](../contracts/config.md)); nothing is counted while it
 is off. Reset cannot be undone.
+
+## Streaming sites and the Browser
+
+Netflix, Disney+ and Hulu have no Linux apps; Bear Den opens their websites
+full screen in Chromium and drives them with the remote. They play at up to
+about 720p in a Linux browser (the services cap it). A Browser tile opens
+ordinary Chromium for keyboard and mouse. Design:
+[ADR 0010](decisions/0010-web-apps-over-cdp-pipe.md); what is and is not
+verified: [`IMPLEMENTATION_STATUS.md`](IMPLEMENTATION_STATUS.md).
+
+1. **Install Chromium from Flathub** (the owner does this; Bear Den never
+   installs anything): `flatpak install --user flathub org.chromium.Chromium`.
+   Until it is installed the four tiles stay hidden. Bear Den uses only this
+   Chromium, never Google Chrome.
+2. **Turn a site on:** TV Settings → Streaming sites, OK on Netflix, Disney+
+   or Hulu (they are off by default; the Browser is on). The tile appears on
+   Home with "Up to 720p" until it is first opened. Turning a site off hides
+   its tile; its profile and sign-in stay.
+3. **Sign in once** inside each site: plug in a USB keyboard, or use the
+   phone: the D-pad moves between fields and buttons, OK focuses a field, the
+   phone's text box types into it (Send presses Enter), and the **Touchpad**
+   (shown on the phone while a web app is in front: drag to move, tap to
+   click, two fingers to scroll) reaches anything the D-pad cannot.
+4. **Widevine:** the services need Chromium's Widevine module. Flathub's
+   Chromium fetches it itself into each profile, if at all (Bear Den never
+   downloads it). To check, open the Browser tile with a keyboard, go to
+   `chrome://components` and look for "Widevine Content Decryption Module"
+   with a version other than 0.0.0.0. The streaming tiles each use their own
+   profile and fetch their own copy. Without it the sites open but refuse to
+   play.
+
+**Where things live:** each app's profile is
+`~/.local/share/bear-den-tv/web/<app-id>/` (`netflix`, `disney-plus`, `hulu`,
+`browser`), mode 0700. Deleting a folder signs that app out and forgets its
+Widevine copy. The page each tile opens is `applications[].web.url` in
+`config.json` (https on the service's own domain; for the Browser any https
+start page, or none for a blank page; [`contracts/config.md`](../contracts/config.md) rule 11).
+An existing `config.json` keeps its own app list: copy the four rows from
+[`contracts/fixtures/config.default.valid.json`](../contracts/fixtures/config.default.valid.json)
+to add them.
+
+**How Bear Den controls Chromium:** it starts
+`flatpak run org.chromium.Chromium --user-data-dir=… --remote-debugging-pipe
+--no-first-run --no-default-browser-check --class=BearDenWeb-<adapter>
+--start-fullscreen --app=<url>` (the Browser: `--start-maximized <url>`) and
+talks to it over that private pipe only; nothing listens on the network.
+Home pauses a playing video with the site's own pause key first. If Bear Den
+was restarted while a web app was open, the phone says it is not connected:
+close the app and open it again.
+
+**Try it without the TV:** `bear-den-tv dev --dev-fixtures` shows the tiles
+with a pretend page (the phone's Touchpad appears when a web app is in
+front); `bear-den-tv dev --dev-browser ~/.cache/ms-playwright/chromium-*/chrome-linux64/chrome`
+runs web apps in a real Chromium binary. `make test-webnav` runs the
+navigation script against local fixture pages.
 
 ## Further reading
 

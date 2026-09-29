@@ -16,13 +16,18 @@ It has three processes that talk through shared contracts:
 | **Coordinator** (Go) | `cmd/`, `internal/` | the session: which app is in front, launching/closing apps, routing input, pairing and permissions, configuration, the LAN service, playback tuning | [`internal/AGENTS.md`](internal/AGENTS.md) |
 | **TV shell** (Qt 6.8 QML/C++) | `apps/tv-shell/` | everything on the TV between apps: focus graph, screens, themes, bears | [`apps/tv-shell/AGENTS.md`](apps/tv-shell/AGENTS.md) |
 | **Phone remote** (TypeScript, Preact) | `apps/remote-web/` | the phone UI, served by (and embedded in) the coordinator | [`apps/remote-web/AGENTS.md`](apps/remote-web/AGENTS.md) |
+| **Web apps' navigation script** (TypeScript) | `apps/web-nav/` | D-pad control of websites (Netflix, Disney+, Hulu, the Browser tile): injected into Chromium pages by the coordinator over the DevTools pipe | [`apps/web-nav/AGENTS.md`](apps/web-nav/AGENTS.md) |
 | **Contracts** | `contracts/` | JSON Schemas + specs + fixtures, validated in all three languages | [`contracts/AGENTS.md`](contracts/AGENTS.md) |
 | **Themes** | `themes/` | theme packages (manifest + art, no code) | [`themes/AGENTS.md`](themes/AGENTS.md) |
 
 Plex HTPC, VacuumTube (YouTube) and Moonlight are independent Flatpak apps,
 and so are the optional Spotify, Jellyfin Desktop and RetroArch (their tiles
 appear only when installed). Bear Den launches them, brings them to the front, tunes their settings and returns
-Home. It never wraps, embeds or patches them.
+Home. It never wraps, embeds or patches them. Netflix, Disney+, Hulu and a
+Browser tile are web apps: Flathub Chromium, one profile each, driven over the
+DevTools pipe with Bear Den's navigation script
+([ADR 0010](docs/decisions/0010-web-apps-over-cdp-pipe.md)); the streaming
+sites are off until the owner turns them on.
 
 ## Read first
 
@@ -155,7 +160,7 @@ These are the habits this codebase was built with. Follow them.
 ```sh
 scripts/bootstrap-toolchain.sh && . scripts/env.sh   # pinned user-space toolchain (Go, Qt 6.8, Node, CMake)
 make help                                            # every target that exists
-make test                                            # Go (race) + web (unit; no browser tests yet) + shell (offscreen)
+make test                                            # Go (race) + phone remote (unit) + web-nav (Playwright, local fixtures) + shell (offscreen)
 make lint                                            # gofmt/vet, eslint/tsc, qmllint
 make dev DEV_ARGS=--dev-fixtures                     # coordinator + shell locally, fake desktop, DEMO rows and weather
 scripts/sandbox.sh shot --screen settings --theme forest   # prototype without the TV: one screenshot

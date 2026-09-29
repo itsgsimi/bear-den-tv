@@ -164,6 +164,16 @@ resolution, bitrate) to suit the box's tier and display.
 `bear-den-tv apps detect`; [`internal/applications/tuning/`](../internal/applications/tuning/tuning.go),
 [`APP_PERFORMANCE.md`](APP_PERFORMANCE.md).
 
+**Touchpad.** The phone's pointer pad for web apps: drag moves a pointer on
+the page, tap clicks, two fingers scroll (`pointer.*` actions). Only while a
+web app is in front, never on a guest pass. [`touchpad.tsx`](../apps/remote-web/src/views/touchpad.tsx),
+[`contracts/actions.md`](../contracts/actions.md#web-apps).
+
+**Web app.** A website Bear Den runs as an app (Netflix, Disney+, Hulu, the
+Browser tile): Flathub Chromium with its own profile, driven over the DevTools
+pipe with the navigation script (`apps/web-nav`). [`internal/applications/web`](../internal/applications/web/web.go),
+[ADR 0010](decisions/0010-web-apps-over-cdp-pipe.md).
+
 **Weather.** Optional local weather from Open-Meteo, off by default: a chip by
 the clock and, if chosen, rain or snow in the Home scene. Phones never see it.
 [`internal/weather/`](../internal/weather/), [`WeatherScreen.qml`](../apps/tv-shell/qml/WeatherScreen.qml).
