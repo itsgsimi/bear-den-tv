@@ -102,6 +102,7 @@ Features outside the matrix:
 5. Install the .deb on the reference box and check it on the real display; publish releases.
 6. Now playing on the TV: with Plex HTPC and VacuumTube playing, record which MPRIS players `bdtv-probe` lists (bus name, `DesktopEntry`) in `tests/compatibility/`, and check the phone's card against what is on screen.
 7. An `uninstall` path.
+8. Sleep timer on the TV: with nothing playing, turn the screen off from the phone and check that the TV's input sleeps, that a key and a phone press wake it, and that `DISPLAY=:0 xset q` shows DPMS disabled with 600 s timeouts again afterwards; check whether the Xfce power manager changes DPMS behind Bear Den's back; then a short timer over Plex HTPC playing (pause observed, Home, display off). Also run `BDTV_DPMS_LIVE_DISPLAY=:0 go test -run DPMSLive ./internal/platform/x11/` there.
 
 ## History
 
