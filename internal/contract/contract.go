@@ -3,6 +3,8 @@
 // place where wire shapes are defined for Go code; every other package imports it.
 package contract
 
+import "log/slog"
+
 // Protocol is the single supported protocol version.
 const Protocol = 1
 
@@ -273,15 +275,19 @@ var DefaultLimits = Limits{RepeatDelayMs: 350, RepeatHz: 6, HoldRenewMs: 200, Ho
 
 // RemoteState is state.schema.json#/properties/remote.
 type RemoteState struct {
-	Enabled           bool      `json:"enabled"`
-	Transport         string    `json:"transport"`
-	Listening         bool      `json:"listening"`
-	Addresses         []string  `json:"addresses"`
-	HTTPS             bool      `json:"https"`
-	HTTPLayoutEditing bool      `json:"http_layout_editing"`
-	PairedDeviceCount int       `json:"paired_device_count"`
-	Hold              HoldState `json:"hold"`
-	Limits            Limits    `json:"limits"`
+	Enabled           bool     `json:"enabled"`
+	Transport         string   `json:"transport"`
+	Listening         bool     `json:"listening"`
+	Addresses         []string `json:"addresses"`
+	HTTPS             bool     `json:"https"`
+	HTTPLayoutEditing bool     `json:"http_layout_editing"`
+	PairedDeviceCount int      `json:"paired_device_count"`
+	// NowPlaying mirrors config remote.now_playing (default true): whether
+	// phones may see state.now_playing. The coordinator always sets it (nil
+	// only in documents from older producers); not sensitive.
+	NowPlaying *bool     `json:"now_playing,omitempty"`
+	Hold       HoldState `json:"hold"`
+	Limits     Limits    `json:"limits"`
 }
 
 // Me is the viewing phone's own session.
@@ -467,6 +473,44 @@ type State struct {
 	Content        *Content              `json:"content,omitempty"`
 	Playback       *Playback             `json:"playback,omitempty"`
 	Weather        *Weather              `json:"weather,omitempty"`
+	NowPlaying     *NowPlaying           `json:"now_playing,omitempty"`
+}
+
+// Now-playing statuses (state.schema.json#/properties/now_playing/status).
+const (
+	NowPlayingPlaying = "playing"
+	NowPlayingPaused  = "paused"
+	NowPlayingStopped = "stopped"
+)
+
+// NowPlayingTextMax is the longest title or subtitle sent, in characters.
+const NowPlayingTextMax = 200
+
+// NowPlaying is state.schema.json#/properties/now_playing: what the
+// foreground app's own MPRIS player reports, for phones with the controller
+// permission only. Title and Subtitle are private media names: they go to
+// those phones and nowhere else, so LogValue and String redact them
+// (docs/security.md).
+type NowPlaying struct {
+	AppID      string  `json:"app_id"`
+	Title      string  `json:"title"`
+	Subtitle   string  `json:"subtitle,omitempty"`
+	Status     string  `json:"status"` // playing | paused | stopped
+	LengthMs   *int64  `json:"length_ms,omitempty"`
+	PositionMs *int64  `json:"position_ms,omitempty"`
+	PositionAt int64   `json:"position_at"` // coordinator monotonic ms, the clock of generated_at_ms
+	Rate       float64 `json:"rate"`
+}
+
+// String describes n without its title or subtitle, so formatting it into a
+// log line or error never leaks what is playing.
+func (n NowPlaying) String() string {
+	return "now_playing{app_id=" + n.AppID + " status=" + n.Status + " title=[title]}"
+}
+
+// LogValue implements slog.LogValuer with the titles redacted.
+func (n NowPlaying) LogValue() slog.Value {
+	return slog.GroupValue(slog.String("app_id", n.AppID), slog.String("status", n.Status), slog.String("title", "[title]"))
 }
 
 // Weather is state.schema.json#/properties/weather (shell view only): the

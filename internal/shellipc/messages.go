@@ -44,6 +44,7 @@ const (
 	TypeDevicesRevoke    = "devices.revoke"
 	TypeDevicesGrant     = "devices.grant"
 	TypeRemoteConfigure  = "remote.configure"
+	TypeRemoteNowPlaying = "remote.now_playing"
 	TypeInstallRequest   = "applications.install_request"
 	TypePlaybackSet      = "playback.set"
 	TypeWeatherSearch    = "weather.search"
@@ -331,6 +332,18 @@ type RemoteConfigure struct {
 // Kind implements Message.
 func (RemoteConfigure) Kind() string { return TypeRemoteConfigure }
 
+// RemoteNowPlaying turns phones' Now playing card on or off (TV Settings →
+// Now playing on phones); stored as config remote.now_playing. Answered with
+// Result.
+type RemoteNowPlaying struct {
+	Type      string `json:"type"`
+	RequestID string `json:"request_id"`
+	Enabled   bool   `json:"enabled"`
+}
+
+// Kind implements Message.
+func (RemoteNowPlaying) Kind() string { return TypeRemoteNowPlaying }
+
 // InstallRequest asks for a guided Flatpak install.
 type InstallRequest struct {
 	Type      string `json:"type"`
@@ -403,8 +416,8 @@ type ShellExit struct {
 func (ShellExit) Kind() string { return TypeShellExit }
 
 // Result is the generic terminal reply to request_id-bearing administrative
-// messages (pair.*, devices.*, remote.configure, applications.install_request,
-// playback.set, weather.configure).
+// messages (pair.*, devices.*, remote.configure, remote.now_playing,
+// applications.install_request, playback.set, weather.configure).
 // Data carries an operation-specific payload, for example the issued
 // invitation for pair.issue. contracts/ipc.md does not list this message yet.
 type Result struct {
@@ -482,6 +495,8 @@ func Decode(frame []byte) (Message, error) {
 		m = &DevicesGrant{}
 	case TypeRemoteConfigure:
 		m = &RemoteConfigure{}
+	case TypeRemoteNowPlaying:
+		m = &RemoteNowPlaying{}
 	case TypeInstallRequest:
 		m = &InstallRequest{}
 	case TypePlaybackSet:
@@ -568,6 +583,8 @@ func deref(m Message) Message {
 	case *WeatherPlaces:
 		return *t
 	case *WeatherConfigure:
+		return *t
+	case *RemoteNowPlaying:
 		return *t
 	case *ShellExit:
 		return *t

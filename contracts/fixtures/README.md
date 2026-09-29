@@ -16,7 +16,11 @@ Canonical messages consumed by contract tests in Go ([`tests/contract/fixtures_t
 | `action.result.failed-stale.valid.json` | `action.schema.json#/$defs/result` |
 | `state.shell-home.valid.json` | `state.schema.json` (shell view, pairing shown) |
 | `state.phone-controller.valid.json` | `state.schema.json` (phone view, redacted) |
+| `state.phone-now-playing.valid.json` | `state.schema.json` (phone view with DEMO `now_playing` and `remote.now_playing`) |
+| `state.now-playing-bad-status.invalid.json` | rejected: `now_playing.status` must be `playing`, `paused` or `stopped` |
+| `state.now-playing-no-title.invalid.json` | rejected: `now_playing.title` must not be empty (no title means no `now_playing`) |
 | `config.default.valid.json` | `config.schema.json` (built-in defaults) |
+| `config.now-playing-not-bool.invalid.json` | rejected structurally: `remote.now_playing` must be a boolean |
 | `config.dangling-ref.invalid.json` | rejected semantically: section references unknown app |
 | `config.token-leak.invalid.json` | rejected semantically: contains a `token` key |
 | `config.weather-no-place.invalid.json` | rejected structurally: `weather.enabled` is true while `weather.place` is null |

@@ -79,6 +79,7 @@ Features outside the matrix:
 | Theme packages and pixel art (ADR 0005) | Yes. `themes/`, `ThemeRegistry`, `internal/themes`, `tools/pixelart` | `internal/themes/themes_test.go`; shell `themeWallpaperSprites`, `pixelArtBuildingBlocks`, `heroPanelLife`; Vitest `vines.spec.ts` | Not yet seen on the TV |
 | Autostart and desktop shortcut | Yes. `bear-den-tv autostart`, `bear-den-tv shortcut` | `cmd/bear-den-tv/autostart_test.go`, `shortcut_test.go` | Autostart and watchdog seen on the TV. The shortcut was installed but not yet double-clicked |
 | Close an app from the phone | Yes | `TestCloseAppFromPhone`; e2e close step | Close seen in the e2e run (2026-09-22) |
+| Now playing on phones | Contract only: `state.now_playing`, `state.remote.now_playing`, config `remote.now_playing` and IPC `remote.now_playing` ([`http.md`](../contracts/http.md#now-playing-statenow_playing)). Nothing produces or shows it yet | `tests/contract/fixtures_test.go` and Vitest `contract.spec.ts` (fixtures `state.phone-now-playing.valid.json`, `state.now-playing-*.invalid.json`, `config.now-playing-not-bool.invalid.json`); `TestNowPlayingMarshalsToSchema`, `TestNowPlayingNeverPrintsTitles` (contract); `TestRemoteNowPlaying` (config); shell `nowPlayingAcceptedAndChecked` | Not yet seen on the TV |
 
 ## Blockers and permissions
 

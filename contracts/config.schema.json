@@ -67,6 +67,7 @@
         "allowed_hosts": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true, "description": "Extra Host header values accepted besides the bound literal addresses (e.g. a .local name or a certificate hostname)."},
         "mdns": {"type": "boolean"},
         "http_layout_editing": {"type": "boolean"},
+        "now_playing": {"type": "boolean", "description": "Optional, default true. Paired phones with the controller permission see what the app in front reports it is playing (state.now_playing); false hides it (contracts/config.md)."},
         "pairing_expiry_seconds": {"type": "integer", "minimum": 30, "maximum": 300},
         "pairing_max_attempts": {"type": "integer", "minimum": 1, "maximum": 10},
         "https": {

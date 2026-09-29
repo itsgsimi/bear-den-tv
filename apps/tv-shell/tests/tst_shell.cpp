@@ -303,6 +303,37 @@ private slots:
         QVERIFY(session->applySnapshot(fixture()));
     }
 
+    // state.now_playing is phone-only, but a snapshot that carries it must
+    // still be accepted (and a malformed one rejected, keeping the old state).
+    void nowPlayingAcceptedAndChecked()
+    {
+        SessionModel *session = SessionModel::instance();
+        const int epoch = session->contextEpoch();
+        QJsonObject snap = fixture();
+        snap.insert(QStringLiteral("context_epoch"), epoch + 200);
+        QJsonObject np{{QStringLiteral("app_id"), QStringLiteral("plex-htpc")}, {QStringLiteral("title"), QStringLiteral("DEMO Episode")},
+                       {QStringLiteral("subtitle"), QStringLiteral("DEMO Show")}, {QStringLiteral("status"), QStringLiteral("playing")},
+                       {QStringLiteral("length_ms"), 2640000}, {QStringLiteral("position_ms"), 754000},
+                       {QStringLiteral("position_at"), 203500}, {QStringLiteral("rate"), 1}};
+        snap.insert(QStringLiteral("now_playing"), np);
+        QVERIFY2(session->applySnapshot(snap), qPrintable(session->lastError()));
+        QCOMPARE(session->contextEpoch(), epoch + 200);
+        snap.insert(QStringLiteral("now_playing"), QJsonValue::Null);
+        QVERIFY2(session->applySnapshot(snap), qPrintable(session->lastError()));
+
+        snap.insert(QStringLiteral("context_epoch"), epoch + 300);
+        np.insert(QStringLiteral("status"), QStringLiteral("buffering"));
+        snap.insert(QStringLiteral("now_playing"), np);
+        QVERIFY(!session->applySnapshot(snap));
+        QVERIFY2(session->lastError().contains(QStringLiteral("state.now_playing")), qPrintable(session->lastError()));
+        np.insert(QStringLiteral("status"), QStringLiteral("paused"));
+        np.remove(QStringLiteral("position_at"));
+        snap.insert(QStringLiteral("now_playing"), np);
+        QVERIFY(!session->applySnapshot(snap));
+        QCOMPARE(session->contextEpoch(), epoch + 200); // the previous state stays
+        QVERIFY(session->applySnapshot(fixture()));
+    }
+
     void weatherScreenSearchesAndConfigures()
     {
         goHome();
