@@ -212,6 +212,49 @@
       "required": ["status", "message", "place", "units", "scene", "current"],
       "additionalProperties": false
     },
+    "plex": {
+      "type": "object",
+      "description": "Shell view only, omitted while locked; never sent to phones. The Plex sign-in flow for TV Settings → Plex (contracts/ipc.md plex.*). Absent when the session has no Plex connector. The link code is shown on the TV only; the account token never appears here.",
+      "properties": {
+        "status": {"enum": ["signed_out", "linking", "choose_server", "choose_libraries", "connected", "error"]},
+        "message": {"type": "string", "description": "User-facing text; empty when nothing needs saying."},
+        "code": {"type": ["string", "null"], "pattern": "^[A-Za-z0-9]{4,8}$", "description": "The link code to type at link_url while status is linking; otherwise null."},
+        "link_url": {"type": ["string", "null"], "description": "Where to type the code (https://plex.tv/link) while status is linking; otherwise null. Shown and drawn as a QR code by the shell; the coordinator never fetches it."},
+        "server": {"type": ["string", "null"], "description": "The chosen server's name, when known."},
+        "servers": {
+          "type": "array",
+          "description": "The account's servers while status is choose_server; otherwise empty.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {"type": "string", "minLength": 1, "description": "The server's machine identifier."},
+              "name": {"type": "string"},
+              "owned": {"type": "boolean"},
+              "local": {"type": "boolean", "description": "Plex offers a connection on the home network."}
+            },
+            "required": ["id", "name", "owned", "local"],
+            "additionalProperties": false
+          }
+        },
+        "libraries": {
+          "type": "array",
+          "description": "The chosen server's libraries while status is choose_libraries (selected: the proposed choice) or connected (selected: what rows use); otherwise empty.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {"type": "string", "minLength": 1},
+              "title": {"type": "string"},
+              "kind": {"enum": ["movie", "show", "artist", "photo", "other"]},
+              "selected": {"type": "boolean"}
+            },
+            "required": ["id", "title", "kind", "selected"],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": ["status", "message", "code", "link_url", "server", "servers", "libraries"],
+      "additionalProperties": false
+    },
     "now_playing": {
       "type": ["object", "null"],
       "description": "Phones with the controller permission only: what the foreground app's own MPRIS player reports. Omitted for the shell, anonymous viewers and phones without controller, while the session is locked, when config remote.now_playing is false, and when nothing is known; null means the same as absent. Never logged, persisted or included in diagnostics (docs/security.md).",

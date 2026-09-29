@@ -414,6 +414,40 @@ private slots:
         QVERIFY(session->power().isEmpty());
     }
 
+    // state.plex (shell only): a well-formed sign-in state is accepted and
+    // exposed as Session.plex; a bad status or library kind is rejected and
+    // the previous state stays.
+    void plexStateAcceptedAndChecked()
+    {
+        SessionModel *session = SessionModel::instance();
+        const int epoch = session->contextEpoch();
+        QJsonObject snap = fixture();
+        snap.insert(QStringLiteral("context_epoch"), epoch + 210);
+        QJsonObject lib{{QStringLiteral("id"), QStringLiteral("1")}, {QStringLiteral("title"), QStringLiteral("DEMO Movies")},
+                        {QStringLiteral("kind"), QStringLiteral("movie")}, {QStringLiteral("selected"), true}};
+        QJsonObject plex{{QStringLiteral("status"), QStringLiteral("linking")}, {QStringLiteral("message"), QString()},
+                         {QStringLiteral("code"), QStringLiteral("D4K9")}, {QStringLiteral("link_url"), QStringLiteral("https://plex.tv/link")},
+                         {QStringLiteral("server"), QJsonValue::Null}, {QStringLiteral("servers"), QJsonArray{}},
+                         {QStringLiteral("libraries"), QJsonArray{lib}}};
+        snap.insert(QStringLiteral("plex"), plex);
+        QVERIFY2(session->applySnapshot(snap), qPrintable(session->lastError()));
+        QCOMPARE(session->plex().value(QStringLiteral("code")).toString(), QStringLiteral("D4K9"));
+
+        snap.insert(QStringLiteral("context_epoch"), epoch + 310);
+        plex.insert(QStringLiteral("status"), QStringLiteral("linked"));
+        snap.insert(QStringLiteral("plex"), plex);
+        QVERIFY(!session->applySnapshot(snap));
+        QVERIFY2(session->lastError().contains(QStringLiteral("state.plex")), qPrintable(session->lastError()));
+        plex.insert(QStringLiteral("status"), QStringLiteral("choose_libraries"));
+        lib.insert(QStringLiteral("kind"), QStringLiteral("podcast"));
+        plex.insert(QStringLiteral("libraries"), QJsonArray{lib});
+        snap.insert(QStringLiteral("plex"), plex);
+        QVERIFY(!session->applySnapshot(snap));
+        QCOMPARE(session->contextEpoch(), epoch + 210); // the previous state stays
+        QVERIFY(session->applySnapshot(fixture()));
+        QVERIFY(session->plex().isEmpty());
+    }
+
     // Settings → Now playing on phones: a toggle showing state.remote.now_playing
     // (missing means on), OK sends remote.now_playing with the opposite value.
     void nowPlayingRowTogglesTheSetting()

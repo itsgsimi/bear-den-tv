@@ -487,6 +487,7 @@ type State struct {
 	Weather        *Weather              `json:"weather,omitempty"`
 	NowPlaying     *NowPlaying           `json:"now_playing,omitempty"`
 	Power          *Power                `json:"power,omitempty"`
+	Plex           *Plex                 `json:"plex,omitempty"`
 }
 
 // Display power states (state.schema.json#/properties/power/display).

@@ -325,6 +325,31 @@ bool SessionModel::validateSnapshot(const QJsonObject &snapshot, QString *error)
             return false;
         }
     }
+    if (snapshot.contains(QStringLiteral("plex"))) {
+        // state.plex (optional, shell view only): the Plex sign-in flow.
+        const QString where = QStringLiteral("state.plex");
+        if (!requireType(snapshot, QStringLiteral("plex"), QJsonValue::Object, QStringLiteral("state"), error))
+            return false;
+        const QJsonObject plex = snapshot.value(QStringLiteral("plex")).toObject();
+        if (!requireKeys(plex, {QStringLiteral("status"), QStringLiteral("message"), QStringLiteral("code"), QStringLiteral("link_url"), QStringLiteral("server"), QStringLiteral("servers"), QStringLiteral("libraries")}, where, error)
+            || !requireEnum(plex, QStringLiteral("status"),
+                            {QStringLiteral("signed_out"), QStringLiteral("linking"), QStringLiteral("choose_server"), QStringLiteral("choose_libraries"), QStringLiteral("connected"), QStringLiteral("error")},
+                            where, error)
+            || !requireType(plex, QStringLiteral("servers"), QJsonValue::Array, where, error)
+            || !requireType(plex, QStringLiteral("libraries"), QJsonValue::Array, where, error))
+            return false;
+        for (const QJsonValue &sv : plex.value(QStringLiteral("servers")).toArray()) {
+            if (!requireKeys(sv.toObject(), {QStringLiteral("id"), QStringLiteral("name"), QStringLiteral("owned"), QStringLiteral("local")}, QStringLiteral("state.plex.servers[]"), error))
+                return false;
+        }
+        for (const QJsonValue &lv : plex.value(QStringLiteral("libraries")).toArray()) {
+            const QJsonObject lib = lv.toObject();
+            if (!requireKeys(lib, {QStringLiteral("id"), QStringLiteral("title"), QStringLiteral("kind"), QStringLiteral("selected")}, QStringLiteral("state.plex.libraries[]"), error)
+                || !requireEnum(lib, QStringLiteral("kind"), {QStringLiteral("movie"), QStringLiteral("show"), QStringLiteral("artist"), QStringLiteral("photo"), QStringLiteral("other")},
+                                QStringLiteral("state.plex.libraries[]"), error))
+                return false;
+        }
+    }
     return true;
 }
 

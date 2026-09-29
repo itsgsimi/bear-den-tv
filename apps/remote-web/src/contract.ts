@@ -325,6 +325,8 @@ export interface StateSnapshot {
   now_playing?: NowPlaying | null;
   /** The sleep timer and the display; absent for anonymous viewers and from older coordinators. */
   power?: Power;
+  /** Shell view only: phones never receive it (the TV's Plex sign-in flow). */
+  plex?: PlexSignIn;
 }
 
 /**
@@ -337,6 +339,33 @@ export interface Power {
   warning: boolean;
   display: 'on' | 'off';
   suspend?: { available: boolean; reason?: string };
+}
+
+/** state.plex: the TV's Plex sign-in flow (shell only; mirrored for completeness). */
+export type PlexStatus = 'signed_out' | 'linking' | 'choose_server' | 'choose_libraries' | 'connected' | 'error';
+
+export interface PlexServer {
+  id: string;
+  name: string;
+  owned: boolean;
+  local: boolean;
+}
+
+export interface PlexLibrary {
+  id: string;
+  title: string;
+  kind: 'movie' | 'show' | 'artist' | 'photo' | 'other';
+  selected: boolean;
+}
+
+export interface PlexSignIn {
+  status: PlexStatus;
+  message: string;
+  code: string | null;
+  link_url: string | null;
+  server: string | null;
+  servers: PlexServer[];
+  libraries: PlexLibrary[];
 }
 
 export type NowPlayingStatus = 'playing' | 'paused' | 'stopped';

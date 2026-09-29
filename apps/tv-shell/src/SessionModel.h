@@ -54,6 +54,8 @@ class SessionModel : public QObject {
     Q_PROPERTY(QVariantMap weather READ weather NOTIFY snapshotChanged)
     /// Sleep timer and display (state.power; empty when absent: an older coordinator).
     Q_PROPERTY(QVariantMap power READ power NOTIFY snapshotChanged)
+    /// The Plex sign-in flow (state.plex; empty when absent: no connector, locked or an older coordinator).
+    Q_PROPERTY(QVariantMap plex READ plex NOTIFY snapshotChanged)
     Q_PROPERTY(SectionsModel *sections READ sections CONSTANT)
     Q_PROPERTY(QString lastError READ lastError NOTIFY snapshotRejected)
 
@@ -106,6 +108,7 @@ public:
     QVariantMap playback() const { return m_snapshot.value(QStringLiteral("playback")).toObject().toVariantMap(); }
     QVariantMap weather() const { return m_snapshot.value(QStringLiteral("weather")).toObject().toVariantMap(); }
     QVariantMap power() const { return m_snapshot.value(QStringLiteral("power")).toObject().toVariantMap(); }
+    QVariantMap plex() const { return m_snapshot.value(QStringLiteral("plex")).toObject().toVariantMap(); }
     SectionsModel *sections() const { return m_sections; }
     QString lastError() const { return m_lastError; }
 

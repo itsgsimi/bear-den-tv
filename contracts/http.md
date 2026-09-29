@@ -28,7 +28,7 @@ Trusted-LAN HTTP mode additionally refuses: `PUT /api/v1/layout*` unless `remote
 | `POST /api/v1/pair/claim` | none, rate limited | Body `{invitation:"<fragment-token>"|null, code:"123456"|null, device_name:"Alice's phone"}`. Redeems a TV-issued invitation. Success `200 {device_id, device_name, permissions, csrf_token}` and sets the cookie. Failure `401 invalid_invitation`, `410 invitation_expired`, `429 too_many_attempts`. |
 | `GET /api/v1/session` | cookie | `{device_id, device_name, permissions, csrf_token, transport_secure}`. `401` when unauthenticated or revoked. |
 | `POST /api/v1/logout` | cookie + CSRF | Ends this session (device record stays until revoked). |
-| `GET /api/v1/state` | cookie | `state.schema.json` snapshot redacted for the caller's permission: `devices` owner-only, `layout` for `layout_editor` and up, `now_playing` for `controller` and up (see [Now playing](#now-playing-statenow_playing)), `power` for every authenticated phone (see [Sleep timer](#sleep-timer-and-screen-off-statepower)), `pairing`, `playback` and `weather` never (shell only). |
+| `GET /api/v1/state` | cookie | `state.schema.json` snapshot redacted for the caller's permission: `devices` owner-only, `layout` for `layout_editor` and up, `now_playing` for `controller` and up (see [Now playing](#now-playing-statenow_playing)), `power` for every authenticated phone (see [Sleep timer](#sleep-timer-and-screen-off-statepower)), `pairing`, `playback`, `weather` and `plex` never (shell only). |
 | `GET /api/v1/capabilities` | cookie | `{context_epoch, target, capabilities}` for the current target. |
 | `POST /api/v1/actions` | cookie + CSRF | Body: action request. Returns the action result (`200` for any outcome including `failed`; HTTP errors only for transport/auth problems). |
 | `GET /api/v1/events` | cookie, Origin | WebSocket. Server → client: `{"type":"state", state}`, `{"type":"action_result", result}`, `{"type":"hold", …}`, `{"type":"revoked"}` then close 4001, `{"type":"pong"}`. Client → server: `{"type":"action", request}`, hold messages, `{"type":"visibility","hidden":true|false}`, `{"type":"ping"}`. |
@@ -46,7 +46,7 @@ Trusted-LAN HTTP mode additionally refuses: `PUT /api/v1/layout*` unless `remote
 
 Error body shape: `{"error":"<code>","message":"<human text>"}`.
 
-There is no HTTP route for playback settings or local weather: those are changed on the TV or with the local CLI over IPC ([`ipc.md`](ipc.md) `playback.set`, `weather.search`, `weather.configure`), and phones never receive `state.weather`.
+There is no HTTP route for playback settings, local weather or Plex sign-in: those are changed on the TV or with the local CLI over IPC ([`ipc.md`](ipc.md) `playback.set`, `weather.search`, `weather.configure`, `plex.*`), and phones never receive `state.weather` or `state.plex` (the Plex link code is shown on the TV only). Phones do receive `state.content`: the Home rows' titles, subtitles and progress, with `artwork` as a path on the TV that phones cannot fetch.
 
 ## Now playing (`state.now_playing`)
 

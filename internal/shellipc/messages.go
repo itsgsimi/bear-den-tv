@@ -526,6 +526,9 @@ func Decode(frame []byte) (Message, error) {
 	case TypeResult:
 		m = &Result{}
 	default:
+		if m = decodePlex(head.Type); m != nil {
+			break
+		}
 		return nil, fmt.Errorf("%w: %q", ErrUnknownType, head.Type)
 	}
 	if err := json.Unmarshal(frame, m); err != nil {
@@ -606,6 +609,9 @@ func deref(m Message) Message {
 		return *t
 	case *Result:
 		return *t
+	}
+	if v := derefPlex(m); v != nil {
+		return v
 	}
 	return m
 }
