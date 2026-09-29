@@ -68,7 +68,9 @@ When you pick a tile (on the TV or the phone):
    waits (up to 30 s) until the app's window is **actually in front**. Windows
    are recognised by their X11 `WM_CLASS`: a lower-case substring match on
    `plex`, `vacuumtube` or `moonlight`
-   ([`adapters.go`](../internal/applications/adapters/adapters.go)).
+   ([`adapters.go`](../internal/applications/adapters/adapters.go)). On
+   Wayland the window's `app_id` plays that part (the Flatpak id, or the same
+   substrings); see [Wayland](#wayland) below.
 5. The window is switched to **fullscreen** (EWMH `_NET_WM_STATE_FULLSCREEN`).
 6. While an app is in front, the home screen **stops drawing** (no animations,
    no frames), so the app gets the whole machine.
@@ -96,7 +98,7 @@ The phone never sends key codes, shell commands, paths or URLs. It sends
 | What is in front | What an action does |
 |---|---|
 | the home screen | forwarded to the shell over the socket; the shell moves focus and reports what it did (**observed**) |
-| a known app | turned into a key press for that app's window (X11 XTEST), **only** after verifying that window is really focused (**delivered**; the app does not confirm) |
+| a known app | turned into a key press for that app's window (X11 XTEST), **only** after verifying that window is really focused (**delivered**; the app does not confirm). Never on Wayland: refused with the reason |
 | a window Bear Den does not recognise, a locked session | **refused**, with a reason; Home still works |
 
 Other rules that keep it predictable:
@@ -116,6 +118,24 @@ Other rules that keep it predictable:
 - **Outcomes are honest:** `accepted` (queued), `delivered` (sent), `observed`
   (confirmed by what's on screen), `failed` (with a reason). `delivered` is
   never shown as `observed`.
+
+## Wayland
+
+The reference TV runs X11; everything above is what it does there. On a
+Wayland desktop an ordinary program cannot see or move other programs'
+windows unless the compositor offers a protocol for it, so what works depends
+on the desktop ([ADR 0007](decisions/0007-wayland-profile.md)):
+
+| Desktop | Sees what's in front, brings a window forward (Home works) | Remote keys into apps | Launch, media (MPRIS), PC volume, lock |
+|---|---|---|---|
+| sway, labwc, Hyprland and other wlroots compositors | yes (`wlr-foreign-toplevel`; adapter `wayland-wlr`) | no | yes, but a lock is seen only if the locker tells logind ([operations → Wayland](operations.md#wayland)) |
+| GNOME, KDE Plasma, others | no; once an app is in front the target is unknown | no | yes; a launch is reported **delivered**, never observed |
+
+The home screen itself runs through XWayland (the bundled Qt has no Wayland
+plugin) and the phone drives it over the socket as usual. `bear-den-tv doctor
+--probe` shows the compositor family and the reason for every missing
+capability. Only a headless sway in a container has been tested
+([`scripts/wayland-container-test.sh`](../scripts/wayland-container-test.sh)).
 
 ## Pairing and safety
 

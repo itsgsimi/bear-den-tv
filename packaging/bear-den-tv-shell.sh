@@ -22,6 +22,8 @@ export LD_LIBRARY_PATH="$libs${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 export QT_PLUGIN_PATH="$BUNDLE/plugins"
 export QML_IMPORT_PATH="$BUNDLE/qml"
 export QML2_IMPORT_PATH="$BUNDLE/qml"
+# xcb on every session: on Wayland the shell runs through XWayland (the
+# bundled Qt has no wayland plugin; docs/decisions/0007-wayland-profile.md).
 export QT_QPA_PLATFORM="${QT_QPA_PLATFORM:-xcb}"
 export QT_XCB_GL_INTEGRATION="${QT_XCB_GL_INTEGRATION:-xcb_egl}"
 export FONTCONFIG_FILE="${FONTCONFIG_FILE:-/etc/fonts/fonts.conf}"

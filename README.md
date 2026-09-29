@@ -47,7 +47,7 @@ the TV yet), and browser (Playwright) tests for the phone remote.
 
 | | |
 |---|---|
-| **TV box** | Linux with an **X11** desktop session (the reference box runs Linux Mint 21.3 Xfce). Wayland is not supported. |
+| **TV box** | Linux with an **X11** desktop session (the reference box runs Linux Mint 21.3 Xfce). Wayland works in part: on sway and other wlroots compositors apps launch and Home works but remote keys do not reach apps; on GNOME and KDE the phone drives the home screen only ([ADR 0007](docs/decisions/0007-wayland-profile.md)). Wayland has been tested in a container, never on a real TV. |
 | **Hardware floor** | A Celeron 2955U: 2 cores at 1.4 GHz, Haswell GT1 graphics, 7.6 GiB RAM, driving 1080p at 120 Hz. Faster boxes get more, from measured capability ([`docs/APP_PERFORMANCE.md`](docs/APP_PERFORMANCE.md)). |
 | **Apps** | Flatpak, plus any of Plex HTPC, VacuumTube and Moonlight. Missing apps show as "Not installed". |
 | **Phone** | Any modern phone browser on the same network. No app to install. |

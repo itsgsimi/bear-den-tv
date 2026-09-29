@@ -47,7 +47,10 @@ Environment variables:
 | `BDTV_MONTH` | pretend it is month 1–12 (featured-panel seasons) |
 | `BDTV_SHELL_SOCKET` | the coordinator socket (with `--dev`) |
 The WM_CLASS comes from the application name `bear-den-tv-shell`, which the
-coordinator matches (`ShellClassFragments` in `internal/session`).
+coordinator matches (`ShellClassFragments` in `internal/session`). On Wayland
+the shell runs through XWayland (the toolchain's Qt has no wayland platform
+plugin), and a wlroots compositor reports that class as its app_id
+([ADR 0007](../../docs/decisions/0007-wayland-profile.md)).
 
 ## QML files
 

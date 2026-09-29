@@ -16,7 +16,7 @@ Wire shapes come from [`contracts/`](../contracts/AGENTS.md) and nowhere else.
 | [`contract`](contract/contract.go) | Go types for protocol 1 and JSON Schema validation of the embedded `contracts/*.json` | `contract.go`, `validate.go` |
 | [`actions`](actions/dedup.go) | request de-duplication and server-side hold leases, on an injected clock | `dedup.go`, `holds.go` |
 | [`applications`](applications/applications.go) | `Adapter` and `Launcher` interfaces | `applications.go` |
-| [`applications/adapters`](applications/adapters/adapters.go) | per-app knowledge: Flatpak id, approved args, WM_CLASS match, action → key | `adapters.go` |
+| [`applications/adapters`](applications/adapters/adapters.go) | per-app knowledge: Flatpak id, approved args, WM_CLASS or Wayland app_id match, action → key | `adapters.go` |
 | [`applications/flatpak`](applications/flatpak/flatpak.go) | the Flatpak launcher (fixed argv `flatpak info\|run\|ps\|kill`) | `flatpak.go`, `runner.go` |
 | [`applications/tuning`](applications/tuning/tuning.go) | playback detection and per-app settings ([`docs/APP_PERFORMANCE.md`](../docs/APP_PERFORMANCE.md)) | `detect.go` (`Apps` table), `plans.go` (`Plan<App>`) |
 | [`config`](config/config.go) | `config.json`: defaults, validation, atomic writes, last-known-good, layout workflow | `config.go`, `validate.go`, `store.go`, `layout.go` |
@@ -25,7 +25,7 @@ Wire shapes come from [`contracts/`](../contracts/AGENTS.md) and nowhere else.
 | [`remote/mdns`](remote/mdns/mdns.go) | Avahi advertisement, best effort; not wired into `session` yet | `mdns.go` |
 | [`shellipc`](shellipc/server.go) | [`contracts/ipc.md`](../contracts/ipc.md): Unix socket to the shell and CLI; shell supervisor | `messages.go`, `server.go`, `dial.go`, `supervisor.go` |
 | [`platform`](platform/platform.go) | the desktop seam (`DesktopAdapter`, lock, media, audio) | `platform.go` |
-| `platform/{x11,wayland,detect,lock,mpris,audio,dbusx,probe,fake}` | X11 EWMH+XTEST adapter; honest no-op Wayland; session detection; lock observation; MPRIS; `pactl`; narrow D-Bus; probe report; in-memory desktop | one file each (x11: `adapter.go`, `keys.go`, `props.go`) |
+| `platform/{x11,wayland,detect,lock,mpris,audio,dbusx,probe,fake}` | X11 EWMH+XTEST adapter; Wayland (wlr-foreign-toplevel on wlroots, honest reasons elsewhere; ADR 0007); session detection; lock observation; MPRIS; `pactl`; narrow D-Bus; probe report; in-memory desktop | one file each (x11: `adapter.go`, `keys.go`, `props.go`; wayland: `wayland.go`, `client.go`, `wire.go`) |
 | [`providers`](providers/providers.go) | optional home content (`ContentProvider`, `Feed`); `plex/` connector (not wired into `session` yet), `fixtures/` DEMO items | `feed.go`, `plex/provider.go`, `fixtures/fixtures.go` |
 | [`secrets`](secrets/secrets.go) | connector tokens outside `config.json` (Secret Service, or memory) | `secrets.go`, `dbus.go`, `memory.go` |
 | [`storage`](storage/storage.go) | SQLite: devices, session hashes, invitations, focus memory, launch state | `storage.go`, `secrets.go` |
@@ -50,6 +50,7 @@ Embeds live in the repository root [`embed.go`](../embed.go): `contracts/`,
 | `fake.Desktop`, `fake.Launcher` | [`platform/fake`](platform/fake/fake.go) | in-memory windows (`AddWindow`, `SetActive`, `RemoveWindow`), delivered keys (`Keys()`); also backs `bear-den-tv dev` |
 | `fake.Media`, `fake.Player` | [`platform/fake/media.go`](platform/fake/media.go) | an MPRIS-style locator and player on an injected clock (position advances while playing; `Set`, `Signal`, `Fail`, `Reads()`, `Calls()`); `DemoMedia` backs `dev --dev-fixtures` with DEMO titles |
 | `dbusx.Fake` | [`platform/dbusx/fake.go`](platform/dbusx/fake.go) | scripted `Call`/`Property`/`Names`, `Emit` signals; used by the lock and mpris tests |
+| `fakeCompositor` | [`platform/wayland/wayland_test.go`](platform/wayland/wayland_test.go) | the server side of `wl_registry`/`wl_callback`/wlr foreign-toplevel over `net.Pipe`: announce globals and toplevels (`add`), send events or one flush (`w.sendBatch`), `waitRequest` for what the adapter sent. Live twin: `scripts/wayland-container-test.sh` (headless sway in Docker) |
 | private D-Bus | [`platform/mpris/bus_test.go`](platform/mpris/bus_test.go) | starts a `dbus-daemon` for one test, exports a fake MPRIS player with godbus and reads it through the real `dbusx`/`mpris` code; skips with the reason when `dbus-daemon` is missing |
 | `fakeRunner`, `fakeProc` | [`applications/flatpak/flatpak_test.go`](applications/flatpak/flatpak_test.go) | records every `flatpak` argv (`argvs()`), scripted output and processes |
 | `testutil` | [`remote/testutil`](remote/testutil/backend.go) | `FakeBackend`, in-memory `Devices`, `FakeClock` for server tests |
@@ -84,8 +85,8 @@ different body is `duplicate_mismatch`), then `route()`, which checks in order:
 
 The target comes from `retargetLocked()` in
 [`coordinator.go`](session/coordinator.go): locked, else unknown foreground,
-else the shell window (by pid or WM_CLASS), else a configured app whose adapter
-matches WM_CLASS, else `unknown` ("Another window"). A change of target kind/app
+else the shell window (by pid, WM_CLASS or app_id), else a configured app whose adapter
+matches WM_CLASS or app_id, else `unknown` ("Another window"). A change of target kind/app
 or of lock state bumps the epoch and cancels every hold.
 
 **Revocation:** `pairing.Service.Revoke` marks the device revoked in storage
@@ -252,3 +253,5 @@ go test ./tests/contract ./tests/docs
 
 `tests/e2e` needs `-tags e2e` and a live TV session
 ([`docs/operations.md`](../docs/operations.md#working-against-the-tv-machine)).
+`tests/wayland` needs `-tags wayland_live` and runs inside the container of
+`scripts/wayland-container-test.sh` ([`docs/operations.md`](../docs/operations.md#wayland)).
