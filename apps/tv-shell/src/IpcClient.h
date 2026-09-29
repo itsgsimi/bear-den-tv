@@ -7,8 +7,8 @@
 // automatic reconnection with 0.5 s → 5 s backoff. Every coordinator→shell message type is
 // surfaced as a typed signal and every shell→coordinator message has a typed sender.
 // Shell-originated requests are correlated by request_id and time out after
-// `requestTimeoutMs`. In offline mode (fixtures, tests) nothing touches a socket and every
-// outgoing message is recorded in `sentMessages()`.
+// `requestTimeoutMs`. In offline mode (fixtures, tests) nothing touches a socket, every
+// outgoing message is recorded in `sentMessages()`, and requests never time out.
 #include <QJsonObject>
 #include <QList>
 #include <QObject>

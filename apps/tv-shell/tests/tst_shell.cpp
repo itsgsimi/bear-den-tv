@@ -254,6 +254,27 @@ private slots:
         QTRY_COMPARE(m_nav->sectionId(), QStringLiteral("favorites"));
     }
 
+    // Offline (fixtures, these tests) nothing answers, so requests never time
+    // out: an unanswered request used to open "Bear Den did not answer in
+    // time" 10 s later, over whichever test was running by then. Connected,
+    // a request still times out.
+    void offlineRequestsNeverTimeOut()
+    {
+        IpcClient offline;
+        offline.setOffline(true);
+        offline.setTimings(IpcClient::kPingIntervalMs, IpcClient::kSilenceTimeoutMs, 500, 5000, 1);
+        QSignalSpy offlineTimeouts(&offline, &IpcClient::requestTimedOut);
+        offline.sendRequest(QStringLiteral("display.off"), QJsonObject{});
+        IpcClient online;
+        online.setTimings(IpcClient::kPingIntervalMs, IpcClient::kSilenceTimeoutMs, 500, 5000, 1);
+        QSignalSpy onlineTimeouts(&online, &IpcClient::requestTimedOut);
+        online.sendRequest(QStringLiteral("display.off"), QJsonObject{});
+        // The online timeout firing proves the offline one had its chance.
+        QTRY_COMPARE(onlineTimeouts.count(), 1);
+        QCoreApplication::processEvents();
+        QCOMPARE(offlineTimeouts.count(), 0);
+    }
+
     void homeStartsOnFirstApp()
     {
         goHome(); // first visit: no focus memory yet

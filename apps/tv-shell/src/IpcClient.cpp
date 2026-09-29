@@ -316,6 +316,11 @@ QString IpcClient::newRequestId()
 QString IpcClient::track(const QString &requestId, const QString &type, const QString &action)
 {
     m_pending.insert(requestId, Pending{type, action});
+    // Offline (fixtures, tests) no coordinator will ever answer: a timeout
+    // would only open "did not answer in time" over whatever is on screen
+    // seconds later.
+    if (m_offline)
+        return requestId;
     QTimer::singleShot(m_requestTimeoutMs, this, [this, requestId, type] {
         if (m_pending.remove(requestId) > 0)
             emit requestTimedOut(requestId, type);
