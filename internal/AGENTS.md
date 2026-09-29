@@ -114,7 +114,10 @@ An app is data in a few closed tables; no engine code branches on it.
 
 1. [`applications/adapters/adapters.go`](applications/adapters/adapters.go):
    add the name and Flatpak id constants, the WM_CLASS fragments, a
-   constructor and an entry in `NewRegistry`. Mark the WM_CLASS UNVERIFIED
+   constructor and an entry in `NewRegistry`. In the constructor: the key
+   map from the app's documented keyboard controls (a new logical key goes in
+   `platform.Key` and the X11 keysym table), `media` when its MPRIS name is
+   not the Flatpak id, and `home` (`HomePause`: none, mpris or a pause key). Mark the WM_CLASS UNVERIFIED
    until a live probe records it in [`tests/compatibility/`](../tests/compatibility/).
    Map only keys you can justify; `media.*` stays unmapped until verified.
 2. [`applications/adapters/adapters_test.go`](applications/adapters/adapters_test.go):
@@ -129,7 +132,9 @@ An app is data in a few closed tables; no engine code branches on it.
      That fixture *is* `config.Defaults()`; `TestDefaultsMatchFixture` in
      [`config/config_test.go`](config/config_test.go) checks the app count.
      Defaults only seed a fresh install: an existing `config.json` keeps its
-     own `applications` list.
+     own `applications` list. An optional app (tile only when installed)
+     sets `"hide_when_missing": true` in its row; the coordinator then marks
+     it `hidden` in the state while it is missing (`appStatesLocked`).
 5. Playback settings: [`docs/APP_PERFORMANCE.md` → Adding an app](../docs/APP_PERFORMANCE.md#adding-an-app).
 6. The shell: [`apps/tv-shell/AGENTS.md` → App tiles and branding](../apps/tv-shell/AGENTS.md#app-tiles-and-branding).
 7. Run the tests:

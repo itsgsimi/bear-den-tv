@@ -192,6 +192,12 @@ bool SessionModel::validateSnapshot(const QJsonObject &snapshot, QString *error)
         if (!requireEnum(app, QStringLiteral("launch_state"), {QStringLiteral("idle"), QStringLiteral("launching"), QStringLiteral("running"), QStringLiteral("failed"), QStringLiteral("exited"), QStringLiteral("crashed")},
                          QStringLiteral("state.applications[]"), error))
             return false;
+        // Optional: an optional app that is not installed (no tile).
+        if (app.contains(QStringLiteral("hidden")) && !app.value(QStringLiteral("hidden")).isBool()) {
+            if (error)
+                *error = QStringLiteral("state.applications[].hidden must be a boolean");
+            return false;
+        }
     }
     const QJsonObject remote = snapshot.value(QStringLiteral("remote")).toObject();
     if (!requireKeys(remote, {QStringLiteral("enabled"), QStringLiteral("transport"), QStringLiteral("listening"), QStringLiteral("addresses"), QStringLiteral("https"),
@@ -526,6 +532,8 @@ void SessionModel::rebuildSections()
                 if (!apps.contains(appId))
                     continue; // dangling reference: the coordinator's config layer rejects these; never fabricate a tile
                 const QJsonObject app = apps.value(appId);
+                if (app.value(QStringLiteral("hidden")).toBool())
+                    continue; // an optional app that is not installed: no tile (contracts/state.schema.json)
                 ItemsModel::Item item;
                 item.id = appId;
                 item.appId = appId;

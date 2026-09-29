@@ -6,10 +6,13 @@
   "applications": [
     {"id":"plex-htpc","label":"Plex","adapter":"plex-htpc","launch":{"kind":"flatpak","app_id":"tv.plex.PlexHTPC","args":[]},"home_policy":"pause-if-supported","remote_enabled":true},
     {"id":"youtube","label":"YouTube","adapter":"vacuumtube","launch":{"kind":"flatpak","app_id":"rocks.shy.VacuumTube","args":["--fullscreen","--no-window-decorations"]},"home_policy":"pause-if-supported","remote_enabled":true},
-    {"id":"moonlight","label":"Moonlight","adapter":"moonlight","launch":{"kind":"flatpak","app_id":"com.moonlight_stream.Moonlight","args":[]},"home_policy":"leave-running","remote_enabled":true}
+    {"id":"moonlight","label":"Moonlight","adapter":"moonlight","launch":{"kind":"flatpak","app_id":"com.moonlight_stream.Moonlight","args":[]},"home_policy":"leave-running","remote_enabled":true},
+    {"id":"spotify","label":"Spotify","adapter":"spotify","launch":{"kind":"flatpak","app_id":"com.spotify.Client","args":[]},"home_policy":"leave-running","remote_enabled":true,"hide_when_missing":true},
+    {"id":"jellyfin","label":"Jellyfin","adapter":"jellyfin","launch":{"kind":"flatpak","app_id":"org.jellyfin.JellyfinDesktop","args":["--fullscreen","--tv"]},"home_policy":"pause-if-supported","remote_enabled":true,"hide_when_missing":true},
+    {"id":"retroarch","label":"RetroArch","adapter":"retroarch","launch":{"kind":"flatpak","app_id":"org.libretro.RetroArch","args":["--fullscreen"]},"home_policy":"pause-if-supported","remote_enabled":true,"hide_when_missing":true}
   ],
   "sections": [
-    {"id":"favorites","title":"Your Apps","kind":"applications","enabled":true,"application_ids":["plex-htpc","youtube","moonlight"],"hide_when_empty":false},
+    {"id":"favorites","title":"Your Apps","kind":"applications","enabled":true,"application_ids":["plex-htpc","youtube","moonlight","spotify","jellyfin","retroarch"],"hide_when_empty":false},
     {"id":"plex-continue","title":"Continue Watching","kind":"plex-continue-watching","enabled":false,"hide_when_empty":true},
     {"id":"plex-recent","title":"Recently Added","kind":"plex-recently-added","enabled":false,"hide_when_empty":true}
   ],

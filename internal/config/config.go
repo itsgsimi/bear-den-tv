@@ -152,6 +152,10 @@ type Application struct {
 	Launch        Launch `json:"launch"`
 	HomePolicy    string `json:"home_policy"`
 	RemoteEnabled bool   `json:"remote_enabled"`
+	// HideWhenMissing marks an optional app (Spotify, Jellyfin, RetroArch by
+	// default): no tile while its Flatpak is not installed
+	// (state.applications[].hidden) instead of "Not installed".
+	HideWhenMissing bool `json:"hide_when_missing,omitempty"`
 }
 
 // PlexContent is config.plex_content; the token lives in the secret store.

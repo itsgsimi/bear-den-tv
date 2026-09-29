@@ -206,6 +206,8 @@ func (c *Coordinator) appStatesLocked(apps []configApp) []contract.AppState {
 			st.Version = &v
 		}
 		st.Running = st.Foreground || rt.launchState == "running" || rt.instance != nil
+		// An optional app has no tile until discovery has seen it installed.
+		st.Hidden = a.HideWhenMissing && !st.Installed
 		out = append(out, st)
 	}
 	return out

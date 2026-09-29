@@ -58,5 +58,53 @@ var scenes = {
   ],
   "times": [],
   "intro": false
+ },
+ "nook": {
+  "size": [
+   176,
+   92
+  ],
+  "frames": 4,
+  "fps": 4,
+  "screen": [
+   74,
+   12,
+   40,
+   30
+  ],
+  "times": [],
+  "intro": false
+ },
+ "theatre": {
+  "size": [
+   176,
+   92
+  ],
+  "frames": 4,
+  "fps": 3,
+  "screen": [
+   56,
+   10,
+   64,
+   36
+  ],
+  "times": [],
+  "intro": false
+ },
+ "retro": {
+  "size": [
+   176,
+   92
+  ],
+  "frames": 4,
+  "fps": 3,
+  "screen": [
+   68,
+   22,
+   40,
+   30
+  ],
+  "times": [],
+  "intro": false
  }
 };

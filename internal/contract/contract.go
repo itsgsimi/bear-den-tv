@@ -299,6 +299,9 @@ type AppState struct {
 	Foreground   bool    `json:"foreground"`
 	LaunchState  string  `json:"launch_state"`
 	LastError    *string `json:"last_error"`
+	// Hidden: an optional app (config hide_when_missing) that is not
+	// installed; the shell and phones draw no tile for it.
+	Hidden bool `json:"hidden,omitempty"`
 }
 
 // HoldState is state.schema.json#/properties/remote/properties/hold.

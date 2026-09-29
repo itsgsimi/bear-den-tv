@@ -60,7 +60,7 @@ func TestDecodeWMClassAndStrings(t *testing.T) {
 }
 
 func TestKeysymTableIsClosed(t *testing.T) {
-	for _, k := range []platform.Key{platform.KeyUp, platform.KeyDown, platform.KeyLeft, platform.KeyRight, platform.KeySelect, platform.KeyBack, platform.KeyPlayPause, platform.KeyPlay, platform.KeyPause, platform.KeyRewind, platform.KeyForward} {
+	for _, k := range []platform.Key{platform.KeyUp, platform.KeyDown, platform.KeyLeft, platform.KeyRight, platform.KeySelect, platform.KeyBack, platform.KeyPlayPause, platform.KeyPlay, platform.KeyPause, platform.KeyRewind, platform.KeyForward, platform.KeyLetterX, platform.KeyLetterZ, platform.KeyLetterP} {
 		if _, ok := KeysymFor(k); !ok {
 			t.Errorf("%s has no keysym", k)
 		}

@@ -1,4 +1,5 @@
-// Inline SVG glyphs for controls, and the illustrations (`Art`) in both art
+// Inline SVG glyphs for controls, Bear Den's own app icons (`AppArt`; never an
+// official logo, docs/THEMES.md → App icons), and the illustrations (`Art`) in both art
 // styles (docs/decisions/0006-classic-art-style.md): Pixel draws same-origin
 // PNGs from static/art/pixel at whole-number scales, Classic the smooth SVGs
 // from static/art. Contract: every icon is decorative (`aria-hidden`); the
@@ -139,4 +140,25 @@ export function Art({
   const px = ART[name];
   const n = Math.max(1, Math.round(scale));
   return <img class={`art ${cls ?? ''}`} src={`art/pixel/${px.file}.png`} width={px.w * n} height={px.h * n} alt="" aria-hidden="true" draggable={false} />;
+}
+
+/** Adapters with Bear Den's own icon (tools/pixelart and tools/classicart appicons.py). */
+export const APP_ICONS: readonly string[] = ['plex-htpc', 'vacuumtube', 'moonlight', 'spotify', 'jellyfin', 'retroarch'];
+const APP_ICON_GRID = 32;
+
+/**
+ * An app tile's icon: Bear Den's own icon for the adapter, the same art as the
+ * TV's tiles. Pixel: `art/pixel/app-<adapter>.png` (32×32 art pixels) at the
+ * largest whole-number scale that fits `size`; Classic: `art/app-<adapter>.svg`
+ * at `size`. An adapter without one gets the generic grid glyph.
+ * @param props Adapter name, size in CSS px and the art style.
+ * @returns A decorative image or glyph.
+ */
+export function AppArt({ adapter, size, art = 'pixel' }: { adapter: string; size: number; art?: ArtStyle }): JSX.Element {
+  if (!APP_ICONS.includes(adapter)) return <Icon name="app" size={Math.round(size * 0.7)} />;
+  if (art === 'classic') {
+    return <img class="art art-classic app-art" src={`art/app-${adapter}.svg`} width={size} height={size} alt="" aria-hidden="true" draggable={false} />;
+  }
+  const px = Math.max(1, Math.floor(size / APP_ICON_GRID)) * APP_ICON_GRID;
+  return <img class="art app-art" src={`art/pixel/app-${adapter}.png`} width={px} height={px} alt="" aria-hidden="true" draggable={false} />;
 }
