@@ -145,9 +145,9 @@ without the field.
 
 | Suite | Where | Runs |
 |---|---|---|
-| Unit | [`tests/unit/`](tests/unit/state.spec.ts) (`state.spec.ts`, `hold.spec.ts`, `vines.spec.ts`, `nowplaying.spec.ts`, `sleep.spec.ts`, `guest.spec.ts`, `invitation.spec.ts`, `badges.spec.ts`, `touchpad.spec.ts`, `tv.spec.ts`, `install.spec.ts`) | vitest under Node, fake timers, injected fakes |
+| Unit | [`tests/unit/`](tests/unit/state.spec.ts) (`state.spec.ts`, `hold.spec.ts`, `vines.spec.ts`, `art-style.spec.ts`, `nowplaying.spec.ts`, `sleep.spec.ts`, `guest.spec.ts`, `invitation.spec.ts`, `badges.spec.ts`, `touchpad.spec.ts`, `tv.spec.ts`, `install.spec.ts`) | vitest under Node, fake timers, injected fakes |
 | Contract | [`tests/contract.spec.ts`](tests/contract.spec.ts) | Ajv 2020 loads the layout, action, state and config schemas; every `contracts/fixtures` file must be in `SCHEMA_FOR` or `SEMANTIC_ONLY`; client-built requests, holds and edited layouts must validate |
-| Browser | `tests/e2e/` (Playwright, `playwright.config.ts`, `serve-dist.mjs`) | **empty today**; `npm test` passes `--pass-with-no-tests` so the empty suite does not fail the run |
+| Browser | `tests/e2e/` (Playwright, `playwright.config.ts`, `serve-dist.mjs`) | **none yet** (the folder does not exist); `npm test` passes `--pass-with-no-tests` so the empty suite does not fail the run. The phone screenshots under `docs/screenshots/2026-09-28-*` were captured ad hoc with Playwright's Chromium, not by a test suite |
 
 ## Checks
 

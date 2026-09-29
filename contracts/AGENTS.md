@@ -2,13 +2,14 @@
 
 JSON Schemas (draft 2020-12), the specs that explain them, and canonical
 fixtures. The coordinator (Go), the TV shell (C++/QML) and the phone remote
-(TypeScript) each validate their own side against these files. Overview and
-the rules that hold everywhere: [`README.md`](README.md).
+(TypeScript) each validate their own side against these files. Overview,
+the rules that hold everywhere and a map of every action, state block,
+config block, IPC message and HTTP route: [`README.md`](README.md).
 
 | File | What it defines | Go validator (`internal/contract`) |
 |---|---|---|
 | [`action.schema.json`](action.schema.json) + [`actions.md`](actions.md) | action request (`$defs/request`), result (`$defs/result`), hold messages (`$defs/holdMessage`), action names and per-action `args` | `ValidateActionRequest`, `ValidateActionResult`, `ValidateHoldMessage` |
-| [`state.schema.json`](state.schema.json) | the state snapshot sent to the shell and phones (per-view redaction: `buildStateFor` in [`internal/session/state.go`](../internal/session/state.go); `weather` is shell-only) | `ValidateState`, `MarshalAndValidateState` (tests only) |
+| [`state.schema.json`](state.schema.json) | the state snapshot sent to the shell and phones (per-view redaction: `buildStateFor` in [`internal/session/state.go`](../internal/session/state.go); `pairing`, `playback`, `weather` and `plex` are shell-only; the blocks are listed in [`README.md` → What the contract carries](README.md#what-the-contract-carries)) | `ValidateState`, `MarshalAndValidateState` (tests only) |
 | [`layout.schema.json`](layout.schema.json) | `ui` + `sections`, the editable home layout | `ValidateLayout` |
 | [`config.schema.json`](config.schema.json) + [`config.md`](config.md) | `config.json` structure; semantic rules in `config.md` are enforced by `internal/config` | `ValidateConfigStructure` |
 | [`theme.schema.json`](theme.schema.json) | a theme package's `theme.json` ([`docs/THEMES.md`](../docs/THEMES.md)) | `ValidateTheme` |
@@ -96,7 +97,9 @@ shell still accepts a real snapshot (`make dev`, then look at Home).
 3. A fixture: `fixtures/action.request.<name>.valid.json`, and an invalid one
    if the args have rules.
 4. Go: the constant, `AllActions`, and `IgnoresStaleEpoch` / `IsNav` in
-   [`contract.go`](../internal/contract/contract.go); routing in `route()`
+   [`contract.go`](../internal/contract/contract.go), plus `OwnerActions` if
+   only the owner may send it and `GuestActions` if a guest pass may (guests
+   are refused anything not listed); routing in `route()`
    ([`internal/session/route.go`](../internal/session/route.go)); a capability
    with an honest reason in `capabilitiesLocked()`
    ([`internal/session/state.go`](../internal/session/state.go)). Details:

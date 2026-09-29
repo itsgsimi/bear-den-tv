@@ -20,6 +20,15 @@ It has three processes that talk through shared contracts:
 | **Contracts** | `contracts/` | JSON Schemas + specs + fixtures, validated in all three languages | [`contracts/AGENTS.md`](contracts/AGENTS.md) |
 | **Themes** | `themes/` | theme packages (manifest + art, no code) | [`themes/AGENTS.md`](themes/AGENTS.md) |
 
+Around them: [`tools/pixelart`](tools/pixelart/README.md) and
+[`tools/classicart`](tools/classicart/README.md) generate every bundled
+picture (worlds, bears, app icons, rooms, badges); `packaging/` builds the
+`.deb` and `.github/workflows/` holds CI and the release workflow
+([`docs/operations.md` → Packaging](docs/operations.md#packaging));
+`scripts/` has the toolchain, sandbox, deploy and TV helpers; `tests/` holds
+the cross-cutting suites (contract fixtures, doc links, packaging, the live
+TV and Wayland suites).
+
 Plex HTPC, VacuumTube (YouTube) and Moonlight are independent Flatpak apps,
 and so are the optional Spotify, Jellyfin Desktop and RetroArch (their tiles
 appear only when installed). A missing one installs per user from Flathub
@@ -39,7 +48,7 @@ sites are off until the owner turns them on.
 | What does a word mean? | [`docs/GLOSSARY.md`](docs/GLOSSARY.md) |
 | How do I contribute? | [`CONTRIBUTING.md`](CONTRIBUTING.md) |
 | What is built, tested, live-validated? | [`docs/IMPLEMENTATION_STATUS.md`](docs/IMPLEMENTATION_STATUS.md), [`docs/VALIDATION_REPORT.md`](docs/VALIDATION_REPORT.md) |
-| Why is it like this? | [`docs/decisions/`](docs/decisions/) (ADRs) |
+| Why is it like this? | [`docs/decisions/`](docs/decisions/README.md) (ADRs) |
 | Wire formats | [`contracts/README.md`](contracts/README.md), [`actions.md`](contracts/actions.md), [`ipc.md`](contracts/ipc.md), [`http.md`](contracts/http.md), [`config.md`](contracts/config.md) |
 | Themes | [`docs/THEMES.md`](docs/THEMES.md) |
 | App playback settings, box tiers | [`docs/APP_PERFORMANCE.md`](docs/APP_PERFORMANCE.md) |
@@ -65,7 +74,7 @@ sites are off until the owner turns them on.
   selection. Secrets never enter `config.json`, exports, logs or phone
   payloads.
 - **Demo content** exists only behind `--dev-fixtures` (and the dev-only
-  `--dev-plex-fake`) and is labelled DEMO.
+  `--dev-plex-fake` and `--dev-installs`) and is labelled DEMO.
 
 ## Development philosophy
 
@@ -122,11 +131,17 @@ These are the habits this codebase was built with. Follow them.
      you actually look at.
    - After writing a test, break the code it protects and watch it fail.
      A test that can't fail documents nothing.
-   - Known gaps to close, not copy: `internal/remote` has only a route-table
-     test (`routes_test.go`) and the app icon route's test (`appicon_test.go`;
-     the guest pass expiry drives the real server from
-     `internal/pairing/guest_remote_test.go`), `internal/doctor` has no tests yet; `make lint` reports qmllint
-     warnings without failing.
+   - Known gaps to close, not copy (checked 2026-09-29):
+     - `internal/remote` has only a route-table test (`routes_test.go`) and
+       the app icon route's test (`appicon_test.go`); the guest pass expiry
+       drives the real server from `internal/pairing/guest_remote_test.go`.
+       There is no negative suite for cookies, CSRF, Host/Origin or rate
+       limits.
+     - `internal/doctor` has no tests.
+     - The shell supervisor's crash/restart path has no test.
+     - The phone remote has no browser (Playwright) tests; `apps/web-nav`
+       has them.
+     - `make lint` reports qmllint warnings without failing.
 7. **Plugins over patches.** Extend through data:
    - a theme is a package;
    - an app is a row in the adapter and tuning tables;
@@ -166,8 +181,10 @@ These are the habits this codebase was built with. Follow them.
 scripts/bootstrap-toolchain.sh && . scripts/env.sh   # pinned user-space toolchain (Go, Qt 6.8, Node, CMake)
 make help                                            # every target that exists
 make test                                            # Go (race) + phone remote (unit) + web-nav (Playwright, local fixtures) + shell (offscreen)
+make test-go                                         # only Go (race); also test-web, test-webnav, test-shell
 make lint                                            # gofmt/vet, eslint/tsc, qmllint
 make dev DEV_ARGS=--dev-fixtures                     # coordinator + shell locally, fake desktop, DEMO rows and weather
+                                                     # also --dev-plex-fake (Plex sign-in), --dev-installs (pretend Flathub), --dev-browser PATH (real Chromium)
 scripts/sandbox.sh shot --screen settings --theme forest   # prototype without the TV: one screenshot
 make shots                                           # every theme × main screens in build/shots/gallery
 make perf                                            # frames and CPU per phase of Home (a guide, not a gate on taste)
@@ -175,6 +192,7 @@ make package                                         # installable .deb in build
 scripts/deploy-target.sh [--now|--no-restart|--dry-run]   # ship to the TV
 scripts/target.sh run '<cmd>'                        # sync, then run on the TV inside the toolchain env
 build/bin/bear-den-tv doctor                         # what's running, what's in front, what's allowed
+build/bin/bear-den-tv help                           # every subcommand (pair --guest, apps, plex, badges, weather, themes, ...)
 ```
 
 Live-display checks need an active graphical session on the TV
@@ -186,13 +204,19 @@ Live-display checks need an active graphical session on the TV
 |---|---|
 | A new theme | [`docs/THEMES.md` → Make a theme in five minutes](docs/THEMES.md), [`themes/AGENTS.md`](themes/AGENTS.md) |
 | A new decoration style, particle kind or corner scene | [`docs/THEMES.md` → Extending the engine](docs/THEMES.md), [`apps/tv-shell/AGENTS.md`](apps/tv-shell/AGENTS.md) |
-| Support another app | [`internal/AGENTS.md` → Add an app](internal/AGENTS.md#add-an-app), then [`apps/tv-shell/AGENTS.md`](apps/tv-shell/AGENTS.md) and [`docs/APP_PERFORMANCE.md` → Adding an app](docs/APP_PERFORMANCE.md#adding-an-app) |
-| A new phone action | [`contracts/AGENTS.md`](contracts/AGENTS.md#add-an-action), [`internal/AGENTS.md`](internal/AGENTS.md#add-an-action), [`apps/remote-web/AGENTS.md`](apps/remote-web/AGENTS.md) |
-| A new setting on the TV | [`apps/tv-shell/AGENTS.md` → Settings rows](apps/tv-shell/AGENTS.md) |
+| Support another app | [`internal/AGENTS.md` → Add an app](internal/AGENTS.md#add-an-app), then [`apps/tv-shell/AGENTS.md` → App tiles and branding](apps/tv-shell/AGENTS.md#app-tiles-and-branding) and [`docs/APP_PERFORMANCE.md` → Adding an app](docs/APP_PERFORMANCE.md#adding-an-app) |
+| An optional app (tile only once installed) | the same, with `"hide_when_missing": true` in its default row ([`internal/AGENTS.md` → Add an app](internal/AGENTS.md#add-an-app), step 4) |
+| A web app (a website in Chromium) | [`internal/AGENTS.md` → Add an app](internal/AGENTS.md#add-an-app) (the web app paragraph), a hints file ([`apps/web-nav/AGENTS.md`](apps/web-nav/AGENTS.md)), config rule 11 ([`contracts/config.md`](contracts/config.md)), [ADR 0010](docs/decisions/0010-web-apps-over-cdp-pipe.md) |
+| An app's icon or featured-panel room | [`docs/THEMES.md` → App icons](docs/THEMES.md#app-icons), [`tools/pixelart`](tools/pixelart/README.md), [`tools/classicart`](tools/classicart/README.md) |
+| A Den badge | [`docs/THEMES.md` → Den badges](docs/THEMES.md#den-badges), [ADR 0009](docs/decisions/0009-den-badges-local-counters.md) |
+| A new screen on the TV | [`apps/tv-shell/AGENTS.md` → Add a screen](apps/tv-shell/AGENTS.md#add-a-screen) |
+| A new phone action | [`contracts/AGENTS.md`](contracts/AGENTS.md#add-an-action), [`internal/AGENTS.md`](internal/AGENTS.md#add-an-action), [`apps/remote-web/AGENTS.md`](apps/remote-web/AGENTS.md#add-a-control); decide whether guests may send it (`contract.GuestActions`) and whether it is owner-only (`contract.OwnerActions`) |
+| A new setting on the TV | [`apps/tv-shell/AGENTS.md` → Settings rows](apps/tv-shell/AGENTS.md#settings-rows) |
 | A config or layout field | [`contracts/AGENTS.md`](contracts/AGENTS.md#change-a-contract), [`internal/AGENTS.md`](internal/AGENTS.md#add-a-config-field) |
 | A field phones or the shell see | [`contracts/AGENTS.md`](contracts/AGENTS.md#change-a-contract) (state snapshot) |
 | A CLI subcommand | [`internal/AGENTS.md` → CLI](internal/AGENTS.md#cli-subcommands) |
 | Playback settings for an app | [`docs/APP_PERFORMANCE.md` → Adding an app](docs/APP_PERFORMANCE.md#adding-an-app) |
+| Packaging, CI or the release workflow | [`docs/operations.md` → Packaging](docs/operations.md#packaging), [Cutting a release](docs/operations.md#cutting-a-release), `.github/workflows/` |
 
 ## Definition of done
 

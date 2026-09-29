@@ -4,8 +4,11 @@
 //
 //   --dev                 development build behavior; honors BDTV_SHELL_SOCKET
 //   --fixture PATH        offline: render a state snapshot file, no coordinator
-//   --screen NAME         start on home|settings|pairing|devices|diagnostics|remote-setup
+//   --screen NAME         start on any screen ShellRoot registers (home, settings,
+//                         pairing, devices, diagnostics, remote-setup, playback,
+//                         advanced-playback, weather, plex, badges, streaming, add-apps)
 //   --windowed            do not go fullscreen
+//   --size WxH            window size, default 1920x1080
 //   --screenshot PATH     save a PNG of the window, then keep running (or exit with --exit-after)
 //   --screenshot-after MS delay before the (first) screenshot, default 1500
 //   --screenshot-every MS rewrite the screenshot periodically (dev evidence)

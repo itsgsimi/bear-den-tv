@@ -3,16 +3,17 @@
 One binary, `bear-den-tv` ([`cmd/bear-den-tv`](../cmd/bear-den-tv/main.go)), is
 both the session coordinator and the local admin CLI
 ([ADR 0002](../docs/decisions/0002-one-cli-binary-embedded-remote.md)). It owns
-the session: what is in front, launching and closing apps, routing named
-actions, pairing and permissions, `config.json`, the LAN service, playback
-tuning and local weather. How the pieces fit: [`docs/HOW_IT_WORKS.md`](../docs/HOW_IT_WORKS.md).
+the session: what is in front, launching, closing and installing apps,
+routing named actions, pairing and permissions, `config.json`, the LAN
+service, playback tuning, and the optional parts (local weather, Plex rows,
+Now playing, the sleep timer, HDMI-CEC, Den badges, web apps). How the pieces fit: [`docs/HOW_IT_WORKS.md`](../docs/HOW_IT_WORKS.md).
 Wire shapes come from [`contracts/`](../contracts/AGENTS.md) and nowhere else.
 
 ## Package map (key files)
 
 | Package | Owns | Key files |
 |---|---|---|
-| [`session`](session/coordinator.go) | the core: epoch, target, state snapshot, action routing; implements `remote.Backend` (phones) and `shellipc.Handler` (shell) | `coordinator.go` (Options, `retargetLocked`, `publish`), `route.go` (`route`, `doLaunch`, `doHome`, `doClose`), `homepause.go` (Home's verified MPRIS pause of a native app), `state.go` (`buildStateFor`, `capabilitiesLocked`), `web.go` (web apps: `WebApps` seam, routing to the page after a verified foreground, pointer capabilities and rate limits, Home's page pause, IPC `app.enable`), `backend.go`, `ipc.go`, `tuning.go`, `nowplaying.go` (`state.now_playing`: the foreground player's reading, memory only), `power.go` (sleep timer, display off and wake: `state.power`), `cec.go` (TV control over HDMI-CEC: `state.cec`, `tv.power`, standby/wake hooks, TV volume), `achievements.go` (Den badges: the event points, `achievements.*` IPC, `state.achievements`), `widevine.go` (the streaming sites' playback support after Chromium is installed: `install.drm`), `install.go` (app installs: `app.install`/`app.install_cancel` for owner phones, IPC `app.install*` and `apps.configure`, `state.applications[].install` and `state.apps`, rediscovery after an install, the idle daily update) |
+| [`session`](session/coordinator.go) | the core: epoch, target, state snapshot, action routing; implements `remote.Backend` (phones) and `shellipc.Handler` (shell) | `coordinator.go` (Options, `retargetLocked`, `publish`), `route.go` (`route`, `doLaunch`, `doHome`, `doClose`), `homepause.go` (Home's verified MPRIS pause of a native app), `state.go` (`buildStateFor`, `capabilitiesLocked`), `web.go` (web apps: `WebApps` seam, routing to the page after a verified foreground, pointer capabilities and rate limits, Home's page pause, IPC `app.enable`), `backend.go` (phones), `ipc.go` (the shell and CLI), `tuning.go`, `plex.go` (`state.plex`, the Plex rows as `state.content`, IPC `plex.*`, telling `plexlink` what is in front), `appicons.go` (the phone icon route's side: adapter check, `ui.app_icons`, installed only), `nowplaying.go` (`state.now_playing`: the foreground player's reading, memory only), `power.go` (sleep timer, display off and wake: `state.power`), `cec.go` (TV control over HDMI-CEC: `state.cec`, `tv.power`, standby/wake hooks, TV volume), `achievements.go` (Den badges: the event points, `achievements.*` IPC, `state.achievements`), `widevine.go` (the streaming sites' playback support after Chromium is installed: `install.drm`), `install.go` (app installs: `app.install`/`app.install_cancel` for owner phones, IPC `app.install*` and `apps.configure`, `state.applications[].install` and `state.apps`, rediscovery after an install, the idle daily update) |
 | [`appicons`](appicons/appicons.go) | the apps' own icons for phone tiles (`GET /api/v1/apps/{adapter}/icon`, [`contracts/http.md`](../contracts/http.md#app-icons)): the owner's brand PNG/JPEG, then with `ui.app_icons` `app` the installed Flatpak's exported PNG when the Flatpak is the app itself; never SVG, 1 MiB and 1024 px caps, decoded and re-encoded as PNG; a one-minute cache. The coordinator side is `session/appicons.go` | `appicons.go` |
 | [`contract`](contract/contract.go) | Go types for protocol 1 and JSON Schema validation of the embedded `contracts/*.json` | `contract.go`, `validate.go` |
 | [`achievements`](achievements/achievements.go) | Den badges: the badge catalogue (`Badges`, data), events that move named counters (`Launched`, `HomeShown`, `Paired`, `PassIssued`, `SleepTimerSet`, `Parade`) on local calendar days of the injected clock, awards once, `Snapshot`/`Phone` for `state.achievements`, `Reset`; nothing counted while config `achievements.enabled` is false | `achievements.go` |
@@ -74,7 +75,7 @@ Embeds live in the repository root [`embed.go`](../embed.go): `contracts/`,
 Note: the session harness runs on `clock.Real` with short timeouts
 (`AppsRefresh: 30ms`, `eventually` polls up to 3 s); use `clock.Fake` for pure
 timing logic (as the `actions`, `pairing`, `config` and `providers` tests do).
-`internal/remote` has only a route-table test ([`remote/routes_test.go`](remote/routes_test.go)) and the app icon route's ([`remote/appicon_test.go`](remote/appicon_test.go): the real server with `testutil` fakes); [`pairing/guest_remote_test.go`](pairing/guest_remote_test.go) drives the real server with `remote/testutil` and a WebSocket to prove a guest pass ends with close 4001. `internal/doctor` has no tests yet. Weather has its own tests: [`weather/weather_test.go`](weather/weather_test.go) (fake clock) and [`session/weather_test.go`](session/weather_test.go) (IPC search/configure and the snapshot). The Plex connector is tested against [`providers/plex/plexfake`](providers/plex/plexfake/plexfake.go), a loopback stand-in for plex.tv and one Plex Media Server (PIN linking, resources, libraries, hubs, onDeck, DEMO posters; `SetDown`, `SetPhotoHandler`, `Requests()` to assert the token only ever travels in the header). Weather has its own tests: [`weather/weather_test.go`](weather/weather_test.go) (fake clock) and [`session/weather_test.go`](session/weather_test.go) (IPC search/configure and the snapshot).
+Known test gaps (checked 2026-09-29): `internal/remote` has only a route-table test ([`remote/routes_test.go`](remote/routes_test.go)) and the app icon route's ([`remote/appicon_test.go`](remote/appicon_test.go): the real server with `testutil` fakes); [`pairing/guest_remote_test.go`](pairing/guest_remote_test.go) drives the real server with `remote/testutil` and a WebSocket to prove a guest pass ends with close 4001; there is no negative suite for cookies, CSRF, Host/Origin or rate limits. `internal/doctor` has no tests yet, and the shell supervisor's restart path has none ([`shellipc/supervisor_test.go`](shellipc/supervisor_test.go) checks the environment only). The Plex connector is tested against [`providers/plex/plexfake`](providers/plex/plexfake/plexfake.go), a loopback stand-in for plex.tv and one Plex Media Server (PIN linking, resources, libraries, hubs, onDeck, DEMO posters; `SetDown`, `SetPhotoHandler`, `Requests()` to assert the token only ever travels in the header). Weather has its own tests: [`weather/weather_test.go`](weather/weather_test.go) (fake clock) and [`session/weather_test.go`](session/weather_test.go) (IPC search/configure and the snapshot).
 
 ## How the coordinator fails closed
 
@@ -90,8 +91,9 @@ different body is `duplicate_mismatch`), then `route()`, which checks in order:
 2. **Permission** (phones only; the shell is trusted, CLI clients may not
    submit actions), `phoneMay` in `route.go`: a guest pass may send only
    `contract.GuestActions` and nothing once its pass has ended; everyone else
-   needs `controller`, and `owner` for `shell.restart` and `app.close` with
-   `force`. Otherwise `forbidden`. A new action is refused to guests until it
+   needs `controller`, and `owner` for `contract.OwnerActions`
+   (`shell.restart`, `app.install`, `app.install_cancel`) and `app.close`
+   with `force`. Otherwise `forbidden`. A new action is refused to guests until it
    is added to `GuestActions` on purpose.
 3. **Lock**: a locked session refuses every action, `home` included (`locked`).
    Just before it, `powerGate` ([`session/power.go`](session/power.go)) wakes
@@ -99,7 +101,7 @@ different body is `duplicate_mismatch`), then `route()`, which checks in order:
    press that woke the display is swallowed (`display_off`) unless it is a
    power action.
 4. **Stale epoch** (phones only; shell requests are stamped with the current
-   epoch): `req.ContextEpoch != epoch` is `stale_epoch` unless `contract.IgnoresStaleEpoch` (`home`, `app.launch`, `shell.restart`).
+   epoch): `req.ContextEpoch != epoch` is `stale_epoch` unless `contract.IgnoresStaleEpoch` (`home`, `app.launch`, `shell.restart`, the power actions `power.sleep_timer`, `display.off` and `tv.power`, and `app.install`/`app.install_cancel`).
 5. **Capability**: input, media and audio go through `capability()`, which reads
    `capabilitiesLocked()` in [`state.go`](session/state.go), the single source of
    truth phones also see. Unavailable maps to `unknown_foreground`, `no_target`,
@@ -249,8 +251,8 @@ keep its header comment and `usage()` text in step with it.
 | Command | File |
 |---|---|
 | `session`, `dev` | `session.go` (wires every package; `dev` uses `fake.Desktop`, loopback, DEMO weather, a pretend web app page; `--dev-fixtures` adds DEMO content; `--dev-browser PATH` runs web apps in a real Chromium binary, `webdev.go`; `--dev-installs` a pretend Flathub, `fake.Installer`) |
-| `doctor`, `pair [--guest tonight\|24h\|7d]`, `devices`, `remote` | `cli.go` |
-| `artwork fetch` | `artwork.go` |
+| `doctor [--probe]`, `pair [--guest tonight\|24h\|7d]`, `devices [revoke ID\|*]`, `remote enable --interface IF --accept-lan-exposure\|disable` | `cli.go` |
+| `artwork fetch` | `artwork.go` (caches Flathub icons; neither the shell nor phones show them any more) |
 | `autostart`, `shortcut` `enable\|disable\|status` | `autostart.go`, `shortcut.go` |
 | `apps detect\|tune\|probe` | `apps.go` |
 | `apps install APP-ID [--here]\|install-cancel APP-ID` | `appinstall.go` (IPC `app.install` and following `state`; `--here` runs `internal/applications/install` in-process) |

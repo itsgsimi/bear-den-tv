@@ -29,22 +29,28 @@ Done when: every box in [AGENTS.md → Definition of done](AGENTS.md#definition-
 
 ```sh
 . scripts/env.sh
-make test          # everything: Go (race), phone remote, shell (offscreen)
+make test          # everything: Go (race), phone remote, web-nav (Playwright), shell (offscreen)
 make lint          # gofmt/vet, eslint/tsc, qmllint
 ```
 
+`make test-webnav` needs Playwright's Chromium once:
+`cd apps/web-nav && npx playwright install chromium`.
+
 CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs `make test`,
-`make lint` and `make check-web-dist` (committed `apps/remote-web/dist` matches a
-fresh `make web`) on every push to `main` and every pull request.
+`make lint` and `scripts/check-web-dist.sh` (the committed
+`apps/remote-web/dist` and `apps/web-nav/dist` match a fresh build; also
+`make check-web-dist`) on every push to `main` and every pull request.
 
 Faster, one part at a time:
 
 | You changed | Run |
 |---|---|
 | Go (`cmd/`, `internal/`) | `go test -race ./internal/<pkg>` or `make test-go` |
-| Phone remote (`apps/remote-web/`) | `npm --prefix apps/remote-web run test:unit` |
+| Phone remote (`apps/remote-web/`) | `npm --prefix apps/remote-web run test:unit`, then `make web` |
+| Web apps' navigation script (`apps/web-nav/`) | `make test-webnav`, then `make webnav` |
 | TV shell (`apps/tv-shell/`) | `make test-shell` |
 | Contracts (`contracts/`) | `make test-go` and `npm --prefix apps/remote-web run test:unit` |
+| Packaging (`packaging/`) | `go test ./tests/packaging`; `make package` and `packaging/smoke-deb.sh ubuntu:22.04` (Docker) |
 | Any Markdown | `go test ./tests/docs` (every link and #anchor must resolve) |
 
 ## Prove a test bites
@@ -103,9 +109,11 @@ the pull request.
 | Go coordinator, CLI, an app adapter | [`internal/AGENTS.md`](internal/AGENTS.md) |
 | Anything on the TV screen | [`apps/tv-shell/AGENTS.md`](apps/tv-shell/AGENTS.md) |
 | The phone remote | [`apps/remote-web/AGENTS.md`](apps/remote-web/AGENTS.md) |
-| A shape (action, state, config, layout, theme) | [`contracts/AGENTS.md`](contracts/AGENTS.md) |
+| Driving websites (Netflix, Disney+, Hulu, Browser) | [`apps/web-nav/AGENTS.md`](apps/web-nav/AGENTS.md), [`internal/AGENTS.md`](internal/AGENTS.md) (`applications/web`) |
+| A shape (action, state, config, layout, theme, web hints) | [`contracts/AGENTS.md`](contracts/AGENTS.md) |
 | A theme | [`themes/AGENTS.md`](themes/AGENTS.md), [`docs/THEMES.md`](docs/THEMES.md) |
 | Playback settings for an app | [`docs/APP_PERFORMANCE.md`](docs/APP_PERFORMANCE.md) |
+| Bundled art (icons, rooms, badges, worlds) | [`tools/pixelart/README.md`](tools/pixelart/README.md), [`tools/classicart/README.md`](tools/classicart/README.md) |
 
 ### Rules small models most often break here
 
