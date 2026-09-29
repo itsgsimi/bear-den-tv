@@ -197,8 +197,13 @@ capability. Only a headless sway in a container has been tested
 - **Now playing.** While the app in front has an MPRIS player, the
   coordinator reads its title, position and state (only that app's player,
   kept in memory) and sends them to controller phones and guest passes,
-  never while locked. The owner can turn it off (TV Settings → Now playing
-  on phones).
+  never while locked. A player belongs to an app by the process that owns
+  it (the app's Flatpak, or a web app's own browser), never by the name it
+  reports. After Home, the app that was in front keeps its card while it
+  plays or is paused behind Home (`foreground: false`), and the phone's
+  play/pause/seek name that app. Plex HTPC has no player: with Plex signed
+  in, its playback is read from the owner's Plex server (read-only). The
+  owner can turn it off (TV Settings → Now playing on phones).
 - **Sleep timer and screen off.** The coordinator keeps the timer on its
   clock: a warning a minute before, then a verified pause, Home, and the
   display off through X11 DPMS, putting back the exact previous DPMS

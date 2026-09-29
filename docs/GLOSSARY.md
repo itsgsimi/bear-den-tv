@@ -163,11 +163,14 @@ every action (`failed/locked`) and never bypasses the lock.
 
 **MPRIS.** The D-Bus interface desktop media players expose (title,
 position, play/pause). Bear Den uses it for media buttons, Now playing and
-Home pause, and only for the foreground app's own player.
+Home pause, and only for an app's own player: the one whose bus name is
+owned by a process of that app's Flatpak (or a web app's own browser).
 [`internal/platform/mpris`](../internal/platform/mpris/).
 
-**Now playing.** The phone card showing what the app in front is playing
-(title, progress, play/pause), read from its MPRIS player; for controller
+**Now playing.** The phone card showing what the app in front, or the app
+left playing behind Home, is playing (title, progress, play/pause), read
+from its MPRIS player, or for Plex HTPC from the owner's Plex server
+(read-only); for controller
 phones and guest passes, never while locked, off with TV Settings → Now
 playing on phones. [`contracts/http.md`](../contracts/http.md#now-playing-statenow_playing).
 

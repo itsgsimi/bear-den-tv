@@ -537,8 +537,11 @@ build/bin/bear-den-tv devices [revoke <id|*>]
 ```
 
 **Settings → Now playing on phones** (on by default) decides whether paired
-phones see the title and progress of what is playing
-([`docs/security.md`](security.md)).
+phones see the title and progress of what is playing, also while an app
+keeps playing behind Home ([`docs/security.md`](security.md)). For Plex
+HTPC the reading comes from your Plex server once Plex is signed in on the
+TV (Settings → Plex); if the card stays empty while Plex plays, the owner's
+diagnostics (`plex_now_playing`) say why.
 
 ### Guest passes
 

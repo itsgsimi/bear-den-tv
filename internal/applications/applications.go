@@ -47,7 +47,9 @@ type Adapter interface {
 	MatchWindow(w platform.WindowInfo) bool
 	// KeyFor maps an action name to a logical key, or false when unmapped.
 	KeyFor(action string) (platform.Key, bool)
-	// MediaMatch is the MPRIS match string (desktop entry / bus-name fragment).
+	// MediaMatch is the MPRIS match string (desktop entry / bus-name
+	// fragment): the exact fallback for a player owned outside any Flatpak;
+	// ownership by process comes first (platform.MediaMatch).
 	MediaMatch() string
 	// PauseVerified reports whether pause-on-home has been verified for this
 	// adapter on this installation; false means Home must not claim "Paused".

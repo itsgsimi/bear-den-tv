@@ -151,7 +151,9 @@ func (a *app) KeyFor(action string) (platform.Key, bool) {
 }
 
 // MediaMatch implements applications.Adapter with the Flatpak id, which is
-// also the expected MPRIS DesktopEntry.
+// also the expected MPRIS DesktopEntry. It is only the exact, secondary rule
+// for a player owned outside any Flatpak; a player normally belongs to the
+// app by its owning process (session.mediaMatchFor, platform.MediaMatch).
 func (a *app) MediaMatch() string {
 	if a.media != "" {
 		return a.media
@@ -227,6 +229,9 @@ func merged(maps ...map[string]platform.Key) map[string]platform.Key {
 
 // PlexHTPC returns the Plex HTPC adapter: no launch arguments (spec §7.1),
 // navigation plus unverified media keys.
+// Seen on a real TV (2026-09-29): Plex HTPC publishes no MPRIS player, so
+// Home's verified pause finds none and leaves it playing, and Now playing
+// reads it from the owner's Plex server instead (session/plexplaying.go).
 func PlexHTPC() applications.Adapter {
 	return &app{name: PlexHTPCName, flatpakID: PlexHTPCFlatpakID, fragments: plexClassFragments, keys: merged(navKeys, plexMediaKeys),
 		home: HomePause{Kind: "mpris", Why: "A film should wait while you are Home: MPRIS Pause."}}
@@ -234,6 +239,10 @@ func PlexHTPC() applications.Adapter {
 
 // VacuumTube returns the VacuumTube adapter: documented fullscreen flags
 // (spec §8), navigation only — media.* stays unmapped until verified.
+// Its player, seen on a real TV (2026-09-29), is
+// org.mpris.MediaPlayer2.chromium.instanceN with Identity "VacuumTube" and
+// no DesktopEntry: it is matched by its owning process's Flatpak
+// (platform.MediaMatch), not by MediaMatch's name.
 func VacuumTube() applications.Adapter {
 	return &app{name: VacuumTubeName, flatpakID: VacuumTubeFlatpakID, args: []string{"--fullscreen", "--no-window-decorations"}, fragments: vacuumTubeClassFragments, keys: merged(navKeys),
 		home: HomePause{Kind: "mpris", Why: "A video should wait while you are Home: MPRIS Pause."}}
@@ -317,7 +326,9 @@ type WebSpec struct {
 }
 
 // webApp is a web adapter: no key map (input goes through the page, never
-// XTEST), MPRIS matched on Chromium's desktop entry for Now playing.
+// XTEST); for Now playing its MPRIS player is the one owned by the browser
+// process Bear Den started for it (web.Manager.PID, platform.MediaMatch
+// ProcessRoot), never matched by the browser's shared Flatpak id.
 type webApp struct {
 	app
 	web WebSpec
@@ -349,9 +360,10 @@ func newWeb(name, mode, hints string) applications.Adapter {
 	class := WebClassPrefix + name
 	return &webApp{
 		app: app{name: name, flatpakID: ChromiumFlatpakID, fragments: []string{strings.ToLower(class)}, keys: map[string]platform.Key{},
-			// Flathub Chromium's MPRIS DesktopEntry is its Flatpak id
-			// (UNVERIFIED on the TV); matching the bare "chromium" bus name
-			// would also catch Electron apps such as VacuumTube.
+			// Not used to find the player (web apps share this Flatpak;
+			// the browser's process tree decides). Kept so a name
+			// never matches the bare "chromium" bus name, which
+			// Electron apps such as VacuumTube use too.
 			media: ChromiumFlatpakID,
 			home:  HomePause{Kind: "page", Why: "A film should wait while you are Home: the site's own pause key, only when the page reports a playing video."}},
 		web: WebSpec{Mode: mode, Hints: hints, Class: class},
