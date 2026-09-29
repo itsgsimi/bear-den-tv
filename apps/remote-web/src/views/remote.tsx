@@ -1,5 +1,5 @@
 // Remote screen: D-pad with Select, Back, Bear Den Home and Close app, app shortcuts from
-// `snapshot.applications`, playback with the Now playing card above its buttons
+// `snapshot.applications` (minus optional apps marked `hidden`), playback with the Now playing card above its buttons
 // (nowplaying.tsx), volume (PC or, with HDMI-CEC, the TV: tv.tsx), TV power (tv.tsx, drawn only while
 // available), Sleep (sleep.tsx: timer and screen off), and text entry. Contract: every
 // control is gated by `snapshot.capabilities[action]`; a listed-but-unavailable
@@ -8,17 +8,19 @@
 // the controller owns the hold lease; keyboard activation sends a single tap.
 // The last result is shown with its outcome (accepted/delivered/observed/failed)
 // kept distinct; nothing here pretends a press was observed when it was delivered.
+// A guest pass sees only what it may use (`mayUse`): no Close app, no restart,
+// no sleep timer or screen off.
 import { useEffect, useState } from 'preact/hooks';
 import type { ComponentChildren, JSX } from 'preact';
 import type { App } from '../app.ts';
 import type { ActionArgs, ActionName, Application, NavAction } from '../contract.ts';
 import { t } from '../i18n.ts';
-import { Art, artStyleOf, Icon, type IconName } from '../icons.tsx';
+import { AppArt, Art, artStyleOf, Icon, type IconName } from '../icons.tsx';
 import { Vines } from '../vines.tsx';
 import { NowPlayingPanel, nowPlayingOf } from './nowplaying.tsx';
 import { SleepPanel } from './sleep.tsx';
 import { TvPanel, volumeHeading } from './tv.tsx';
-import { type AppState, type PendingAction, capabilityFor, closableApp, isSecureTransport, permissionsOf } from '../state.ts';
+import { type AppState, type PendingAction, capabilityFor, closableApp, isSecureTransport, mayUse, permissionsOf, visibleApps } from '../state.ts';
 
 const TEXT_MAX = 256;
 const VOLUME_STEP = 5;
@@ -39,7 +41,7 @@ function gate(state: AppState, action: ActionName): Gate {
 }
 
 function listed(state: AppState, action: ActionName): boolean {
-  return state.snapshot?.capabilities[action] !== undefined;
+  return state.snapshot?.capabilities[action] !== undefined && mayUse(state, action);
 }
 
 export function RemoteView({ app, state }: { app: App; state: AppState }): JSX.Element {
@@ -78,17 +80,19 @@ export function RemoteView({ app, state }: { app: App; state: AppState }): JSX.E
           {t.remote.home}
         </TapButton>
       </div>
-      <div class="button-row">
-        <CloseButton app={app} state={state} />
-      </div>
+      {mayUse(state, 'app.close') ? (
+        <div class="button-row">
+          <CloseButton app={app} state={state} />
+        </div>
+      ) : null}
 
       <LastResult state={state} />
 
-      {snapshot && snapshot.applications.length > 0 ? (
+      {visibleApps(snapshot).length > 0 ? (
         <div class="group" aria-labelledby="apps-heading">
           <h3 id="apps-heading">{t.remote.apps}</h3>
           <div class="app-grid">
-            {snapshot.applications.map((application) => (
+            {visibleApps(snapshot).map((application) => (
               <AppButton key={application.id} app={app} state={state} application={application} />
             ))}
           </div>
@@ -144,9 +148,9 @@ export function RemoteView({ app, state }: { app: App; state: AppState }): JSX.E
         </div>
       ) : null}
 
-      <TvPanel app={app} state={state} />
+      {mayUse(state, 'tv.power') ? <TvPanel app={app} state={state} /> : null}
 
-      <SleepPanel app={app} state={state} />
+      {mayUse(state, 'power.sleep_timer') || mayUse(state, 'display.off') ? <SleepPanel app={app} state={state} /> : null}
 
       {listed(state, 'text.submit') ? <TextEntry app={app} state={state} gate={note(gate(state, 'text.submit'))} /> : null}
 
@@ -315,7 +319,7 @@ function AppButton({ app, state, application }: { app: App; state: AppState; app
         onClick={() => void app.tap('app.launch', { app_id: application.id })}
       >
         <span class="app-icon">
-          <Icon name="app" size={22} />
+          <AppArt adapter={application.adapter} size={32} art={artStyleOf(state.snapshot?.appearance)} />
           {live ? <span class="run-dot" aria-hidden="true" /> : null}
         </span>
         <span class="app-label">{application.label}</span>

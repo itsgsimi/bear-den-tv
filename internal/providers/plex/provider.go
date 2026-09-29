@@ -36,6 +36,33 @@ const (
 // ErrNotConnected reports a fetch before a successful Connect.
 var ErrNotConnected = errors.New("plex: not connected")
 
+// User-facing messages the Home rails show (state.content.message).
+const (
+	MsgUnreachable   = "Can't reach your Plex server"
+	MsgTokenRejected = "Plex no longer accepts this TV's sign-in; sign in again in Settings → Plex"
+)
+
+// userError carries a user-facing message while keeping the cause for
+// errors.Is/As; the cause's text (already redacted) goes only to the log.
+type userError struct {
+	msg   string
+	cause error
+}
+
+func (e *userError) Error() string { return e.msg }
+func (e *userError) Unwrap() error { return e.cause }
+
+// fetchError logs the redacted cause and returns the message the rails show.
+func (p *Provider) fetchError(what string, err error) error {
+	red := p.redactor.Error(err)
+	p.logger.Warn("plex fetch failed", "what", what, "error", red)
+	var se *StatusError
+	if errors.As(err, &se) && (se.Status == http.StatusUnauthorized || se.Status == http.StatusForbidden) {
+		return &userError{msg: MsgTokenRejected, cause: red}
+	}
+	return &userError{msg: MsgUnreachable, cause: red}
+}
+
 // Options builds a Provider from validated configuration (plex_content) and
 // the coordinator's services. Secrets and Artwork are required.
 type Options struct {
@@ -183,17 +210,22 @@ func (p *Provider) Connect(ctx context.Context) error {
 	p.redactor.AddSecret(token)
 	p.client.SetToken(token)
 
-	identity, err := p.client.Identity(ctx)
-	if err != nil {
+	// /identity answers without a token on real servers, so a revoked token
+	// first shows up as a 401 from /library/sections: classify both alike.
+	classify := func(err error) error {
 		var se *StatusError
 		if errors.As(err, &se) && (se.Status == http.StatusUnauthorized || se.Status == http.StatusForbidden) {
-			return fail("Plex server rejected the account token; link again", err)
+			return fail(MsgTokenRejected, err)
 		}
-		return fail("Plex server unreachable", err)
+		return fail(MsgUnreachable, err)
+	}
+	identity, err := p.client.Identity(ctx)
+	if err != nil {
+		return classify(err)
 	}
 	libraries, err := p.client.Libraries(ctx)
 	if err != nil {
-		return fail("Plex libraries unavailable", err)
+		return classify(err)
 	}
 	selected, err := selectLibraries(libraries, p.opts.LibraryIDs)
 	if err != nil {
@@ -236,6 +268,22 @@ func selectLibraries(all []Library, ids []string) ([]Library, error) {
 		out = append(out, l)
 	}
 	return out, nil
+}
+
+// Libraries lists every library on the connected server (Settings → Plex
+// shows them with the configured ones ticked).
+func (p *Provider) Libraries(ctx context.Context) ([]Library, error) {
+	p.mu.Lock()
+	connected := p.connected
+	p.mu.Unlock()
+	if !connected {
+		return nil, ErrNotConnected
+	}
+	libs, err := p.client.Libraries(ctx)
+	if err != nil {
+		return nil, p.redactor.Error(err)
+	}
+	return libs, nil
 }
 
 // Disconnect forgets the token and server state; the next Connect reloads.
@@ -333,7 +381,7 @@ func (p *Provider) FetchItems(ctx context.Context, sectionKind string, cfg provi
 	case providers.KindContinueWatching:
 		all, err := p.client.ContinueWatching(ctx)
 		if err != nil {
-			return nil, "", p.redactor.Error(err)
+			return nil, "", p.fetchError(sectionKind, err)
 		}
 		for _, m := range all {
 			if m.LibrarySectionID == "" || allowed[string(m.LibrarySectionID)] {
@@ -347,7 +395,7 @@ func (p *Provider) FetchItems(ctx context.Context, sectionKind string, cfg provi
 		if len(libraries) == 1 {
 			page, err := p.client.RecentlyAdded(ctx, string(libraries[0].Key), start, size)
 			if err != nil {
-				return nil, "", p.redactor.Error(err)
+				return nil, "", p.fetchError(sectionKind, err)
 			}
 			items = page.Items
 			if page.Next() {
@@ -358,7 +406,7 @@ func (p *Provider) FetchItems(ctx context.Context, sectionKind string, cfg provi
 		for _, l := range libraries {
 			page, err := p.client.RecentlyAdded(ctx, string(l.Key), 0, size)
 			if err != nil {
-				return nil, "", p.redactor.Error(err)
+				return nil, "", p.fetchError(sectionKind, err)
 			}
 			items = append(items, page.Items...)
 		}
@@ -372,7 +420,7 @@ func (p *Provider) FetchItems(ctx context.Context, sectionKind string, cfg provi
 		}
 		page, err := p.client.CollectionChildren(ctx, cfg.Key, start, size)
 		if err != nil {
-			return nil, "", p.redactor.Error(err)
+			return nil, "", p.fetchError(sectionKind, err)
 		}
 		items = page.Items
 		if page.Next() {

@@ -38,9 +38,10 @@ func (c *Coordinator) buildState(view viewKind) contract.State {
 
 // buildStateFor assembles a snapshot redacted for the viewer (contracts/http.md
 // and state.schema.json): pairing is shell-only, devices owner/shell only,
-// layout editor/shell only, playback and weather shell only, now_playing
-// controller phones only (never the shell); while locked no focus, devices,
-// layout, content, playback, weather or now_playing.
+// layout editor/shell only, playback, weather and plex shell only, now_playing
+// controller and guest phones only (never the shell); while locked no focus,
+// devices, layout, content, playback, weather, plex or now_playing. A guest's
+// me carries its pass end (contracts/http.md#guest-passes).
 func (c *Coordinator) buildStateFor(view viewKind, v *remote.Viewer) contract.State {
 	cfg := c.opts.Config.Current()
 	pending := c.opts.Config.Pending()
@@ -109,10 +110,14 @@ func (c *Coordinator) buildStateFor(view viewKind, v *remote.Viewer) contract.St
 				w := c.opts.Weather.Snapshot()
 				st.Weather = &w
 			}
+			st.Plex = c.plexState()
 		}
 	case viewPhone:
 		if v != nil {
 			st.Me = &contract.Me{DeviceID: v.DeviceID, DeviceName: v.DeviceName, Permissions: v.Permissions, TransportSecure: v.Secure}
+			if v.Guest() {
+				st.Me.ExpiresAtMs = v.ExpiresAtMs
+			}
 			ui := cfg.Layout().UI
 			if c.opts.Themes != nil {
 				a := c.opts.Themes.Appearance(ui)
@@ -132,9 +137,10 @@ func (c *Coordinator) buildStateFor(view viewKind, v *remote.Viewer) contract.St
 					st.Layout = &l
 				}
 				// What is playing names private media: controller phones
-				// only, never while locked, and only while the owner allows
-				// it (contracts/http.md "Now playing").
-				if v.Has(contract.PermController) && showNowPlaying {
+				// and guests (they watch the same screen) only, never while
+				// locked, and only while the owner allows it
+				// (contracts/http.md "Now playing").
+				if v.Has(contract.PermGuest) && showNowPlaying {
 					st.NowPlaying = nowPlaying
 				}
 				st.Content = c.content()
@@ -161,7 +167,7 @@ func (c *Coordinator) devices() *[]contract.Device {
 
 func (c *Coordinator) content() *contract.Content {
 	if c.opts.Feed == nil {
-		return nil
+		return c.plexContent()
 	}
 	ct := c.opts.Feed.Snapshot()
 	return &ct
@@ -192,6 +198,8 @@ func (c *Coordinator) appStatesLocked(apps []configApp) []contract.AppState {
 			st.Version = &v
 		}
 		st.Running = st.Foreground || rt.launchState == "running" || rt.instance != nil
+		// An optional app has no tile until discovery has seen it installed.
+		st.Hidden = a.HideWhenMissing && !st.Installed
 		out = append(out, st)
 	}
 	return out

@@ -20,16 +20,17 @@ Wire shapes come from [`contracts/`](../contracts/AGENTS.md) and nowhere else.
 | [`applications/flatpak`](applications/flatpak/flatpak.go) | the Flatpak launcher (fixed argv `flatpak info\|run\|ps\|kill`) | `flatpak.go`, `runner.go` |
 | [`applications/tuning`](applications/tuning/tuning.go) | playback detection and per-app settings ([`docs/APP_PERFORMANCE.md`](../docs/APP_PERFORMANCE.md)) | `detect.go` (`Apps` table), `plans.go` (`Plan<App>`) |
 | [`config`](config/config.go) | `config.json`: defaults, validation, atomic writes, last-known-good, layout workflow | `config.go`, `validate.go`, `store.go`, `layout.go` |
-| [`pairing`](pairing/pairing.go) | invitations, redemption, device/session records (`remote.Devices`) | `pairing.go`, `qr.go` |
+| [`pairing`](pairing/pairing.go) | invitations, redemption, device/session records (`remote.Devices`), guest passes (`IssuePass`, `PassEnd`, the expiry sweep on the injected clock) | `pairing.go`, `guest.go`, `qr.go` |
 | [`remote`](remote/server.go) | the LAN HTTP/WebSocket server: static assets, cookies, CSRF, Host/Origin, rate limits, revocation | `server.go`, `routes.go`, `ws.go`, `auth.go`, `options.go`, `backend.go` (seams) |
 | [`remote/mdns`](remote/mdns/mdns.go) | Avahi advertisement, best effort; not wired into `session` yet | `mdns.go` |
 | [`shellipc`](shellipc/server.go) | [`contracts/ipc.md`](../contracts/ipc.md): Unix socket to the shell and CLI; shell supervisor | `messages.go`, `server.go`, `dial.go`, `supervisor.go` |
 | [`platform`](platform/platform.go) | the desktop seam (`DesktopAdapter`, lock, media, audio, `DisplayPower`, `TVControl`) | `platform.go` |
 | [`platform/cec`](platform/cec/cec.go) | HDMI-CEC through the kernel CEC API: ioctl on `/dev/cecN`, no cgo ([ADR 0008](../docs/decisions/0008-hdmi-cec.md)); not seen on hardware | `cec.go`, `kernel.go` (structs, ioctl numbers), `msg.go` (frames) |
 | `platform/{x11,wayland,detect,lock,mpris,audio,dbusx,probe,suspend,fake}` | X11 EWMH+XTEST adapter and DPMS display power (`dpms.go`: captures and restores the exact DPMS state); Wayland (wlr-foreign-toplevel on wlroots, honest reasons elsewhere; ADR 0007); session detection; lock observation; MPRIS; `pactl`; narrow D-Bus; probe report; logind `CanSuspend` (asks only); in-memory desktop | one file each (x11: `adapter.go`, `keys.go`, `props.go`, `dpms.go`; wayland: `wayland.go`, `client.go`, `wire.go`) |
-| [`providers`](providers/providers.go) | optional home content (`ContentProvider`, `Feed`); `plex/` connector (not wired into `session` yet), `fixtures/` DEMO items | `feed.go`, `plex/provider.go`, `fixtures/fixtures.go` |
+| [`providers`](providers/providers.go) | optional home content (`ContentProvider`, `Feed`); `plex/` connector (driven by `plexlink`), `plex/plexfake` loopback fake of plex.tv and a server (tests, `dev --dev-plex-fake`), `fixtures/` DEMO items | `feed.go`, `plex/provider.go`, `plex/account.go`, `fixtures/fixtures.go` |
+| [`plexlink`](plexlink/plexlink.go) | Plex on the TV: the sign-in flow (`state.plex`, IPC `plex.*`: keyring check, link code, servers, libraries, `plex_content` written), the Plex rows (`state.content`) and their cadence on `clock.Clock` (on Home show unless refreshed within 2 min, every 10 min while Home is in front, never behind an app; backoff 30 s, 1, 2, 5, 10 min) | `plexlink.go` |
 | [`secrets`](secrets/secrets.go) | connector tokens outside `config.json` (Secret Service, or memory) | `secrets.go`, `dbus.go`, `memory.go` |
-| [`storage`](storage/storage.go) | SQLite: devices, session hashes, invitations, focus memory, launch state | `storage.go`, `secrets.go` |
+| [`storage`](storage/storage.go) | SQLite: devices (with a guest pass end since schema 2), session hashes, invitations, focus memory, launch state | `storage.go`, `secrets.go` |
 | [`themes`](themes/themes.go) | theme packages for phones and `themes validate` (Go twin of the shell's `ThemeRegistry`) | `themes.go` |
 | [`weather`](weather/openmeteo.go) | local weather: Open-Meteo client (constant endpoints, no key), WMO code mapping, poller on `clock.Clock` (`PollInterval` 30 min, retries 5, 10, 20, 30 min, `MaxAge` 6 h) behind `state.weather` (shell view only), DEMO `Fixture` for `dev` | `openmeteo.go`, `poller.go`, `fixture.go` |
 | [`doctor`](doctor/doctor.go) | `bear-den-tv doctor` and the owners' diagnostics | `doctor.go` |
@@ -62,7 +63,7 @@ Embeds live in the repository root [`embed.go`](../embed.go): `contracts/`,
 Note: the session harness runs on `clock.Real` with short timeouts
 (`AppsRefresh: 30ms`, `eventually` polls up to 3 s); use `clock.Fake` for pure
 timing logic (as the `actions`, `pairing`, `config` and `providers` tests do).
-`internal/remote`, `internal/doctor` and `internal/providers/plex` have no tests yet, even though `remote/testutil` exists. Weather has its own tests: [`weather/weather_test.go`](weather/weather_test.go) (fake clock) and [`session/weather_test.go`](session/weather_test.go) (IPC search/configure and the snapshot).
+`internal/remote` has only a route-table test ([`remote/routes_test.go`](remote/routes_test.go)); [`pairing/guest_remote_test.go`](pairing/guest_remote_test.go) drives the real server with `remote/testutil` and a WebSocket to prove a guest pass ends with close 4001. `internal/doctor` has no tests yet. Weather has its own tests: [`weather/weather_test.go`](weather/weather_test.go) (fake clock) and [`session/weather_test.go`](session/weather_test.go) (IPC search/configure and the snapshot). The Plex connector is tested against [`providers/plex/plexfake`](providers/plex/plexfake/plexfake.go), a loopback stand-in for plex.tv and one Plex Media Server (PIN linking, resources, libraries, hubs, onDeck, DEMO posters; `SetDown`, `SetPhotoHandler`, `Requests()` to assert the token only ever travels in the header). Weather has its own tests: [`weather/weather_test.go`](weather/weather_test.go) (fake clock) and [`session/weather_test.go`](session/weather_test.go) (IPC search/configure and the snapshot).
 
 ## How the coordinator fails closed
 
@@ -76,8 +77,11 @@ different body is `duplicate_mismatch`), then `route()`, which checks in order:
    [`session/ipc.go`](session/ipc.go)) are not, and an unknown name falls
    through to `unsupported` at the end of `route()`.
 2. **Permission** (phones only; the shell is trusted, CLI clients may not
-   submit actions): `controller` for everything; `owner` for `shell.restart`
-   and `app.close` with `force`. Otherwise `forbidden`.
+   submit actions), `phoneMay` in `route.go`: a guest pass may send only
+   `contract.GuestActions` and nothing once its pass has ended; everyone else
+   needs `controller`, and `owner` for `shell.restart` and `app.close` with
+   `force`. Otherwise `forbidden`. A new action is refused to guests until it
+   is added to `GuestActions` on purpose.
 3. **Lock**: a locked session refuses every action, `home` included (`locked`).
    Just before it, `powerGate` ([`session/power.go`](session/power.go)) wakes
    a display Bear Den turned off and cancels a sleep warning; an unlocked
@@ -100,9 +104,11 @@ or of lock state bumps the epoch and cancels every hold.
 **Revocation:** `pairing.Service.Revoke` marks the device revoked in storage
 and publishes the id on the channel from `Revocations(ctx)`; `remote.Server.revocationLoop` sends
 `revoked` and closes that device's sockets with 4001; `authenticate` fails for
-its cookie from then on. A revoke from the TV (`devices.revoke` over IPC,
-[`session/ipc.go`](session/ipc.go)) also cancels its holds and forgets its
-de-dup entries.
+its cookie from then on. The coordinator watches the same channel
+(`watchRevocations` in [`session/coordinator.go`](session/coordinator.go)) and
+cancels the device's holds and forgets its de-dup entries, whoever revoked it.
+A guest pass that ends is revoked through this same path
+([`pairing/guest.go`](pairing/guest.go)).
 
 ## Add an app
 
@@ -110,7 +116,10 @@ An app is data in a few closed tables; no engine code branches on it.
 
 1. [`applications/adapters/adapters.go`](applications/adapters/adapters.go):
    add the name and Flatpak id constants, the WM_CLASS fragments, a
-   constructor and an entry in `NewRegistry`. Mark the WM_CLASS UNVERIFIED
+   constructor and an entry in `NewRegistry`. In the constructor: the key
+   map from the app's documented keyboard controls (a new logical key goes in
+   `platform.Key` and the X11 keysym table), `media` when its MPRIS name is
+   not the Flatpak id, and `home` (`HomePause`: none, mpris or a pause key). Mark the WM_CLASS UNVERIFIED
    until a live probe records it in [`tests/compatibility/`](../tests/compatibility/).
    Map only keys you can justify; `media.*` stays unmapped until verified.
 2. [`applications/adapters/adapters_test.go`](applications/adapters/adapters_test.go):
@@ -125,7 +134,9 @@ An app is data in a few closed tables; no engine code branches on it.
      That fixture *is* `config.Defaults()`; `TestDefaultsMatchFixture` in
      [`config/config_test.go`](config/config_test.go) checks the app count.
      Defaults only seed a fresh install: an existing `config.json` keeps its
-     own `applications` list.
+     own `applications` list. An optional app (tile only when installed)
+     sets `"hide_when_missing": true` in its row; the coordinator then marks
+     it `hidden` in the state while it is missing (`appStatesLocked`).
 5. Playback settings: [`docs/APP_PERFORMANCE.md` → Adding an app](../docs/APP_PERFORMANCE.md#adding-an-app).
 6. The shell: [`apps/tv-shell/AGENTS.md` → App tiles and branding](../apps/tv-shell/AGENTS.md#app-tiles-and-branding).
 7. Run the tests:
@@ -220,12 +231,13 @@ keep its header comment and `usage()` text in step with it.
 | Command | File |
 |---|---|
 | `session`, `dev` | `session.go` (wires every package; `dev` uses `fake.Desktop`, loopback, DEMO weather; `--dev-fixtures` adds DEMO content) |
-| `doctor`, `pair`, `devices`, `remote` | `cli.go` |
+| `doctor`, `pair [--guest tonight\|24h\|7d]`, `devices`, `remote` | `cli.go` |
 | `artwork fetch` | `artwork.go` |
 | `autostart`, `shortcut` `enable\|disable\|status` | `autostart.go`, `shortcut.go` |
 | `apps detect\|tune\|probe` | `apps.go` |
 | `themes list\|validate DIR\|path` | `themes.go` |
 | `weather status\|search Q\|set Q [INDEX]\|off` | `weather.go` |
+| `plex status\|sign-in\|server ID\|libraries ID...\|cancel\|sign-out` | `plex.go` (also `newPlexLink`, the session wiring and `--dev-plex-fake`) |
 | `version` | `main.go` |
 
 Commands that act on the running coordinator send one typed `shellipc`

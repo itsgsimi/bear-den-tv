@@ -1,5 +1,7 @@
-// An application's icon: its official icon as-is (owner brand folder, else the
-// icon its installed Flatpak exports), otherwise a monogram on the app tint.
+// An application's icon (Shell.appArt, docs/THEMES.md → App icons), in order:
+// the owner's brand folder, Bear Den's own icon for the adapter (pixel art
+// drawn unsmoothed at a whole-number scale, or the Classic SVG), the icon its
+// installed Flatpak exports, otherwise a monogram on the app tint.
 
 import QtQuick
 import BearDen
@@ -10,16 +12,25 @@ Item {
     property string label
     property color tint: Theme.accent
     property real size: 64 * Theme.scale
-    readonly property string source: Shell.appArt(adapter).icon
+    readonly property var art: Shell.appArt(adapter, World.classic)
+    readonly property string source: art.icon
+    // Bear Den's pixel icons are 32×32 art pixels: shown at the largest whole
+    // multiple that fits, never smoothed or scaled in between.
+    readonly property bool pixelArt: art.iconSource === "bundled" && World.pixel
+    readonly property int grid: 32
+    readonly property real drawn: pixelArt ? Math.max(1, Math.floor(size / grid)) * grid : size
     width: size
     height: size
     Image {
+        objectName: "appIconImage"
         visible: root.source.length > 0
-        anchors.fill: parent
+        anchors.centerIn: parent
+        width: root.drawn
+        height: root.drawn
         source: root.source
-        sourceSize: Qt.size(width * 2, height * 2)
+        sourceSize: root.pixelArt ? Qt.size(root.grid, root.grid) : Qt.size(width * 2, height * 2)
         fillMode: Image.PreserveAspectFit
-        smooth: true
+        smooth: !root.pixelArt
         asynchronous: true
     }
     PixelBox {

@@ -49,8 +49,14 @@ func TestDefaultsMatchFixture(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.Revision != 1 || len(cfg.Applications) != 3 || cfg.Applications[1].Launch.Args[0] != "--fullscreen" || cfg.Applications[2].Adapter != "moonlight" {
+	if cfg.Revision != 1 || len(cfg.Applications) != 6 || cfg.Applications[1].Launch.Args[0] != "--fullscreen" || cfg.Applications[2].Adapter != "moonlight" {
 		t.Fatalf("defaults decoded wrongly: %+v", cfg)
+	}
+	// The core apps always show a tile; the optional ones only when installed.
+	for i, a := range cfg.Applications {
+		if want := i >= 3; a.HideWhenMissing != want {
+			t.Errorf("%s: hide_when_missing=%v want %v", a.ID, a.HideWhenMissing, want)
+		}
 	}
 	if err := Validate(cfg, testRules()); err != nil {
 		t.Fatal(err)
@@ -703,5 +709,43 @@ func TestCECBlock(t *testing.T) {
 	off := CEC{Enabled: false, VolumeTarget: "tv"}
 	if off.TVVolume() {
 		t.Fatal("volume_target tv must not apply while CEC is off")
+	}
+}
+
+// The optional apps' launch definitions follow rule 3: the Flatpak id and
+// arguments each adapter approves, and nothing else.
+func TestOptionalAppsLaunchRules(t *testing.T) {
+	for _, c := range []struct {
+		id   string
+		mut  func(a map[string]any)
+		fail bool
+	}{
+		{"spotify", func(a map[string]any) {}, false},
+		{"jellyfin", func(a map[string]any) {}, false},
+		{"retroarch", func(a map[string]any) {}, false},
+		{"spotify", func(a map[string]any) { a["launch"].(map[string]any)["args"] = []any{"--fullscreen"} }, true},
+		{"jellyfin", func(a map[string]any) {
+			a["launch"].(map[string]any)["app_id"] = "com.github.iwalton3.jellyfin-media-player"
+		}, true},
+		{"retroarch", func(a map[string]any) { a["launch"].(map[string]any)["args"] = []any{"--menu"} }, true},
+	} {
+		raw := mutateJSON(t, defaultRaw(t), func(m map[string]any) {
+			for _, a := range m["applications"].([]any) {
+				if am := a.(map[string]any); am["id"] == c.id {
+					c.mut(am)
+				}
+			}
+		})
+		_, err := Parse(raw, testRules())
+		if (err != nil) != c.fail {
+			t.Errorf("%s: err=%v, want failure=%v", c.id, err, c.fail)
+		}
+	}
+	// hide_when_missing must be a boolean.
+	raw := mutateJSON(t, defaultRaw(t), func(m map[string]any) {
+		m["applications"].([]any)[3].(map[string]any)["hide_when_missing"] = "yes"
+	})
+	if _, err := Parse(raw, testRules()); err == nil {
+		t.Error("a string hide_when_missing was accepted")
 	}
 }

@@ -1,10 +1,11 @@
 // Large panel describing the focused item: artwork backdrop for content; for
-// apps, the app's own colours with its official icon (or the owner's wordmark)
+// apps, the app's own colours with its icon (Bear Den's own, or the owner's
+// brand icon or wordmark)
 // and its state. It follows focus and never auto-advances (design §3.3).
 // In the Bear Den style it also has life, all pixel art on World's heartbeat
 // (docs/THEMES.md → Pixel art, "The featured panel"):
 //  - the app's icon sits in a little room (HeroScene: cinema, cabin TV,
-//    arcade; Apps.stage) that shifts a pixel or two as focus moves along the
+//    arcade, music nook, woods theatre, retro corner; Apps.stage) that shifts a pixel or two as focus moves along the
 //    rail;
 //  - the title types itself in and the rest drops in row by row when focus
 //    moves to another item;
@@ -25,7 +26,7 @@ PixelBox {
     property string sectionTitle: ""
     readonly property bool isApp: item.kind === "app"
     readonly property var app: isApp && item.appId ? Session.application(item.appId) : ({})
-    readonly property var art: isApp ? Shell.appArt(app.adapter || "") : ({ icon: "", logo: "", background: "" })
+    readonly property var art: isApp ? Shell.appArt(app.adapter || "", World.classic) : ({ icon: "", logo: "", background: "" })
     readonly property string backdrop: isApp ? art.background : (item.artwork || "")
     readonly property bool hasBackdrop: backdropImage.ready
     readonly property color tint: item && item.tint ? item.tint : Theme.tintFor(item && item.itemId ? item.itemId : "bear")
@@ -74,11 +75,14 @@ PixelBox {
     // Artwork on the right, rounded and fading into the text side.
     RoundedImage {
         id: backdropImage
+        objectName: "heroBackdrop"
         anchors.fill: parent
         radius: root.radius
         coverage: 0.68
         fade: 0.55
         source: root.backdrop
+        // Pixel: poster art in whole art pixels (composed once, cached).
+        pixelSize: World.pixel ? World.px : 1
     }
     PixelBox {
         anchors.fill: parent
@@ -266,6 +270,21 @@ PixelBox {
             font.family: Theme.fontFamily
             font.pixelSize: 26 * Theme.fontUnit
         }
+        // A how-to line for the app (Apps.hint), e.g. Spotify's device list.
+        Text {
+            objectName: "heroHint"
+            width: parent.width
+            text: root.isApp ? Apps.hint(root.app.adapter || "") : ""
+            visible: text.length > 0
+            opacity: root.revealed >= 0.3 ? 1 : 0
+            color: Theme.textPrimary
+            wrapMode: Text.WordWrap
+            maximumLineCount: 2
+            elide: Text.ElideRight
+            font.family: Theme.fontFamily
+            font.pixelSize: 22 * Theme.fontUnit
+            font.weight: Font.DemiBold
+        }
         // App state, only when there is something to say (install details
         // and versions live in Settings → Diagnostics).
         Row {
@@ -367,7 +386,10 @@ PixelBox {
                               ? (root.item.installed === false ? qsTr("How to install")
                                  : (root.item.running ? qsTr("Switch to %1").arg(root.item.title) : qsTr("Open %1").arg(root.item.title)))
                               : (root.item.kind === "setup" ? qsTr("Open Settings")
-                                 : (root.item.progress !== undefined && root.item.progress > 0 ? qsTr("Resume in Plex") : qsTr("Open in Plex")))
+                                 // Only a verified exact-item handoff (open_action play_exact)
+                                 // may promise the item; open_app just opens Plex HTPC.
+                                 : root.item.openAction !== "play_exact" ? qsTr("Open Plex")
+                                 : (root.item.progress !== undefined && root.item.progress > 0 ? qsTr("Resume in Plex") : qsTr("Play in Plex")))
                         color: Theme.pillActiveText
                         font.family: Theme.fontFamily
                         font.pixelSize: 25 * Theme.fontUnit

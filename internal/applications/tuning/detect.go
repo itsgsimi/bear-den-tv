@@ -41,6 +41,22 @@ var Apps = []App{
 	{"com.moonlight_stream.Moonlight", "moonlight", "Moonlight", func(h string, c Caps, x Host, d Display, ov Overrides) (Plan, error) {
 		return PlanMoonlight(MoonlightConf(h), c, x, d, ov)
 	}},
+	// Optional apps with nothing Bear Den tunes yet (NoTuning says why).
+	{"com.spotify.Client", "spotify", "Spotify", func(string, Caps, Host, Display, Overrides) (Plan, error) {
+		return NoTuning("spotify", "com.spotify.Client", "Spotify streams compressed audio, which any box plays without help; Bear Den leaves its settings alone."), nil
+	}},
+	{"org.jellyfin.JellyfinDesktop", "jellyfin", "Jellyfin", func(string, Caps, Host, Display, Overrides) (Plan, error) {
+		return NoTuning("jellyfin", "org.jellyfin.JellyfinDesktop", "Jellyfin Desktop keeps its playback settings on your Jellyfin server and in its own profile; Bear Den does not edit them yet. If a file stutters, lower its quality in the player so the server converts it."), nil
+	}},
+	{"org.libretro.RetroArch", "retroarch", "RetroArch", func(string, Caps, Host, Display, Overrides) (Plan, error) {
+		return NoTuning("retroarch", "org.libretro.RetroArch", "RetroArch's video and audio settings belong to each core and game; Bear Den leaves retroarch.cfg alone."), nil
+	}},
+}
+
+// NoTuning is the plan of an app Bear Den knows but does not tune: no
+// settings file, no changes, and one note that says why.
+func NoTuning(adapter, flatpakID, why string) Plan {
+	return Plan{App: adapter, Flatpak: flatpakID, Notes: []string{why}}
 }
 
 // Plan builds this app's settings plan with the owner's overrides.
@@ -379,6 +395,19 @@ func Expectations(adapter string, caps Caps, host Host, disp Display) ([]string,
 		}
 		if !caps.Has(AV1) && !caps.Has(VP9) && caps.Has(HEVC) {
 			notes = append(notes, Note{"info", "AV1/VP9 files are converted by the Plex server."})
+		}
+	case "spotify":
+		expect = append(expect, "Music plays on any box; pick this TV in Spotify's device list on your phone.")
+	case "jellyfin":
+		if len(caps.Decoders) > 0 {
+			expect = append(expect, "Files your GPU decodes play directly; the Jellyfin server converts the rest.")
+		} else {
+			expect = append(expect, "Files decode on the CPU; the Jellyfin server should convert heavy ones.")
+		}
+	case "retroarch":
+		expect = append(expect, "Older consoles run well on any box; 3D-era cores need a capable CPU.")
+		if host.Entry() {
+			notes = append(notes, Note{"info", "An entry-level box: prefer lightweight cores and leave shaders off."})
 		}
 	case "moonlight":
 		modern := caps.Has(AV1) || caps.Has(HEVC)

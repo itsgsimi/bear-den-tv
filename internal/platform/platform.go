@@ -32,6 +32,12 @@ const (
 	KeyPlay      Key = "play"       // XF86AudioPlay (only where idempotent play exists)
 	KeyRewind    Key = "rewind"     // XF86AudioRewind
 	KeyForward   Key = "forward"    // XF86AudioForward
+	// Letter keys some apps document as controls (RetroArch's default
+	// retroarch.cfg: x = confirm, z = back, p = pause toggle). Never text:
+	// text goes through text.submit to the shell only.
+	KeyLetterX Key = "letter_x" // XK_x
+	KeyLetterZ Key = "letter_z" // XK_z
+	KeyLetterP Key = "letter_p" // XK_p
 )
 
 // WindowInfo is what the backend can observe about a top-level window.

@@ -192,6 +192,12 @@ bool SessionModel::validateSnapshot(const QJsonObject &snapshot, QString *error)
         if (!requireEnum(app, QStringLiteral("launch_state"), {QStringLiteral("idle"), QStringLiteral("launching"), QStringLiteral("running"), QStringLiteral("failed"), QStringLiteral("exited"), QStringLiteral("crashed")},
                          QStringLiteral("state.applications[]"), error))
             return false;
+        // Optional: an optional app that is not installed (no tile).
+        if (app.contains(QStringLiteral("hidden")) && !app.value(QStringLiteral("hidden")).isBool()) {
+            if (error)
+                *error = QStringLiteral("state.applications[].hidden must be a boolean");
+            return false;
+        }
     }
     const QJsonObject remote = snapshot.value(QStringLiteral("remote")).toObject();
     if (!requireKeys(remote, {QStringLiteral("enabled"), QStringLiteral("transport"), QStringLiteral("listening"), QStringLiteral("addresses"), QStringLiteral("https"),
@@ -218,6 +224,30 @@ bool SessionModel::validateSnapshot(const QJsonObject &snapshot, QString *error)
         if (!requireKeys(v.toObject(), {QStringLiteral("id"), QStringLiteral("name"), QStringLiteral("permissions"), QStringLiteral("connected"), QStringLiteral("last_seen_ms"), QStringLiteral("created_at")},
                          QStringLiteral("state.devices[]"), error))
             return false;
+        // Permissions are a closed set; a guest pass never comes with another
+        // permission (state.schema.json devices[].permissions).
+        const QJsonArray perms = v.toObject().value(QStringLiteral("permissions")).toArray();
+        bool guest = false;
+        for (const QJsonValue &p : perms) {
+            const QString name = p.toString();
+            if (name != QLatin1String("controller") && name != QLatin1String("layout_editor") && name != QLatin1String("owner") && name != QLatin1String("guest")) {
+                if (error)
+                    *error = QStringLiteral("state.devices[].permissions: unknown permission '%1'").arg(name);
+                return false;
+            }
+            guest = guest || name == QLatin1String("guest");
+        }
+        if (guest && perms.size() != 1) {
+            if (error)
+                *error = QStringLiteral("state.devices[].permissions: guest never comes with another permission");
+            return false;
+        }
+        const QJsonValue expires = v.toObject().value(QStringLiteral("expires_at_ms"));
+        if (!expires.isUndefined() && !expires.isNull() && !expires.isDouble()) {
+            if (error)
+                *error = QStringLiteral("state.devices[].expires_at_ms must be a number or null");
+            return false;
+        }
     }
     if (!requireType(snapshot, QStringLiteral("notifications"), QJsonValue::Array, QStringLiteral("state"), error))
         return false;
@@ -341,6 +371,31 @@ bool SessionModel::validateSnapshot(const QJsonObject &snapshot, QString *error)
         if (cec.contains(QStringLiteral("reason")) && !requireType(cec, QStringLiteral("reason"), QJsonValue::String, where, error))
             return false;
     }
+    if (snapshot.contains(QStringLiteral("plex"))) {
+        // state.plex (optional, shell view only): the Plex sign-in flow.
+        const QString where = QStringLiteral("state.plex");
+        if (!requireType(snapshot, QStringLiteral("plex"), QJsonValue::Object, QStringLiteral("state"), error))
+            return false;
+        const QJsonObject plex = snapshot.value(QStringLiteral("plex")).toObject();
+        if (!requireKeys(plex, {QStringLiteral("status"), QStringLiteral("message"), QStringLiteral("code"), QStringLiteral("link_url"), QStringLiteral("server"), QStringLiteral("servers"), QStringLiteral("libraries")}, where, error)
+            || !requireEnum(plex, QStringLiteral("status"),
+                            {QStringLiteral("signed_out"), QStringLiteral("linking"), QStringLiteral("choose_server"), QStringLiteral("choose_libraries"), QStringLiteral("connected"), QStringLiteral("error")},
+                            where, error)
+            || !requireType(plex, QStringLiteral("servers"), QJsonValue::Array, where, error)
+            || !requireType(plex, QStringLiteral("libraries"), QJsonValue::Array, where, error))
+            return false;
+        for (const QJsonValue &sv : plex.value(QStringLiteral("servers")).toArray()) {
+            if (!requireKeys(sv.toObject(), {QStringLiteral("id"), QStringLiteral("name"), QStringLiteral("owned"), QStringLiteral("local")}, QStringLiteral("state.plex.servers[]"), error))
+                return false;
+        }
+        for (const QJsonValue &lv : plex.value(QStringLiteral("libraries")).toArray()) {
+            const QJsonObject lib = lv.toObject();
+            if (!requireKeys(lib, {QStringLiteral("id"), QStringLiteral("title"), QStringLiteral("kind"), QStringLiteral("selected")}, QStringLiteral("state.plex.libraries[]"), error)
+                || !requireEnum(lib, QStringLiteral("kind"), {QStringLiteral("movie"), QStringLiteral("show"), QStringLiteral("artist"), QStringLiteral("photo"), QStringLiteral("other")},
+                                QStringLiteral("state.plex.libraries[]"), error))
+                return false;
+        }
+    }
     return true;
 }
 
@@ -455,6 +510,8 @@ void SessionModel::rebuildSections()
                 if (!apps.contains(appId))
                     continue; // dangling reference: the coordinator's config layer rejects these; never fabricate a tile
                 const QJsonObject app = apps.value(appId);
+                if (app.value(QStringLiteral("hidden")).toBool())
+                    continue; // an optional app that is not installed: no tile (contracts/state.schema.json)
                 ItemsModel::Item item;
                 item.id = appId;
                 item.appId = appId;
@@ -495,16 +552,36 @@ void SessionModel::rebuildSections()
                 section.items.append(item);
             }
             if (section.items.isEmpty()) {
-                if (def.value(QStringLiteral("hide_when_empty")).toBool())
+                // An empty row that is loading or failing says so, even when it
+                // would otherwise hide: an honest "Can't reach your Plex server"
+                // beats rows that silently vanish.
+                const QJsonObject content = m_snapshot.value(QStringLiteral("content")).toObject();
+                const QString status = content.value(QStringLiteral("status")).toString();
+                const bool failing = contentReady && status == QLatin1String("error");
+                const bool loading = contentReady && status == QLatin1String("connecting");
+                if (def.value(QStringLiteral("hide_when_empty")).toBool() && !failing && !loading)
                     continue;
                 section.isEmpty = true;
-                section.emptyMessage = contentReady && m_snapshot.value(QStringLiteral("content")).toObject().value(QStringLiteral("status")).toString() != QLatin1String("disabled")
-                    ? QStringLiteral("Nothing here yet")
-                    : QStringLiteral("Connect Plex to see %1").arg(section.title);
+                QString title;
+                if (failing) {
+                    title = QStringLiteral("Can't load right now");
+                    section.emptyMessage = content.value(QStringLiteral("message")).toString();
+                    if (section.emptyMessage.isEmpty())
+                        section.emptyMessage = QStringLiteral("%1 could not be loaded").arg(section.title);
+                } else if (loading) {
+                    title = QStringLiteral("Loading…");
+                    section.emptyMessage = QStringLiteral("Asking your Plex server");
+                } else if (contentReady && status != QLatin1String("disabled")) {
+                    title = QStringLiteral("Nothing here yet");
+                    section.emptyMessage = title;
+                } else {
+                    title = QStringLiteral("Connect Plex");
+                    section.emptyMessage = QStringLiteral("Connect Plex to see %1").arg(section.title);
+                }
                 ItemsModel::Item setup;
                 setup.id = QStringLiteral("%1--setup").arg(section.id);
                 setup.kind = QStringLiteral("setup");
-                setup.title = contentReady ? QStringLiteral("Nothing here yet") : QStringLiteral("Connect Plex");
+                setup.title = title;
                 setup.subtitle = section.emptyMessage;
                 setup.tint = theme ? theme->accent() : QColor(Qt::gray);
                 section.items.append(setup);

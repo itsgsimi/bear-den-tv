@@ -143,7 +143,8 @@ capability. Only a headless sway in a container has been tested
   Settings, choose the network interface, and consent to LAN exposure.
 - Phones pair with a six-digit code or QR shown on the TV, then hold a session
   with permissions (`controller`, `layout_editor`, `owner`). Devices can be
-  revoked from the TV or the phone.
+  revoked from the TV or the phone. A visitor can get a guest pass instead
+  (permission `guest`, a remote with fewer powers that ends by itself).
 - Secrets never go into `config.json`, exports, logs or phone payloads.
   [`docs/security.md`](security.md) has the details.
 

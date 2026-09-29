@@ -344,6 +344,13 @@ func TestTVPowerAction(t *testing.T) {
 	}
 	h.tv.Hang(false)
 
+	// A guest pass never powers the TV (not on the guest allow-list).
+	before := len(h.tv.Calls())
+	expectOutcome(t, h.submit(guestViewer(time.Now().Add(time.Hour)), h.req(contract.ActionTVPower, map[string]any{"power": "standby"})), contract.OutcomeFailed, contract.CodeForbidden)
+	if len(h.tv.Calls()) != before {
+		t.Fatal("a guest reached the TV")
+	}
+
 	// Old epoch: still applies (a power action); locked: refused.
 	r := h.req(contract.ActionTVPower, map[string]any{"power": "on"})
 	r.ContextEpoch = 0

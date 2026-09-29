@@ -233,6 +233,11 @@ void ShellController::onReply(const QString &requestId, const QString &type, con
             emit requestFailed(tr("Weather"), error);
         return;
     }
+    if (type.startsWith(QLatin1String("plex."))) {
+        // Settings → Plex shows the reason itself (state.plex.message and this reply).
+        emit plexReplied(type, payload.value(QStringLiteral("ok")).toBool(), payload.value(QStringLiteral("error")).toString());
+        return;
+    }
     if (payload.value(QStringLiteral("ok")).toBool(true))
         return;
     const QString error = payload.value(QStringLiteral("error")).toString();
@@ -252,7 +257,7 @@ void ShellController::onReply(const QString &requestId, const QString &type, con
         emit requestFailed(tr("Request"), error);
 }
 
-void ShellController::issuePairing() { m_ipc->sendPairIssue(); }
+void ShellController::issuePairing(const QString &pass) { m_ipc->sendPairIssue(pass); }
 void ShellController::cancelPairing() { m_ipc->sendPairCancel(); }
 void ShellController::revokeDevice(const QString &deviceId) { m_ipc->sendDevicesRevoke(deviceId); }
 
@@ -335,6 +340,18 @@ void ShellController::setCEC(bool enabled, const QString &volumeTarget)
     m_ipc->sendCECConfigure(enabled, volumeTarget == QLatin1String("tv") ? QStringLiteral("tv") : QStringLiteral("pc"));
 }
 
+void ShellController::plexSignIn() { m_ipc->sendPlex(QStringLiteral("plex.sign_in")); }
+void ShellController::plexCancel() { m_ipc->sendPlex(QStringLiteral("plex.cancel")); }
+void ShellController::plexChooseServer(const QString &serverId)
+{
+    m_ipc->sendPlex(QStringLiteral("plex.choose_server"), QJsonObject{{QStringLiteral("server_id"), serverId}});
+}
+void ShellController::plexChooseLibraries(const QStringList &libraryIds)
+{
+    m_ipc->sendPlex(QStringLiteral("plex.choose_libraries"), QJsonObject{{QStringLiteral("library_ids"), QJsonArray::fromStringList(libraryIds)}});
+}
+void ShellController::plexSignOut() { m_ipc->sendPlex(QStringLiteral("plex.sign_out")); }
+
 void ShellController::answerConfirm(const QString &confirmId, bool accepted)
 {
     m_ipc->sendConfirmResult(confirmId, accepted);
@@ -370,13 +387,16 @@ QVariantList ShellController::lanInterfaces() const
 
 QString ShellController::flatpakIdFor(const QString &adapter) const
 {
-    if (adapter == QLatin1String("plex-htpc"))
-        return QStringLiteral("tv.plex.PlexHTPC");
-    if (adapter == QLatin1String("vacuumtube"))
-        return QStringLiteral("rocks.shy.VacuumTube");
-    if (adapter == QLatin1String("moonlight"))
-        return QStringLiteral("com.moonlight_stream.Moonlight");
-    return {};
+    // A table, not branches: one row per adapter in internal/applications/adapters.
+    static const QHash<QString, QString> ids{
+        {QStringLiteral("plex-htpc"), QStringLiteral("tv.plex.PlexHTPC")},
+        {QStringLiteral("vacuumtube"), QStringLiteral("rocks.shy.VacuumTube")},
+        {QStringLiteral("moonlight"), QStringLiteral("com.moonlight_stream.Moonlight")},
+        {QStringLiteral("spotify"), QStringLiteral("com.spotify.Client")},
+        {QStringLiteral("jellyfin"), QStringLiteral("org.jellyfin.JellyfinDesktop")},
+        {QStringLiteral("retroarch"), QStringLiteral("org.libretro.RetroArch")},
+    };
+    return ids.value(adapter);
 }
 
 namespace {
@@ -403,36 +423,54 @@ QString flatpakExportedIcon(const QString &id)
 }
 } // namespace
 
-QVariantMap ShellController::appArt(const QString &adapter) const
+QVariantMap ShellController::appArt(const QString &adapter, bool classic) const
 {
     // Bindings call this on every state update; the answer only changes when
     // apps are installed or brand files added, so cache it for a minute.
     const qint64 now = QDateTime::currentMSecsSinceEpoch();
-    auto hit = m_artCache.constFind(adapter);
+    const QString key = adapter + (classic ? QStringLiteral("|classic") : QStringLiteral("|pixel"));
+    auto hit = m_artCache.constFind(key);
     if (hit != m_artCache.constEnd() && now - hit->first < 60000)
         return hit->second;
-    const QVariantMap art = lookupArt(adapter);
-    m_artCache.insert(adapter, {now, art});
+    const QVariantMap art = lookupArt(adapter, classic);
+    m_artCache.insert(key, {now, art});
     return art;
 }
 
-QVariantMap ShellController::lookupArt(const QString &adapter) const
+QVariantMap ShellController::lookupArt(const QString &adapter, bool classic) const
 {
     static const QStringList exts{QStringLiteral(".svg"), QStringLiteral(".png"), QStringLiteral(".jpg"), QStringLiteral(".webp")};
-    QVariantMap art{{QStringLiteral("icon"), QString()}, {QStringLiteral("logo"), QString()}, {QStringLiteral("background"), QString()}};
+    QVariantMap art{{QStringLiteral("icon"), QString()}, {QStringLiteral("logo"), QString()},
+                    {QStringLiteral("background"), QString()}, {QStringLiteral("iconSource"), QString()}};
     if (adapter.isEmpty())
         return art;
+    // 1. The owner's brand folder.
     const QString brand = QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation)
                           + QStringLiteral("/bear-den-tv/brand/") + adapter + QLatin1Char('/');
     for (const QString &key : {QStringLiteral("icon"), QStringLiteral("logo"), QStringLiteral("background")})
         art.insert(key, firstExisting(brand + key, exts));
+    if (!art.value(QStringLiteral("icon")).toString().isEmpty()) {
+        art.insert(QStringLiteral("iconSource"), QStringLiteral("brand"));
+        return art;
+    }
+    // 2. Bear Den's own icon for this adapter, in the current art style.
+    const QString bundled = classic ? QStringLiteral("assets/classic/app-%1.svg").arg(adapter)
+                                    : QStringLiteral("assets/pixel/app-%1.png").arg(adapter);
+    if (QFile::exists(QStringLiteral(":/qt/qml/BearDen/") + bundled)) {
+        art.insert(QStringLiteral("icon"), QStringLiteral("qrc:/qt/qml/BearDen/") + bundled);
+        art.insert(QStringLiteral("iconSource"), QStringLiteral("bundled"));
+        return art;
+    }
+    // 3. The installed Flatpak's exported icon, then `artwork fetch`'s cache.
     const QString id = flatpakIdFor(adapter);
-    if (art.value(QStringLiteral("icon")).toString().isEmpty() && !id.isEmpty()) {
+    if (!id.isEmpty()) {
         QString icon = flatpakExportedIcon(id);
         if (icon.isEmpty())
             icon = firstExisting(QStandardPaths::writableLocation(QStandardPaths::GenericCacheLocation)
                                      + QStringLiteral("/bear-den-tv/brand/") + id, {QStringLiteral(".png"), QStringLiteral(".svg")});
         art.insert(QStringLiteral("icon"), icon);
+        if (!icon.isEmpty())
+            art.insert(QStringLiteral("iconSource"), QStringLiteral("flatpak"));
     }
     return art;
 }

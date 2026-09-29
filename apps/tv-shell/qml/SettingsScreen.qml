@@ -2,8 +2,8 @@
 // (remote.now_playing over IPC), appearance (sent to the coordinator as a
 // layout update), weather, playback, diagnostics, the sleep timer and Screen
 // off (the power.sleep_timer and display.off actions, state.power), TV
-// control over HDMI (CEC) and its volume row (cec.configure, state.cec), and
-// a maintenance exit.
+// control over HDMI (CEC) and its volume row (cec.configure, state.cec),
+// Plex, and a maintenance exit.
 
 import QtQuick
 import BearDen
@@ -29,6 +29,16 @@ Item {
         const apps = (Session.playback && Session.playback.apps) || []
         const n = apps.reduce((sum, a) => sum + (a.settings || []).filter(s => s.overridden).length, 0)
         return n === 0 ? qsTr("Auto") : qsTr("%n by hand", "", n)
+    }
+    // Settings → Plex at a glance (state.plex; empty without a connector).
+    readonly property string plexValue: {
+        switch (Session.plex.status) {
+        case "connected": return Session.plex.server || qsTr("On")
+        case "linking": case "choose_server": case "choose_libraries": return qsTr("Signing in…")
+        case "error": return qsTr("Needs attention")
+        case "signed_out": return qsTr("Off")
+        }
+        return qsTr("Not available")
     }
     // Installed themes (built-in and the owner's), in display order.
     readonly property var backgrounds: Themes.list.map(t => t.id)
@@ -97,6 +107,8 @@ Item {
           description: cecTarget === "tv" ? qsTr("Change the TV's volume over HDMI") : qsTr("Change this box's volume"),
           value: cecTarget === "tv" ? qsTr("TV") : qsTr("PC") }
     ] : []).concat([
+        // Settings → Plex (state.plex); last before Exit so the rows tests walk to keep their places.
+        { id: "plex", kind: "link", label: qsTr("Plex"), description: qsTr("Continue Watching and Recently Added on Home"), value: plexValue },
         { id: "exit", kind: "danger", label: qsTr("Exit Bear Den TV"), description: qsTr("For maintenance: returns to the desktop until the next start"), value: "" }
     ])
 
@@ -142,6 +154,7 @@ Item {
         case "diagnostics": openScreen("diagnostics"); break
         // After a short pause, so the OK key's own release does not wake the display.
         case "screen-off": if (screenOffCap.available) screenOffDelay.restart(); break
+        case "plex": openScreen("plex"); break
         case "motion": editUi(u => u.reduced_motion = !u.reduced_motion); break
         case "contrast": editUi(u => u.high_contrast_focus = !u.high_contrast_focus); break
         case "hero": editUi(u => u.hero_enabled = !u.hero_enabled); break

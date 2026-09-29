@@ -4,7 +4,8 @@
 // store holds the last server snapshot verbatim (the server is the only authority
 // on target, epoch, and capabilities), the connection status, pending action
 // results keyed by request_id, the local hold status, the last failure, and the
-// per-screen editing state. Selectors at the bottom derive view facts from it.
+// per-screen editing state. Selectors at the bottom derive view facts from it,
+// including what a guest pass may use (`isGuest`, `mayUse`, `guestEndsAt`).
 
 import type {
   ActionName,
@@ -25,11 +26,13 @@ import type {
   Session,
   StateSnapshot,
 } from './contract.ts';
+import { GUEST_ACTIONS } from './contract.ts';
 
 export type Connection = 'idle' | 'connecting' | 'online' | 'reconnecting' | 'offline';
 export type Screen = 'loading' | 'pair' | 'app';
 export type Tab = 'remote' | 'editor' | 'devices' | 'about';
-export type SessionEndReason = 'revoked' | 'logout' | 'unauthenticated';
+/** `pass_ended`: a guest pass was revoked (it ran out, or the owner removed it). */
+export type SessionEndReason = 'revoked' | 'logout' | 'unauthenticated' | 'pass_ended';
 export type NoticeKind = 'info' | 'success' | 'warning' | 'error';
 
 export interface PendingAction {
@@ -217,13 +220,16 @@ export function reduce(state: AppState, event: Event): AppState {
         session: event.session,
         pair: { ...state.pair, busy: false, redeeming: false, error: null, notice: null, device_name: event.session.device_name },
       };
-    case 'session_ended':
+    case 'session_ended': {
+      // A guest losing its session means the pass is over; say so plainly.
+      const reason = isGuest(state) && (event.reason === 'revoked' || event.reason === 'unauthenticated') ? 'pass_ended' : event.reason;
       return {
         ...initialState(state.pair.device_name),
         screen: 'pair',
         info: state.info,
-        pair: { ...initialState(state.pair.device_name).pair, notice: event.reason },
+        pair: { ...initialState(state.pair.device_name).pair, notice: reason },
       };
+    }
     case 'pair_required':
       return { ...state, screen: 'pair', pair: { ...state.pair, busy: false, redeeming: false } };
     case 'connection_changed': {
@@ -437,6 +443,32 @@ export function permissionsOf(state: AppState): Permission[] {
 
 /**
  * @param state Application state.
+ * @returns True when this phone holds a guest pass.
+ */
+export function isGuest(state: AppState): boolean {
+  return permissionsOf(state).includes('guest');
+}
+
+/**
+ * @param state Application state.
+ * @param action Action name.
+ * @returns False for actions a guest pass may not send (the server refuses
+ *   them anyway); true for everyone else, whose controls stay capability-gated.
+ */
+export function mayUse(state: AppState, action: ActionName): boolean {
+  return !isGuest(state) || GUEST_ACTIONS.has(action);
+}
+
+/**
+ * @param state Application state.
+ * @returns When this phone's guest pass ends (Unix epoch ms), or null.
+ */
+export function guestEndsAt(state: AppState): number | null {
+  return isGuest(state) ? (state.snapshot?.me?.expires_at_ms ?? null) : null;
+}
+
+/**
+ * @param state Application state.
  * @returns Tabs the viewer may open, in display order.
  */
 export function visibleTabs(state: AppState): Tab[] {
@@ -477,6 +509,15 @@ export function capabilityFor(snapshot: StateSnapshot | null, action: ActionName
   const found = snapshot?.capabilities[action];
   if (found) return found;
   return { available: false };
+}
+
+/**
+ * @param snapshot Last rendered snapshot.
+ * @returns The apps that get a tile: every application except the optional
+ *   ones the coordinator marks `hidden` (not installed).
+ */
+export function visibleApps(snapshot: StateSnapshot | null): Application[] {
+  return (snapshot?.applications ?? []).filter((a) => a.hidden !== true);
 }
 
 /**

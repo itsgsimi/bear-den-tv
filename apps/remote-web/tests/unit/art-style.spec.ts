@@ -1,10 +1,11 @@
 // Unit tests for the runtime art style switch (ADR 0006): artStyleOf (what
 // main.tsx writes to <html data-art>), the Art component choosing the pixel PNG
 // or the classic SVG, and the Classic (smooth) vine renderer in src/vines.tsx.
+import { existsSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import type { VNode } from 'preact';
 import type { Appearance } from '../../src/contract.ts';
-import { Art, artStyleOf } from '../../src/icons.tsx';
+import { AppArt, APP_ICONS, Art, artStyleOf } from '../../src/icons.tsx';
 import { CLASSIC_LEAVES, CLASSIC_STEM, ClassicCorner, decorOf, Vines } from '../../src/vines.tsx';
 
 type Props = Record<string, unknown> & { children?: unknown };
@@ -88,5 +89,34 @@ describe('classic vines', () => {
   it('draws nothing for Plain', () => {
     const plain = { art_style: 'classic', focus: { style: '' } } as unknown as Appearance;
     expect(ClassicCorner({ corner: 'tl', decor: decorOf(plain, 'classic') })).toBeNull();
+  });
+});
+
+describe('app tile icons', () => {
+  it('every app uses Bear Den\'s own icon: the pixel PNG at a whole-number scale, or the classic SVG', () => {
+    expect(APP_ICONS).toEqual(['plex-htpc', 'vacuumtube', 'moonlight', 'spotify', 'jellyfin', 'retroarch']);
+    for (const adapter of APP_ICONS) {
+      const px = props(AppArt({ adapter, size: 70 }));
+      expect(px.src).toBe(`art/pixel/app-${adapter}.png`);
+      expect([px.width, px.height]).toEqual([64, 64]);
+      const smooth = props(AppArt({ adapter, size: 32, art: 'classic' }));
+      expect(smooth.src).toBe(`art/app-${adapter}.svg`);
+      expect([smooth.width, smooth.height]).toEqual([32, 32]);
+      expect(existsSync(new URL(`../../static/art/pixel/app-${adapter}.png`, import.meta.url))).toBe(true);
+      expect(existsSync(new URL(`../../static/art/app-${adapter}.svg`, import.meta.url))).toBe(true);
+    }
+  });
+
+  it('an adapter without an icon gets the generic glyph, never a guessed file', () => {
+    const glyph = AppArt({ adapter: 'kodi', size: 32 }) as VNode<Props>;
+    expect(glyph.props.src).toBeUndefined();
+    expect(glyph.props.name).toBe('app');
+  });
+
+  it('the remote\'s app tiles draw AppArt, not the generic glyph', () => {
+    const src = readFileSync(new URL('../../src/views/remote.tsx', import.meta.url), 'utf8');
+    const tile = src.slice(src.indexOf('function AppButton'));
+    expect(tile).toContain('<AppArt adapter={application.adapter}');
+    expect(tile).not.toContain('<Icon name="app"');
   });
 });

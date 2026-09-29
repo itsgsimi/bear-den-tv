@@ -107,7 +107,8 @@ public:
     // Trusted local requests from the TV UI.
     Q_INVOKABLE void launchApp(const QString &appId);
     Q_INVOKABLE void closeApp(const QString &appId);
-    Q_INVOKABLE void issuePairing();
+    /// A family phone invitation, or with pass (tonight, 24h, 7d) a guest pass.
+    Q_INVOKABLE void issuePairing(const QString &pass = QString());
     Q_INVOKABLE void cancelPairing();
     Q_INVOKABLE void revokeDevice(const QString &deviceId);
     Q_INVOKABLE void configureRemote(bool enabled, const QString &interfaceName);
@@ -134,17 +135,34 @@ public:
     // units celsius|fahrenheit).
     Q_INVOKABLE void weatherSearch(const QString &query);
     Q_INVOKABLE void weatherConfigure(bool enabled, const QVariant &place, const QString &units, bool scene);
+    // Settings → Plex (contracts/ipc.md plex.*): sign in, pick a server and
+    // libraries, cancel, sign out. The flow itself is state.plex
+    // (Session.plex); each reply arrives as plexReplied.
+    Q_INVOKABLE void plexSignIn();
+    Q_INVOKABLE void plexCancel();
+    Q_INVOKABLE void plexChooseServer(const QString &serverId);
+    Q_INVOKABLE void plexChooseLibraries(const QStringList &libraryIds);
+    Q_INVOKABLE void plexSignOut();
     Q_INVOKABLE void answerConfirm(const QString &confirmId, bool accepted);
     Q_INVOKABLE void exitShell();
     // Flatpak id for a registered adapter ("" when unknown); the closed set
     // mirrors internal/applications/adapters.
     Q_INVOKABLE QString flatpakIdFor(const QString &adapter) const;
-    // Official artwork for an app as file:// URLs: {icon, logo, background}
-    // (each "" when absent). Bear Den bundles no brand artwork; sources, in
-    // order: the owner's brand folder ($XDG_DATA_HOME/bear-den-tv/brand/<adapter>/
-    // logo|icon|background.{svg,png,jpg}), the icon the installed Flatpak
-    // exports, then icons cached by `bear-den-tv artwork fetch`.
-    Q_INVOKABLE QVariantMap appArt(const QString &adapter) const;
+    // An app's artwork: {icon, logo, background, iconSource} (URLs, "" when
+    // absent). Bear Den bundles its own original icons, never third-party
+    // logos (docs/THEMES.md → Art and brands). The icon comes, in order, from:
+    //   "brand"   the owner's brand folder $XDG_DATA_HOME/bear-den-tv/brand/<adapter>/
+    //             icon.{svg,png,jpg,webp} (logo and background come only from there);
+    //   "bundled" Bear Den's own icon for the adapter, qrc assets/pixel/app-<adapter>.png
+    //             or, with `classic`, assets/classic/app-<adapter>.svg (tools/pixelart
+    //             and tools/classicart appicons.py);
+    //   "flatpak" the icon the installed Flatpak exports, then icons cached by
+    //             `bear-den-tv artwork fetch` (an adapter without a bundled icon);
+    //   ""        none: AppIcon draws a monogram.
+    // Cached for a minute per adapter and style.
+    Q_INVOKABLE QVariantMap appArt(const QString &adapter, bool classic = false) const;
+    // Forget cached artwork (tests; a new brand folder shows within a minute anyway).
+    void forgetArt() { m_artCache.clear(); }
     // Non-loopback, up, non-virtual interfaces the remote could bind to.
     Q_INVOKABLE QVariantList lanInterfaces() const;
 
@@ -159,6 +177,8 @@ signals:
     void weatherPlacesChanged();
     /// The coordinator's `result` for weather.configure.
     void weatherConfigured(bool ok, const QString &error);
+    /// The coordinator's `result` for a plex.* message (type is its name).
+    void plexReplied(const QString &type, bool ok, const QString &error);
 
 private:
     void onInput(const QString &requestId, const QString &action, const QVariantMap &args, int contextEpoch);
@@ -167,7 +187,7 @@ private:
                         const QString &message, const QVariantMap &detail);
     void onReply(const QString &requestId, const QString &type, const QJsonObject &payload);
     void setLaunching(const QString &appId);
-    QVariantMap lookupArt(const QString &adapter) const;
+    QVariantMap lookupArt(const QString &adapter, bool classic) const;
 
     Options m_options;
     IpcClient *m_ipc = nullptr;

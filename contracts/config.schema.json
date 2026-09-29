@@ -25,7 +25,7 @@
         "properties": {
           "id": {"type": "string", "pattern": "^[a-z][a-z0-9-]{0,63}$"},
           "label": {"type": "string", "minLength": 1, "maxLength": 64},
-          "adapter": {"enum": ["plex-htpc", "vacuumtube", "moonlight"]},
+          "adapter": {"enum": ["plex-htpc", "vacuumtube", "moonlight", "spotify", "jellyfin", "retroarch"]},
           "launch": {
             "type": "object",
             "properties": {
@@ -37,7 +37,8 @@
             "additionalProperties": false
           },
           "home_policy": {"enum": ["pause-if-supported", "leave-running"]},
-          "remote_enabled": {"type": "boolean"}
+          "remote_enabled": {"type": "boolean"},
+          "hide_when_missing": {"type": "boolean", "description": "Optional app: when true its tile is hidden (state.applications[].hidden) while its Flatpak is not installed, instead of showing Not installed. Absent means false."}
         },
         "required": ["id", "label", "adapter", "launch", "home_policy", "remote_enabled"],
         "additionalProperties": false

@@ -16,10 +16,28 @@ type Viewer struct {
 	DeviceName  string
 	Permissions []contract.Permission
 	Secure      bool // transport is HTTPS
+	// ExpiresAtMs is when a guest pass ends (Unix epoch ms, wall clock); nil
+	// for family phones (contracts/http.md#guest-passes).
+	ExpiresAtMs *int64
 }
 
-// Has reports whether the viewer holds at least the given permission.
+// Guest reports whether the viewer holds a guest pass (the guest permission).
+func (v Viewer) Guest() bool {
+	for _, q := range v.Permissions {
+		if q == contract.PermGuest {
+			return true
+		}
+	}
+	return false
+}
+
+// Has reports whether the viewer holds at least the given permission. A
+// viewer holding guest is a guest pass whatever else it lists (fail closed):
+// it has guest and nothing above it.
 func (v Viewer) Has(p contract.Permission) bool {
+	if v.Guest() {
+		return p.Rank() > 0 && p.Rank() <= contract.PermGuest.Rank()
+	}
 	best := 0
 	for _, q := range v.Permissions {
 		if q.Rank() > best {

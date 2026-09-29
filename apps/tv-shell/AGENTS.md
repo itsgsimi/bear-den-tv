@@ -14,14 +14,14 @@ module, so tests exercise the shipped QML.
 
 | QML name | Class | Role |
 |---|---|---|
-| `Session` (singleton) | [`SessionModel`](src/SessionModel.h) | the latest state snapshot (incl. `weather` and `power`, empty when absent), validated by `validateSnapshot`/`validateLayout` then applied whole (rejected snapshots keep the previous state); `application(id)`, `layoutForEdit()`, rails as `sections` |
+| `Session` (singleton) | [`SessionModel`](src/SessionModel.h) | the latest state snapshot (incl. `weather`, `power` and `plex`, empty when absent), validated by `validateSnapshot`/`validateLayout` then applied whole (rejected snapshots keep the previous state); `application(id)`, `layoutForEdit()`, rails as `sections` |
 | `Nav` (singleton) | [`Navigator`](src/Navigator.h) | the one input path: key events and coordinator `input` become named actions; `apply(action)` returns the `input_result`; `reportFocus(section, item, scrollX)`, `noteAtRoot()`, `screen`, `textFieldFocused`; `focusReported` carries `text_field` and is re-emitted when only that changes |
-| `Shell` (singleton) | [`ShellController`](src/ShellController.h) | the IPC bridge. Methods: `launchApp`, `closeApp`, `issuePairing`, `cancelPairing`, `revokeDevice`, `configureRemote(enabled, interface)`, `updateLayout(layout)`, `setPlayback(adapter, setting, value)`, `setNowPlaying(enabled)` (IPC `remote.now_playing`), `weatherSearch(query)` (answer in `weatherPlaces`/`weatherSearchOk`/`weatherSearchError`/`weatherSearching`), `weatherConfigure(enabled, place, units, scene)` (place `null` keeps the stored one; answer in `weatherConfigured(ok, error)`), `setSleepTimer(minutes)` (0 cancels) and `screenOff()` (the `power.sleep_timer` and `display.off` actions), `powerActivity()` (IPC `power.activity`), `answerConfirm`, `exitShell`, `flatpakIdFor`, `appArt`, `lanInterfaces`. Properties: connection state (`connectionState`, `connected`, `rejectReason`, `attempt`), `offline`, `devBuild`, `version`, `startScreen`, `launchingAppId`, `screensaverSeconds`, and the check overrides `bearsSeconds`, `bearsAct`, `restSeconds`, `monthOverride`, `lightningSeconds` |
+| `Shell` (singleton) | [`ShellController`](src/ShellController.h) | the IPC bridge. Methods: `launchApp`, `closeApp`, `issuePairing(pass)` (`""` a family phone, `tonight`/`24h`/`7d` a guest pass), `cancelPairing`, `revokeDevice`, `configureRemote(enabled, interface)`, `updateLayout(layout)`, `setPlayback(adapter, setting, value)`, `setNowPlaying(enabled)` (IPC `remote.now_playing`), `weatherSearch(query)` (answer in `weatherPlaces`/`weatherSearchOk`/`weatherSearchError`/`weatherSearching`), `weatherConfigure(enabled, place, units, scene)` (place `null` keeps the stored one; answer in `weatherConfigured(ok, error)`), `setSleepTimer(minutes)` (0 cancels) and `screenOff()` (the `power.sleep_timer` and `display.off` actions), `powerActivity()` (IPC `power.activity`), `plexSignIn`, `plexCancel`, `plexChooseServer(id)`, `plexChooseLibraries(ids)`, `plexSignOut` (IPC `plex.*`; answer in `plexReplied(type, ok, error)`, the flow itself in `Session.plex`), `answerConfirm`, `exitShell`, `flatpakIdFor`, `appArt`, `lanInterfaces`. Properties: connection state (`connectionState`, `connected`, `rejectReason`, `attempt`), `offline`, `devBuild`, `version`, `startScreen`, `launchingAppId`, `screensaverSeconds`, and the check overrides `bearsSeconds`, `bearsAct`, `restSeconds`, `monthOverride`, `lightningSeconds` |
 | `Theme` (singleton) | [`Theme`](src/Theme.h) | design tokens from `layout.ui` and window size: colours, `scale`, type and tile sizes, `ms()`/`duration`, `reducedMotion`, `resting`, `screensaver`, `tintFor(id)` |
 | `Themes` (singleton) | [`ThemeRegistry`](src/ThemeRegistry.h) | installed theme packages: `list`, `get(id)`, `canonical(id)`, `ornament()`, `reload()` ([`themes/AGENTS.md`](../../themes/AGENTS.md)) |
 | `FocusMemory` (singleton) | [`FocusMemory`](src/FocusMemory.h) | remembered item, index and scroll per section; `lastSectionId` |
 | `QrCode` | [`QrRenderer`](src/QrRenderer.h) | paints `pairing.qr_modules`; the coordinator encodes |
-| `RoundedImage` | [`RoundedImage`](src/RoundedImage.h) | artwork backdrop without shaders (local files and qrc only) |
+| `RoundedImage` | [`RoundedImage`](src/RoundedImage.h) | artwork backdrop without shaders (local files and qrc only); `pixelSize` > 1 composes it in whole art pixels, once per source and size (the hero in the Pixel art style) |
 | (uncreatable) | `SectionsModel`, `ItemsModel`, `IpcClient` | id-preserving rail models; the socket client (offline mode records sent messages) |
 
 QML singletons: [`Apps.qml`](qml/Apps.qml) (per-adapter copy and brand
@@ -32,7 +32,7 @@ it), marked `QT_QML_SINGLETON_TYPE` in CMake.
 
 [`src/main.cpp`](src/main.cpp): `--dev` (honours `BDTV_SHELL_SOCKET`),
 `--fixture PATH` (offline: render a state snapshot, no coordinator),
-`--screen home|settings|pairing|devices|diagnostics|remote-setup|playback|advanced-playback|weather` (any screen ShellRoot registers), `--windowed`,
+`--screen home|settings|pairing|devices|diagnostics|remote-setup|playback|advanced-playback|weather|plex` (any screen ShellRoot registers), `--windowed`,
 `--size WxH` (default 1920x1080), `--screenshot PATH`, `--screenshot-after MS`
 (default 1500), `--screenshot-every MS` (`--dev` only), `--exit-after MS`.
 Environment variables:
@@ -58,7 +58,7 @@ plugin), and a wlroots compositor reports that class as its app_id
 | Group | Files |
 |---|---|
 | Root and focus graph | `Main.qml` (window), [`ShellRoot.qml`](qml/ShellRoot.qml) (screen stack, dialogs, rest/screensaver timers, `handle(action)`) |
-| Screens | `HomeScreen`, `SettingsScreen`, `RemoteSetupScreen`, `PairingScreen`, `DevicesScreen`, `DiagnosticsScreen`, `PlaybackScreen`, `AdvancedPlaybackScreen`, `WeatherScreen` (Settings → Weather: toggles, search field, places; reports `settings`), `ConnectingScreen`, `LockedScreen`, `Screensaver` |
+| Screens | `HomeScreen`, `SettingsScreen`, `RemoteSetupScreen`, `PairingScreen` ("Who is it for?": family phone or guest pass), `DevicesScreen` (guests with a badge and the time left), `DiagnosticsScreen`, `PlaybackScreen`, `AdvancedPlaybackScreen`, `WeatherScreen` (Settings → Weather: toggles, search field, places; reports `settings`), `PlexScreen` (Settings → Plex: sign in with a code and QR, choose a server and libraries, sign out; follows `Session.plex.status`; leaving mid-flow sends `plex.cancel`; reports `settings`), `ConnectingScreen`, `LockedScreen`, `Screensaver` |
 | Dialogs and overlays | `ConfirmDialog`, `MessageDialog`, `AppUnavailableDialog`, `LaunchOverlay`, `ErrorBanner`, `Toast`, `SleepWarning` (the sleep timer's last minute: "Going to sleep in 1 minute", the cub dozing; while it shows, or while `Session.power.display` is `off`, `ShellRoot.handle` swallows keys and calls `Shell.powerActivity()`) |
 | Home pieces | `Header` (brand, pills, status, weather chip, clock), `NavPill`, `StatusChip`, `HeroPanel`, `Rail`, `AppTile`, `AppIcon`, `ContentCard`, `SetupCard`, `BrandBackdrop`, `DemoBadge`, `ProgressBar`, `FocusFrame` |
 | Screen pieces | `ScreenFrame`, `SettingsRow`, `FocusButton`, `KeyHints` |
@@ -159,16 +159,17 @@ array of `{id, kind, label, description, value}` with `kind` one of `link`,
    through `Shell.setCEC(enabled, volumeTarget)` (IPC `cec.configure`),
    showing `Session.cec.reason` when no adapter is usable), `cec-volume`
    (only while `Session.cec` is available and enabled: ◀ ▶ or OK between
-   PC and TV), `exit`. A snapshot rebuilds `rows`; the
+   PC and TV), `plex` (opens Settings → Plex), `exit`. A snapshot rebuilds `rows`; the
    list keeps the focused row in view (`onModelChanged`).
    `sleepRowSetsTheTimerAndScreenOff` walks 18 rows down to `sleep`.
    `headerPillsOpenScreensAndBackReturns` walks 17 rows down from `remote`
    to reach `diagnostics` (and 2 to `devices`),
    `advancedPlaybackSendsPlaybackSet` 16 to `advanced-playback`,
    `weatherScreenSearchesAndConfigures` 14 to `weather`, and
-   `nowPlayingRowTogglesTheSetting` 3 to `now-playing`. A row inserted above
-   any of them shifts those counts. `cecRowsShowTheReasonAndConfigure`
-   walks down until it reaches `cec`.
+   `nowPlayingRowTogglesTheSetting` 3 to `now-playing`, and
+   `plexScreenDrivesSignIn` goes to the bottom and one up to `plex` (it sits
+   just above `exit`). A row inserted above any of them shifts those counts.
+   `cecRowsShowTheReasonAndConfigure` walks down until it reaches `cec`.
 
 Done when: `make test-shell` passes and
 `scripts/sandbox.sh shot --screen settings` shows the row (you looked).
@@ -176,21 +177,30 @@ Done when: `make test-shell` passes and
 ## App tiles and branding
 
 Supported apps are a closed set keyed by **adapter name** (`plex-htpc`,
-`vacuumtube`, `moonlight`); engine code never branches on a display name.
+`vacuumtube`, `moonlight`, and the optional `spotify`, `jellyfin`,
+`retroarch`, whose tiles are skipped while `hidden`); engine code never
+branches on a display name.
 For a new app, after [`internal/AGENTS.md` → Add an app](../../internal/AGENTS.md#add-an-app):
 
 | Where | What |
 |---|---|
-| [`qml/Apps.qml`](qml/Apps.qml) | `tagline`, `about` and `brand` (`{top, bottom, glow}`) per adapter; without a brand the tile falls back to the item's tint |
-| [`qml/AppTile.qml`](qml/AppTile.qml) | the peeking cub's `prop` ornament per adapter (`popcorn`, `remote`, `controller`); the ornament is a PNG in `assets/ornaments/` (draw it in `tools/pixelart/ornaments.py`; assets are globbed into the build) |
+| [`qml/Apps.qml`](qml/Apps.qml) | `tagline`, `about`, `hint` (a how-to line on the featured panel) and `brand` (`{top, bottom, glow}`) per adapter, and `stage` (its room: draw it in `tools/pixelart/hero.py` and `tools/classicart/hero.py`); without a brand the tile falls back to the item's tint |
+| [`qml/AppTile.qml`](qml/AppTile.qml) | the peeking cub's `prop` ornament per adapter (`popcorn`, `remote`, `controller`, `heart`), with its fit per ornament; the ornament is a PNG in `assets/ornaments/` (draw it in `tools/pixelart/ornaments.py`; assets are globbed into the build) |
 | `ShellController::flatpakIdFor` in [`src/ShellController.cpp`](src/ShellController.cpp) | adapter → Flatpak id; used for the exported Flatpak icon and the install hint in `AppUnavailableDialog.qml` |
 | `Theme::tintFor` in [`src/Theme.cpp`](src/Theme.cpp) | a fixed hue per **application id** (`plex-htpc`, `youtube`, `moonlight`); other ids hash to a hue |
 
-Artwork: Bear Den bundles no brand art. `Shell.appArt(adapter)` returns
-`{icon, logo, background}` from, in order: the owner's brand folder
+Artwork: Bear Den bundles its own original app icons, never third-party
+logos ([`docs/THEMES.md` → App icons](../../docs/THEMES.md#app-icons)).
+`Shell.appArt(adapter, classic)` returns `{icon, logo, background,
+iconSource}`; the icon comes, in order, from the owner's brand folder
 `~/.local/share/bear-den-tv/brand/<adapter>/` (`icon|logo|background` +
-`.svg|.png|.jpg|.webp`), the icon the installed Flatpak exports, then icons
-cached by `bear-den-tv artwork fetch`. Results are cached for a minute.
+`.svg|.png|.jpg|.webp`; logo and background come only from there), Bear
+Den's own icon (`assets/pixel/app-<adapter>.png`, or with `classic`
+`assets/classic/app-<adapter>.svg`), the icon the installed Flatpak exports,
+then icons cached by `bear-den-tv artwork fetch`; `AppIcon` draws a monogram
+when there is none. Results are cached for a minute. A new app needs its icon
+in `tools/pixelart/appicons.py` and `tools/classicart/appicons.py`
+(`appArtResolutionOrder` checks every adapter has both).
 
 ## Change the look
 
@@ -222,6 +232,7 @@ offscreen from [`tests/fixtures/state.demo.json`](tests/fixtures/state.demo.json
   `SessionModel::instance()->applySnapshot(...)`, then restore it.
 - `shot(name)` saves a PNG when `BDTV_SCREENSHOT_DIR` is set.
 
+`pairing.guest-demo.json` is a DEMO guest invitation with a real QR for the Pair screen test.
 The fixture's apps, sections and device ids (`plex-htpc`, `youtube`,
 `plex-continue`, `demo-1`, `dev_a1`) are asserted by name. The shell does not
 run the `contracts/fixtures` files; its schema checks are in `SessionModel`.

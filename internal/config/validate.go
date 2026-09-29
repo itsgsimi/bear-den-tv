@@ -35,6 +35,10 @@ var DefaultAdapters = map[string]AdapterSpec{
 	"plex-htpc":  {FlatpakID: "tv.plex.PlexHTPC"},
 	"vacuumtube": {FlatpakID: "rocks.shy.VacuumTube", ApprovedArgs: []string{"--fullscreen", "--no-window-decorations"}},
 	"moonlight":  {FlatpakID: "com.moonlight_stream.Moonlight"},
+	// Optional apps (hide_when_missing in the defaults).
+	"spotify":   {FlatpakID: "com.spotify.Client"},
+	"jellyfin":  {FlatpakID: "org.jellyfin.JellyfinDesktop", ApprovedArgs: []string{"--fullscreen", "--tv"}},
+	"retroarch": {FlatpakID: "org.libretro.RetroArch", ApprovedArgs: []string{"--fullscreen"}},
 }
 
 // Interface is one host network interface as seen by the validator.

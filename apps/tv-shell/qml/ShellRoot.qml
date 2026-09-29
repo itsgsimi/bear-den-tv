@@ -19,7 +19,7 @@ FocusScope {
     readonly property var screens: ({
         "home": home, "settings": settings, "remote-setup": remoteSetup,
         "pairing": pairing, "devices": devices, "diagnostics": diagnostics, "playback": playback,
-        "advanced-playback": advancedPlayback, "weather": weather
+        "advanced-playback": advancedPlayback, "weather": weather, "plex": plex
     })
     readonly property var topDialog: confirmDialog.visible ? confirmDialog
                                    : messageDialog.visible ? messageDialog
@@ -31,7 +31,7 @@ FocusScope {
         if (topDialog) return "dialog"
         if (screen === "remote-setup") return "setup"
         if (screen === "playback" || screen === "advanced-playback") return "diagnostics"   // the contract's screen names
-        if (screen === "weather") return "settings"
+        if (screen === "weather" || screen === "plex") return "settings"
         return screen
     }
     function syncNav() { Nav.screen = navScreenName() }
@@ -47,14 +47,14 @@ FocusScope {
     function current() { return screens[screen] || home }
     function open(name) {
         if (!screens[name] || name === screen) return
-        if (screen === "pairing") pairing.leave()
+        if (current().leave) current().leave()
         stack = stack.concat([name])
         syncNav()
         current().enter()
     }
     function pop() {
         if (stack.length <= 1) return false
-        if (screen === "pairing") pairing.leave()
+        if (current().leave) current().leave()
         stack = stack.slice(0, stack.length - 1)
         syncNav()
         if (screen === "home") home.restoreFocus()
@@ -68,7 +68,7 @@ FocusScope {
         messageDialog.visible = false
         appDialog.visible = false
         launchOverlay.dismissed = true
-        if (screen === "pairing") pairing.leave()
+        if (current().leave) current().leave()
         stack = ["home"]
         syncNav()
         home.restoreFocus()
@@ -281,6 +281,17 @@ FocusScope {
             y: root.screen === "weather" ? 0 : 24 * Theme.scale
             Behavior on opacity { NumberAnimation { duration: Theme.ms(220); easing.type: Easing.OutCubic } }
             Behavior on y { NumberAnimation { duration: Theme.ms(260); easing.type: Easing.OutCubic } }
+        }
+        PlexScreen {
+            id: plex
+            width: parent.width; height: parent.height
+            active: root.screen === "plex" && !root.topDialog
+            opacity: root.screen === "plex" ? 1 : 0
+            visible: opacity > 0
+            y: root.screen === "plex" ? 0 : 24 * Theme.scale
+            Behavior on opacity { NumberAnimation { duration: Theme.ms(220); easing.type: Easing.OutCubic } }
+            Behavior on y { NumberAnimation { duration: Theme.ms(260); easing.type: Easing.OutCubic } }
+            onConfirm: (title, body, label, accept) => confirmDialog.open({ title: title, body: body, confirmLabel: label, onAccept: accept })
         }
         ErrorBanner {
             anchors { bottom: parent.bottom; horizontalCenter: parent.horizontalCenter }

@@ -102,9 +102,12 @@ func IgnoresStaleEpoch(action string) bool {
 }
 
 // Permission is a device permission level. Higher levels include lower ones.
+// guest is the lowest: a time-limited guest pass that never comes with
+// another permission, so a guest never holds controller (docs/security.md).
 type Permission string
 
 const (
+	PermGuest        Permission = "guest"
 	PermController   Permission = "controller"
 	PermLayoutEditor Permission = "layout_editor"
 	PermOwner        Permission = "owner"
@@ -113,15 +116,47 @@ const (
 // Rank orders permissions for comparison; unknown permissions rank lowest.
 func (p Permission) Rank() int {
 	switch p {
-	case PermController:
+	case PermGuest:
 		return 1
-	case PermLayoutEditor:
+	case PermController:
 		return 2
-	case PermOwner:
+	case PermLayoutEditor:
 		return 3
+	case PermOwner:
+		return 4
 	}
 	return 0
 }
+
+// GuestActions is the guest-pass allow-list (contracts/actions.md "Who may
+// send"): what a visitor watching the same screen needs, nothing that closes
+// apps, restarts the shell, powers anything off or changes settings. Every
+// action not listed here, including actions added later, is refused to
+// guests: add a new action here only on purpose.
+var GuestActions = map[string]bool{
+	ActionNavUp: true, ActionNavDown: true, ActionNavLeft: true, ActionNavRight: true,
+	ActionSelect: true, ActionBack: true, ActionHome: true,
+	ActionAppLaunch:   true,
+	ActionMediaPlay:   true,
+	ActionMediaPause:  true,
+	ActionMediaSeek:   true,
+	ActionAudioVolume: true,
+	ActionAudioMute:   true,
+	ActionTextSubmit:  true,
+}
+
+// GuestMayUse reports whether a guest pass may send action.
+func GuestMayUse(action string) bool { return GuestActions[action] }
+
+// Guest pass durations (IPC pair.issue "pass", `bear-den-tv pair --guest`).
+const (
+	PassTonight = "tonight" // until 04:00 local time the next morning
+	Pass24h     = "24h"
+	Pass7d      = "7d"
+)
+
+// PassDurations lists the accepted guest pass durations, in picker order.
+var PassDurations = []string{PassTonight, Pass24h, Pass7d}
 
 // ActionRequest is contracts/action.schema.json#/$defs/request.
 type ActionRequest struct {
@@ -266,6 +301,9 @@ type AppState struct {
 	Foreground   bool    `json:"foreground"`
 	LaunchState  string  `json:"launch_state"`
 	LastError    *string `json:"last_error"`
+	// Hidden: an optional app (config hide_when_missing) that is not
+	// installed; the shell and phones draw no tile for it.
+	Hidden bool `json:"hidden,omitempty"`
 }
 
 // HoldState is state.schema.json#/properties/remote/properties/hold.
@@ -310,6 +348,9 @@ type Me struct {
 	DeviceName      string       `json:"device_name"`
 	Permissions     []Permission `json:"permissions"`
 	TransportSecure bool         `json:"transport_secure"`
+	// ExpiresAtMs is set for guest passes only: when the pass ends, Unix
+	// epoch milliseconds on the coordinator's wall clock.
+	ExpiresAtMs *int64 `json:"expires_at_ms,omitempty"`
 }
 
 // Pairing is the invitation currently displayed on the TV (shell only).
@@ -320,6 +361,10 @@ type Pairing struct {
 	QRModules    []string `json:"qr_modules"`
 	ExpiresInS   int      `json:"expires_in_s"`
 	AttemptsLeft int      `json:"attempts_left"`
+	// Guest is true when the live invitation is a guest pass; PassExpiresAtMs
+	// is then when that pass will end (Unix epoch ms, wall clock).
+	Guest           bool   `json:"guest,omitempty"`
+	PassExpiresAtMs *int64 `json:"pass_expires_at_ms,omitempty"`
 }
 
 // Device is a paired device record as shown to owners and the shell.
@@ -330,6 +375,10 @@ type Device struct {
 	Connected   bool         `json:"connected"`
 	LastSeenMs  int64        `json:"last_seen_ms"`
 	CreatedAt   string       `json:"created_at"`
+	// Guest marks a guest pass; ExpiresAtMs is when it ends and the device
+	// is revoked (Unix epoch ms, wall clock), nil for family phones.
+	Guest       bool   `json:"guest"`
+	ExpiresAtMs *int64 `json:"expires_at_ms"`
 }
 
 // LayoutPending describes a timed layout change awaiting confirmation.
@@ -490,6 +539,7 @@ type State struct {
 	NowPlaying     *NowPlaying           `json:"now_playing,omitempty"`
 	Power          *Power                `json:"power,omitempty"`
 	CEC            *CEC                  `json:"cec,omitempty"`
+	Plex           *Plex                 `json:"plex,omitempty"`
 }
 
 // Display power states (state.schema.json#/properties/power/display).

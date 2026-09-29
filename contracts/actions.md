@@ -42,6 +42,8 @@
 | `display.off` | `{}` | controller | Turns the display off now (X11 DPMS; `state.power.display = "off"`). `observed` when the display reports off, `delivered` when that could not be read back, `observed` with `detail.already_off` when it was off. Any input turns it on again. Ignores stale epochs. |
 | `tv.power` | `{"power": "on"}` or `{"power": "standby"}` | controller | HDMI-CEC, only while `capabilities["tv.power"]` is available (an adapter is present and the owner turned on `cec.enabled`). `on`: Image View On, then Active Source, so the TV wakes and switches to Bear Den's input. `standby`: Standby to the TV. `delivered` when the TV acknowledged the frames, `observed` (`detail.tv_power`) when it then reports that power state. Ignores stale epochs. |
 
+**Guest passes** ([`http.md`](http.md#guest-passes)) are not `controller`: a device with `guest` may send only `nav.*`, `select`, `back`, `home`, `app.launch`, `media.play`, `media.pause`, `media.seek_relative`, `audio.volume_delta`, `audio.mute` and `text.submit` (`contract.GuestActions`). Every other action, including `app.close` in any mode, `shell.restart` and any action added later, is refused to guests with `failed/forbidden`. A new action joins the guest list only on purpose.
+
 Unknown or disabled actions ⇒ `failed/unsupported` with a `message` explaining why (for example "VacuumTube pause has not been verified on this installation").
 
 ### Sleep, screen off and wake

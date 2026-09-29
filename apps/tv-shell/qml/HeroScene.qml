@@ -1,6 +1,7 @@
 // A little pixel-art room behind the featured app's icon (assets/pixel/
 // hero-<scene>.png, generated with HeroRig.js by tools/pixelart/hero.py): a
-// cinema, a cabin with a TV, an arcade. Which app gets which room is data in
+// cinema, a cabin with a TV, an arcade, a music nook, a home theatre in the
+// woods, a retro corner. Which app gets which room is data in
 // Apps.stage(). The icon sits in the room's `screenRect`.
 //  - Frames loop on World's heartbeat; a scene with an intro (the cabin TV's
 //    static) plays it once when `item` changes, then holds the picture.

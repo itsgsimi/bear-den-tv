@@ -1,12 +1,12 @@
 // Application frame: header with TV name and connection dot, the target bar,
-// tab routing, toast, and the tab bar. Contract: `Root` subscribes to the store
+// tab routing, toast, the tab bar, and the guest pass chip. Contract: `Root` subscribes to the store
 // and re-renders the whole tree from `AppState`; child views are pure functions
 // of state plus the controller. Copy comes from i18n; no view writes literals.
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { JSX } from 'preact';
 import type { App } from '../app.ts';
-import { t } from '../i18n.ts';
-import { type AppState, type Tab, visibleTabs } from '../state.ts';
+import { passEndLabel, t } from '../i18n.ts';
+import { type AppState, type Tab, guestEndsAt, visibleTabs } from '../state.ts';
 import { Art, artStyleOf, Icon, type IconName } from '../icons.tsx';
 import type { ArtStyle } from '../contract.ts';
 import { PairView } from './pair.tsx';
@@ -105,6 +105,22 @@ function Celebration({ tvName, art }: { tvName: string; art: ArtStyle }): JSX.El
   );
 }
 
+/** "Guest · ends 04:00" for a phone on a guest pass; nothing otherwise. */
+export function GuestChip({ state }: { state: AppState }): JSX.Element | null {
+  const ends = guestEndsAt(state);
+  if (ends === null) return null;
+  // snapshotAt is the phone's clock when the snapshot arrived: close enough
+  // for a time of day, and keeps this view a pure function of the state.
+  const label = passEndLabel(ends, state.snapshotAt || ends);
+  return (
+    <div class="guest-strip">
+      <span class="guest-chip" data-testid="guest-chip" title={t.guest.chipLabel(label)}>
+        {t.guest.chip(label)}
+      </span>
+    </div>
+  );
+}
+
 function Frame({ app, state }: { app: App; state: AppState }): JSX.Element {
   const tabs = visibleTabs(state);
   const tvName = state.snapshot?.device_name || state.info?.device_name || t.productName;
@@ -129,6 +145,7 @@ function Frame({ app, state }: { app: App; state: AppState }): JSX.Element {
           <span class="status-text">{t.status[state.connection]}</span>
         </div>
       </header>
+      <GuestChip state={state} />
       {state.tab === 'remote' ? <TargetBar state={state} /> : null}
       <main class="content" id="main">
         {state.tab === 'remote' ? <RemoteView app={app} state={state} /> : null}
