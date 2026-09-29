@@ -33,8 +33,8 @@ make test          # everything: Go (race), phone remote, web-nav (Playwright), 
 make lint          # gofmt/vet, eslint/tsc, qmllint
 ```
 
-`make test-webnav` and the Go web-app end-to-end tests need Playwright's
-Chromium once: `cd apps/web-nav && npx playwright install chromium` (add
+`make test-webnav`, `make test-web` (the phone remote's browser tests) and
+the Go web-app end-to-end tests need Playwright's Chromium once: `cd apps/web-nav && npx playwright install chromium` (add
 `--with-deps` if Chromium cannot start for missing system libraries; that
 part needs sudo).
 

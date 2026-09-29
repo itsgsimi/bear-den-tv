@@ -64,9 +64,11 @@ jobs:
           key: npm-${{ runner.os }}-${{ hashFiles('apps/remote-web/package-lock.json', 'apps/web-nav/package-lock.json') }}
           restore-keys: npm-${{ runner.os }}-
 
-      # The navigation script's browser tests (make test-webnav) and the Go
-      # end-to-end tests of web apps run headless Playwright Chromium on
-      # local fixture pages; the Go ones skip without it, which is not a pass.
+      # The navigation script's browser tests (make test-webnav), the phone
+      # remote's (make test-web, against `bear-den-tv dev` on loopback; the
+      # same Playwright version, so this one install serves both) and the Go
+      # end-to-end tests of web apps run headless Playwright Chromium on local
+      # pages; the Go ones skip without it, which is not a pass.
       - name: Cache Playwright Chromium
         uses: actions/cache@v4
         with:

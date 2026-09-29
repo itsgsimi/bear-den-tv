@@ -223,6 +223,10 @@ func runSession(f sessionFlags) error {
 	)
 	if f.dev {
 		fd := fake.New()
+		// What a key press reached (apps/remote-web/tests/e2e reads this line).
+		fd.OnKey = func(d fake.Delivery) {
+			log.Info("dev: key delivered", "key", string(d.Key), "window", fmt.Sprintf("%#x", uint64(d.Window)))
+		}
 		shellWin := fd.AddWindow(platform.WindowInfo{PID: 0, Class: []string{"bear-den-tv-shell", "bear-den-tv-shell"}, Title: session.ShellLabel})
 		fd.SetActive(shellWin)
 		desk, launcher = fd, fake.NewLauncher(fd)

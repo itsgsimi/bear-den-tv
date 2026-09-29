@@ -149,7 +149,7 @@ git clone <this repo> bear-den-tv && cd bear-den-tv
 scripts/bootstrap-toolchain.sh      # once: Go, Qt 6.8, CMake, Node in ~/.bdtv-toolchain (no root)
 . scripts/env.sh                    # every new shell: put the toolchain on PATH
 make help                           # every make target
-make test                           # Go (race), phone remote unit tests, web-nav browser tests, shell tests (offscreen)
+make test                           # Go (race), phone remote unit and browser tests, web-nav browser tests, shell tests (offscreen)
 make dev DEV_ARGS=--dev-fixtures    # coordinator + home screen locally, fake desktop, DEMO data
 ```
 

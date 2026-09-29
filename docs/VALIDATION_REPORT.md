@@ -17,8 +17,9 @@ These run on the workstation with `make test` unless noted.
 | Area | Command | Where the tests are |
 |---|---|---|
 | Go (with `-race`) | `make test` | `*_test.go` beside the code; `tests/contract`, `tests/docs` |
-| Phone remote (Vitest, unit only) | `make test` | `apps/remote-web/tests/unit/`, `apps/remote-web/tests/contract.spec.ts` |
+| Phone remote (Vitest) | `make test` | `apps/remote-web/tests/unit/`, `apps/remote-web/tests/contract.spec.ts` |
 | Web apps' navigation script (Playwright, local fixture pages) | `make test` (`make test-webnav`) | `apps/web-nav/tests/` |
+| Phone remote in a browser (Playwright against `bear-den-tv dev --dev-fixtures --no-shell`) | `make test` (`make test-web`) | `apps/remote-web/tests/e2e/` |
 | TV shell (offscreen) | `make test` | `apps/tv-shell/tests/tst_shell.cpp` |
 | Idle drawing budget | `make perf` | `scripts/perf-sandbox.sh` |
 | Live end-to-end (on the TV) | `scripts/e2e-target.sh` | `tests/e2e/target_test.go` |
@@ -26,7 +27,7 @@ These run on the workstation with `make test` unless noted.
 | Wayland on headless sway (Docker) | `scripts/wayland-container-test.sh [--shell]` | `tests/wayland/` |
 | CI on GitHub | push or pull request | [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) |
 
-No results are recorded here for today's tree: run the commands above to get them. Container results from 2026-09-28 (the .deb, Wayland, app installs against real Flathub, the CI and release replays) are in [`IMPLEMENTATION_STATUS.md`](IMPLEMENTATION_STATUS.md). Known gaps (checked 2026-09-29): `internal/remote` has only a route-table test and the app icon route's test, `internal/doctor` has no tests, the phone remote has no browser tests.
+No results are recorded here for today's tree: run the commands above to get them. Container results from 2026-09-28 (the .deb, Wayland, app installs against real Flathub, the CI and release replays) are in [`IMPLEMENTATION_STATUS.md`](IMPLEMENTATION_STATUS.md). Known gaps (checked 2026-09-29): `internal/remote` has only a route-table test and the app icon route's test, `internal/doctor` has no tests, the phone remote's browser suite is a single flow.
 
 ## Checks on the TV
 

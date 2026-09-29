@@ -140,8 +140,6 @@ These are the habits this codebase was built with. Follow them.
        limits.
      - `internal/doctor` has no tests.
      - The shell supervisor's crash/restart path has no test.
-     - The phone remote has no browser (Playwright) tests; `apps/web-nav`
-       has them.
      - `make lint` reports qmllint warnings without failing.
 7. **Plugins over patches.** Extend through data:
    - a theme is a package;
@@ -181,7 +179,7 @@ These are the habits this codebase was built with. Follow them.
 ```sh
 scripts/bootstrap-toolchain.sh && . scripts/env.sh   # pinned user-space toolchain (Go, Qt 6.8, Node, CMake)
 make help                                            # every target that exists
-make test                                            # Go (race) + phone remote (unit) + web-nav (Playwright, local fixtures) + shell (offscreen)
+make test                                            # Go (race) + phone remote (unit, Playwright against `dev`) + web-nav (Playwright, local fixtures) + shell (offscreen)
 make test-go                                         # only Go (race); also test-web, test-webnav, test-shell
 make lint                                            # gofmt/vet, eslint/tsc, qmllint
 make dev DEV_ARGS=--dev-fixtures                     # coordinator + shell locally, fake desktop, DEMO rows and weather

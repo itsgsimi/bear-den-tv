@@ -47,7 +47,7 @@ Checked in the tree on 2026-09-29:
 - `internal/remote` (HTTP/WebSocket server, auth, rate limits) has only a route-table test (`routes_test.go`: no route issues invitations, guests fail every permission gate) and the app icon route's test (`appicon_test.go`, the real server with `remote/testutil` fakes); `internal/pairing/guest_remote_test.go` drives the real server for the guest pass end (close 4001). There is no negative suite for cookies, CSRF, Host/Origin, rate limits or revocation timing. `internal/remote/mdns` has `mdns_test.go`.
 - `internal/doctor` has no tests.
 - The shell supervisor's crash/restart path has no test; `internal/shellipc/supervisor_test.go` only checks the environment allow-list.
-- The phone remote has unit tests only (Vitest); no browser tests (`apps/remote-web/tests/e2e` does not exist). The web apps' navigation script, `apps/web-nav`, has Playwright tests on local fixture pages.
+- The phone remote's browser suite (`apps/remote-web/tests/e2e`, Playwright against `bear-den-tv dev --dev-fixtures --no-shell`) is one flow: pair by code, DEMO apps, open an app, Now playing, one D-pad key. Pairing errors, guest passes, the editor, installs and the touchpad are covered by Vitest only. The web apps' navigation script, `apps/web-nav`, has Playwright tests on local fixture pages.
 - `make lint` always runs qmllint (it configures `build/tv-shell` when missing) but reports its warnings without failing.
 - Not in `make test` (need Docker, a TV or a live display): `packaging/smoke-deb.sh`, `scripts/wayland-container-test.sh`, `scripts/e2e-target.sh`, the live DPMS test.
 
@@ -143,7 +143,7 @@ On a box with a USB CEC adapter (Pulse-Eight, after `inputattach --pulse8-cec`) 
 
 - Keep CI green on GitHub (green since run 36572595472 on `c8449a5`, 2026-09-29); a failing run's annotations name the test.
 - Cut a first release with a `v*` tag, check the release workflow's smoke tests, `check-home-paths.sh` and the published `SHA256SUMS`, then install that .deb on the TV (step 1.14).
-- Tests still missing: a negative HTTP/WebSocket suite for `internal/remote`, tests for `internal/doctor` and the shell supervisor's restart path, browser tests for the phone remote; make qmllint warnings fail `make lint`.
+- Tests still missing: a negative HTTP/WebSocket suite for `internal/remote`, tests for `internal/doctor` and the shell supervisor's restart path, more browser flows for the phone remote; make qmllint warnings fail `make lint`.
 - An `uninstall` path beyond `apt remove --purge`.
 
 ### 4. Wayland input

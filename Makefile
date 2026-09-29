@@ -84,8 +84,10 @@ test-go: ## Go unit + contract tests with the race detector
 	@test -n "$(GO_PKGS)" || (echo "go list found no packages" && exit 1)
 	go test -race -count=1 $(GO_PKGS)
 
-test-web: apps/remote-web/node_modules/.installed ## Phone remote unit tests (Playwright runs too, but no browser tests exist yet)
-	cd apps/remote-web && npm test
+# The browser tests start the real coordinator (make go) and need Playwright's
+# Chromium once (the same version as apps/web-nav: see test-webnav).
+test-web: apps/remote-web/node_modules/.installed go ## Phone remote: unit + contract tests (Vitest), then browser tests against `bear-den-tv dev` (Playwright)
+	cd apps/remote-web && BDTV_BIN=$(abspath $(BUILD)/bin/bear-den-tv) npm test
 
 # Needs Playwright's Chromium once: cd apps/web-nav && npx playwright install chromium
 test-webnav: webnav ## Navigation script browser tests (headless Playwright Chromium, local fixture pages only)

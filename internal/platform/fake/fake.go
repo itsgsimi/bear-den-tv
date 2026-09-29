@@ -30,7 +30,10 @@ type Desktop struct {
 	watchers []chan platform.Foreground
 	// OnActivate, when set, runs after Activate changes the active window.
 	OnActivate func(platform.WindowID)
-	onClose    func(platform.WindowID)
+	// OnKey, when set, runs (without the lock) after a key is delivered;
+	// `bear-den-tv dev` logs it, which the phone remote's browser tests read.
+	OnKey   func(Delivery)
+	onClose func(platform.WindowID)
 }
 
 // New returns an empty desktop with no active window.
@@ -228,11 +231,16 @@ func (d *Desktop) SetOnClose(fn func(platform.WindowID)) {
 // DeliverKey implements platform.DesktopAdapter.
 func (d *Desktop) DeliverKey(_ context.Context, w platform.WindowID, k platform.Key) error {
 	d.mu.Lock()
-	defer d.mu.Unlock()
 	if d.active != w {
+		d.mu.Unlock()
 		return platform.ErrNotForeground
 	}
 	d.keys = append(d.keys, Delivery{Window: w, Key: k})
+	onKey := d.OnKey
+	d.mu.Unlock()
+	if onKey != nil {
+		onKey(Delivery{Window: w, Key: k})
+	}
 	return nil
 }
 

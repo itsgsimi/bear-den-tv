@@ -25,7 +25,7 @@ and [`contracts/actions.md`](../../contracts/actions.md).
 | `src/app.css`, `static/` | styles (Pixel by default: square corners, square particles, stepped motion, `html[data-pixel]` draws the backdrop unsmoothed; the Classic overrides at the end of the file, keyed on `html[data-art='classic']`, restore the rounded, smooth look); `index.html`, manifest, icons and art copied verbatim into `dist/` |
 | [`scripts/pixel-icons.mjs`](scripts/pixel-icons.mjs) | makes the PWA icons from `static/art/pixel/bear-mark.png` (nearest-neighbour); the pixel art itself comes from `tools/pixelart` |
 | [`scripts/build.mjs`](scripts/build.mjs) | esbuild bundle into `dist/`, deterministic (no hashes or timestamps) |
-| [`scripts/serve-dist.mjs`](scripts/serve-dist.mjs) | dev-only static server for Playwright with the production headers |
+| [`scripts/serve-dist.mjs`](scripts/serve-dist.mjs) | dev-only static server for `dist/` with the production headers (`npm run serve`) |
 
 ## How it talks to the coordinator
 
@@ -88,7 +88,7 @@ default-src 'self'; img-src 'self' data:; connect-src 'self'; style-src 'self'; 
 
 It is defined twice and **the two must stay identical**: `cspValue` in
 [`internal/remote/server.go`](../../internal/remote/server.go) (production) and
-`CSP` in [`scripts/serve-dist.mjs`](scripts/serve-dist.mjs) (Playwright). No
+`CSP` in [`scripts/serve-dist.mjs`](scripts/serve-dist.mjs) (`npm run serve`). No
 inline `<script>`, no `<style>` blocks, no `style="..."` attributes, no
 external origins. Dynamic styling goes through classes, `data-*` attributes or
 `element.style.setProperty` (CSSOM, allowed).
@@ -147,7 +147,7 @@ without the field.
 |---|---|---|
 | Unit | [`tests/unit/`](tests/unit/state.spec.ts) (`state.spec.ts`, `hold.spec.ts`, `vines.spec.ts`, `art-style.spec.ts`, `nowplaying.spec.ts`, `sleep.spec.ts`, `guest.spec.ts`, `invitation.spec.ts`, `badges.spec.ts`, `touchpad.spec.ts`, `tv.spec.ts`, `install.spec.ts`) | vitest under Node, fake timers, injected fakes |
 | Contract | [`tests/contract.spec.ts`](tests/contract.spec.ts) | Ajv 2020 loads the layout, action, state and config schemas; every `contracts/fixtures` file must be in `SCHEMA_FOR` or `SEMANTIC_ONLY`; client-built requests, holds and edited layouts must validate |
-| Browser | `tests/e2e/` (Playwright, `playwright.config.ts`, `serve-dist.mjs`) | **none yet** (the folder does not exist); `npm test` passes `--pass-with-no-tests` so the empty suite does not fail the run. The phone screenshots under `docs/screenshots/2026-09-28-*` were captured ad hoc with Playwright's Chromium, not by a test suite |
+| Browser | [`tests/e2e/`](tests/e2e/remote.spec.ts) (Playwright, `playwright.config.ts`) | headless Playwright Chromium, a portrait phone, against the real coordinator: [`coordinator.ts`](tests/e2e/coordinator.ts) starts `bear-den-tv dev --dev-fixtures --no-shell` (the binary in `BDTV_BIN`, which `make test-web` builds and passes) on `127.0.0.1:0` with its own temporary dev root, reads the URL from its `remote: listening` log line and a code from `bear-den-tv pair`. `remote.spec.ts` pairs by code, sees the DEMO apps, opens Plex from its tile (the coordinator's state then has it in front), sees the DEMO Now playing card, and presses Right (the coordinator logs `dev: key delivered key=right`). Waits are on responses, log lines and DOM states only. The phone screenshots under `docs/screenshots/2026-09-28-*` were captured ad hoc, not by this suite |
 
 ## Checks
 
