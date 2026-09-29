@@ -40,7 +40,7 @@ func TestHomePause(t *testing.T) {
 			setup: func(_ *harness, p *fake.Player) { p.SetCanControl(false) }, wantDetail: false},
 		{name: "other-player", class: "vacuumtube", match: adapters.PlexHTPCFlatpakID, info: playing, wantDetail: false},
 		{name: "retroarch-toggle", class: "retroarch", wantDetail: false},
-		{name: "spotify", class: "spotify", match: "spotify", info: playing},
+		{name: "spotify", class: "spotify", match: adapters.SpotifyFlatpakID, info: playing},
 		{name: "leave-running", class: "plexhtpc", match: adapters.PlexHTPCFlatpakID, info: playing,
 			setup: func(h *harness, _ *fake.Player) {
 				if _, err := h.c.opts.Config.Update(func(c *config.Config) error {

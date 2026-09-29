@@ -7,6 +7,7 @@ package fake
 import (
 	"context"
 	"errors"
+	"strconv"
 	"sync"
 	"time"
 
@@ -14,8 +15,9 @@ import (
 	"bear-den-tv/internal/platform"
 )
 
-// Media is a MediaLocator over players registered by match string (the
-// Flatpak id an adapter's MediaMatch returns).
+// Media is a MediaLocator over players registered by key: the owning
+// Flatpak id (MediaMatch.FlatpakID), or ProcessKey(root) for a player owned
+// by a web app's own browser (MediaMatch.ProcessRoot).
 type Media struct {
 	mu      sync.Mutex
 	players map[string]*Player
@@ -46,13 +48,25 @@ func (m *Media) Finds() int {
 	return m.finds
 }
 
-// Find implements platform.MediaLocator: an exact match only, like the real
-// locator never hands back another app's player.
-func (m *Media) Find(_ context.Context, match string) (platform.MediaPlayer, bool, error) {
+// ProcessKey is the key a player owned by process root (or a descendant) is
+// added under.
+func ProcessKey(root int) string { return "pid:" + strconv.Itoa(root) }
+
+// Find implements platform.MediaLocator: an exact key only, like the real
+// locator never hands back another app's player. A match with a process
+// root looks only at ProcessKey(root), never at the Flatpak id.
+func (m *Media) Find(_ context.Context, match platform.MediaMatch) (platform.MediaPlayer, bool, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.finds++
-	p, ok := m.players[match]
+	key := match.FlatpakID
+	if match.ProcessRoot > 0 {
+		key = ProcessKey(match.ProcessRoot)
+	}
+	if key == "" {
+		return nil, false, nil
+	}
+	p, ok := m.players[key]
 	if !ok {
 		return nil, false, nil
 	}

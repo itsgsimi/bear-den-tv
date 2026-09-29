@@ -23,6 +23,7 @@ import (
 	"bear-den-tv/internal/platform/detect"
 	"bear-den-tv/internal/platform/lock"
 	"bear-den-tv/internal/platform/mpris"
+	"bear-den-tv/internal/platform/proc"
 	"bear-den-tv/internal/platform/wayland"
 	"bear-den-tv/internal/platform/x11"
 )
@@ -216,7 +217,7 @@ func ReportWith(ctx context.Context, opts Options) ProbeReport {
 			return
 		}
 		defer bus.Close()
-		players, err := mpris.NewLocator(bus).List(ctx)
+		players, err := mpris.NewLocator(bus).WithProcesses(proc.Host()).List(ctx)
 		if err != nil {
 			r.MPRIS.Error = err.Error()
 			return

@@ -236,6 +236,20 @@ type page struct {
 // Running reports whether Bear Den holds a live DevTools connection to app.
 func (m *Manager) Running(appID string) bool { return m.get(appID) != nil }
 
+// PID is the process Bear Den started for app's browser (`flatpak run`,
+// which becomes bwrap, or the browser binary itself), or 0 when none runs.
+// Every process of that browser, including the D-Bus proxy Flatpak starts
+// for it, descends from it: the web app's own MPRIS player is found by it
+// (internal/platform/mpris, MediaMatch.ProcessRoot), never by the browser's
+// Flatpak id, which other web apps share.
+func (m *Manager) PID(appID string) int {
+	b := m.get(appID)
+	if b == nil || b.proc == nil {
+		return 0
+	}
+	return b.proc.PID()
+}
+
 func (m *Manager) get(appID string) *Browser {
 	m.mu.Lock()
 	defer m.mu.Unlock()

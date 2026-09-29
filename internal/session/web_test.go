@@ -71,6 +71,22 @@ func (f *fakeWeb) Launch(_ context.Context, app config.Application, spec adapter
 	return applications.Instance{FlatpakID: app.Launch.AppID, PID: 7000}, nil
 }
 
+// PID is a distinct pretend browser process per running app (7000 + the
+// app's launch order).
+func (f *fakeWeb) PID(id string) int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if !f.running[id] {
+		return 0
+	}
+	for i, l := range f.launched {
+		if strings.HasPrefix(l, id+" ") {
+			return 7000 + i
+		}
+	}
+	return 0
+}
+
 func (f *fakeWeb) Running(id string) bool {
 	f.mu.Lock()
 	defer f.mu.Unlock()

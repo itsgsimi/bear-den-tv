@@ -26,6 +26,9 @@ type WebApps interface {
 	Launch(ctx context.Context, app config.Application, spec adapters.WebSpec) (applications.Instance, error)
 	// Running reports a live DevTools connection to the app.
 	Running(appID string) bool
+	// PID is the browser process Bear Den started for the app (0: none);
+	// the app's own MPRIS player descends from it (mediaMatchFor).
+	PID(appID string) int
 	// Status is what the app's current page last reported.
 	Status(appID string) (web.Status, bool)
 	Apply(ctx context.Context, appID, action string, args map[string]any) (web.Outcome, error)

@@ -41,6 +41,15 @@ func (w *Web) Launch(_ context.Context, app config.Application, spec adapters.We
 	return applications.Instance{FlatpakID: app.Launch.AppID, PID: 30000}, nil
 }
 
+// PID is the pretend browser process while the app runs (no DEMO player
+// descends from it, so web apps show no Now playing in dev).
+func (w *Web) PID(appID string) int {
+	if w.Running(appID) {
+		return 30000
+	}
+	return 0
+}
+
 // Running reports whether the app's pretend window still exists.
 func (w *Web) Running(appID string) bool {
 	w.mu.Lock()

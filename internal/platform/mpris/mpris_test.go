@@ -100,10 +100,10 @@ func TestFindAndControl(t *testing.T) {
 	l := NewLocator(fakeBus(players))
 	ctx := context.Background()
 
-	if _, ok, err := l.Find(ctx, "rocks.shy.VacuumTube"); ok || err != nil {
+	if _, ok, err := l.Find(ctx, platform.MediaMatch{FlatpakID: "rocks.shy.VacuumTube", Names: []string{"rocks.shy.VacuumTube"}}); ok || err != nil {
 		t.Fatalf("unexpected find ok=%v err=%v", ok, err)
 	}
-	p, ok, err := l.Find(ctx, "tv.plex.PlexHTPC")
+	p, ok, err := l.Find(ctx, platform.MediaMatch{FlatpakID: "tv.plex.PlexHTPC", Names: []string{"tv.plex.PlexHTPC"}})
 	if err != nil || !ok {
 		t.Fatalf("find err=%v ok=%v", err, ok)
 	}

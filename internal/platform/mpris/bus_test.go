@@ -19,6 +19,7 @@ import (
 	"github.com/godbus/dbus/v5"
 	"github.com/godbus/dbus/v5/prop"
 
+	"bear-den-tv/internal/platform"
 	"bear-den-tv/internal/platform/dbusx"
 )
 
@@ -91,7 +92,8 @@ func (p *demoPlayer) Play() *dbus.Error {
 
 // exportPlayer puts a minimal MPRIS player on the bus under busName and
 // returns its property table (Set emits PropertiesChanged like a real one).
-func exportPlayer(t *testing.T, addr, busName, desktopEntry, title string) *prop.Properties {
+// An empty desktopEntry leaves the property out, as VacuumTube does.
+func exportPlayer(t *testing.T, addr, busName, identity, desktopEntry, title string) *prop.Properties {
 	t.Helper()
 	conn, err := dbus.Connect(addr)
 	if err != nil {
@@ -105,11 +107,12 @@ func exportPlayer(t *testing.T, addr, busName, desktopEntry, title string) *prop
 		"xesam:album":   dbus.MakeVariant("DEMO Album"),
 		"mpris:length":  dbus.MakeVariant(int64(300_000_000)),
 	}
+	root := map[string]*prop.Prop{"Identity": {Value: identity, Emit: prop.EmitTrue}}
+	if desktopEntry != "" {
+		root["DesktopEntry"] = &prop.Prop{Value: desktopEntry, Emit: prop.EmitTrue}
+	}
 	props, err := prop.Export(conn, objectPath, prop.Map{
-		rootIface: {
-			"Identity":     {Value: "DEMO player", Emit: prop.EmitTrue},
-			"DesktopEntry": {Value: desktopEntry, Emit: prop.EmitTrue},
-		},
+		rootIface: root,
 		playerIface: {
 			"PlaybackStatus": {Value: "Playing", Emit: prop.EmitTrue},
 			"Metadata":       {Value: metadata, Emit: prop.EmitTrue},
@@ -136,8 +139,8 @@ func exportPlayer(t *testing.T, addr, busName, desktopEntry, title string) *prop
 
 func TestRealBusMetadataAndSignals(t *testing.T) {
 	addr := privateBus(t)
-	plex := exportPlayer(t, addr, "org.mpris.MediaPlayer2.tv.plex.PlexHTPC", "tv.plex.PlexHTPC", "DEMO Real Bus Title")
-	other := exportPlayer(t, addr, "org.mpris.MediaPlayer2.vlc", "vlc", "DEMO Other Player")
+	plex := exportPlayer(t, addr, "org.mpris.MediaPlayer2.tv.plex.PlexHTPC", "DEMO player", "tv.plex.PlexHTPC", "DEMO Real Bus Title")
+	other := exportPlayer(t, addr, "org.mpris.MediaPlayer2.vlc", "DEMO player", "vlc", "DEMO Other Player")
 
 	t.Setenv("DBUS_SESSION_BUS_ADDRESS", addr)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -148,7 +151,7 @@ func TestRealBusMetadataAndSignals(t *testing.T) {
 	}
 	defer bus.Close()
 
-	mp, found, err := NewLocator(bus).Find(ctx, "tv.plex.PlexHTPC")
+	mp, found, err := NewLocator(bus).Find(ctx, platform.MediaMatch{FlatpakID: "tv.plex.PlexHTPC", Names: []string{"tv.plex.PlexHTPC"}})
 	if err != nil || !found {
 		t.Fatalf("find: found=%v err=%v", found, err)
 	}
@@ -191,5 +194,50 @@ func TestRealBusMetadataAndSignals(t *testing.T) {
 	}
 	if st, err := mp.Status(ctx); err != nil || st != "Playing" {
 		t.Fatalf("after Play: %q %v", st, err)
+	}
+}
+
+// TestRealBusObservedVacuumTube exports VacuumTube's player as the TV showed
+// it (chromium.instance3, Identity VacuumTube, no DesktopEntry) and finds it
+// through the real bus daemon's GetConnectionUnixProcessID; only the
+// pid-to-Flatpak lookup is faked (the exporter is this test process).
+func TestRealBusObservedVacuumTube(t *testing.T) {
+	addr := privateBus(t)
+	exportPlayer(t, addr, "org.mpris.MediaPlayer2.chromium.instance3", "VacuumTube", "", "DEMO Video")
+
+	t.Setenv("DBUS_SESSION_BUS_ADDRESS", addr)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	bus, err := dbusx.ConnectSession(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer bus.Close()
+	vt := platform.MediaMatch{FlatpakID: "rocks.shy.VacuumTube", Names: []string{"rocks.shy.VacuumTube"}}
+
+	if _, found, err := NewLocator(bus).Find(ctx, vt); found || err != nil {
+		t.Fatalf("names alone: found=%v err=%v", found, err)
+	}
+	me := os.Getpid()
+	l := NewLocator(bus).WithProcesses(fakeProcs{flatpak: map[int]string{me: "rocks.shy.VacuumTube"}})
+	if pid, err := l.OwnerPID(ctx, "org.mpris.MediaPlayer2.chromium.instance3"); err != nil || pid != me {
+		t.Fatalf("the bus daemon named pid %d (%v), want %d", pid, err, me)
+	}
+	mp, found, err := l.Find(ctx, vt)
+	if err != nil || !found {
+		t.Fatalf("by owner: found=%v err=%v", found, err)
+	}
+	if st, err := mp.Status(ctx); st != "Playing" || err != nil {
+		t.Fatalf("status %q %v", st, err)
+	}
+	if err := mp.Pause(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if st, _ := mp.Status(ctx); st != "Paused" {
+		t.Fatalf("after Pause: %q", st)
+	}
+	other := NewLocator(bus).WithProcesses(fakeProcs{flatpak: map[int]string{me: "org.chromium.Chromium"}})
+	if _, found, _ := other.Find(ctx, vt); found {
+		t.Fatal("a player owned by another Flatpak matched")
 	}
 }

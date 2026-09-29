@@ -212,11 +212,30 @@ type DisplayStatus struct {
 	IdleKnown bool
 }
 
+// MediaMatch says which players belong to one app. Ownership is decided by
+// the process that owns the player's bus name, never by the names a player
+// reports about itself (docs/security.md "Now playing").
+type MediaMatch struct {
+	// FlatpakID: a player whose owning process runs in this Flatpak belongs
+	// to the app. A player owned by another Flatpak never does, whatever it
+	// calls itself.
+	FlatpakID string
+	// Names are the secondary, exact rules (the MPRIS DesktopEntry, or the
+	// bus name org.mpris.MediaPlayer2.<name>[.instanceN]), used only for a
+	// player whose owner runs outside any Flatpak, or when the locator
+	// cannot see processes at all.
+	Names []string
+	// ProcessRoot, when positive, replaces both: the owning process must be
+	// this process or one of its descendants (a web app's own browser, which
+	// shares its Flatpak with other web apps).
+	ProcessRoot int
+}
+
 // MediaLocator finds players belonging to a running application instance.
 type MediaLocator interface {
-	// Find returns the player whose DesktopEntry or bus name matches match, or
-	// (nil,false) when none exists. match is the Flatpak app id or desktop entry.
-	Find(ctx context.Context, match string) (MediaPlayer, bool, error)
+	// Find returns the first player (in bus-name order) that belongs to the
+	// app m describes, or (nil,false) when none does.
+	Find(ctx context.Context, m MediaMatch) (MediaPlayer, bool, error)
 }
 
 // TVControl drives the TV over HDMI-CEC (platform/cec, ADR 0008): the wire

@@ -658,6 +658,30 @@ func (c *Coordinator) doClose(ctx context.Context, req contract.ActionRequest) c
 	return c.fail(req, contract.CodeNoTarget, app.Label+" is not running.")
 }
 
+// mediaMatchFor says which MPRIS players belong to appID
+// (platform.MediaMatch): those whose owning process runs in the adapter's
+// Flatpak, with the adapter's MPRIS name as the exact fallback for owners
+// outside any Flatpak. A web app shares its browser's Flatpak with the other
+// web apps, so its player must descend from the browser process Bear Den
+// started for it; without one there is no match (fail closed).
+func (c *Coordinator) mediaMatchFor(appID string) (platform.MediaMatch, bool) {
+	ad, ok := c.adapterFor(appID)
+	if !ok {
+		return platform.MediaMatch{}, false
+	}
+	if _, isWeb := adapters.WebOf(ad); isWeb {
+		if c.opts.Web == nil {
+			return platform.MediaMatch{}, false
+		}
+		pid := c.opts.Web.PID(appID)
+		if pid <= 1 {
+			return platform.MediaMatch{}, false
+		}
+		return platform.MediaMatch{FlatpakID: ad.FlatpakID(), ProcessRoot: pid}, true
+	}
+	return platform.MediaMatch{FlatpakID: ad.FlatpakID(), Names: []string{ad.MediaMatch()}}, true
+}
+
 // probeMedia looks for an MPRIS player for the foreground application.
 func (c *Coordinator) probeMedia(ctx context.Context) {
 	_, t, _ := c.current()
@@ -672,10 +696,10 @@ func (c *Coordinator) probeMedia(ctx context.Context) {
 	}
 	appID := strOr(t.AppID)
 	probe := &mediaProbe{appID: appID, probedAt: c.clock.Now()}
-	if ad, ok := c.adapterFor(appID); ok {
+	if m, ok := c.mediaMatchFor(appID); ok {
 		ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
 		defer cancel()
-		if p, found, err := c.opts.Media.Find(ctx, ad.MediaMatch()); err == nil && found {
+		if p, found, err := c.opts.Media.Find(ctx, m); err == nil && found {
 			probe.player = p
 			probe.canCtl, _ = p.CanControl(ctx)
 		}

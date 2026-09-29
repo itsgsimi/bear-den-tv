@@ -151,6 +151,10 @@ against Playwright's Chromium started directly.
   over the pipe; `force` ends the process group Bear Den started.
 - Now playing reads Chromium's MPRIS player (its desktop entry is the
   Flatpak id, UNVERIFIED on the TV); media control goes through the page.
+  *Update 2026-09-29:* the player is now the one whose owning process
+  descends from the browser Bear Den started for that web app
+  (`web.Manager.PID`, `platform.MediaMatch.ProcessRoot`), never matched by
+  the shared Flatpak id or desktop entry ([`docs/security.md`](../security.md)).
 - Not verified: the pipe through `flatpak run`, the window class on Wayland
   (`--class` is an X11 switch), Widevine, the real sites, and performance on
   the 2-core box.

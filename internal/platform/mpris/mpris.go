@@ -4,7 +4,11 @@
 // never reports a delivery the player could not act on. It also reads what a
 // player is playing (Metadata, Position, Rate: Player.Info) and watches that
 // one player's change signals (Player.Watch) for phones' Now playing card
-// (contracts/http.md). Titles are never put in PlayerInfo, errors or logs.
+// (contracts/http.md). Which app a player belongs to is decided by the
+// process that owns its bus name (Find, WithProcesses; docs/security.md),
+// with the self-reported DesktopEntry and bus name only as an exact fallback
+// for owners outside any Flatpak. Titles are never put in PlayerInfo,
+// errors or logs.
 package mpris
 
 import (
@@ -32,20 +36,25 @@ const (
 
 // PlayerInfo is what the locator learned about one player; used by the probe.
 type PlayerInfo struct {
-	BusName        string   `json:"bus_name"`
-	Identity       string   `json:"identity"`
-	DesktopEntry   string   `json:"desktop_entry"`
-	PlaybackStatus string   `json:"playback_status"`
-	CanControl     bool     `json:"can_control"`
-	CanPause       bool     `json:"can_pause"`
-	CanPlay        bool     `json:"can_play"`
-	CanSeek        bool     `json:"can_seek"`
-	Errors         []string `json:"errors,omitempty"`
+	BusName        string `json:"bus_name"`
+	Identity       string `json:"identity"`
+	DesktopEntry   string `json:"desktop_entry"`
+	PlaybackStatus string `json:"playback_status"`
+	CanControl     bool   `json:"can_control"`
+	CanPause       bool   `json:"can_pause"`
+	CanPlay        bool   `json:"can_play"`
+	CanSeek        bool   `json:"can_seek"`
+	// OwnerPID and OwnerFlatpak: the process owning the bus name and the
+	// Flatpak it runs in ("" outside any), when the locator reads processes.
+	OwnerPID     int      `json:"owner_pid,omitempty"`
+	OwnerFlatpak string   `json:"owner_flatpak,omitempty"`
+	Errors       []string `json:"errors,omitempty"`
 }
 
 // Locator implements platform.MediaLocator over a session bus.
 type Locator struct {
-	bus dbusx.Bus
+	bus   dbusx.Bus
+	procs Processes
 }
 
 // NewLocator wraps bus. The locator does not own the bus.
@@ -100,31 +109,120 @@ func (l *Locator) List(ctx context.Context) ([]PlayerInfo, error) {
 		record("CanPlay", e)
 		info.CanSeek, e = p.boolProp(ctx, "CanSeek")
 		record("CanSeek", e)
+		if l.procs != nil {
+			pid, e := l.OwnerPID(ctx, n)
+			record("owner", e)
+			if e == nil {
+				info.OwnerPID = pid
+				info.OwnerFlatpak, e = l.procs.FlatpakID(pid)
+				record("owner Flatpak", e)
+			}
+		}
 		infos = append(infos, info)
 	}
 	return infos, nil
 }
 
+// Processes is what the locator asks about the process owning a player
+// (internal/platform/proc.Table on the TV).
+type Processes interface {
+	// FlatpakID is the Flatpak app id pid runs in, "" outside any Flatpak.
+	FlatpakID(pid int) (string, error)
+	// DescendsFrom reports whether pid is root or descends from it.
+	DescendsFrom(pid, root int) (bool, error)
+}
+
+// WithProcesses makes Find decide ownership by the owning process (see
+// Find). Without it the locator can only use the names players report.
+func (l *Locator) WithProcesses(p Processes) *Locator {
+	l.procs = p
+	return l
+}
+
+// OwnerPID asks the bus daemon which process owns busName
+// (org.freedesktop.DBus.GetConnectionUnixProcessID). For a Flatpak app with a
+// filtered session bus that is the D-Bus proxy Flatpak runs inside the app's
+// sandbox, which carries the same /.flatpak-info.
+func (l *Locator) OwnerPID(ctx context.Context, busName string) (int, error) {
+	body, err := l.bus.Call(ctx, "org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus.GetConnectionUnixProcessID", busName)
+	if err != nil {
+		return 0, err
+	}
+	if len(body) != 1 {
+		return 0, fmt.Errorf("mpris: GetConnectionUnixProcessID %s returned %d values", busName, len(body))
+	}
+	n, ok := toInt64(dbusx.Unwrap(body[0]))
+	if !ok || n <= 0 || n > math.MaxInt32 {
+		return 0, fmt.Errorf("mpris: GetConnectionUnixProcessID %s returned %T", busName, body[0])
+	}
+	return int(n), nil
+}
+
 // Find implements platform.MediaLocator: the first player (in sorted bus-name
-// order) whose DesktopEntry or bus-name suffix matches wins.
-func (l *Locator) Find(ctx context.Context, match string) (platform.MediaPlayer, bool, error) {
+// order) that belongs to m.
+//
+// With Processes (production), ownership is the owning process's: for a web
+// app (m.ProcessRoot) the owner must descend from that browser process; else
+// a player owned by a process in a Flatpak belongs to m exactly when that
+// Flatpak is m.FlatpakID, whatever the player calls itself (VacuumTube's
+// Electron player is org.mpris.MediaPlayer2.chromium.instanceN with no
+// DesktopEntry). Only a player owned outside any Flatpak falls back to the
+// exact names (Matches). A player whose owner cannot be read (the bus does
+// not say, the process is gone or another user's) is skipped: fail closed.
+//
+// Without Processes only the names can be used, and a web app (whose
+// Flatpak other web apps share) never matches.
+func (l *Locator) Find(ctx context.Context, m platform.MediaMatch) (platform.MediaPlayer, bool, error) {
 	names, err := l.Names(ctx)
 	if err != nil {
 		return nil, false, err
 	}
 	for _, n := range names {
 		p := &Player{bus: l.bus, Name: n}
-		entry, _ := p.stringProp(ctx, rootIface, "DesktopEntry")
-		if Matches(n, entry, match) {
+		if ok, _ := l.belongs(ctx, p, m); ok {
 			return p, true, nil
 		}
 	}
 	return nil, false, nil
 }
 
-// Matches reports whether a player identified by busName and desktopEntry
-// belongs to match (a Flatpak app id or desktop entry). Comparison is
-// case-insensitive; the bus-name suffix may carry an ".instanceNNN" tail.
+// belongs decides one player; the error says why it could not be decided
+// (for the probe listing).
+func (l *Locator) belongs(ctx context.Context, p *Player, m platform.MediaMatch) (bool, error) {
+	byNames := func() bool {
+		entry, _ := p.stringProp(ctx, rootIface, "DesktopEntry") // missing on many players
+		for _, name := range m.Names {
+			if Matches(p.Name, entry, name) {
+				return true
+			}
+		}
+		return false
+	}
+	if l.procs == nil {
+		return m.ProcessRoot <= 0 && byNames(), nil
+	}
+	pid, err := l.OwnerPID(ctx, p.Name)
+	if err != nil {
+		return false, err
+	}
+	if m.ProcessRoot > 0 {
+		return l.procs.DescendsFrom(pid, m.ProcessRoot)
+	}
+	app, err := l.procs.FlatpakID(pid)
+	switch {
+	case err != nil:
+		return false, err
+	case app != "":
+		return m.FlatpakID != "" && strings.EqualFold(app, m.FlatpakID), nil
+	}
+	return byNames(), nil
+}
+
+// Matches is the secondary, name-only rule (Find): whether a player
+// identified by busName and desktopEntry names match (a Flatpak app id or
+// desktop entry) exactly. Comparison is case-insensitive; the bus-name
+// suffix may carry an ".instanceNNN" tail. An empty desktopEntry (the
+// property is missing) matches nothing by itself.
 func Matches(busName, desktopEntry, match string) bool {
 	if match == "" {
 		return false

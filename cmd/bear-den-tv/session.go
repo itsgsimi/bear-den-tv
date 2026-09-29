@@ -40,6 +40,7 @@ import (
 	"bear-den-tv/internal/platform/fake"
 	"bear-den-tv/internal/platform/lock"
 	"bear-den-tv/internal/platform/mpris"
+	"bear-den-tv/internal/platform/proc"
 	"bear-den-tv/internal/platform/suspend"
 	"bear-den-tv/internal/platform/x11"
 	"bear-den-tv/internal/providers"
@@ -252,7 +253,7 @@ func runSession(f sessionFlags) error {
 		defer cecA.Close()
 		tv = cecA
 		if bus, err := dbusx.ConnectSession(ctx); err == nil {
-			media = mpris.NewLocator(bus)
+			media = mpris.NewLocator(bus).WithProcesses(proc.Host()) // ownership by process (docs/security.md)
 		} else {
 			log.Warn("no session bus; media controls unavailable", "err", err)
 		}

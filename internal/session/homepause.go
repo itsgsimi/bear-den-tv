@@ -48,7 +48,7 @@ func (c *Coordinator) pauseAppForHome(ctx context.Context, target contract.Targe
 	default:
 		return nil
 	}
-	player := c.homePlayer(ctx, appID, ad.MediaMatch())
+	player := c.homePlayer(ctx, appID)
 	if player == nil {
 		return map[string]any{"paused": false}
 	}
@@ -76,8 +76,9 @@ func (c *Coordinator) pauseAppForHome(ctx context.Context, target contract.Targe
 }
 
 // homePlayer is the app's own controllable MPRIS player: the one the media
-// actions use when it was already found, else a fresh exact match.
-func (c *Coordinator) homePlayer(ctx context.Context, appID, match string) platform.MediaPlayer {
+// actions use when it was already found, else a fresh look by the process
+// that owns it (mediaMatchFor).
+func (c *Coordinator) homePlayer(ctx context.Context, appID string) platform.MediaPlayer {
 	c.mu.Lock()
 	m := c.media
 	c.mu.Unlock()
@@ -87,7 +88,8 @@ func (c *Coordinator) homePlayer(ctx context.Context, appID, match string) platf
 		}
 		return m.player
 	}
-	if c.opts.Media == nil {
+	match, ok := c.mediaMatchFor(appID)
+	if c.opts.Media == nil || !ok {
 		return nil
 	}
 	ctx, cancel := context.WithTimeout(ctx, MediaObserveTimeout)
