@@ -5,6 +5,7 @@ package storage
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"os"
 	"path/filepath"
@@ -143,6 +144,75 @@ func TestOpenFileCreatesDirAndPersists(t *testing.T) {
 	_ = db2.Close()
 	if _, err := Open(p); err == nil {
 		t.Fatal("newer schema accepted")
+	}
+}
+
+// schemaV1 is the schema as release 1 shipped it, frozen here so the
+// upgrade is tested from the real v1 shape even if migrations change later.
+const schemaV1 = `CREATE TABLE devices (id TEXT PRIMARY KEY, name TEXT NOT NULL, permissions TEXT NOT NULL, created_at TEXT NOT NULL, revoked_at TEXT, last_seen_ms INTEGER NOT NULL DEFAULT 0);
+CREATE TABLE sessions (token_sha256 TEXT PRIMARY KEY, device_id TEXT NOT NULL REFERENCES devices(id), csrf_sha256 TEXT NOT NULL, created_at TEXT NOT NULL, last_seen_ms INTEGER NOT NULL DEFAULT 0);
+CREATE INDEX sessions_device ON sessions(device_id);
+CREATE TABLE invitations (id TEXT PRIMARY KEY, token_sha256 TEXT NOT NULL, code_sha256 TEXT NOT NULL, expires_at_ms INTEGER NOT NULL, attempts_left INTEGER NOT NULL, redeemed_at TEXT, cancelled INTEGER NOT NULL DEFAULT 0);
+CREATE TABLE focus_memory (screen TEXT PRIMARY KEY, section_id TEXT, item_id TEXT, scroll_x REAL NOT NULL DEFAULT 0, updated_at TEXT NOT NULL);
+CREATE TABLE app_state (app_id TEXT PRIMARY KEY, last_launch_at TEXT, last_error TEXT);
+INSERT INTO devices VALUES ('dev_fam', 'Family phone', 'controller,owner', '2026-01-01T00:00:00Z', NULL, 7);
+INSERT INTO devices VALUES ('dev_old', 'Old phone', 'controller', '2026-01-02T00:00:00Z', '2026-02-01T00:00:00Z', 0);
+INSERT INTO sessions VALUES ('tok', 'dev_fam', 'csrf', '2026-01-01T00:00:00Z', 7);
+INSERT INTO invitations VALUES ('inv', 'th', 'ch', 99, 5, NULL, 0);
+PRAGMA user_version = 1;`
+
+// A database written by schema 1 opens as schema 2 with every paired device,
+// its session and its permissions intact, and no expiry (family phones).
+func TestMigrateV1ToV2KeepsDevices(t *testing.T) {
+	p := filepath.Join(t.TempDir(), "state.db")
+	raw, err := sql.Open("sqlite", "file:"+p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := raw.Exec(schemaV1); err != nil {
+		t.Fatal(err)
+	}
+	_ = raw.Close()
+
+	db, err := Open(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if v, _ := db.Version(); v != 2 || SchemaVersion != 2 {
+		t.Fatalf("version %d (SchemaVersion %d), want 2", v, SchemaVersion)
+	}
+	ctx := context.Background()
+	list, err := db.ListDevices(ctx)
+	if err != nil || len(list) != 1 || list[0].ID != "dev_fam" || list[0].ExpiresAtMs != nil || list[0].LastSeenMs != 7 {
+		t.Fatalf("devices after migration: %+v %v", list, err)
+	}
+	if len(list[0].Permissions) != 2 || list[0].Permissions[1] != "owner" {
+		t.Fatalf("permissions lost: %v", list[0].Permissions)
+	}
+	if old, err := db.Device(ctx, "dev_old"); err != nil || !old.Revoked() {
+		t.Fatalf("revoked device changed: %+v %v", old, err)
+	}
+	if s, err := db.SessionByTokenHash(ctx, "tok"); err != nil || s.DeviceID != "dev_fam" {
+		t.Fatalf("session lost: %+v %v", s, err)
+	}
+	if inv, err := db.LiveInvitation(ctx); err != nil || inv.Permissions != nil || inv.PassExpiresAtMs != nil {
+		t.Fatalf("v1 invitation: %+v %v", inv, err)
+	}
+	// The new columns work on the migrated file.
+	exp := int64(1790647200000)
+	if err := db.CreateDevice(ctx, Device{ID: "dev_g", Name: "Guest", Permissions: []string{"guest"}, CreatedAt: "2026-09-28T00:00:00Z", ExpiresAtMs: &exp}); err != nil {
+		t.Fatal(err)
+	}
+	if g, err := db.Device(ctx, "dev_g"); err != nil || g.ExpiresAtMs == nil || *g.ExpiresAtMs != exp {
+		t.Fatalf("guest expiry not stored: %+v %v", g, err)
+	}
+	if err := db.CreateInvitation(ctx, Invitation{ID: "inv2", TokenSHA256: "t2", CodeSHA256: "c2", ExpiresAtMs: 200, AttemptsLeft: 5, Permissions: []string{"guest"}, PassExpiresAtMs: &exp}); err != nil {
+		t.Fatal(err)
+	}
+	inv, err := db.LiveInvitation(ctx)
+	if err != nil || len(inv.Permissions) != 1 || inv.Permissions[0] != "guest" || inv.PassExpiresAtMs == nil || *inv.PassExpiresAtMs != exp {
+		t.Fatalf("guest invitation: %+v %v", inv, err)
 	}
 }
 
