@@ -282,13 +282,30 @@ func (s *Server) serve(conn *net.UnixConn) {
 	close(handshook)
 	hsTimer.Stop()
 
+	// Welcome first, then the initial state (contracts/ipc.md): until both
+	// are written the client is not ready, so Shell(), Clients() and
+	// Broadcast do not see it. A broadcast in the meantime only marks it
+	// missed, and the snapshot is built again so the client never ends on
+	// an older state than the latest publish.
 	if err := c.Send(Welcome{Type: TypeWelcome, Protocol: contract.Protocol, SessionID: c.id, CoordinatorVersion: s.opts.CoordinatorVersion}); err != nil {
 		s.dropClient(c, err)
 		return
 	}
-	if err := c.Send(State{Type: TypeState, State: s.opts.Handler.InitialState(c)}); err != nil {
-		s.dropClient(c, err)
-		return
+	for {
+		s.mu.Lock()
+		c.missed = false
+		s.mu.Unlock()
+		if err := c.Send(State{Type: TypeState, State: s.opts.Handler.InitialState(c)}); err != nil {
+			s.dropClient(c, err)
+			return
+		}
+		s.mu.Lock()
+		missed := c.missed
+		c.ready = !missed
+		s.mu.Unlock()
+		if !missed {
+			break
+		}
 	}
 	s.opts.Logger.Info("shellipc: client connected", "client", c.kind, "pid", c.pid, "version", c.version)
 	s.wg.Add(1)
@@ -325,27 +342,47 @@ func (s *Server) dropClient(c *Client, err error) {
 	})
 }
 
-// Shell returns the connected shell client, or nil.
+// Shell returns the connected shell client once its handshake (welcome and
+// initial state) is written, or nil.
 func (s *Server) Shell() *Client {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.shell == nil || !s.shell.ready {
+		return nil
+	}
 	return s.shell
 }
 
-// Clients returns every connected client.
+// Clients returns every client whose handshake is written.
 func (s *Server) Clients() []*Client {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	return s.readyLocked()
+}
+
+func (s *Server) readyLocked() []*Client {
 	out := make([]*Client, 0, len(s.clients))
 	for c := range s.clients {
-		out = append(out, c)
+		if c.ready {
+			out = append(out, c)
+		}
 	}
 	return out
 }
 
 // Broadcast sends a snapshot to every client; view builds it per client.
+// A client still in its handshake is not sent anything: it is marked
+// missed and gets a fresh snapshot right after its initial one.
 func (s *Server) Broadcast(view func(c *Client) contract.State) {
-	for _, c := range s.Clients() {
+	s.mu.Lock()
+	for c := range s.clients {
+		if !c.ready {
+			c.missed = true
+		}
+	}
+	ready := s.readyLocked()
+	s.mu.Unlock()
+	for _, c := range ready {
 		if err := c.Send(State{Type: TypeState, State: view(c)}); err != nil && !errors.Is(err, ErrClosed) {
 			s.opts.Logger.Warn("shellipc: broadcast failed", "client", c.kind, "error", err.Error())
 		}
@@ -378,6 +415,10 @@ type Client struct {
 	id      string
 	pid     int
 	version string
+
+	// ready (the handshake is written) and missed (a broadcast came during
+	// the handshake) are guarded by server.mu.
+	ready, missed bool
 
 	writeMu   sync.Mutex
 	mu        sync.Mutex
