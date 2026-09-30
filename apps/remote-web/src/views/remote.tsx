@@ -12,7 +12,8 @@
 // no sleep timer or screen off. With a web app in front the Touchpad
 // (touchpad.tsx) appears under the D-pad. The owner's phone also gets Add
 // apps (install.tsx) under the app shortcuts, and a "+ Add apps" tile at the
-// end of the Apps grid that scrolls to it (AddAppsTile).
+// end of the Apps grid that scrolls to it (AddAppsTile). A tile whose app
+// has notes carries an ⓘ button that opens them under the grid (notes.tsx).
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { ComponentChildren, JSX } from 'preact';
 import type { App } from '../app.ts';
@@ -25,6 +26,7 @@ import { SleepPanel } from './sleep.tsx';
 import { TvPanel, VolumeHelp, volumeHeading } from './tv.tsx';
 import { TouchpadPanel } from './touchpad.tsx';
 import { AddAppsPanel, AddAppsTile, mayInstall } from './install.tsx';
+import { NotesPanel, NotesToggle } from './notes.tsx';
 import { type AppState, type PendingAction, type TileStatus, capabilityFor, closableApp, isSecureTransport, mayUse, permissionsOf, tileStatus, visibleApps } from '../state.ts';
 
 const TEXT_MAX = 256;
@@ -52,6 +54,8 @@ function listed(state: AppState, action: ActionName): boolean {
 export function RemoteView({ app, state }: { app: App; state: AppState }): JSX.Element {
   const snapshot = state.snapshot;
   const addAppsHeading = useRef<HTMLHeadingElement>(null);
+  const [notesFor, setNotesFor] = useState<string | null>(null);
+  const toggleNotes = (id: string) => setNotesFor((open) => (open === id ? null : id));
   const reasons = new Set<string>();
   const note = (g: Gate): Gate => {
     if (g.reason) reasons.add(g.reason);
@@ -101,10 +105,11 @@ export function RemoteView({ app, state }: { app: App; state: AppState }): JSX.E
           <h3 id="apps-heading">{t.remote.apps}</h3>
           <div class="app-grid">
             {visibleApps(snapshot).map((application) => (
-              <AppButton key={application.id} app={app} state={state} application={application} />
+              <AppButton key={application.id} app={app} state={state} application={application} notesOpen={notesFor === application.id} onNotes={toggleNotes} />
             ))}
             <AddAppsTile state={state} heading={addAppsHeading} />
           </div>
+          <NotesPanel application={visibleApps(snapshot).find((a) => a.id === notesFor) ?? null} onClose={() => setNotesFor(null)} />
           {!mayInstall(state) && visibleApps(snapshot).some((a) => !a.installed) ? (
             <p class="muted small" data-testid="owner-installs">{t.remote.ownerInstalls}</p>
           ) : null}
@@ -354,7 +359,7 @@ export function tileStatusText(s: TileStatus): string | null {
   }
 }
 
-function AppButton({ app, state, application }: { app: App; state: AppState; application: Application }): JSX.Element {
+export function AppButton({ app, state, application, notesOpen = false, onNotes = () => undefined }: { app: App; state: AppState; application: Application; notesOpen?: boolean; onNotes?: (appId: string) => void }): JSX.Element {
   const launch = gate(state, 'app.launch');
   const reason = !application.installed ? notInstalledReason(application, state) : launch.reason;
   const tile = tileStatus(application, state.installReady);
@@ -379,6 +384,7 @@ function AppButton({ app, state, application }: { app: App; state: AppState; app
         <span class="app-label">{application.label}</span>
         {status ? <span class={`app-status small ${tile ? `is-${tile.kind}` : ''}`} data-testid="app-status">{status}</span> : null}
       </button>
+      <NotesToggle application={application} open={notesOpen} onToggle={onNotes} />
       <Vines appearance={state.snapshot?.appearance} />
     </div>
   );

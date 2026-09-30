@@ -234,8 +234,11 @@ export const t = {
     finishing: 'Finishing…',
     ready: 'Ready',
     failed: 'The install stopped.',
-    chromium: 'Chromium',
-    chromiumWhy: 'Browser for Netflix, Disney+, Hulu',
+    /** A web apps' browser row when the TV did not name the browser (older coordinators). */
+    browserFallback: 'Web browser',
+    /** Why a browser row is there: the web apps it runs. */
+    neededFor: (labels: readonly string[]): string =>
+      `Needed for ${labels.length > 1 ? `${labels.slice(0, -1).join(', ')} and ${labels[labels.length - 1]}` : (labels[0] ?? '')}`,
     // The "+ Add apps" tile in the Apps grid (install.tsx AddAppsTile).
     tile: 'Add apps',
     tileSub: (labels: readonly string[], more: boolean): string => (more ? `${labels.join(', ')} and more` : labels.join(' and ')),
@@ -327,6 +330,13 @@ export const t = {
     reset: 'Reset to defaults.',
     forbidden: 'This phone may not change the layout.',
     revision: (n: number) => `Revision ${n}`,
+  },
+
+  // App notes (views/notes.tsx): the TV's sentences are shown as sent.
+  notes: {
+    show: (label: string) => `Good to know about ${label}`,
+    panel: (label: string) => `Good to know: ${label}`,
+    close: 'Close',
   },
 
   // Den badges (views/badges.tsx): read-only; names and hints keyed by the

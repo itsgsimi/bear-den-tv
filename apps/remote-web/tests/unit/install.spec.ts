@@ -60,6 +60,11 @@ function snapshot(permissions: Permission[], apps: Application[]): StateSnapshot
   } as unknown as StateSnapshot;
 }
 
+const BROWSERS = [
+  { id: 'sb', label: 'Streamer X', flatpak_id: 'org.example.StreamerX', streaming_unverified: false },
+  { id: 'bt', label: 'Surfer Y', flatpak_id: 'org.example.SurferY', streaming_unverified: true },
+];
+
 const APPS = [
   app('plex-htpc', 'plex-htpc', true, idle('none')),
   app('moonlight', 'moonlight', false, idle()),
@@ -89,10 +94,21 @@ describe('Add apps', () => {
     }
   });
 
-  it('lists each missing Flatpak once, the web apps as Chromium', () => {
+  it('lists each missing Flatpak once, the web apps as their browser from state', () => {
+    // An older coordinator names no browser: one row, a plain name.
     const entries = installEntries(snapshot(['owner'], APPS));
-    expect(entries.map((e) => [e.id, e.label])).toEqual([['moonlight', 'Moonlight'], ['netflix', 'Chromium']]);
-    expect(entries[1]?.why).toBe('Browser for Netflix, Disney+, Hulu');
+    expect(entries.map((e) => [e.id, e.label])).toEqual([['moonlight', 'Moonlight'], ['netflix', 'Web browser']]);
+    expect(entries[1]?.why).toBe('Needed for Netflix, Hulu and Browser');
+    // The streaming sites and the Browser tile in different browsers: two rows, named by the TV.
+    const two = { ...snapshot(['owner'], APPS), apps: { auto_update: true, streaming_browser: 'sb', browser: 'bt', browsers: BROWSERS } } as StateSnapshot;
+    expect(installEntries(two).map((e) => [e.id, e.label, e.why])).toEqual([
+      ['moonlight', 'Moonlight', ''],
+      ['netflix', 'Streamer X', 'Needed for Netflix and Hulu'],
+      ['browser', 'Surfer Y', 'Needed for Browser'],
+    ]);
+    // The same browser for both: one row.
+    const one = { ...two, apps: { ...two.apps!, browser: 'sb' } } as StateSnapshot;
+    expect(installEntries(one).map((e) => e.label)).toEqual(['Moonlight', 'Streamer X']);
   });
 
   it('shows progress and Cancel while installing, Install otherwise', () => {
@@ -167,6 +183,35 @@ describe('Add apps tile', () => {
     const heading = walk(section).find((v) => v.props.id === 'add-apps-heading');
     expect(heading?.props.tabIndex).toBe(-1);
     expect(heading?.ref).toBe(ref);
+  });
+});
+
+describe('notes in Add apps', () => {
+  const noted = (a: Application, notes: string[]): Application => ({ ...a, notes });
+  const rows = (apps: Application[]) => walk(AddAppsSection({ entries: installEntries(snapshot(['owner'], apps)), available: true, reason: null, art: 'pixel', onInstall: () => undefined, onCancel: () => undefined }));
+  const notesIn = (tree: VNode<Props>[], id: string) => {
+    const row = tree.find((v) => v.props['data-testid'] === `install-${id}`);
+    return row ? walk(row).filter((v) => v.props['data-testid'] === 'app-notes').map((v) => text(v)) : [];
+  };
+
+  it("shows an app's notes in its row before Install is pressed", () => {
+    const tree = rows([noted(app('moonlight', 'moonlight', false, idle()), ['Needs a gaming PC running a host.', 'Pair it once.'])]);
+    expect(notesIn(tree, 'moonlight')).toEqual(['Needs a gaming PC running a host. Pair it once.']);
+    expect(byTestId(tree, 'install-button-moonlight')).toBeDefined();
+  });
+
+  it("gives a browser row its first streaming site's notes", () => {
+    const tree = rows([
+      noted(app('browser', 'browser', false, idle()), ['Tile note.']),
+      noted(app('hulu', 'hulu', false, idle()), ['Site note.']),
+    ]);
+    expect(installEntries(snapshot(['owner'], [noted(app('browser', 'browser', false, idle()), ['Tile note.'])]))[0]?.notes).toEqual(['Tile note.']);
+    expect(notesIn(tree, 'browser')).toEqual(['Site note.']);
+  });
+
+  it('draws nothing for an app without notes', () => {
+    expect(notesIn(rows([app('moonlight', 'moonlight', false, idle())]), 'moonlight')).toEqual([]);
+    expect(notesIn(rows([noted(app('moonlight', 'moonlight', false, idle()), [])]), 'moonlight')).toEqual([]);
   });
 });
 
