@@ -26,11 +26,18 @@ section: video
 priority: optional
 maintainer: Bear Den TV contributors
 description: |
-  TV home screen with a LAN phone remote for Plex HTPC and VacuumTube.
-  Installs the session coordinator and CLI, and the Qt Quick TV shell with
-  a bundled Qt runtime. The apps (Plex HTPC, VacuumTube, Moonlight) are
-  separate Flatpaks. Nothing starts at login until you run
-  `bear-den-tv autostart enable`.
+  TV home screen for a Linux PC, driven with a remote or your phone.
+  Bear Den turns a PC connected to a TV into a couch-friendly home screen:
+  arrow keys, OK and Back reach everything, and a phone on your home
+  network can act as the remote once you pair it on the TV. It launches
+  the apps you use (Plex HTPC, YouTube, Moonlight, Spotify, Jellyfin,
+  RetroArch and the streaming sites in a browser), and installs any of
+  them from Flathub for your user when you ask on the TV.
+  .
+  Nothing is enabled until you choose it: the phone remote stays off, no
+  app is installed and nothing starts at login until you say so on the TV
+  or with `bear-den-tv autostart enable`. This package holds the session
+  coordinator and CLI and the Qt Quick TV shell with a bundled Qt runtime.
 license: MIT
 depends:
   - libc6 (>= 2.28)
