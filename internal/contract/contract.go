@@ -75,6 +75,9 @@ const (
 	// installs"): owner phones only (OwnerActions), never guests.
 	ActionAppInstall       = "app.install"
 	ActionAppInstallCancel = "app.install_cancel"
+	// ActionAppUninstall removes an app's Flatpak for this user (owner only;
+	// contracts/actions.md "App removal").
+	ActionAppUninstall = "app.uninstall"
 )
 
 // AllActions lists every action name in protocol 1, in contract order.
@@ -84,7 +87,7 @@ var AllActions = []string{
 	ActionAudioVolume, ActionAudioMute, ActionTextSubmit, ActionShellRestart,
 	ActionSleepTimer, ActionDisplayOff, ActionTVPower,
 	ActionPointerMove, ActionPointerClick, ActionPointerScroll,
-	ActionAppInstall, ActionAppInstallCancel,
+	ActionAppInstall, ActionAppInstallCancel, ActionAppUninstall,
 }
 
 // OwnerActions need the owner permission from a phone (contracts/actions.md
@@ -94,6 +97,7 @@ var OwnerActions = map[string]bool{
 	ActionShellRestart:     true,
 	ActionAppInstall:       true,
 	ActionAppInstallCancel: true,
+	ActionAppUninstall:     true,
 }
 
 // IsPointer reports whether the action is one of the touchpad's pointer actions.
@@ -130,7 +134,7 @@ func IsNav(action string) bool {
 func IgnoresStaleEpoch(action string) bool {
 	switch action {
 	case ActionHome, ActionAppLaunch, ActionShellRestart, ActionSleepTimer, ActionDisplayOff, ActionTVPower,
-		ActionAppInstall, ActionAppInstallCancel:
+		ActionAppInstall, ActionAppInstallCancel, ActionAppUninstall:
 		return true
 	}
 	return false
@@ -383,6 +387,7 @@ const (
 	InstallInstalling  = "installing"
 	InstallFailed      = "failed"
 	InstallDone        = "done"
+	InstallRemoving    = "removing"
 )
 
 // Install phases.
@@ -408,7 +413,10 @@ type Install struct {
 	Phase     string `json:"phase"`
 	SizeBytes *int64 `json:"size_bytes,omitempty"`
 	DiskBytes *int64 `json:"disk_bytes,omitempty"`
-	Message   string `json:"message,omitempty"`
+	// InstalledBytes is what the installed app takes (flatpak info), what
+	// Remove frees; installed apps only.
+	InstalledBytes *int64 `json:"installed_bytes,omitempty"`
+	Message        string `json:"message,omitempty"`
 	DRM       string `json:"drm,omitempty"`
 }
 

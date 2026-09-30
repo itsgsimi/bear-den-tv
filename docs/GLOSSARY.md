@@ -59,7 +59,7 @@ press its volume keys. Off by default; tested against a fake TV only.
 target changes. Actions carry the epoch the phone last saw; a stale one is
 refused (`failed/stale_epoch`), except the escapes `home`, `app.launch` and
 `shell.restart`, the power actions `power.sleep_timer`, `display.off` and
-`tv.power`, and `app.install`/`app.install_cancel`, which never touch the
+`tv.power`, and `app.install`/`app.install_cancel`/`app.uninstall`, which never touch the
 window in front (`IgnoresStaleEpoch`).
 [`contracts/actions.md`](../contracts/actions.md), [`internal/session/coordinator.go`](../internal/session/coordinator.go).
 

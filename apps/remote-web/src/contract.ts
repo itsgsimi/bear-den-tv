@@ -30,13 +30,14 @@ export type ActionName =
   | 'tv.power'
   | PointerAction
   | 'app.install'
-  | 'app.install_cancel';
+  | 'app.install_cancel'
+  | 'app.uninstall';
 
 /**
  * What needs the owner permission (contract.OwnerActions in Go, contracts/actions.md).
  * The server enforces it; the phone draws these controls only for owners.
  */
-export const OWNER_ACTIONS: ReadonlySet<ActionName> = new Set<ActionName>(['shell.restart', 'app.install', 'app.install_cancel']);
+export const OWNER_ACTIONS: ReadonlySet<ActionName> = new Set<ActionName>(['shell.restart', 'app.install', 'app.install_cancel', 'app.uninstall']);
 
 /** power.sleep_timer minutes: 0 cancels, otherwise one of the fixed choices. */
 export type SleepMinutes = 0 | 15 | 30 | 45 | 60 | 90 | 120;
@@ -92,6 +93,8 @@ export type ActionArgs = {
   /** Install the app's Flatpak from Flathub for this user (owner only). */
   'app.install': { app_id: string };
   'app.install_cancel': { app_id: string };
+  /** Remove the app's Flatpak for this user; delete_data also deletes its data. */
+  'app.uninstall': { app_id: string; delete_data?: boolean };
 };
 
 /** `"active"`, `"shell"`, or a registered application id. */
@@ -240,7 +243,7 @@ export interface Application {
   notes?: string[];
 }
 
-export type InstallState = 'none' | 'available' | 'preparing' | 'downloading' | 'installing' | 'failed' | 'done';
+export type InstallState = 'none' | 'available' | 'preparing' | 'downloading' | 'installing' | 'failed' | 'done' | 'removing';
 export type InstallPhase = '' | 'checking' | 'runtime' | 'app' | 'finishing';
 
 /** state.applications[].install (contracts/http.md, "App installs"). */
@@ -253,6 +256,8 @@ export interface Install {
   size_bytes?: number;
   /** About how much disk it takes once installed. */
   disk_bytes?: number;
+  /** Installed apps only: what the app itself takes on disk, what Remove frees. */
+  installed_bytes?: number;
   message?: string;
   /** Streaming web apps only: whether their browser can play protected video (Chrome's bundled Widevine, or Widevine in the app's Brave profile). */
   drm?: 'ready' | 'preparing' | 'pending';

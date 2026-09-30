@@ -17,6 +17,8 @@ func TestInstallMessagesDecode(t *testing.T) {
 		`{"type":"apps.browser","request_id":"r6","browser":"brave","streaming_browser":"chrome"}`: AppsBrowser{Type: TypeAppsBrowser, RequestID: "r6", Browser: "brave", StreamingBrowser: "chrome"},
 		// Install pressed on the app's own card: turn it on once installed.
 		`{"type":"app.install","request_id":"r7","app_id":"netflix","enable":true}`: AppInstall{Type: TypeAppInstall, RequestID: "r7", AppID: "netflix", Enable: true},
+		// Remove, with the app's data.
+		`{"type":"app.uninstall","request_id":"r8","app_id":"moonlight","delete_data":true}`: AppUninstall{Type: TypeAppUninstall, RequestID: "r8", AppID: "moonlight", DeleteData: true},
 		// The older reserved name is an alias of app.install.
 		`{"type":"applications.install_request","request_id":"r5","app_id":"spotify"}`: InstallRequest{Type: TypeInstallRequest, RequestID: "r5", AppID: "spotify"},
 	}

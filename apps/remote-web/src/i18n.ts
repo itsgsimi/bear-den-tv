@@ -31,6 +31,7 @@ const ACTION_NAMES: Record<string, string> = {
   'pointer.scroll': 'Scroll',
   'app.install': 'Install app',
   'app.install_cancel': 'Cancel install',
+  'app.uninstall': 'Remove app',
 };
 
 export const t = {

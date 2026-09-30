@@ -25,6 +25,8 @@ Canonical messages consumed by contract tests in Go ([`tests/contract/fixtures_t
 | `action.request.app-install.valid.json` | `action.schema.json#/$defs/request` (`app.install` for a config app id) |
 | `action.request.app-install-cancel.valid.json` | `action.schema.json#/$defs/request` (`app.install_cancel`) |
 | `action.request.app-install-ref.invalid.json` | rejected: `app.install` takes only `app_id` (a phone never names a Flatpak ref) |
+| `action.request.app-uninstall.valid.json` | `action.schema.json#/$defs/request` (`app.uninstall` with `delete_data`) |
+| `action.request.app-uninstall-system.invalid.json` | rejected: `app.uninstall` takes only `app_id` and `delete_data` (nothing asks for a system-wide removal) |
 | `action.result.observed.valid.json` | `action.schema.json#/$defs/result` |
 | `action.result.failed-stale.valid.json` | `action.schema.json#/$defs/result` |
 | `action.result.display-off-woke.valid.json` | `action.schema.json#/$defs/result` (`failed/display_off`: the press woke the screen and was not applied) |
@@ -74,8 +76,9 @@ Canonical messages consumed by contract tests in Go ([`tests/contract/fixtures_t
 | `state.browser-no-note.invalid.json` | rejected: every `apps.browsers[]` entry says whether it is unverified for streaming |
 | `state.family-install.invalid.json` | rejected: a phone without `owner` never gets `applications[].install` |
 | `state.guest-install.invalid.json` | rejected: a guest pass never gets `applications[].install` |
-| `state.install-bad-state.invalid.json` | rejected: `install.state` must be one of the seven install states |
+| `state.install-bad-state.invalid.json` | rejected: `install.state` must be one of the eight install states |
 | `state.install-progress-range.invalid.json` | rejected: `install.progress` is 0..100 |
+| `state.install-installed-bytes.invalid.json` | rejected: `install.installed_bytes` is not negative |
 | `state.install-ref.invalid.json` | rejected: `install` has no room for a ref or anything else (`additionalProperties: false`) |
 | `config.apps-auto-update-not-bool.invalid.json` | rejected structurally: `apps.auto_update` must be a boolean |
 | `config.browsers-swapped.valid.json` | `config.schema.json` (the defaults swapped: the Browser tile in Google Chrome, `apps.browser: chrome`, its row's `launch.app_id` `com.google.Chrome`; the streaming sites in Brave, `apps.streaming_browser: brave`, their rows `com.brave.Browser`) |

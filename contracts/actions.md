@@ -17,7 +17,7 @@
 |---|---|
 | `protocol` | Must be `1`. Other values ⇒ `failed/unsupported_protocol`. |
 | `request_id` | UUID v4 string, unique per device session. The coordinator remembers the last 256 ids per session for 60 s (monotonic clock). Same id + identical payload ⇒ the original result is returned again. Same id + different payload ⇒ `failed/duplicate_mismatch`. |
-| `context_epoch` | Integer from the last `state` the sender saw. Must equal the coordinator's current epoch for every action except `home`, `app.launch`, `shell.restart`, `power.sleep_timer`, `display.off`, `tv.power`, `app.install` and `app.install_cancel` (these never touch the window in front); otherwise `failed/stale_epoch`. |
+| `context_epoch` | Integer from the last `state` the sender saw. Must equal the coordinator's current epoch for every action except `home`, `app.launch`, `shell.restart`, `power.sleep_timer`, `display.off`, `tv.power`, `app.install`, `app.install_cancel` and `app.uninstall` (these never touch the window in front); otherwise `failed/stale_epoch`. |
 | `target` | `"active"` (whatever the coordinator currently observes in the foreground), `"shell"`, or a registered application id. Actions on `"active"` are refused when the observed target is `unknown` or `locked`. |
 | `action` | One of the names below. |
 | `args` | Object validated per action; extra keys are rejected. |
@@ -45,11 +45,12 @@
 | `pointer.scroll` | `{"dy": 240}` (−2000..2000, non-zero) | controller | Touchpad: scrolls the page under the pointer. `delivered`. |
 | `app.install` | `{"app_id": "moonlight"}` | owner | Install the app's Flatpak for this user from Flathub. See [App installs](#app-installs). `delivered` once the install has started (progress in `state.applications[].install`), `observed` with `detail.already_installed` when it is installed. Ignores stale epochs. |
 | `app.install_cancel` | `{"app_id": "moonlight"}` | owner | Stop that app's running install. `delivered`. Ignores stale epochs. |
+| `app.uninstall` | `{"app_id": "moonlight", "delete_data": false}` | owner | Remove the app's Flatpak for this user. See [App removal](#app-removal). `delivered` once the removal has started (`state.applications[].install.state` is `removing`, then the app is no longer installed). Ignores stale epochs. |
 | `tv.power` | `{"power": "on"}` or `{"power": "standby"}` | controller | HDMI-CEC, only while `capabilities["tv.power"]` is available (an adapter is present and the owner turned on `cec.enabled`). `on`: Image View On, then Active Source, so the TV wakes and switches to Bear Den's input. `standby`: Standby to the TV. `delivered` when the TV acknowledged the frames, `observed` (`detail.tv_power`) when it then reports that power state. Ignores stale epochs. |
 
-**Guest passes** ([`http.md`](http.md#guest-passes)) are not `controller`: a device with `guest` may send only `nav.*`, `select`, `back`, `home`, `app.launch`, `media.play`, `media.pause`, `media.seek_relative`, `audio.volume_delta`, `audio.mute` and `text.submit` (`contract.GuestActions`). Every other action, including `app.close` in any mode, `shell.restart`, `app.install`, `app.install_cancel`, the `pointer.*` touchpad and any action added later, is refused to guests with `failed/forbidden`. A new action joins the guest list only on purpose.
+**Guest passes** ([`http.md`](http.md#guest-passes)) are not `controller`: a device with `guest` may send only `nav.*`, `select`, `back`, `home`, `app.launch`, `media.play`, `media.pause`, `media.seek_relative`, `audio.volume_delta`, `audio.mute` and `text.submit` (`contract.GuestActions`). Every other action, including `app.close` in any mode, `shell.restart`, `app.install`, `app.install_cancel`, `app.uninstall`, the `pointer.*` touchpad and any action added later, is refused to guests with `failed/forbidden`. A new action joins the guest list only on purpose.
 
-**Owner only:** `shell.restart`, `app.install`, `app.install_cancel` and `app.close` with `force` need `owner` (`contract.OwnerActions`); `controller` and `layout_editor` phones get `failed/forbidden` ("Only the owner's phone can do that.").
+**Owner only:** `shell.restart`, `app.install`, `app.install_cancel`, `app.uninstall` and `app.close` with `force` need `owner` (`contract.OwnerActions`); `controller` and `layout_editor` phones get `failed/forbidden` ("Only the owner's phone can do that.").
 
 Unknown or disabled actions ⇒ `failed/unsupported` with a `message` explaining why (for example "VacuumTube pause has not been verified on this installation").
 
@@ -93,6 +94,15 @@ Bear Den can install the apps it knows (the rows of the adapter table) from Flat
 - **Capability.** `app.install` and `app.install_cancel` are unavailable with the reason when the session has no installer or Flatpak is missing ("Flatpak isn't installed on this box"), and while locked.
 - **Refusals.** An unknown app (`failed/unsupported`), another install already running (`failed/busy`), an app already installing (`delivered`, `detail.already_running`). Cancel with nothing running is `failed/unsupported`.
 - **Progress** is in `state.applications[].install` ([`http.md`](http.md#app-installs-stateapplicationsinstall)), not in results.
+
+## App removal
+
+The owner can remove an app Bear Den installed (TV: Apps → Remove apps, with a confirmation; owner phones: Remove under the app's row in Add apps). Nothing is ever removed on its own.
+
+- **What is removed.** `app_id` names a config application; the Flatpak removed is that application's adapter's Flatpak id (for a web app its browser's, so removing it for one streaming site removes the browser the other sites use too: the TV and phone say which apps it turns off, from the browser table). The command is fixed: `flatpak uninstall --user --noninteractive -y <id>`, plus `--delete-data` when `delete_data` is `true` (the app's own data in `~/.var/app/<id>`: sign-ins, settings). Never `--system`, never `--unused`: shared runtimes stay (the TV says the size it frees is the app's own, `install.installed_bytes`).
+- **Refusals** (`failed`, with plain words): an unknown app (`invalid`); an app Bear Den can't install either (`unsupported`); not installed (`unsupported`, "… is not installed."); installed for everyone on the PC (`unsupported`, "… is installed for everyone on this PC, so it can only be removed with the PC's own software tool."); the app, or another app in the same Flatpak, is running (`busy`, "Close … first."); another install, update or removal is running (`busy`).
+- **Capability.** `app.uninstall` is available with the installer (backend `flathub`) and unavailable with the reason when the session has no installer or Flatpak is missing, and while locked.
+- **Outcome.** The coordinator logs `session: removed from this TV` (or `session: remove failed` with the reason), reads the app's installation again and publishes: its tile hides (optional apps) or shows "Not installed". A failed removal leaves the app installed with `install.message` saying why.
 
 ## Result
 

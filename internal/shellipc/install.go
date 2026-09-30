@@ -6,6 +6,8 @@
 // apps.streaming_browser). Every one is answered with Result. The
 // shell and the cli (`bear-den-tv apps install`) are the trusted senders;
 // phones use the owner-only actions app.install and app.install_cancel.
+// app.uninstall removes an app's Flatpak for this user (the TV's Remove,
+// confirmed there); phones use the owner-only action app.uninstall.
 
 package shellipc
 
@@ -14,6 +16,7 @@ const (
 	TypeAppInstall       = "app.install"
 	TypeAppInstallInfo   = "app.install_info"
 	TypeAppInstallCancel = "app.install_cancel"
+	TypeAppUninstall     = "app.uninstall"
 	TypeAppsConfigure    = "apps.configure"
 	TypeAppsBrowser      = "apps.browser"
 )
@@ -57,6 +60,21 @@ type AppInstallCancel struct {
 // Kind implements Message.
 func (AppInstallCancel) Kind() string { return TypeAppInstallCancel }
 
+// AppUninstall removes the Flatpak of a registered application (by its
+// config id) for this user: `flatpak uninstall --user`, never system-wide.
+// DeleteData also deletes the app's own data (~/.var/app/<id>). The reply
+// comes once the removal has started; state.applications[].install is
+// "removing" while it runs, and the app is no longer installed afterwards.
+type AppUninstall struct {
+	Type       string `json:"type"`
+	RequestID  string `json:"request_id"`
+	AppID      string `json:"app_id"`
+	DeleteData bool   `json:"delete_data,omitempty"`
+}
+
+// Kind implements Message.
+func (AppUninstall) Kind() string { return TypeAppUninstall }
+
 // AppsConfigure stores config apps.auto_update (TV Settings → Keep apps up
 // to date).
 type AppsConfigure struct {
@@ -90,6 +108,8 @@ func decodeInstall(t string) Message {
 		return &AppInstallInfo{}
 	case TypeAppInstallCancel:
 		return &AppInstallCancel{}
+	case TypeAppUninstall:
+		return &AppUninstall{}
 	case TypeAppsConfigure:
 		return &AppsConfigure{}
 	case TypeAppsBrowser:
@@ -106,6 +126,8 @@ func derefInstall(m Message) Message {
 	case *AppInstallInfo:
 		return *t
 	case *AppInstallCancel:
+		return *t
+	case *AppUninstall:
 		return *t
 	case *AppsConfigure:
 		return *t

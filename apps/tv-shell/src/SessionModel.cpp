@@ -228,7 +228,7 @@ bool SessionModel::validateSnapshot(const QJsonObject &snapshot, QString *error)
             const QJsonObject inst = app.value(QStringLiteral("install")).toObject();
             if (!requireKeys(inst, {QStringLiteral("state"), QStringLiteral("progress"), QStringLiteral("phase")}, where, error)
                 || !requireEnum(inst, QStringLiteral("state"), {QStringLiteral("none"), QStringLiteral("available"), QStringLiteral("preparing"), QStringLiteral("downloading"),
-                                                                QStringLiteral("installing"), QStringLiteral("failed"), QStringLiteral("done")}, where, error)
+                                                                QStringLiteral("installing"), QStringLiteral("failed"), QStringLiteral("done"), QStringLiteral("removing")}, where, error)
                 || !requireEnum(inst, QStringLiteral("phase"), {QString(), QStringLiteral("checking"), QStringLiteral("runtime"), QStringLiteral("app"), QStringLiteral("finishing")}, where, error))
                 return false;
             const QJsonValue progress = inst.value(QStringLiteral("progress"));

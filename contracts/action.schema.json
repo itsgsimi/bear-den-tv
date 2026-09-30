@@ -16,7 +16,7 @@
         "power.sleep_timer", "display.off",
         "tv.power",
         "pointer.move", "pointer.click", "pointer.scroll",
-        "app.install", "app.install_cancel"
+        "app.install", "app.install_cancel", "app.uninstall"
       ]
     },
     "targetInfo": {
@@ -48,6 +48,8 @@
          "then": {"properties": {"args": {"type": "object", "properties": {"app_id": {"$ref": "#/$defs/appId"}}, "required": ["app_id"], "additionalProperties": false}}}},
         {"if": {"properties": {"action": {"enum": ["app.install", "app.install_cancel"]}}},
          "then": {"properties": {"args": {"type": "object", "properties": {"app_id": {"$ref": "#/$defs/appId"}}, "required": ["app_id"], "additionalProperties": false}}}},
+        {"if": {"properties": {"action": {"const": "app.uninstall"}}},
+         "then": {"properties": {"args": {"type": "object", "properties": {"app_id": {"$ref": "#/$defs/appId"}, "delete_data": {"type": "boolean"}}, "required": ["app_id"], "additionalProperties": false}}}},
         {"if": {"properties": {"action": {"const": "app.close"}}},
          "then": {"properties": {"args": {"type": "object", "properties": {"app_id": {"$ref": "#/$defs/appId"}, "force": {"type": "boolean"}}, "required": ["app_id"], "additionalProperties": false}}}},
         {"if": {"properties": {"action": {"const": "media.seek_relative"}}},

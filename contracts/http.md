@@ -99,6 +99,9 @@ The shell and **owner** phones get `install` on every application and `state.app
 | `installing` | flatpak finished; Bear Den is checking the result (`phase: finishing`). |
 | `failed` | `message` says why: no network, not enough space, Flathub refused, flatpak failed. Install again to retry. |
 | `done` | Installed by this session; the tile is ready. |
+| `removing` | The owner pressed Remove (`app.uninstall`) and `flatpak uninstall --user` is running; afterwards the app is not installed. |
+
+An installed app carries `installed_bytes` when known: how much the app itself takes (`flatpak info`'s "Installed"), what Remove frees. A Remove that did not work leaves the app installed with `message` saying why.
 
 - **Progress** comes from flatpak's own output (one line per runtime or app it starts) and from how much the disk under `~/.local/share/flatpak` has filled against Flathub's sizes: `flatpak install --noninteractive` prints no percentages. It never goes backwards and reaches 100 only when the install is verified.
 - **Streaming sites** (`netflix`, `disney-plus`, `hulu`) carry `drm` once their browser is installed: `ready` when it can play protected video (Google Chrome: its bundled Widevine is in the installed Flatpak; Brave: the site's profile holds Widevine), `preparing` while Bear Den's quiet first run in Brave fetches it, `pending` otherwise ("Still setting up playback support").
