@@ -87,6 +87,9 @@ func cmdSession(args []string, dev bool) error {
 		fs.StringVar(&f.devListen, "dev-listen", "", "serve the phone remote only on this loopback address (testing; no LAN exposure)")
 	}
 	_ = fs.Parse(args)
+	if !dev {
+		ignoreJobControl() // a daemon: never stopped by a terminal (daemon.go)
+	}
 	return runSession(f)
 }
 

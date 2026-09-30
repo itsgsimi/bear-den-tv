@@ -151,6 +151,8 @@ From the .deb, the same commands are `bear-den-tv autostart|shortcut ...` and
   the start up, and a terminal's job-control signals (Ctrl+Z, background
   reads and writes) never reach Bear Den
   ([`tests/packaging/watchdog_test.go`](../tests/packaging/watchdog_test.go)).
+  `bear-den-tv session` also ignores SIGTSTP, SIGTTIN and SIGTTOU itself
+  ([`daemon.go`](../cmd/bear-den-tv/daemon.go)).
 
 ## Packaging
 
