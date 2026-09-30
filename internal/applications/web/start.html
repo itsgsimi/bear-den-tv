@@ -1,0 +1,82 @@
+<!doctype html>
+<!-- Bear Den's start page for the Browser tile (internal/applications/web/start.go):
+     written by the coordinator into the browser's own profile folder before the
+     Browser opens without a start page of its own. Nothing here loads anything
+     from the network: no fonts, no images, no search engine. A card is a link to
+     "#open-<app>", which the coordinator sees over the DevTools pipe and answers
+     by opening that streaming site as its own app. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; form-action 'none'; base-uri 'none'">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bear Den</title>
+<style>
+  :root { color-scheme: dark; }
+  html, body { margin: 0; background: #14110f; color: #f2ebe3; font-family: system-ui, sans-serif; }
+  main { max-width: 1400px; margin: 0 auto; padding: 72px 64px; }
+  h1 { font-size: 44px; margin: 0 0 8px; font-weight: 700; }
+  .lead { font-size: 24px; color: #c9bdb0; margin: 0 0 48px; }
+  h2 { font-size: 26px; margin: 0 0 20px; color: #e8dccf; font-weight: 600; }
+  .cards { display: flex; flex-wrap: wrap; gap: 28px; margin: 0 0 56px; }
+  .card { display: flex; flex-direction: column; justify-content: flex-end; width: 300px; height: 170px; padding: 24px;
+          box-sizing: border-box; border-radius: 22px; background: #2a231e; border: 3px solid #3d332b;
+          color: #f7efe6; text-decoration: none; }
+  .card:hover, .card:focus { border-color: #f0b35a; outline: none; }
+  .card .name { font-size: 34px; font-weight: 700; }
+  .card .sub { font-size: 19px; color: #c9bdb0; margin-top: 6px; }
+  .none { font-size: 22px; color: #c9bdb0; margin: 0 0 56px; }
+  form { display: flex; gap: 16px; max-width: 900px; }
+  input { flex: 1; font: inherit; font-size: 28px; padding: 18px 22px; border-radius: 16px; border: 3px solid #3d332b;
+          background: #211b17; color: #f7efe6; }
+  input:focus { border-color: #f0b35a; outline: none; }
+  button { font: inherit; font-size: 26px; padding: 0 30px; border-radius: 16px; border: 3px solid #3d332b; background: #2a231e; color: #f7efe6; }
+  button:focus { border-color: #f0b35a; outline: none; }
+  .hint { font-size: 20px; color: #a99c8f; margin: 14px 0 0; }
+  #msg { font-size: 22px; color: #f0b35a; min-height: 30px; margin: 12px 0 0; }
+  .touchpad { font-size: 22px; color: #c9bdb0; margin: 56px 0 0; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Browser</h1>
+  <p class="lead">Move with the arrows, OK to choose.</p>
+  <h2>Your streaming sites</h2>
+  {{if .Cards}}<div class="cards">{{range .Cards}}
+    <a class="card" href="#open-{{.AppID}}" data-app="{{.AppID}}"><span class="name">{{.Label}}</span><span class="sub">Opens as its own app</span></a>{{end}}
+  </div>{{else}}<p class="none">Turn on Netflix, Disney+ or Hulu in Apps → Streaming sites to find them here.</p>{{end}}
+  <h2>Go to a web address</h2>
+  <form id="go" autocomplete="off">
+    <input id="addr" type="text" inputmode="url" spellcheck="false" autocapitalize="off" aria-label="Web address" placeholder="example.org">
+    <button type="submit">Go</button>
+  </form>
+  <p class="hint">Type with your phone's keyboard or a USB keyboard. Bear Den adds no search engine: type the address of the site you want.</p>
+  <p id="msg" role="status"></p>
+  <p class="touchpad">Use the phone's touchpad for anything the arrows can't reach.</p>
+</main>
+<script>
+(function () {
+  var box = document.getElementById('addr');
+  var msg = document.getElementById('msg');
+  // An address the owner typed, as an http(s) URL, or null.
+  function toURL(v) {
+    v = (v || '').trim();
+    if (!v || /\s/.test(v)) return null;
+    if (!/^[a-z][a-z0-9+.-]*:/i.test(v)) v = 'https://' + v;
+    var u;
+    try { u = new URL(v); } catch (e) { return null; }
+    if (u.protocol !== 'https:' && u.protocol !== 'http:') return null;
+    if (!u.hostname || (u.hostname.indexOf('.') < 0 && u.hostname !== 'localhost')) return null;
+    return u.href;
+  }
+  document.getElementById('go').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var u = toURL(box.value);
+    if (!u) { msg.textContent = 'That is not a web address. Type one like example.org.'; return; }
+    msg.textContent = '';
+    location.href = u;
+  });
+})();
+</script>
+</body>
+</html>

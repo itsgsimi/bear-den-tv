@@ -715,6 +715,17 @@ services support Google Chrome, not Chromium builds.
    check by hand, open `chrome://components` in a site's window with a
    keyboard (Ctrl+L) and look for "Widevine Content Decryption Module".
 
+**The Browser's start page:** without a start page of its own
+(`applications[].web.url`), the Browser tile opens Bear Den's: big cards for
+the streaming sites that are on and installed (OK on one opens that site as
+its own app, full screen in its own browser and profile, not inside the
+Browser), a note that the phone's touchpad reaches anything the arrows
+can't, and an address box (OK on it, then type with the phone's text box or
+a keyboard; Enter goes to that address). Bear Den adds no search engine and
+the page loads nothing from the network. It is written before each start to
+`~/.local/share/bear-den-tv/web-brave/start/index.html` (the Browser's
+browser's profile folder).
+
 **Where things live:** each app's profile is
 `~/.local/share/bear-den-tv/web-chrome/<app-id>/` for the streaming sites
 (`netflix`, `disney-plus`, `hulu`) and

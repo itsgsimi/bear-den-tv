@@ -32,8 +32,10 @@ import (
 	"bear-den-tv/internal/config"
 )
 
-// BlankPage is what the Browser opens without a start page: the browser's own
-// empty page, with no search engine and nothing loaded from the network.
+// BlankPage is what StartURL gives the Browser without a start page of its
+// own; Manager.Launch then opens Bear Den's start page (start.go) instead,
+// and the browser's own empty page only if that cannot be written (no
+// search engine and nothing loaded from the network either way).
 const BlankPage = "about:blank"
 
 // WorldName is the isolated world the navigation script runs in; the page's

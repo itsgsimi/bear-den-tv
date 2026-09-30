@@ -3,7 +3,9 @@
 // attaches to every page it opens, injects the navigation script into the
 // "bearden" isolated world, tracks what each page reports (video, text
 // field, visibility), and turns the coordinator's named actions into script
-// calls plus trusted input. Spec: package doc (web.go),
+// calls plus trusted input. The Browser without a start page of its own
+// opens Bear Den's (start.go), whose cards ask the coordinator to open a
+// streaming site (OnOpen). Spec: package doc (web.go),
 // docs/decisions/0010-web-apps-over-cdp-pipe.md.
 
 package web
@@ -172,11 +174,30 @@ type Options struct {
 
 // Manager owns the running web apps, one browser process (and profile) per app.
 type Manager struct {
-	opts     Options
-	log      *slog.Logger
-	mu       sync.Mutex
-	running  map[string]*Browser
-	onChange func()
+	opts       Options
+	log        *slog.Logger
+	mu         sync.Mutex
+	running    map[string]*Browser
+	onChange   func()
+	startCards func() []StartCard
+	onOpen     func(from, appID string)
+}
+
+// SetStartCards registers what the Browser's start page offers: the
+// streaming sites that are on and installed, asked each time the Browser
+// opens it.
+func (m *Manager) SetStartCards(fn func() []StartCard) {
+	m.mu.Lock()
+	m.startCards = fn
+	m.mu.Unlock()
+}
+
+// OnOpen registers fn, called (on its own goroutine) when a card of the
+// start page in app from's browser asks for appID; the coordinator decides.
+func (m *Manager) OnOpen(fn func(from, appID string)) {
+	m.mu.Lock()
+	m.onOpen = fn
+	m.mu.Unlock()
 }
 
 // NewManager builds a manager.
@@ -215,6 +236,7 @@ type Browser struct {
 	proc      Process
 	conn      *Conn
 	source    string
+	startPage string // Bear Den's start page this browser opened ("" = none)
 
 	mu      sync.Mutex
 	pages   map[string]*page // by session id
@@ -281,6 +303,22 @@ func (m *Manager) Launch(ctx context.Context, app config.Application, spec adapt
 	if err != nil {
 		return applications.Instance{}, err
 	}
+	startPage := ""
+	if url == BlankPage && spec.Mode == adapters.WebModeBrowser {
+		// No start page of its own: Bear Den's, with today's cards.
+		m.mu.Lock()
+		cardsFn := m.startCards
+		m.mu.Unlock()
+		var cards []StartCard
+		if cardsFn != nil {
+			cards = cardsFn()
+		}
+		if u, err := WriteStartPage(m.opts.DataHome, browser, cards); err == nil {
+			url, startPage = u, u
+		} else {
+			m.log.Warn("web: the start page could not be written; opening a blank page", "err", err)
+		}
+	}
 	// The profile (made if missing) with the browser's own prefs, in Bear
 	// Den's profiles only (prefs.go).
 	profile, err := SeedPrefs(m.opts.DataHome, browser, app.ID)
@@ -312,7 +350,7 @@ func (m *Manager) Launch(ctx context.Context, app config.Application, spec adapt
 		fromR.Close()
 		return applications.Instance{}, err
 	}
-	b := &Browser{m: m, appID: app.ID, flatpakID: browser.FlatpakID, proc: proc, source: source, pages: map[string]*page{}}
+	b := &Browser{m: m, appID: app.ID, flatpakID: browser.FlatpakID, proc: proc, source: source, startPage: startPage, pages: map[string]*page{}}
 	b.conn = NewConn(fromR, toW, b.onEvent)
 	m.mu.Lock()
 	m.running[app.ID] = b
@@ -440,6 +478,36 @@ func (b *Browser) onEvent(ev Event) {
 			pg.ctx = 0
 		}
 		b.mu.Unlock()
+	case "Page.navigatedWithinDocument":
+		// A card of Bear Den's start page (its "#open-<app>" link), in the
+		// page's main frame: the coordinator opens that app, and the page
+		// goes back to the start page so the card works again.
+		var p struct {
+			FrameID string `json:"frameId"`
+			URL     string `json:"url"`
+		}
+		if json.Unmarshal(ev.Params, &p) != nil {
+			return
+		}
+		b.mu.Lock()
+		pg := b.pages[ev.SessionID]
+		main := pg != nil && p.FrameID == pg.targetID
+		b.mu.Unlock()
+		appID, ok := OpenRequest(b.startPage, p.URL)
+		if !main || !ok {
+			return
+		}
+		b.m.mu.Lock()
+		fn := b.m.onOpen
+		b.m.mu.Unlock()
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			_ = b.conn.Call(ctx, pg.session, "Page.navigate", map[string]any{"url": b.startPage}, nil)
+			if fn != nil {
+				fn(b.appID, appID)
+			}
+		}()
 	case "Runtime.bindingCalled":
 		var p struct {
 			Name    string `json:"name"`

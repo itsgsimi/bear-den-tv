@@ -243,6 +243,7 @@ func New(opts Options) *Coordinator {
 	c.plexNP.kick = make(chan struct{}, 1)
 	if opts.Web != nil {
 		opts.Web.Watch(c.publish) // page status changes capabilities (text field, video)
+		c.wireStartPage()         // the Browser's start page (startpage.go)
 	}
 	c.cec.kick = make(chan struct{}, 1)
 	c.initAchievements()
