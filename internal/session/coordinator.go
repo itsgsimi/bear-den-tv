@@ -192,6 +192,7 @@ type Coordinator struct {
 	upd                updateState               // the idle app update (install.go)
 	drm                drmState                  // streaming sites' playback support (widevine.go)
 	rediscovering      map[string]bool           // Flatpak ids being discovered after an install
+	installLogged      map[string]string         // Flatpak id → last install outcome logged (done/failed/none)
 	enableAfter        map[string]string         // Flatpak id → the app turned on once its install is done (install.go)
 
 	subs    map[chan struct{}]struct{}

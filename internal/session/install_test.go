@@ -10,6 +10,8 @@ package session
 import (
 	"context"
 	"fmt"
+	"log/slog"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -392,5 +394,31 @@ func TestIdleUpdateOnlyForUserInstallsAndOnlyWhenIdle(t *testing.T) {
 	h.eventually("unlocked", func() bool { return h.c.Target().Kind == "shell" })
 	if !h.c.maybeUpdate(ctx) {
 		t.Fatal("no update once idle again")
+	}
+}
+
+// An install's end is logged once, with the reason when it failed: on the TV
+// a RetroArch install ended with nothing in the log and no tile.
+func TestInstallOutcomeIsLoggedOnce(t *testing.T) {
+	logs := &lockedBuffer{}
+	h, fi, _ := installHarness(t, func(o *Options) {
+		o.Logger = slog.New(slog.NewTextHandler(logs, &slog.HandlerOptions{Level: slog.LevelInfo}))
+	})
+	_ = h
+	fi.set(adapters.MoonlightFlatpakID, install.Status{State: contract.InstallDownloading, Progress: 40})
+	fi.set(adapters.MoonlightFlatpakID, install.Status{State: contract.InstallFailed, Message: "Not enough free space: 1.1 GB needed, 0.4 GB free."})
+	fi.set(adapters.MoonlightFlatpakID, install.Status{State: contract.InstallFailed, Message: "Not enough free space: 1.1 GB needed, 0.4 GB free."})
+	out := logs.String()
+	if n := strings.Count(out, "install from Flathub failed"); n != 1 {
+		t.Fatalf("failure logged %d times:\n%s", n, out)
+	}
+	if !strings.Contains(out, "Not enough free space") || !strings.Contains(out, adapters.MoonlightFlatpakID) {
+		t.Fatalf("failure without its reason or app:\n%s", out)
+	}
+	// A new attempt that succeeds is logged too.
+	fi.set(adapters.MoonlightFlatpakID, install.Status{State: contract.InstallInstalling, Progress: 90})
+	fi.set(adapters.MoonlightFlatpakID, install.Status{State: contract.InstallDone, Progress: 100})
+	if !strings.Contains(logs.String(), "install from Flathub finished") {
+		t.Fatalf("success not logged:\n%s", logs.String())
 	}
 }

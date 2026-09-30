@@ -1885,6 +1885,34 @@ private slots:
         goHome();
     }
 
+    // On the TV a newly installed app only appeared in "On this TV" after
+    // going Home: the Apps page must pick it up from the next snapshot.
+    void appsPageShowsANewlyInstalledApp()
+    {
+        SessionModel *session = SessionModel::instance();
+        QVERIFY2(session->applySnapshot(installSnapshot(QStringLiteral("installing"), 60)), qPrintable(session->lastError()));
+        openFromHeader(QStringLiteral("apps"));
+        auto installedLabels = [this]() {
+            QStringList labels;
+            std::function<void(QQuickItem *)> find = [&](QQuickItem *item) {
+                if (!item->isVisible())
+                    return;
+                if (item->objectName() == QLatin1String("installedCard"))
+                    labels << item->property("label").toString();
+                for (QQuickItem *child : item->childItems())
+                    find(child);
+            };
+            find(m_window->contentItem());
+            return labels;
+        };
+        QVERIFY(!installedLabels().contains(QStringLiteral("YouTube")));
+        QVERIFY2(session->applySnapshot(installSnapshot(QStringLiteral("done"), 100, true)), qPrintable(session->lastError()));
+        QCoreApplication::processEvents();
+        QVERIFY2(installedLabels().contains(QStringLiteral("YouTube")), qPrintable(installedLabels().join(QLatin1Char(','))));
+        QVERIFY(session->applySnapshot(fixture()));
+        goHome();
+    }
+
     void appIconsRowSwitchesTheChoice()
     {
         SessionModel *session = SessionModel::instance();

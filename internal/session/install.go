@@ -65,6 +65,7 @@ func (c *Coordinator) InstallChanged() {
 	c.mu.Lock()
 	for _, a := range c.opts.Config.Current().Applications {
 		fid := a.Launch.AppID
+		c.logInstallOutcomeLocked(a.ID, fid)
 		if c.opts.Installer.Status(fid).State == contract.InstallDone && !c.appLocked(a.ID).install.Installed && !c.rediscovering[fid] {
 			if c.rediscovering == nil {
 				c.rediscovering = map[string]bool{}
@@ -85,6 +86,34 @@ func (c *Coordinator) InstallChanged() {
 			c.mu.Unlock()
 			c.afterInstalled(fid)
 		}(fid)
+	}
+}
+
+// logInstallOutcomeLocked logs once how an install ended (on the TV a
+// RetroArch install ended with nothing in the log and no tile). c.mu is held.
+func (c *Coordinator) logInstallOutcomeLocked(appID, fid string) {
+	st := c.opts.Installer.Status(fid)
+	outcome := ""
+	switch st.State {
+	case contract.InstallDone, contract.InstallFailed:
+		outcome = st.State
+	default:
+		if c.installLogged[fid] != "" && st.State != contract.InstallDone && st.State != contract.InstallFailed {
+			delete(c.installLogged, fid) // a new job starts: log its outcome too
+		}
+		return
+	}
+	if c.installLogged[fid] == outcome {
+		return
+	}
+	if c.installLogged == nil {
+		c.installLogged = map[string]string{}
+	}
+	c.installLogged[fid] = outcome
+	if outcome == contract.InstallFailed {
+		c.log.Warn("session: install from Flathub failed", "app", appID, "flatpak", fid, "reason", st.Message)
+	} else {
+		c.log.Info("session: install from Flathub finished", "app", appID, "flatpak", fid)
 	}
 }
 
