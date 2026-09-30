@@ -1066,6 +1066,59 @@ private slots:
         QVERIFY2(m_nav->screen() != QLatin1String("dialog") || m_nav->itemId().startsWith(QLatin1String("install")), qPrintable(m_nav->itemId()));
     }
 
+    // UX-05: nothing could make a phone the owner. On Paired phones ◀ ▶
+    // choose Make owner (Remote only for an owner); OK asks first with
+    // Cancel focused, then sends devices.grant with owner and layout
+    // editing; a guest pass can only be removed.
+    void pairedPhonesCanBeMadeOwners()
+    {
+        IpcClient *ipc = ShellController::instance()->ipc();
+        auto rowValue = [this](const QString &name) {
+            QString v;
+            std::function<void(QQuickItem *)> find = [&](QQuickItem *item) {
+                if (item->objectName() == QLatin1String("deviceRow") && item->isVisible() && item->property("label").toString() == name)
+                    v = item->property("value").toString();
+                for (QQuickItem *child : item->childItems())
+                    find(child);
+            };
+            find(m_window->contentItem());
+            return v;
+        };
+        openSettings();
+        toSettingsRow(QStringLiteral("devices"));
+        act(QStringLiteral("select"));
+        QCOMPARE(m_nav->screen(), QStringLiteral("devices"));
+        act(QStringLiteral("nav.down"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("dev_b2"));
+        QCOMPARE(rowValue(QStringLiteral("Living room tablet")), QStringLiteral("Remove"));
+        act(QStringLiteral("nav.right"));
+        QCOMPARE(rowValue(QStringLiteral("Living room tablet")), QStringLiteral("Make owner"));
+        shot(QStringLiteral("devices-make-owner"));
+        ipc->clearSent();
+        act(QStringLiteral("select"));
+        QCOMPARE(m_nav->screen(), QStringLiteral("dialog"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("cancel"));
+        shot(QStringLiteral("devices-make-owner-confirm"));
+        act(QStringLiteral("select")); // Cancel
+        QVERIFY(lastSent(QStringLiteral("devices.grant")).isEmpty());
+        QVERIFY(lastSent(QStringLiteral("devices.revoke")).isEmpty());
+        act(QStringLiteral("select"));
+        act(QStringLiteral("nav.left")); // Make owner
+        act(QStringLiteral("select"));
+        const QJsonObject grant = lastSent(QStringLiteral("devices.grant"));
+        QCOMPARE(grant.value(QStringLiteral("device_id")).toString(), QStringLiteral("dev_b2"));
+        QCOMPARE(grant.value(QStringLiteral("permissions")).toArray(), (QJsonArray{QStringLiteral("controller"), QStringLiteral("layout_editor"), QStringLiteral("owner")}));
+        QVERIFY(lastSent(QStringLiteral("devices.revoke")).isEmpty());
+        // An owner can be made a remote only.
+        act(QStringLiteral("nav.up"));
+        QCOMPARE(rowValue(QStringLiteral("Alice's phone")), QStringLiteral("Remove"));
+        act(QStringLiteral("nav.left"));
+        QCOMPARE(rowValue(QStringLiteral("Alice's phone")), QStringLiteral("Remote only"));
+        act(QStringLiteral("back"));
+        act(QStringLiteral("back"));
+        goHome();
+    }
+
     // UX-03: Phone remote setup offered a VPN (tailscale0, 100.x) as a
     // second "Allow on Wired". Containers, bridges and VPNs are never
     // offered (by name, point-to-point, or only 100.64.0.0/10 addresses),

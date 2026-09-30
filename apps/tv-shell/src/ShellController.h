@@ -112,6 +112,9 @@ public:
     Q_INVOKABLE void issuePairing(const QString &pass = QString());
     Q_INVOKABLE void cancelPairing();
     Q_INVOKABLE void revokeDevice(const QString &deviceId);
+    // Paired phones: a family phone's permissions (IPC devices.grant, the
+    // only path to owner and layout_editor; the TV is trusted).
+    Q_INVOKABLE void grantDevice(const QString &deviceId, const QStringList &permissions);
     Q_INVOKABLE void configureRemote(bool enabled, const QString &interfaceName);
     Q_INVOKABLE void updateLayout(const QVariantMap &layout);
     /// The layout to edit from: the last one sent while the coordinator has

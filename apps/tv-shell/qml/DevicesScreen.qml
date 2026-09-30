@@ -1,6 +1,11 @@
-// Paired phones with connection state; OK revokes one (after confirmation),
-// the last row revokes all. Guest passes (devices[].guest) carry a Guest
-// badge and the time they end and have left (contracts/http.md#guest-passes).
+// Paired phones with connection state. On a family phone ◀ ▶ choose what OK
+// does: Remove, or Make owner (Remote only for an owner), each after a
+// confirmation (Cancel focused). Make owner grants owner with layout
+// editing (IPC devices.grant: the TV is trusted; UX-05: nothing could make
+// a phone the owner, so Add apps and Layout on the phone never showed);
+// Remote only takes both back. The last row revokes all. Guest passes
+// (devices[].guest) carry a Guest badge and the time they end and have
+// left (contracts/http.md#guest-passes), and can only be removed.
 
 import QtQuick
 import BearDen
@@ -11,13 +16,39 @@ Item {
     signal confirm(string title, string body, string confirmLabel, var onAccept)
     readonly property var devices: Session.devices
     readonly property int rowCount: devices.length + (devices.length > 0 ? 1 : 0)
+    // The action ◀ ▶ picked on the focused row (index into actionsFor).
+    property int actionIndex: 0
+    function isOwner(d) { return d.permissions.indexOf("owner") >= 0 }
+    // What OK can do to a phone: [id, label]; Remove first.
+    function actionsFor(d) {
+        if (d.guest === true) return [["remove", qsTr("Remove")]]
+        return [["remove", qsTr("Remove")], isOwner(d) ? ["remote-only", qsTr("Remote only")] : ["owner", qsTr("Make owner")]]
+    }
+    function act(d, a) {
+        switch (a) {
+        case "remove":
+            confirm(qsTr("Remove “%1”?").arg(d.name), qsTr("This phone will stop controlling the TV immediately and must pair again."),
+                    qsTr("Remove"), () => Shell.revokeDevice(d.id))
+            return
+        case "owner":
+            confirm(qsTr("Make “%1” an owner?").arg(d.name),
+                    qsTr("It can then install and remove apps, manage paired phones and edit the Home layout, as the TV can. Make only your own phones owners."),
+                    qsTr("Make owner"), () => Shell.grantDevice(d.id, ["controller", "layout_editor", "owner"]))
+            return
+        case "remote-only":
+            confirm(qsTr("Make “%1” a remote only?").arg(d.name),
+                    qsTr("It keeps the remote, but can no longer install apps, manage phones or edit the layout."),
+                    qsTr("Remote only"), () => Shell.grantDevice(d.id, ["controller"]))
+            return
+        }
+    }
 
     // Wall-clock now for "time left"; refreshed on entry and every 30 s while
     // shown (text only, no motion).
     property double now: Date.now()
     Timer { interval: 30000; running: root.visible; repeat: true; onTriggered: root.now = Date.now() }
 
-    function enter() { now = Date.now(); focusIndex = 0; report() }
+    function enter() { now = Date.now(); focusIndex = 0; actionIndex = 0; report() }
     function timeLeft(ms) {
         const min = Math.max(0, Math.round((ms - root.now) / 60000))
         if (min < 60) return qsTr("%n min left", "", min)
@@ -40,14 +71,20 @@ Item {
     }
     function navigate(action) {
         switch (action) {
-        case "nav.up": focusIndex = Math.max(0, focusIndex - 1); report(); return true
-        case "nav.down": focusIndex = Math.min(Math.max(0, rowCount - 1), focusIndex + 1); report(); return true
-        case "nav.left": case "nav.right": return true
+        case "nav.up": focusIndex = Math.max(0, focusIndex - 1); actionIndex = 0; report(); return true
+        case "nav.down": focusIndex = Math.min(Math.max(0, rowCount - 1), focusIndex + 1); actionIndex = 0; report(); return true
+        case "nav.left": case "nav.right":
+            if (focusIndex < devices.length) {
+                const n = actionsFor(devices[focusIndex]).length
+                actionIndex = (actionIndex + (action === "nav.left" ? n - 1 : 1)) % n
+                report()
+            }
+            return true
         case "select":
             if (focusIndex < devices.length) {
                 const d = devices[focusIndex]
-                confirm(qsTr("Remove “%1”?").arg(d.name), qsTr("This phone will stop controlling the TV immediately and must pair again."),
-                        qsTr("Remove"), () => Shell.revokeDevice(d.id))
+                const acts = actionsFor(d)
+                act(d, acts[Math.min(actionIndex, acts.length - 1)][0])
             } else if (devices.length > 0) {
                 confirm(qsTr("Remove all phones?"), qsTr("Every paired phone stops controlling the TV immediately."),
                         qsTr("Remove all"), () => Shell.revokeDevice("*"))
@@ -62,7 +99,7 @@ Item {
         anchors.fill: parent
         title: qsTr("Paired phones")
         subtitle: root.devices.length === 0 ? qsTr("No phones are paired") : qsTr("%n phone(s) can control this TV", "", root.devices.length)
-        hints: [["▲ ▼", qsTr("Move")], ["OK", qsTr("Remove")], ["Back", qsTr("Back")]]
+        hints: [["▲ ▼", qsTr("Move")], ["◀ ▶", qsTr("Choose")], ["OK", qsTr("Do it")], ["Back", qsTr("Back")]]
 
         Column {
             anchors { left: parent.left; right: parent.right; rightMargin: parent.width * 0.3; leftMargin: 8 * Theme.scale }
@@ -75,8 +112,11 @@ Item {
                     width: parent.width
                     label: modelData.name
                     description: root.describe(modelData)
+                    readonly property var acts: root.actionsFor(modelData)
+                    objectName: "deviceRow"
                     badge: modelData.guest === true ? qsTr("Guest") : ""
-                    value: qsTr("Remove")
+                    kind: acts.length > 1 && focused ? "choice" : "link"
+                    value: acts[focused ? Math.min(root.actionIndex, acts.length - 1) : 0][1]
                     focused: index === root.focusIndex
                 }
             }

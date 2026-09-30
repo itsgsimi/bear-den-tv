@@ -285,7 +285,7 @@ void ShellController::onReply(const QString &requestId, const QString &type, con
         emit requestFailed(tr("Pairing"), error);
     else if (type == QLatin1String("remote.configure"))
         emit requestFailed(tr("Phone remote"), error);
-    else if (type == QLatin1String("devices.revoke"))
+    else if (type == QLatin1String("devices.revoke") || type == QLatin1String("devices.grant"))
         emit requestFailed(tr("Paired phones"), error);
     else if (type == QLatin1String("remote.now_playing"))
         emit requestFailed(tr("Now playing on phones"), error);
@@ -304,6 +304,7 @@ void ShellController::onReply(const QString &requestId, const QString &type, con
 void ShellController::issuePairing(const QString &pass) { m_ipc->sendPairIssue(pass); }
 void ShellController::cancelPairing() { m_ipc->sendPairCancel(); }
 void ShellController::revokeDevice(const QString &deviceId) { m_ipc->sendDevicesRevoke(deviceId); }
+void ShellController::grantDevice(const QString &deviceId, const QStringList &permissions) { m_ipc->sendDevicesGrant(deviceId, permissions); }
 
 void ShellController::configureRemote(bool enabled, const QString &interfaceName)
 {
