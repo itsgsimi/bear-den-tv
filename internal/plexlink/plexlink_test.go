@@ -627,3 +627,53 @@ func TestKeyringMissingAtStartupShowsWhyOnTheRows(t *testing.T) {
 		return c != nil && c.Status == providers.StatusError && c.Message == "Plex account is not linked"
 	})
 }
+
+// UX-34: a connected TV can choose its libraries or server again from the
+// stored sign-in, with the current picks proposed; Cancel leaves it
+// connected with the sign-in kept.
+func TestChangeLibrariesOrServerWhileConnected(t *testing.T) {
+	r := newRig(t, plexfake.Options{}, nil)
+	ctx := context.Background()
+	if err := r.m.Change(ctx, "libraries"); err == nil {
+		t.Fatal("changed libraries while signed out")
+	}
+	r.signIn("1")
+	if err := r.m.Change(ctx, "libraries"); err != nil {
+		t.Fatal(err)
+	}
+	st := r.m.State()
+	if st.Status != contract.PlexChooseLibraries {
+		t.Fatalf("state = %+v", st)
+	}
+	sel := map[string]bool{}
+	for _, l := range st.Libraries {
+		sel[l.ID] = l.Selected
+	}
+	if !sel["1"] || sel["2"] {
+		t.Fatalf("libraries = %+v, want the current pick (1) proposed", st.Libraries)
+	}
+	if err := r.m.ChooseLibraries(ctx, []string{"1", "2"}); err != nil {
+		t.Fatal(err)
+	}
+	if ids := strings.Join(r.store.Current().PlexContent.LibraryIDs, ","); ids != "1,2" || r.status() != contract.PlexConnected {
+		t.Fatalf("library_ids = %s, status %s", ids, r.status())
+	}
+	if err := r.m.Change(ctx, "server"); err != nil {
+		t.Fatal(err)
+	}
+	if st := r.m.State(); st.Status != contract.PlexChooseServer || len(st.Servers) != 1 {
+		t.Fatalf("state = %+v", st)
+	}
+	if err := r.m.Cancel(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if r.status() != contract.PlexConnected {
+		t.Fatalf("status after cancel = %s", r.status())
+	}
+	if tok, err := r.mem.Get(ctx, DefaultConnectionRef); err != nil || tok == "" {
+		t.Fatalf("the sign-in went: %v", err)
+	}
+	if err := r.m.Change(ctx, "everything"); err == nil {
+		t.Fatal("changed something unknown")
+	}
+}

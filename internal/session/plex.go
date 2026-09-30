@@ -28,6 +28,8 @@ type PlexLink interface {
 	ChooseServer(ctx context.Context, id string) error
 	ChooseLibraries(ctx context.Context, ids []string) error
 	SignOut(ctx context.Context) error
+	// Change reopens the server ("server") or library ("libraries") choice.
+	Change(ctx context.Context, what string) error
 }
 
 // plexState is state.plex for the shell view, or nil without a connector.
@@ -102,6 +104,8 @@ func (h *ShellHandler) handlePlex(cl *shellipc.Client, m shellipc.Message) {
 		requestID, do = msg.RequestID, func(ctx context.Context, p PlexLink) error { return p.ChooseLibraries(ctx, msg.LibraryIDs) }
 	case shellipc.PlexSignOut:
 		requestID, do = msg.RequestID, func(ctx context.Context, p PlexLink) error { return p.SignOut(ctx) }
+	case shellipc.PlexChange:
+		requestID, do = msg.RequestID, func(ctx context.Context, p PlexLink) error { return p.Change(ctx, msg.What) }
 	default:
 		return
 	}

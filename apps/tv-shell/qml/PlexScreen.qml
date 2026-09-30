@@ -5,8 +5,12 @@
 //   linking             the code, plex.tv/link and its QR code; Cancel
 //   choose_server       the account's servers; OK picks one
 //   choose_libraries    a toggle per library (movies and shows proposed); Done
-//   connected           the server, the libraries, how the rows are; Sign out
-// Leaving the screen mid-flow cancels it (nothing is stored). The token never
+//   connected           the server, the libraries, how the rows are; Choose
+//                       libraries and Choose server (IPC plex.change: the
+//                       choice again from the stored sign-in, UX-34); Sign out
+// Leaving the screen mid-flow cancels it (nothing is stored; a TV that was
+// connected stays connected). On the library choice Back keeps the current
+// picks, like Done (UX-18: it used to throw a finished sign-in away). The token never
 // reaches the shell; the coordinator keeps it in the desktop keyring, or when
 // that is locked in a private file (state.plex.stored_in, storedLine).
 
@@ -53,7 +57,7 @@ Item {
         case "linking": return [{ id: "cancel" }]
         case "choose_server": return servers.map(s => ({ id: "server-" + s.id, server: s })).concat([{ id: "cancel" }])
         case "choose_libraries": return libraries.map(l => ({ id: "library-" + l.id, library: l })).concat([{ id: "done" }, { id: "cancel" }])
-        case "connected": return [{ id: "sign-out" }]
+        case "connected": return [{ id: "change-libraries" }, { id: "change-server" }, { id: "sign-out" }]
         case "": return []
         }
         return [{ id: "sign-in" }]
@@ -80,6 +84,9 @@ Item {
             if (ids.length === 0) { hint = qsTr("Choose at least one library."); return }
             busy = true; hint = ""
             Shell.plexChooseLibraries(ids)
+        } else if (it.id === "change-libraries" || it.id === "change-server") {
+            busy = true; hint = ""
+            Shell.plexChange(it.id === "change-libraries" ? "libraries" : "server")
         } else if (it.id === "sign-out") {
             confirm(qsTr("Sign out of Plex?"),
                     qsTr("The Home rows and their pictures go, and this TV deletes its Plex sign-in. Plex HTPC keeps its own sign-in."),
@@ -100,6 +107,13 @@ Item {
         case "nav.down": move(focusIndex + 1); return true
         case "nav.left": case "nav.right": return true
         case "select": activate(); return true
+        case "back":
+            // Choosing libraries: Back keeps the picks, like Done.
+            if (status === "choose_libraries") {
+                const ids = pickedIds()
+                if (ids.length > 0) { busy = true; hint = ""; Shell.plexChooseLibraries(ids); return true }
+            }
+            return false
         }
         return false
     }
@@ -131,7 +145,8 @@ Item {
         subtitle: root.status === "connected" ? qsTr("Your Plex rows on Home")
                 : root.status === "linking" ? qsTr("Link this TV to your Plex account")
                 : qsTr("Continue Watching and Recently Added on Home")
-        hints: [["▲ ▼", qsTr("Move")], ["OK", qsTr("Select")], ["Back", root.inFlow ? qsTr("Cancel") : qsTr("Back")]]
+        hints: [["▲ ▼", qsTr("Move")], ["OK", qsTr("Select")],
+                ["Back", root.status === "choose_libraries" ? qsTr("Done") : root.inFlow ? qsTr("Cancel") : qsTr("Back")]]
 
         // A surface behind whichever part is showing, so text stays readable
         // over the theme's wallpaper.
@@ -429,22 +444,47 @@ Item {
                 font.family: Theme.fontFamily
                 font.pixelSize: 22 * Theme.fontUnit
             }
-            FocusButton {
-                text: root.busy ? qsTr("Signing out…") : qsTr("Sign out")
-                danger: true
-                focused: root.itemAt(root.focusIndex).id === "sign-out"
+            Row {
+                spacing: 18 * Theme.scale
+                FocusButton {
+                    objectName: "plexChangeLibraries"
+                    text: qsTr("Choose libraries")
+                    primary: true
+                    focused: root.itemAt(root.focusIndex).id === "change-libraries"
+                }
+                FocusButton {
+                    text: qsTr("Choose server")
+                    focused: root.itemAt(root.focusIndex).id === "change-server"
+                }
+                FocusButton {
+                    text: root.busy && root.itemAt(root.focusIndex).id === "sign-out" ? qsTr("Signing out…") : qsTr("Sign out")
+                    danger: true
+                    focused: root.itemAt(root.focusIndex).id === "sign-out"
+                }
             }
         }
 
         // No connector in this session (an older coordinator, or dev without
         // --dev-plex-fake).
+        PixelBox {
+            visible: root.status === ""
+            x: 32 * Theme.scale
+            y: 16 * Theme.scale
+            width: parent.width * 0.62 + 48 * Theme.scale
+            height: unavailableText.implicitHeight + 48 * Theme.scale
+            radius: 18 * Theme.scale
+            color: Theme.surface
+            borderColor: Theme.surfaceBorder
+            borderWidth: 1
+        }
         Text {
+            id: unavailableText
             visible: root.status === ""
             x: 56 * Theme.scale
-            y: 32 * Theme.scale
+            y: 40 * Theme.scale
             width: parent.width * 0.62
             wrapMode: Text.WordWrap
-            text: qsTr("Plex is not available in this session.")
+            text: qsTr("Plex sign-in isn't available on this TV right now. Restart Bear Den; if it stays, look in Settings → Diagnostics.")
             color: Theme.textSecondary
             font.family: Theme.fontFamily
             font.pixelSize: 30 * Theme.fontUnit

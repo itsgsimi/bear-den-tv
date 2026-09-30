@@ -183,7 +183,7 @@ func (h *ShellHandler) Receive(cl *shellipc.Client, m shellipc.Message) {
 		}()
 	case shellipc.WeatherConfigure:
 		h.reply(cl, msg.RequestID, c.configureWeather(&msg), nil)
-	case shellipc.PlexSignIn, shellipc.PlexCancel, shellipc.PlexChooseServer, shellipc.PlexChooseLibraries, shellipc.PlexSignOut:
+	case shellipc.PlexSignIn, shellipc.PlexCancel, shellipc.PlexChooseServer, shellipc.PlexChooseLibraries, shellipc.PlexSignOut, shellipc.PlexChange:
 		h.handlePlex(cl, m)
 	case shellipc.AchievementsConfigure, shellipc.AchievementsReset, shellipc.AchievementsCelebrated, shellipc.AchievementsEvent:
 		h.receiveAchievements(cl, m, isShell)

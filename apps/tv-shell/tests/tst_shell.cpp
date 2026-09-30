@@ -2040,8 +2040,16 @@ private slots:
         QCOMPARE(last(QStringLiteral("plex.choose_libraries")).value(QStringLiteral("library_ids")).toArray(),
                  (QJsonArray{QStringLiteral("3"), QStringLiteral("2")}));
 
-        // Back in the middle of the flow cancels it.
+        // UX-18: Back while choosing libraries keeps the picks (like Done)
+        // and never throws the finished sign-in away.
         const int cancels = count(QStringLiteral("plex.cancel"));
+        const int chosen = count(QStringLiteral("plex.choose_libraries"));
+        act(QStringLiteral("back"));
+        QCOMPARE(count(QStringLiteral("plex.choose_libraries")), chosen + 1);
+        QCOMPARE(count(QStringLiteral("plex.cancel")), cancels);
+        QCOMPARE(m_nav->sectionId(), QStringLiteral("plex"));
+        // Back while choosing a server still cancels.
+        withPlex(servers);
         act(QStringLiteral("back"));
         QCOMPARE(m_nav->itemId(), QStringLiteral("plex")); // back on the Settings row
         QCOMPARE(count(QStringLiteral("plex.cancel")), cancels + 1);
@@ -2055,6 +2063,16 @@ private slots:
         QVERIFY(stored);
         QTRY_VERIFY(stored->property("text").toString().contains(QStringLiteral("private file on this TV (only your user can read it)")));
         act(QStringLiteral("select"));
+        // UX-34: choose libraries or the server again without signing out.
+        QCOMPARE(m_nav->itemId(), QStringLiteral("change-libraries"));
+        shot(QStringLiteral("plex-connected"));
+        act(QStringLiteral("select"));
+        QCOMPARE(last(QStringLiteral("plex.change")).value(QStringLiteral("what")).toString(), QStringLiteral("libraries"));
+        act(QStringLiteral("nav.down"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("change-server"));
+        act(QStringLiteral("select"));
+        QCOMPARE(last(QStringLiteral("plex.change")).value(QStringLiteral("what")).toString(), QStringLiteral("server"));
+        act(QStringLiteral("nav.down"));
         QCOMPARE(m_nav->itemId(), QStringLiteral("sign-out"));
         act(QStringLiteral("select")); // confirmation, focus on the safe choice
         QCOMPARE(m_nav->screen(), QStringLiteral("dialog"));

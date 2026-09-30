@@ -11,6 +11,7 @@ const (
 	TypePlexChooseServer    = "plex.choose_server"
 	TypePlexChooseLibraries = "plex.choose_libraries"
 	TypePlexSignOut         = "plex.sign_out"
+	TypePlexChange          = "plex.change"
 )
 
 // PlexSignIn starts (or restarts) linking: the coordinator asks plex.tv for a
@@ -64,6 +65,18 @@ type PlexSignOut struct {
 // Kind implements Message.
 func (PlexSignOut) Kind() string { return TypePlexSignOut }
 
+// PlexChange reopens the server or library choice of a connected TV
+// (Settings → Plex → Choose libraries / Choose server). What is "server"
+// or "libraries".
+type PlexChange struct {
+	Type      string `json:"type"`
+	RequestID string `json:"request_id"`
+	What      string `json:"what"`
+}
+
+// Kind implements Message.
+func (PlexChange) Kind() string { return TypePlexChange }
+
 // decodePlex returns an empty message for a plex.* type, or nil.
 func decodePlex(t string) Message {
 	switch t {
@@ -77,6 +90,8 @@ func decodePlex(t string) Message {
 		return &PlexChooseLibraries{}
 	case TypePlexSignOut:
 		return &PlexSignOut{}
+	case TypePlexChange:
+		return &PlexChange{}
 	}
 	return nil
 }
@@ -93,6 +108,8 @@ func derefPlex(m Message) Message {
 	case *PlexChooseLibraries:
 		return *t
 	case *PlexSignOut:
+		return *t
+	case *PlexChange:
 		return *t
 	}
 	return nil

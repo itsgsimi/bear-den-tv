@@ -504,6 +504,7 @@ void ShellController::plexChooseLibraries(const QStringList &libraryIds)
     m_ipc->sendPlex(QStringLiteral("plex.choose_libraries"), QJsonObject{{QStringLiteral("library_ids"), QJsonArray::fromStringList(libraryIds)}});
 }
 void ShellController::plexSignOut() { m_ipc->sendPlex(QStringLiteral("plex.sign_out")); }
+void ShellController::plexChange(const QString &what) { m_ipc->sendPlex(QStringLiteral("plex.change"), QJsonObject{{QStringLiteral("what"), what}}); }
 
 void ShellController::answerConfirm(const QString &confirmId, bool accepted)
 {

@@ -184,6 +184,9 @@ public:
     Q_INVOKABLE void plexChooseServer(const QString &serverId);
     Q_INVOKABLE void plexChooseLibraries(const QStringList &libraryIds);
     Q_INVOKABLE void plexSignOut();
+    // Settings → Plex while connected: choose "libraries" or "server" again
+    // (IPC plex.change).
+    Q_INVOKABLE void plexChange(const QString &what);
     // Themes → Den badges (contracts/ipc.md achievements.*): turn counting on
     // or off, reset every badge; achievementsCelebrated says Home showed the
     // celebration for these ids (state.achievements.celebrate);

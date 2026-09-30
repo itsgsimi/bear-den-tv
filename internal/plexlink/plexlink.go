@@ -814,6 +814,70 @@ func (m *Manager) stopFlow() *flow {
 	return f
 }
 
+// Change reopens the choice of server or libraries of a connected TV
+// (plex.change; UX-34: changing either used to need signing out and
+// linking again). what is "server" (the account's servers are listed
+// again) or "libraries" (the current server's libraries, with the current
+// picks). It uses the stored sign-in; nothing is written until the owner
+// picks (ChooseServer, ChooseLibraries), and Cancel leaves the TV as it
+// was, still connected.
+func (m *Manager) Change(ctx context.Context, what string) error {
+	if what != "server" && what != "libraries" {
+		return fmt.Errorf("plex: nothing to change called %q", what)
+	}
+	cfg := m.opts.Config.Current()
+	if !cfg.PlexContent.Enabled {
+		return errors.New("this TV is not signed in to Plex; choose Sign in first")
+	}
+	token, err := m.opts.Secrets.Get(ctx, m.ref(cfg))
+	if err != nil {
+		return errors.New(MsgNoStore)
+	}
+	acct, err := m.account()
+	if err != nil {
+		return err
+	}
+	servers, err := acct.DiscoverServers(ctx, token)
+	if err != nil {
+		m.log.Warn("plex: server discovery failed", "err", err)
+		return errors.New(MsgPlexTV)
+	}
+	m.stopFlow()
+	fctx, cancel := context.WithCancel(m.base)
+	f := &flow{status: contract.PlexChooseServer, cancel: cancel, token: token, servers: servers}
+	m.mu.Lock()
+	m.fl = f
+	m.mu.Unlock()
+	if what == "libraries" {
+		current := ""
+		if cfg.PlexContent.ServerURL != nil {
+			current = strings.TrimRight(*cfg.PlexContent.ServerURL, "/")
+		}
+		for _, s := range servers {
+			for _, c := range s.Connections {
+				if base, err := plex.ParseServerURL(c.URI); err == nil && strings.TrimRight(base.String(), "/") == current {
+					if err := m.chooseServer(fctx, f, s.MachineIdentifier); err == nil {
+						keep := map[string]bool{}
+						for _, id := range cfg.PlexContent.LibraryIDs {
+							keep[id] = true
+						}
+						m.mu.Lock()
+						if len(keep) > 0 {
+							f.selected = keep
+						}
+						m.mu.Unlock()
+						m.changed()
+						return nil
+					}
+				}
+			}
+		}
+		// The current server is not reachable as listed: choose again.
+	}
+	m.changed()
+	return nil
+}
+
 // Cancel abandons sign-in (plex.cancel). A token already stored for an
 // unfinished sign-in is removed, so no unused credential stays behind.
 func (m *Manager) Cancel(ctx context.Context) error {
