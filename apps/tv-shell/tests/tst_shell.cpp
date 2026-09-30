@@ -1066,6 +1066,28 @@ private slots:
         QVERIFY2(m_nav->screen() != QLatin1String("dialog") || m_nav->itemId().startsWith(QLatin1String("install")), qPrintable(m_nav->itemId()));
     }
 
+    // UX-03: Phone remote setup offered a VPN (tailscale0, 100.x) as a
+    // second "Allow on Wired". Containers, bridges and VPNs are never
+    // offered (by name, point-to-point, or only 100.64.0.0/10 addresses),
+    // and the choices say "home network (wired)" / "(Wi-Fi)".
+    void remoteSetupOffersOnlyTheHomeNetwork()
+    {
+        auto offered = [](const QString &name, bool p2p, bool wifi, const QStringList &ipv4) {
+            return ShellController::lanCandidate(name, true, false, p2p, wifi, ipv4);
+        };
+        const QVariantMap wired = offered(QStringLiteral("enp9s0"), false, false, {QStringLiteral("192.168.1.50")});
+        QCOMPARE(wired.value(QStringLiteral("label")).toString(), QStringLiteral("home network (wired)"));
+        QCOMPARE(wired.value(QStringLiteral("addresses")).toString(), QStringLiteral("192.168.1.50"));
+        QCOMPARE(offered(QStringLiteral("wlp2s0"), false, true, {QStringLiteral("10.0.0.5")}).value(QStringLiteral("label")).toString(), QStringLiteral("home network (Wi-Fi)"));
+        for (const QString &vpn : {QStringLiteral("tailscale0"), QStringLiteral("wg0"), QStringLiteral("tun0"), QStringLiteral("docker0"), QStringLiteral("br-1a2b"), QStringLiteral("veth12"), QStringLiteral("zt5u4y")})
+            QVERIFY2(offered(vpn, false, false, {QStringLiteral("192.168.50.2")}).isEmpty(), qPrintable(vpn));
+        // A VPN by its address or its point-to-point link, whatever its name.
+        QVERIFY(offered(QStringLiteral("myvpn"), false, false, {QStringLiteral("100.101.102.103")}).isEmpty());
+        QVERIFY(offered(QStringLiteral("ppp0"), true, false, {QStringLiteral("10.8.0.2")}).isEmpty());
+        QVERIFY(offered(QStringLiteral("enp3s0"), false, false, {}).isEmpty());
+        QVERIFY(ShellController::lanCandidate(QStringLiteral("enp3s0"), false, false, false, false, {QStringLiteral("192.168.1.9")}).isEmpty());
+    }
+
     // UX-01: a focused primary button's words must read on its accent fill,
     // for every installed theme's accent and for a dark accent the owner
     // may choose on the phone (layout ui.accent is any #RRGGBB).

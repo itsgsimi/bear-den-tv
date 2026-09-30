@@ -13,7 +13,7 @@ Item {
     readonly property bool remoteOn: Session.remote.enabled === true
     readonly property var actions: remoteOn
         ? [{ id: "pair", text: qsTr("Pair a phone"), primary: true }, { id: "off", text: qsTr("Turn off phone remote"), danger: true }]
-        : interfaces.map(i => ({ id: "on:" + i.name, text: qsTr("Allow on %1").arg(i.label), detail: i.name + " · " + i.addresses, primary: true }))
+        : interfaces.map(i => ({ id: "on:" + i.name, text: qsTr("Allow on %1").arg(i.label), detail: i.addresses + " · " + i.name, primary: true }))
                     .concat([{ id: "cancel", text: qsTr("Not now") }])
 
     function enter() {

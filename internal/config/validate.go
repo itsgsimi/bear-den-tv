@@ -107,14 +107,26 @@ type StaticInterfaces []Interface
 // Interfaces implements InterfaceLister.
 func (s StaticInterfaces) Interfaces() ([]Interface, error) { return s, nil }
 
-func isVirtualName(name string) bool {
-	for _, p := range []string{"docker", "br-", "br", "veth", "tun", "tap", "wg", "virbr", "vmnet", "lxc", "cni", "flannel", "tailscale", "utun"} {
+// VirtualInterfacePrefixes name the interface classes that are never the
+// home LAN: containers, bridges, virtual pairs and VPN tunnels (Tailscale,
+// WireGuard, ZeroTier, OpenVPN). The one list: config rule 4 refuses them,
+// internal/remote never binds them, and the TV shell's setup screens do not
+// offer them (refusedInterface in apps/tv-shell/src/ShellController.cpp
+// mirrors it; TestShellHidesTheSameInterfaces keeps the two equal).
+var VirtualInterfacePrefixes = []string{"docker", "br-", "br", "veth", "tun", "tap", "wg", "virbr", "vmnet", "lxc", "cni", "flannel", "tailscale", "utun", "zt"}
+
+// IsVirtualInterface reports whether an interface name is one of
+// VirtualInterfacePrefixes.
+func IsVirtualInterface(name string) bool {
+	for _, p := range VirtualInterfacePrefixes {
 		if strings.HasPrefix(name, p) {
 			return true
 		}
 	}
 	return false
 }
+
+func isVirtualName(name string) bool { return IsVirtualInterface(name) }
 
 // Errors collects every violated rule of one document.
 type Errors struct {

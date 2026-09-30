@@ -96,7 +96,7 @@ Item {
     readonly property bool remoteOn: Session.remote.enabled === true
     readonly property var remoteButtons: remoteOn
         ? [{ id: "pair", text: qsTr("Pair a phone"), primary: true }, { id: "next", text: qsTr("Next") }]
-        : interfaces.map(i => ({ id: "on:" + i.name, text: qsTr("Allow on %1").arg(i.label), detail: i.name + " · " + i.addresses, primary: true }))
+        : interfaces.map(i => ({ id: "on:" + i.name, text: qsTr("Allow on %1").arg(i.label), detail: i.addresses + " · " + i.name, primary: true }))
                     .concat([{ id: "skip", text: qsTr("Skip") }])
 
     // Step 4: extras.

@@ -16,11 +16,13 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"bear-den-tv/internal/config"
 )
 
-// refusedInterfacePrefixes names interface classes that are never a home LAN:
-// containers, bridges, virtual pairs, and VPN tunnels.
-var refusedInterfacePrefixes = []string{"docker", "br-", "veth", "tun", "wg", "virbr"}
+// Interface classes that are never a home LAN (containers, bridges,
+// virtual pairs, VPN tunnels) are config.VirtualInterfacePrefixes, the one
+// list config rule 4 and the TV's setup screens use too.
 
 // BindInterface listens on every address of exactly one network interface
 // (IPv4 and IPv6, link-local IPv6 with its zone) on port. Loopback and
@@ -72,14 +74,7 @@ func BindInterface(ifaceName string, port int) ([]net.Listener, []string, error)
 	return listeners, ListenerURLs(listeners, false), nil
 }
 
-func refusedInterfaceName(name string) bool {
-	for _, p := range refusedInterfacePrefixes {
-		if strings.HasPrefix(name, p) {
-			return true
-		}
-	}
-	return false
-}
+func refusedInterfaceName(name string) bool { return config.IsVirtualInterface(name) }
 
 // BindDev listens on a loopback literal such as "127.0.0.1:0" or "[::1]:0"
 // for --dev-listen; any other host is refused.

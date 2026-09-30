@@ -17,6 +17,7 @@
 #include <QJSEngine>
 #include <QJsonArray>
 #include <QJsonObject>
+#include <QHostAddress>
 #include <QNetworkInterface>
 
 #include <algorithm>
@@ -24,10 +25,15 @@
 namespace {
 ShellController *g_instance = nullptr;
 
+// Mirror of config.VirtualInterfacePrefixes (internal/config/validate.go;
+// TestShellHidesTheSameInterfaces keeps them equal): containers, bridges,
+// virtual pairs and VPN tunnels are never the home LAN.
 bool refusedInterface(const QString &name)
 {
-    static const QStringList prefixes{QStringLiteral("docker"), QStringLiteral("br-"), QStringLiteral("veth"),
-                                      QStringLiteral("tun"), QStringLiteral("wg"), QStringLiteral("virbr")};
+    static const QStringList prefixes{QStringLiteral("docker"), QStringLiteral("br-"), QStringLiteral("br"), QStringLiteral("veth"),
+                                      QStringLiteral("tun"), QStringLiteral("tap"), QStringLiteral("wg"), QStringLiteral("virbr"),
+                                      QStringLiteral("vmnet"), QStringLiteral("lxc"), QStringLiteral("cni"), QStringLiteral("flannel"),
+                                      QStringLiteral("tailscale"), QStringLiteral("utun"), QStringLiteral("zt")};
     for (const QString &p : prefixes)
         if (name.startsWith(p))
             return true;
@@ -498,24 +504,40 @@ void ShellController::exitShell()
     QCoreApplication::exit(0);
 }
 
+QVariantMap ShellController::lanCandidate(const QString &name, bool up, bool loopback, bool pointToPoint, bool wireless,
+                                          const QStringList &ipv4)
+{
+    // Never offered (UX-03, a VPN once showed up as "Allow on Wired"):
+    // down, loopback, a container/bridge/VPN by name, a point-to-point
+    // tunnel, or only carrier-grade NAT addresses (100.64.0.0/10: Tailscale
+    // and other overlay VPNs), and nothing without an IPv4 address.
+    if (!up || loopback || pointToPoint || refusedInterface(name) || ipv4.isEmpty())
+        return {};
+    const QPair<QHostAddress, int> cgnat = QHostAddress::parseSubnet(QStringLiteral("100.64.0.0/10"));
+    bool home = false;
+    for (const QString &a : ipv4)
+        home = home || !QHostAddress(a).isInSubnet(cgnat);
+    if (!home)
+        return {};
+    return QVariantMap{{QStringLiteral("name"), name},
+                       {QStringLiteral("label"), wireless || name.startsWith(QLatin1String("wl")) ? tr("home network (Wi-Fi)") : tr("home network (wired)")},
+                       {QStringLiteral("addresses"), ipv4.join(QStringLiteral(", "))}};
+}
+
 QVariantList ShellController::lanInterfaces() const
 {
     QVariantList out;
     const auto ifaces = QNetworkInterface::allInterfaces();
     for (const QNetworkInterface &i : ifaces) {
         const auto flags = i.flags();
-        if (!(flags & QNetworkInterface::IsUp) || (flags & QNetworkInterface::IsLoopBack) || refusedInterface(i.name()))
-            continue;
         QStringList addrs;
         for (const QNetworkAddressEntry &e : i.addressEntries())
             if (e.ip().protocol() == QAbstractSocket::IPv4Protocol)
                 addrs << e.ip().toString();
-        if (addrs.isEmpty())
-            continue;
-        const bool wireless = i.type() == QNetworkInterface::Wifi || i.name().startsWith(QLatin1String("wl"));
-        out << QVariantMap{{QStringLiteral("name"), i.name()},
-                           {QStringLiteral("label"), wireless ? tr("Wi-Fi") : tr("Wired")},
-                           {QStringLiteral("addresses"), addrs.join(QStringLiteral(", "))}};
+        const QVariantMap c = lanCandidate(i.name(), flags & QNetworkInterface::IsUp, flags & QNetworkInterface::IsLoopBack,
+                                           flags & QNetworkInterface::IsPointToPoint, i.type() == QNetworkInterface::Wifi, addrs);
+        if (!c.isEmpty())
+            out << c;
     }
     return out;
 }

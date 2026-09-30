@@ -216,8 +216,14 @@ public:
     Q_INVOKABLE QVariantMap appArt(const QString &adapter, bool classic = false, const QString &icons = QStringLiteral("app")) const;
     // Forget cached artwork (tests; a new brand folder shows within a minute anyway).
     void forgetArt() { m_artCache.clear(); }
-    // Non-loopback, up, non-virtual interfaces the remote could bind to.
+    // The home-network interfaces the remote could bind to, as
+    // [{name, label ("home network (wired)"), addresses}]: see lanCandidate.
     Q_INVOKABLE QVariantList lanInterfaces() const;
+    /// One interface as lanInterfaces offers it, or empty when it is never
+    /// offered: down, loopback, a container/bridge/VPN by name
+    /// (config.VirtualInterfacePrefixes), point-to-point, or only
+    /// 100.64.0.0/10 addresses (overlay VPNs such as Tailscale).
+    static QVariantMap lanCandidate(const QString &name, bool up, bool loopback, bool pointToPoint, bool wireless, const QStringList &ipv4);
 
 signals:
     void connectionChanged();
