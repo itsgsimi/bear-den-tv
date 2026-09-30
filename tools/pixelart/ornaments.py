@@ -158,6 +158,31 @@ SPRITES = {
         '.UUUYUUUUUUYUU..',
         '.WWWWWWWWWWWWWW.',
         '.wWwWwWwWwWwWwW.'], True),
+    # Bear tips (TipBear.qml): the Themes bear's painter's beret with a dab
+    # of paint, the tiny phone a phone tip's bear holds, and the wooden
+    # arrow on top of a tip's sign.
+    'hat-beret': ([
+        '..........kk....',
+        '.....rRRRRRr....',
+        '...RRRRRRRRRRR..',
+        '..RRRYRRRRRRRRR.',
+        '.RRRYGRRRRRRRRRR',
+        '..rrrrrrrrrrrrr.'], True),
+    'phone': ([
+        'KKKKK',
+        'KmmmK',
+        'KUMUK',
+        'KMUMK',
+        'KmmmK',
+        'KKsKK'], True),
+    'pointer-up': ([
+        '...c...',
+        '..cnB..',
+        '.cnBBb.',
+        'cnBBBbb',
+        '..nBb..',
+        '..nBb..',
+        '..nBb..'], True),
     'pumpkin': ([
         '....gg...',
         '...g.....',

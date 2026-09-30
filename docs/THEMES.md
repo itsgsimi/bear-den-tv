@@ -442,9 +442,11 @@ to local weather ([Weather in the corner scene](#weather-in-the-corner-scene)).
 ### Built-in ornaments
 
 `berries`, `blossom`, `controller`, `corner`, `daisy`, `den`, `divider`,
-`flame`, `hat-beanie`, `hat-nightcap`, `heart`, `lantern`, `logs`, `moon`,
-`mushroom`, `paw`, `paw-grip`, `pine`, `popcorn`, `pumpkin`, `remote`, `sparkle`,
-`sprig`, `star`, `tent`.
+`flame`, `hat-beanie`, `hat-beret`, `hat-nightcap`, `heart`, `lantern`, `logs`,
+`moon`, `mushroom`, `paw`, `paw-grip`, `phone`, `pine`, `pointer-up`, `popcorn`,
+`pumpkin`, `remote`, `sparkle`, `sprig`, `star`, `tent`. The bear tips use
+`hat-beret` (the Themes bear), `phone` (the phone-remote bear's prop) and
+`pointer-up` (the arrow on the tip's sign).
 
 Each comes twice, in
 [`apps/tv-shell/assets/ornaments/`](../apps/tv-shell/assets/ornaments/): a
