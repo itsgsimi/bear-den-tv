@@ -735,7 +735,7 @@ Where the name is shown (checked with `grep -rn "Bear Den"`):
 | TV shell C++ | `src/main.cpp` (display name, `--help` text), `src/ShellController.cpp` (error messages) |
 | Phone remote | [`apps/remote-web/src/i18n.ts`](../apps/remote-web/src/i18n.ts) (all phone copy, incl. `productName`), `static/index.html`, `static/manifest.webmanifest` |
 | Coordinator | `device.display_name` default `"Bear Den"` in [`contracts/fixtures/config.default.valid.json`](../contracts/fixtures/config.default.valid.json); the mDNS default name `avahiDefaultName` in `internal/remote/mdns/mdns.go`; `ShellLabel` in `internal/session/coordinator.go`; `Product` sent to Plex in `internal/providers/plex/client.go`; tuning notes in `internal/applications/tuning/` |
-| Desktop entries | `cmd/bear-den-tv/shortcut.go`, `cmd/bear-den-tv/autostart.go`, `packaging/bear-den-tv.desktop`, `packaging/autostart/bear-den-tv.desktop` |
+| Desktop entries | `cmd/bear-den-tv/shortcut.go`, `cmd/bear-den-tv/autostart.go`, `internal/platform/autostart/autostart.go`, `packaging/bear-den-tv.desktop`, `packaging/autostart/bear-den-tv.desktop` |
 | Docs | everywhere; leave history (ADRs, reports) as it is |
 
 The name your TV shows to phones is also a setting: `device.display_name`

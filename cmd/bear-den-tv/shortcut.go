@@ -12,6 +12,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"bear-den-tv/internal/platform/autostart"
 )
 
 // Desktop and app-menu launchers: `bear-den-tv shortcut enable` adds a
@@ -75,14 +77,6 @@ func parseUserDir(raw, home, key string) (string, bool) {
 	return "", false
 }
 
-// execQuote quotes an Exec path with spaces per the Desktop Entry spec.
-func execQuote(path string) string {
-	if strings.ContainsAny(path, " \t") {
-		return `"` + strings.ReplaceAll(path, `"`, `\"`) + `"`
-	}
-	return path
-}
-
 // launcherIcon is the bear mark: in a checkout the phone remote's file next to
 // the start script; installed (<prefix>/lib/bear-den-tv/start-session.sh) the
 // themed icon name the package puts in <prefix>/share/icons; else a stock icon.
@@ -106,7 +100,7 @@ func launcherEntry(script, icon string) string {
 		"Name=Bear Den TV",
 		"GenericName=TV home screen",
 		"Comment=Open the Bear Den TV home screen (restarts it if it is already running)",
-		"Exec=" + execQuote(script) + " --watch",
+		"Exec=" + autostart.ExecQuote(script) + " --watch",
 		"Icon=" + icon,
 		"Terminal=false",
 		"StartupNotify=false",
@@ -185,7 +179,7 @@ func cmdShortcut(args []string) error {
 	}
 	switch {
 	case len(args) == 1 && args[0] == "enable":
-		script, err := startScript()
+		script, err := autostart.StartScript()
 		if err != nil {
 			return err
 		}
