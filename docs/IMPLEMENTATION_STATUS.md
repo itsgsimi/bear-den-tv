@@ -130,6 +130,19 @@ Features outside the matrix:
 
 ## Next steps
 
+### Owner's TV test, 2026-09-29 evening (package 0.1.0~git151.fb034f4, fresh install) — to fix next
+
+Overall: "the experience was very nice". Found:
+1. **Web-app focus ring stays on screen during playback** (the web-nav script's yellow box over the video). Restyle it to the Bear Den theme and fade/hide it while a video plays full screen or after a few idle seconds.
+2. **Phone text entry is buried under the touchpad.** When a text field has focus on the TV, the phone should surface text entry at the top by itself.
+3. **Apps page does not refresh after an install**: a newly installed app only appears in "On this TV" after going back to Home.
+4. **Themes page cards are clipped at the top** (the bear art and the focus outline).
+5. **"revision conflict: base 31, current 32" in Themes**: trying a theme saves, then OK saves again on the old revision. Rebase or retry on the current revision, and never show raw technical errors on the TV.
+6. **Plex linking**: the TV fell asleep (screensaver) while waiting; after the account was linked the screen sat on "Waiting for Plex…" with a blank white QR box and no code/address, then worked after a long time. Suppress the screensaver during active flows (Plex linking, pairing, installs), poll faster while linking, and show a fun waiting animation (a bear) instead of a blank QR.
+
+Also pending: the owner's picks from the UX audit (34 findings; the focused "Let's set up" button still has pale text), bear tips (paused; its art is on branch worktree-agent-a82d13fe35f54c446), and the unconfirmed cause of the 10-hour freeze (mitigated by the watchdog).
+
+
 Checked against the tree on 2026-09-29. Most of what remains is seeing built features on the real TV; each step says what to look for. Commands: [`operations.md`](operations.md).
 
 ### 1. Live validation on the TV, per feature
