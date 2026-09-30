@@ -5,12 +5,15 @@
 // the other controls, the TV buttons are not drawn at all unless
 // `capabilities["tv.power"]` is available: most TV boxes have no HDMI-CEC
 // adapter, and a disabled row with that reason on every phone would be noise.
-// The owner turns HDMI-CEC on in TV Settings.
+// The owner turns HDMI-CEC on in TV Settings. The section and, while HDMI-CEC
+// is on, the volume group carry the TV Settings rows' help (cec, cec-volume;
+// views/help.tsx).
 import type { JSX } from 'preact';
 import type { App } from '../app.ts';
 import type { Cec, StateSnapshot } from '../contract.ts';
 import { t } from '../i18n.ts';
 import { Icon } from '../icons.tsx';
+import { SettingHelp } from './help.tsx';
 import { type AppState, capabilityFor } from '../state.ts';
 
 /**
@@ -28,6 +31,16 @@ export function cecOf(snapshot: StateSnapshot | null): Cec | null {
 export function volumeDrivesTV(snapshot: StateSnapshot | null): boolean {
   const cec = cecOf(snapshot);
   return cec !== null && cec.enabled && cec.volume_target === 'tv';
+}
+
+/**
+ * The volume group's help: which volume the buttons change, drawn only while
+ * HDMI-CEC is on (without it they always change the PC's).
+ * @param snapshot Latest snapshot or null.
+ * @returns The help line, or null.
+ */
+export function VolumeHelp({ snapshot }: { snapshot: StateSnapshot | null }): JSX.Element | null {
+  return cecOf(snapshot)?.enabled ? <SettingHelp id="cec-volume" /> : null;
 }
 
 /**
@@ -52,6 +65,7 @@ export function TvSection({ available, cec, onPower }: TvSectionProps): JSX.Elem
   return (
     <div class="group tv" aria-labelledby="tv-heading" data-testid="tv">
       <h3 id="tv-heading">{t.tv.heading}</h3>
+      <SettingHelp id="cec" />
       <p class="muted small tv-status" role="status" data-testid="tv-status">
         {status}
       </p>

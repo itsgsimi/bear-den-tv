@@ -22,7 +22,7 @@ import { AppArt, Art, artStyleOf, Icon, type IconName } from '../icons.tsx';
 import { Vines } from '../vines.tsx';
 import { NowPlayingPanel, nowPlayingOf } from './nowplaying.tsx';
 import { SleepPanel } from './sleep.tsx';
-import { TvPanel, volumeHeading } from './tv.tsx';
+import { TvPanel, VolumeHelp, volumeHeading } from './tv.tsx';
 import { TouchpadPanel } from './touchpad.tsx';
 import { AddAppsPanel, AddAppsTile, mayInstall } from './install.tsx';
 import { type AppState, type PendingAction, type TileStatus, capabilityFor, closableApp, isSecureTransport, mayUse, permissionsOf, tileStatus, visibleApps } from '../state.ts';
@@ -145,6 +145,7 @@ export function RemoteView({ app, state }: { app: App; state: AppState }): JSX.E
       {listed(state, 'audio.volume_delta') || listed(state, 'audio.mute') ? (
         <div class="group" aria-labelledby="volume-heading">
           <h3 id="volume-heading">{volumeHeading(snapshot)}</h3>
+          <VolumeHelp snapshot={snapshot} />
           <div class="button-row">
             {listed(state, 'audio.volume_delta') ? (
               <>

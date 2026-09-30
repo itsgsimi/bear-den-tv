@@ -6,7 +6,8 @@
 // arrived. Controls are gated by `snapshot.capabilities[action]` like every
 // other control: unavailable renders disabled with the server's reason,
 // unlisted is not rendered. The countdown re-renders once a second only
-// while a timer is set and the page is visible.
+// while a timer is set and the page is visible. The chips and Screen off
+// carry the TV Settings rows' help (sleep, screen-off; views/help.tsx).
 import { useEffect, useState } from 'preact/hooks';
 import type { JSX } from 'preact';
 import type { App } from '../app.ts';
@@ -15,6 +16,7 @@ import { t } from '../i18n.ts';
 import { Art, artStyleOf, Icon } from '../icons.tsx';
 import { type AppState, capabilityFor } from '../state.ts';
 import { formatClock } from './nowplaying.tsx';
+import { SettingHelp } from './help.tsx';
 
 /** The choices, in the order the TV offers them (contract.SleepChoices). */
 export const SLEEP_CHOICES: readonly Exclude<SleepMinutes, 0>[] = [15, 30, 45, 60, 90, 120];
@@ -100,6 +102,7 @@ export function SleepSection({ power, remaining, sleepGate, offGate, classic, on
           ))}
         </div>
       ) : null}
+      {sleepGate.listed ? <SettingHelp id="sleep" /> : null}
       <div class="button-row">
         {sleepGate.listed && running ? (
           <button type="button" class="btn btn-control btn-secondary" disabled={sleepGate.disabled} title={sleepGate.reason ?? undefined} data-action="power.sleep_timer" data-minutes={0} data-testid="sleep-cancel" onClick={() => onSleep(0)}>
@@ -114,6 +117,7 @@ export function SleepSection({ power, remaining, sleepGate, offGate, classic, on
           </button>
         ) : null}
       </div>
+      {offGate.listed ? <SettingHelp id="screen-off" /> : null}
     </div>
   );
 }

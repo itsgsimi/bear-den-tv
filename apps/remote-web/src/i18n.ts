@@ -434,6 +434,36 @@ export const t = {
   },
 } as const;
 
+/**
+ * One-line help under the settings the phone shares with the TV, keyed by the
+ * TV's Settings row ids (apps/tv-shell/qml/SettingsScreen.qml) so both say
+ * the same thing; keep the words in sync with the TV. Views draw them with
+ * `SettingHelp` (views/help.tsx). Rows the phone does not show yet (style,
+ * now-playing, auto-update) are here so the table stays the TV's.
+ */
+export const SETTING_HELP = {
+  background: 'The world Bear Den lives in: colours, wallpaper and the corner scene.',
+  style: 'How much decoration: Bear Den adds bears and ornaments, Plain keeps it simple, Performance turns animation off.',
+  art: 'Pixel draws everything in pixel art; Classic uses smooth drawings.',
+  'app-icons': "App's own uses each installed app's icon; Bear Den style draws every app in Bear Den's look.",
+  text: 'Makes all text on the TV bigger or smaller.',
+  density: 'Bigger tiles are easier to see from the couch; smaller fit more on a row.',
+  margin: "For TVs that cut off the picture's edges: raise it until nothing is cut off.",
+  motion: 'Stops the moving decorations and slides; everything still works.',
+  contrast: 'A thicker, brighter outline around whatever is selected.',
+  hero: 'The big panel above your apps that describes what is selected.',
+  clock: 'Shows the time in the top bar.',
+  cec: "Lets Bear Den turn the TV on and off and switch its input, over HDMI. Needs a CEC adapter; most PCs don't have one.",
+  'cec-volume': "Which volume your phone's volume buttons change: this PC's, or the TV's over HDMI.",
+  sleep: 'Pauses what is playing where it can, goes Home and turns the screen off after the time you pick.',
+  'screen-off': 'Turns the picture off now. Any button wakes it; that first press only wakes it.',
+  'now-playing': 'Paired phones see the title of what is playing. Never while the TV is locked.',
+  'auto-update': "Updates the apps installed for the TV's user (not system-wide ones) while the TV is idle, about once a day.",
+} as const;
+
+/** A TV Settings row id with help text. */
+export type SettingHelpId = keyof typeof SETTING_HELP;
+
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
 

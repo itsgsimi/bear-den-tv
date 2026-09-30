@@ -5,11 +5,14 @@
 // confirmation shows a countdown from `editor.pending.expires_in_s` measured from
 // `editor.pendingAt`, with Keep/Revert. Revision conflicts, validation errors and
 // the trusted-LAN HTTP write refusal are reported by the controller as notices.
+// Each appearance setting the TV also has carries its one-line help
+// (SettingHelp, keyed by the TV's Settings row id; views/help.tsx).
 import { useEffect, useState } from 'preact/hooks';
 import type { JSX } from 'preact';
 import type { App } from '../app.ts';
 import type { AppIcons, ArtStyle, BackgroundPreset, Layout, LayoutPending, LayoutSection, LayoutUi, TileDensity } from '../contract.ts';
-import { t } from '../i18n.ts';
+import { type SettingHelpId, t } from '../i18n.ts';
+import { helpId, SettingHelp } from './help.tsx';
 import { type AppState, canWriteLayout, layoutsEqual } from '../state.ts';
 
 // Built-in themes, used until the TV reports its installed list (state.appearance.themes).
@@ -157,17 +160,19 @@ export function EditorView({ app, state }: { app: App; state: AppState }): JSX.E
           <span class="field-label">
             {t.editor.textScale} <span class="muted">{draft.ui.text_scale.toFixed(1)}×</span>
           </span>
-          <input type="range" min={0.8} max={2} step={0.1} value={draft.ui.text_scale} disabled={busy} onInput={(ev) => setUi('text_scale', round1(Number(ev.currentTarget.value)))} />
+          <input type="range" min={0.8} max={2} step={0.1} value={draft.ui.text_scale} disabled={busy} aria-describedby={helpId('text')} onInput={(ev) => setUi('text_scale', round1(Number(ev.currentTarget.value)))} />
         </label>
+        <SettingHelp id="text" />
         <label class="field">
           <span class="field-label">
             {t.editor.safeMargin} <span class="muted">{draft.ui.safe_margin_percent}%</span>
           </span>
-          <input type="range" min={0} max={10} step={1} value={draft.ui.safe_margin_percent} disabled={busy} onInput={(ev) => setUi('safe_margin_percent', Number(ev.currentTarget.value))} />
+          <input type="range" min={0} max={10} step={1} value={draft.ui.safe_margin_percent} disabled={busy} aria-describedby={helpId('margin')} onInput={(ev) => setUi('safe_margin_percent', Number(ev.currentTarget.value))} />
         </label>
+        <SettingHelp id="margin" />
         <label class="field">
           <span class="field-label">{t.editor.density}</span>
-          <select class="text-input" value={draft.ui.tile_density} disabled={busy} onChange={(ev) => setUi('tile_density', ev.currentTarget.value as TileDensity)}>
+          <select class="text-input" value={draft.ui.tile_density} disabled={busy} aria-describedby={helpId('density')} onChange={(ev) => setUi('tile_density', ev.currentTarget.value as TileDensity)}>
             {DENSITIES.map((d) => (
               <option key={d} value={d}>
                 {d === 'large' ? t.editor.densityLarge : t.editor.densityComfortable}
@@ -175,12 +180,14 @@ export function EditorView({ app, state }: { app: App; state: AppState }): JSX.E
             ))}
           </select>
         </label>
+        <SettingHelp id="density" />
         <label class="field">
           <span class="field-label">{t.editor.background}</span>
           <select
             class="text-input"
             value={themeValue}
             disabled={busy}
+            aria-describedby={helpId('background')}
             onChange={(ev) => {
               const picked = themes.find((th) => th.id === ev.currentTarget.value);
               setUi('background', ev.currentTarget.value as BackgroundPreset);
@@ -194,9 +201,10 @@ export function EditorView({ app, state }: { app: App; state: AppState }): JSX.E
             ))}
           </select>
         </label>
+        <SettingHelp id="background" />
         <label class="field">
           <span class="field-label">{t.editor.artStyle}</span>
-          <select class="text-input" value={draft.ui.art_style ?? 'pixel'} disabled={busy} onChange={(ev) => setUi('art_style', ev.currentTarget.value as ArtStyle)}>
+          <select class="text-input" value={draft.ui.art_style ?? 'pixel'} disabled={busy} aria-describedby={helpId('art')} onChange={(ev) => setUi('art_style', ev.currentTarget.value as ArtStyle)}>
             {ART_STYLES.map((a) => (
               <option key={a} value={a}>
                 {a === 'classic' ? t.editor.artClassic : t.editor.artPixel}
@@ -204,9 +212,10 @@ export function EditorView({ app, state }: { app: App; state: AppState }): JSX.E
             ))}
           </select>
         </label>
+        <SettingHelp id="art" />
         <label class="field">
           <span class="field-label">{t.editor.appIcons}</span>
-          <select class="text-input" value={draft.ui.app_icons ?? 'app'} disabled={busy} data-testid="app-icons" onChange={(ev) => setUi('app_icons', ev.currentTarget.value as AppIcons)}>
+          <select class="text-input" value={draft.ui.app_icons ?? 'app'} disabled={busy} data-testid="app-icons" aria-describedby={helpId('app-icons')} onChange={(ev) => setUi('app_icons', ev.currentTarget.value as AppIcons)}>
             {APP_ICON_CHOICES.map((c) => (
               <option key={c} value={c}>
                 {c === 'bear_den' ? t.editor.appIconsBearDen : t.editor.appIconsApp}
@@ -214,11 +223,12 @@ export function EditorView({ app, state }: { app: App; state: AppState }): JSX.E
             ))}
           </select>
         </label>
+        <SettingHelp id="app-icons" />
         <AccentField value={draft.ui.accent} disabled={busy} onChange={(v) => setUi('accent', v)} />
-        <Toggle label={t.editor.reducedMotion} checked={draft.ui.reduced_motion} disabled={busy} onChange={(v) => setUi('reduced_motion', v)} />
-        <Toggle label={t.editor.highContrast} checked={draft.ui.high_contrast_focus} disabled={busy} onChange={(v) => setUi('high_contrast_focus', v)} />
-        <Toggle label={t.editor.hero} checked={draft.ui.hero_enabled} disabled={busy} onChange={(v) => setUi('hero_enabled', v)} />
-        <Toggle label={t.editor.clock} checked={draft.ui.clock_enabled} disabled={busy} onChange={(v) => setUi('clock_enabled', v)} />
+        <Toggle label={t.editor.reducedMotion} help="motion" checked={draft.ui.reduced_motion} disabled={busy} onChange={(v) => setUi('reduced_motion', v)} />
+        <Toggle label={t.editor.highContrast} help="contrast" checked={draft.ui.high_contrast_focus} disabled={busy} onChange={(v) => setUi('high_contrast_focus', v)} />
+        <Toggle label={t.editor.hero} help="hero" checked={draft.ui.hero_enabled} disabled={busy} onChange={(v) => setUi('hero_enabled', v)} />
+        <Toggle label={t.editor.clock} help="clock" checked={draft.ui.clock_enabled} disabled={busy} onChange={(v) => setUi('clock_enabled', v)} />
       </div>
 
       {!titlesOk ? (
@@ -316,12 +326,19 @@ function PendingBanner({ app, pending, pendingAt, busy }: { app: App; pending: L
   );
 }
 
-function Toggle({ label, checked, disabled, onChange }: { label: string; checked: boolean; disabled: boolean; onChange: (v: boolean) => void }): JSX.Element {
-  return (
+function Toggle({ label, help, checked, disabled, onChange }: { label: string; help?: SettingHelpId; checked: boolean; disabled: boolean; onChange: (v: boolean) => void }): JSX.Element {
+  const toggle = (
     <label class="toggle">
-      <input type="checkbox" checked={checked} disabled={disabled} onChange={(ev) => onChange(ev.currentTarget.checked)} />
+      <input type="checkbox" checked={checked} disabled={disabled} aria-describedby={help ? helpId(help) : undefined} onChange={(ev) => onChange(ev.currentTarget.checked)} />
       <span>{label}</span>
     </label>
+  );
+  if (!help) return toggle;
+  return (
+    <>
+      {toggle}
+      <SettingHelp id={help} />
+    </>
   );
 }
 

@@ -191,6 +191,9 @@ select.text-input { appearance: auto; }
 .form-error { color: var(--error); font-weight: 600; }
 .toggle { display: flex; align-items: center; gap: 0.6rem; min-height: var(--tap); }
 .toggle input { width: 22px; height: 22px; accent-color: var(--accent); }
+/* SettingHelp (views/help.tsx): the one-line help under a setting the TV also has. */
+.setting-help { margin: -0.2rem 0 0.35rem; line-height: 1.35; }
+.toggle + .setting-help { margin-top: -0.5rem; padding-left: calc(22px + 0.6rem); }
 input[type='range'] { width: 100%; accent-color: var(--accent); min-height: 32px; }
 
 /* Buttons. The ::after layer is the sage press ripple (keyed on data-press). */
