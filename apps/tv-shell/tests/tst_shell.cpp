@@ -1066,6 +1066,47 @@ private slots:
         QVERIFY2(m_nav->screen() != QLatin1String("dialog") || m_nav->itemId().startsWith(QLatin1String("install")), qPrintable(m_nav->itemId()));
     }
 
+    // TV item 7 (2026-09-29): the launch overlay used to hide the moment the
+    // coordinator saw the app in front, before the app's window had drawn,
+    // so Bear Den's bright page and scene flashed between "Opening…" and
+    // the app. Now it stays up behind the app until a snapshot says the
+    // shell is in front again, and Home hides it at once.
+    void launchOverlayCoversUntilTheShellIsBack()
+    {
+        SessionModel *session = SessionModel::instance();
+        ShellController *shell = ShellController::instance();
+        const auto restore = qScopeGuard([session, this] { session->applySnapshot(fixture()); goHome(); });
+        QQuickItem *overlay = m_window->findChild<QQuickItem *>(QStringLiteral("launchOverlay"));
+        QVERIFY(overlay);
+        QVERIFY(!overlay->isVisible());
+        auto withTarget = [this](const QString &kind) {
+            QJsonObject snap = fixture();
+            snap.insert(QStringLiteral("target"), kind == QLatin1String("app")
+                ? QJsonObject{{QStringLiteral("kind"), kind}, {QStringLiteral("app_id"), QStringLiteral("youtube")}, {QStringLiteral("label"), QStringLiteral("YouTube")}, {QStringLiteral("observed"), true}}
+                : fixture().value(QStringLiteral("target")).toObject());
+            return snap;
+        };
+        // The app came to the front (its snapshot, then the observed result).
+        QVERIFY2(session->applySnapshot(withTarget(QStringLiteral("app"))), qPrintable(session->lastError()));
+        emit shell->launchObserved(QStringLiteral("youtube"));
+        QCoreApplication::processEvents();
+        QVERIFY2(overlay->isVisible(), "the overlay dropped before the shell was back in front");
+        QCOMPARE(overlay->property("appId").toString(), QStringLiteral("youtube"));
+        // More snapshots while the app is in front: still covered.
+        QVERIFY(session->applySnapshot(withTarget(QStringLiteral("app"))));
+        QVERIFY(overlay->isVisible());
+        // The shell is in front again: gone.
+        QVERIFY(session->applySnapshot(withTarget(QStringLiteral("shell"))));
+        QVERIFY(!overlay->isVisible());
+        // Home hides it at once, before any snapshot.
+        QVERIFY(session->applySnapshot(withTarget(QStringLiteral("app"))));
+        emit shell->launchObserved(QStringLiteral("youtube"));
+        QCoreApplication::processEvents();
+        QVERIFY(overlay->isVisible());
+        goHome();
+        QVERIFY(!overlay->isVisible());
+    }
+
     // Apps → Streaming sites: after the sites come the two browser rows
     // (the Browser tile's, the streaming sites'), from state.apps.browsers;
     // ◀ ▶ send apps.browser with both choices; a browser marked

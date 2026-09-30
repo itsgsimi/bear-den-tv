@@ -1,16 +1,37 @@
 // Shown while the coordinator is starting or activating an app. It never
 // blocks navigation for long: Back hides it and the result still arrives.
+// Once the coordinator sees the app in front (Shell.launchObserved) the
+// overlay stays up, behind the app, until a snapshot says the shell is in
+// front again (or Home / Back): the app's window can be mapped before it has
+// drawn anything (a browser's first start, a compositor fading it in), and
+// hiding at that moment flashed Bear Den's bright page and scene between
+// "Opening…" and the app (owner's TV test 2026-09-29, item 7). Nothing
+// moves while it waits there: the hop runs only while the shell is in front.
 
 import QtQuick
 import BearDen
 
 Rectangle {
     id: root
-    property string appId: Shell.launchingAppId
+    objectName: "launchOverlay"
+    // The app that was just seen in front: still covered until the shell is back.
+    property string holding: ""
+    readonly property string appId: Shell.launchingAppId.length > 0 ? Shell.launchingAppId : holding
     property bool dismissed: false
     readonly property var app: appId.length > 0 ? Session.application(appId) : ({})
     visible: appId.length > 0 && !dismissed
     onAppIdChanged: dismissed = false
+    function release() { holding = "" }
+    Connections {
+        target: Shell
+        function onLaunchObserved(id) { root.holding = id }
+        function onLaunchChanged() { if (Shell.launchingAppId.length > 0 && Shell.launchingAppId !== root.holding) root.holding = "" }
+    }
+    Connections {
+        target: Session
+        function onSnapshotChanged() { if (Session.locked || Session.target.kind === "shell") root.release() }
+    }
+    onDismissedChanged: if (dismissed) release()
     // Darker than the dialog scrim: Home stays faintly visible behind, but the
     // app card and the hopping cub stand out clearly.
     color: Theme.alpha("#06080A", 0.93)
@@ -64,7 +85,7 @@ Rectangle {
             height: 104 * Theme.scale
             property real t: Theme.reducedMotion ? 0.5 : 0
             NumberAnimation on t {
-                running: root.visible && !Theme.reducedMotion
+                running: root.visible && !Theme.reducedMotion && (Session.target.kind === "shell" || root.holding.length === 0)
                 from: 0; to: 1; duration: 2600; loops: Animation.Infinite
             }
             Repeater {

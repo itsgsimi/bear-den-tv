@@ -218,6 +218,10 @@ public:
 signals:
     void connectionChanged();
     void launchChanged();
+    /// The coordinator saw appId come to the front (the launch's `observed`
+    /// result), emitted just before launchingAppId clears. LaunchOverlay keeps
+    /// covering Bear Den until the next snapshot says the shell is in front.
+    void launchObserved(const QString &appId);
     void screensaverSecondsChanged();
     void notify(const QString &kind, const QString &text);
     void confirmRequested(const QString &confirmId, const QString &kind, const QString &summary, int expiresInS);

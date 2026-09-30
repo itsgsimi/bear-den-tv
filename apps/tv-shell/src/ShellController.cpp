@@ -214,6 +214,7 @@ void ShellController::onActionResult(const QString &requestId, const QString &ac
     if (m_launchRequestId.isEmpty() || requestId != m_launchRequestId)
         return;
     if (outcome == QLatin1String("observed")) {
+        emit launchObserved(m_launchingAppId);
         setLaunching(QString());
     } else if (outcome == QLatin1String("failed")) {
         setLaunching(QString());
