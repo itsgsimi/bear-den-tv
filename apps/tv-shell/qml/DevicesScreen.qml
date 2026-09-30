@@ -14,6 +14,7 @@ Item {
     id: root
     property int focusIndex: 0
     signal confirm(string title, string body, string confirmLabel, var onAccept, bool danger)
+    signal openScreen(string name)
     readonly property var devices: Session.devices
     readonly property int rowCount: devices.length + (devices.length > 0 ? 1 : 0)
     // The action ◀ ▶ picked on the focused row (index into actionsFor).
@@ -54,22 +55,36 @@ Item {
         if (min < 60) return qsTr("%n min left", "", min)
         const h = Math.round(min / 60)
         if (h < 48) return qsTr("%n h left", "", h)
-        return qsTr("%n days left", "", Math.round(h / 24))
+        const days = Math.round(h / 24)
+        return days === 1 ? qsTr("1 day left") : qsTr("%1 days left").arg(days)
     }
+    // Times in the header clock's format (UX-28: a 24-hour pass end beside
+    // a 12-hour clock).
+    function clockTime(d) { return Qt.formatTime(d, Qt.locale().timeFormat(Locale.ShortFormat)) }
     function endsAt(ms) {
         const d = new Date(ms)
-        return ms - root.now < 20 * 3600 * 1000 ? Qt.formatTime(d, "HH:mm") : Qt.formatDateTime(d, "ddd HH:mm")
+        return ms - root.now < 20 * 3600 * 1000 ? clockTime(d) : Qt.formatDate(d, "ddd") + " " + clockTime(d)
+    }
+    function pairedOn(iso) {
+        const d = new Date(iso)
+        return isNaN(d.getTime()) ? "" : qsTr("paired %1").arg(Qt.formatDate(d, "ddd d MMM") + " " + clockTime(d))
     }
     function report() {
-        const id = focusIndex < devices.length ? devices[focusIndex].id : (devices.length > 0 ? "revoke-all" : "")
+        const id = focusIndex < devices.length ? devices[focusIndex].id : (devices.length > 0 ? "revoke-all" : "pair")
         Nav.reportFocus("devices", id, 0)
     }
     function describe(d) {
         const role = d.guest && d.expires_at_ms ? qsTr("Guest pass · ends %1 (%2)").arg(endsAt(d.expires_at_ms)).arg(timeLeft(d.expires_at_ms))
                    : d.permissions.indexOf("owner") >= 0 ? qsTr("Owner") : (d.permissions.indexOf("layout_editor") >= 0 ? qsTr("Can edit layout") : qsTr("Remote control"))
-        return (d.connected ? qsTr("Connected now") : qsTr("Not connected")) + " · " + role
+        const when = d.guest ? "" : pairedOn(d.created_at || "")
+        return (d.connected ? qsTr("Connected now") : qsTr("Not connected")) + " · " + role + (when ? " · " + when : "")
     }
     function navigate(action) {
+        // Nothing paired: the one thing to do is pair one (UX-17).
+        if (devices.length === 0) {
+            if (action === "select") { openScreen("pairing"); return true }
+            return action !== "back"
+        }
         switch (action) {
         case "nav.up": focusIndex = Math.max(0, focusIndex - 1); actionIndex = 0; report(); return true
         case "nav.down": focusIndex = Math.min(Math.max(0, rowCount - 1), focusIndex + 1); actionIndex = 0; report(); return true
@@ -98,8 +113,10 @@ Item {
     ScreenFrame {
         anchors.fill: parent
         title: qsTr("Paired phones")
-        subtitle: root.devices.length === 0 ? qsTr("No phones are paired") : qsTr("%n phone(s) can control this TV", "", root.devices.length)
-        hints: [["▲ ▼", qsTr("Move")], ["◀ ▶", qsTr("Choose")], ["OK", qsTr("Do it")], ["Back", qsTr("Back")]]
+        subtitle: root.devices.length === 0 ? qsTr("No phones are paired")
+                  : root.devices.length === 1 ? qsTr("1 phone can control this TV") : qsTr("%1 phones can control this TV").arg(root.devices.length)
+        hints: root.devices.length === 0 ? [["OK", qsTr("Pair a phone")], ["Back", qsTr("Back")]]
+                                         : [["▲ ▼", qsTr("Move")], ["◀ ▶", qsTr("Choose")], ["OK", qsTr("Do it")], ["Back", qsTr("Back")]]
 
         Column {
             anchors { left: parent.left; right: parent.right; rightMargin: parent.width * 0.3; leftMargin: 8 * Theme.scale }
@@ -129,10 +146,17 @@ Item {
             }
             Text {
                 visible: root.devices.length === 0
-                text: qsTr("Pair one with Pair phone in the top bar on Home.")
+                text: qsTr("No phone can control this TV yet.")
                 color: Theme.textSecondary
                 font.family: Theme.fontFamily
                 font.pixelSize: 28 * Theme.fontUnit
+            }
+            FocusButton {
+                objectName: "pairFromDevices"
+                visible: root.devices.length === 0
+                text: qsTr("Pair a phone")
+                primary: true
+                focused: true
             }
         }
     }

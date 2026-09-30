@@ -1,4 +1,6 @@
-// Shown until the first snapshot arrives from the coordinator.
+// Shown until the first snapshot arrives from the coordinator. Plain words
+// (UX-09): "Getting ready…", then what to do if Bear Den's helper (the
+// coordinator) never answers; a refusal's code only in small print.
 
 import QtQuick
 import BearDen
@@ -19,12 +21,28 @@ Item {
         }
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
+            objectName: "connectingMessage"
+            // Plain words (UX-09); the code only in the small print below.
+            // After about half a minute of tries (attempt 5 with the 1 s → 30 s
+            // backoff) it says what to do.
+            width: Math.min(implicitWidth, root.width * 0.7)
+            horizontalAlignment: Text.AlignHCenter
+            wrapMode: Text.WordWrap
             text: Shell.rejectReason.length > 0
-                  ? qsTr("The coordinator refused this shell: %1").arg(Shell.rejectReason)
-                  : (Shell.attempt > 1 ? qsTr("Waiting for the coordinator (attempt %1)").arg(Shell.attempt) : qsTr("Connecting to the coordinator"))
+                  ? qsTr("This screen and Bear Den's helper don't match. Restart the PC; if it happens again, install Bear Den again.")
+                  : (Shell.attempt >= 5 ? qsTr("Bear Den's helper isn't running. Restart the PC, or run bear-den-tv doctor from a keyboard.")
+                                        : qsTr("Getting ready…"))
             color: Theme.textSecondary
             font.family: Theme.fontFamily
             font.pixelSize: 26 * Theme.fontUnit
+        }
+        Text {
+            anchors.horizontalCenter: parent.horizontalCenter
+            visible: Shell.rejectReason.length > 0
+            text: qsTr("Details: %1").arg(Shell.rejectReason)
+            color: Theme.textMuted
+            font.family: Theme.fontFamily
+            font.pixelSize: 20 * Theme.fontUnit
         }
         Row {
             anchors.horizontalCenter: parent.horizontalCenter

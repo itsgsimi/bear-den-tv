@@ -4,7 +4,10 @@
 // phone or a guest pass (tonight, 24 hours, 7 days: IPC pair.issue "pass",
 // contracts/http.md#guest-passes); changing it issues a new code. The
 // guest note and the address sit on a surface panel in the theme's text
-// colours, so they read over any scene and in both art styles.
+// colours, so they read over any scene and in both art styles. Once a
+// phone pairs, a panel names it ("“Kitchen tablet” is paired") with Pair
+// another and Done instead of the spent code (UX-06: the TV used to sit on
+// "Code used or expired").
 
 import QtQuick
 import BearDen
@@ -13,19 +16,32 @@ Item {
     id: root
     property int focusIndex: 0
     signal openScreen(string name)
+    signal done()
     readonly property var pairing: Session.pairing
     readonly property bool listening: Session.remote.listening === true
     readonly property bool active: pairing.active === true
     readonly property string code: pairing.code || ""
 
     property int _devicesSeen: Session.devices.length
+    property var _idsSeen: Session.devices.map(d => d.id)
     property bool celebrating: false
+    // The phone that just paired, named on the success panel ("" = none).
+    property string pairedName: ""
+    property int doneIndex: 0   // 0 = Pair another, 1 = Done
     Connections {
         target: Session
         function onSnapshotChanged() {
             const n = Session.devices.length
-            if (root.visible && n > root._devicesSeen) { root.celebrating = true; celebrateTimer.restart() }
+            if (root.visible && n > root._devicesSeen) {
+                root.celebrating = true
+                celebrateTimer.restart()
+                const fresh = Session.devices.filter(d => root._idsSeen.indexOf(d.id) < 0)
+                root.pairedName = fresh.length > 0 ? fresh[fresh.length - 1].name : qsTr("Your phone")
+                root.doneIndex = 0
+                root.report()
+            }
             root._devicesSeen = n
+            root._idsSeen = Session.devices.map(d => d.id)
         }
     }
     Timer { id: celebrateTimer; interval: 4000; onTriggered: root.celebrating = false }
@@ -43,25 +59,31 @@ Item {
 
     // When a guest pass ends, as the TV's clock shows it: a time today or
     // tonight, a weekday and time further out.
+    // In the header clock's format (UX-28).
+    function clockTime(d) { return Qt.formatTime(d, Qt.locale().timeFormat(Locale.ShortFormat)) }
     function endsText(ms) {
         const d = new Date(ms)
-        return ms - Date.now() < 20 * 3600 * 1000 ? Qt.formatTime(d, "HH:mm") : Qt.formatDateTime(d, "ddd HH:mm")
+        return ms - Date.now() < 20 * 3600 * 1000 ? clockTime(d) : Qt.formatDate(d, "ddd") + " " + clockTime(d)
     }
     function kindDescription() {
         if (root.pass === "")
             return qsTr("Stays paired until you remove it in Paired phones")
         const ends = root.guestLive && root.pairing.pass_expires_at_ms ? qsTr("ends %1").arg(endsText(root.pairing.pass_expires_at_ms))
-                                                                       : (root.pass === "tonight" ? qsTr("ends at 04:00") : "")
+                                                                       : (root.pass === "tonight" ? qsTr("ends at %1").arg(clockTime(new Date(2000, 0, 1, 4, 0))) : "")
         return qsTr("A remote for a visitor · %1").arg(ends || qsTr("ends by itself"))
     }
 
     property bool requested: false
     function issue() { root.requested = false; Shell.issuePairing(root.pass); requestTimer.restart() }
-    function report() { Nav.reportFocus("pairing", !listening ? "setup" : (focusIndex === 0 ? "pair-kind" : "new-code"), 0) }
+    function report() {
+        if (pairedName.length > 0) { Nav.reportFocus("pairing", doneIndex === 0 ? "pair-another" : "done", 0); return }
+        Nav.reportFocus("pairing", !listening ? "setup" : (focusIndex === 0 ? "pair-kind" : "new-code"), 0)
+    }
     function enter() {
         focusIndex = 0
         kindIndex = 0 // a new visit starts as a family phone; a guest pass is always chosen
         requested = false
+        pairedName = ""
         if (listening) issue()
         report()
     }
@@ -70,6 +92,18 @@ Item {
     // silently: the owner presses OK for a new one.
     Timer { id: requestTimer; interval: 1500; onTriggered: root.requested = true }
     function navigate(action) {
+        if (pairedName.length > 0) {
+            switch (action) {
+            case "nav.left": case "nav.right":
+                doneIndex = action === "nav.left" ? 0 : 1; report(); return true
+            case "select":
+                if (doneIndex === 0) { pairedName = ""; issue(); report() }
+                else done()
+                return true
+            case "nav.up": case "nav.down": return true
+            }
+            return false
+        }
         switch (action) {
         case "select":
             if (listening) issue()
@@ -137,7 +171,7 @@ Item {
                               : [["OK", qsTr("Set up")], ["Back", qsTr("Done")]]
 
         Row {
-            visible: root.listening
+            visible: root.listening && root.pairedName.length === 0
             anchors.centerIn: parent
             spacing: 96 * Theme.scale
 
@@ -251,6 +285,45 @@ Item {
                 FocusButton {
                     text: qsTr("New code")
                     focused: root.focusIndex === 1
+                }
+            }
+        }
+
+        // Paired: who, and what next (UX-06).
+        PixelBox {
+            objectName: "pairedPanel"
+            visible: root.pairedName.length > 0 && !root.celebrating
+            anchors.centerIn: parent
+            width: Math.max(pairedColumn.implicitWidth, 700 * Theme.scale) + 112 * Theme.scale
+            height: pairedColumn.implicitHeight + 96 * Theme.scale
+            radius: Theme.radius * 1.4
+            color: Theme.surfaceRaised
+            borderColor: Theme.surfaceBorder
+            Column {
+                id: pairedColumn
+                anchors.centerIn: parent
+                spacing: 24 * Theme.scale
+                Text {
+                    objectName: "pairedTitle"
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    text: qsTr("“%1” is paired").arg(root.pairedName)
+                    color: Theme.textPrimary
+                    font.family: Theme.fontFamily
+                    font.pixelSize: 44 * Theme.fontUnit
+                    font.weight: Font.Bold
+                }
+                Text {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    text: qsTr("It can control this TV now. You can rename or remove it in Paired phones.")
+                    color: Theme.textSecondary
+                    font.family: Theme.fontFamily
+                    font.pixelSize: 26 * Theme.fontUnit
+                }
+                Row {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    spacing: 20 * Theme.scale
+                    FocusButton { text: qsTr("Pair another"); focused: root.doneIndex === 0 }
+                    FocusButton { text: qsTr("Done"); primary: true; focused: root.doneIndex === 1 }
                 }
             }
         }

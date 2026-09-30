@@ -58,6 +58,8 @@ Item {
     Timer { id: blinkOff; interval: 150; onTriggered: root.blink = false }
     readonly property string prop: Apps.stage(adapter).prop
     readonly property real cubSize: 72 * Theme.scale
+    // Where the cub peeks, as a share of the tile's width (UX-11).
+    readonly property real cubAt: 0.78
 
     // Behind the tile body: the cub's head rises above the top edge.
     Item {
@@ -69,7 +71,9 @@ Item {
             width: root.cubSize
             // Pixel: on the grid, never rotated. Classic: smooth, with a tilt
             // that settles elastically.
-            x: World.classic ? parent.width * 0.46 - width / 2 : World.snap(parent.width * 0.46 - width / 2)
+            // Over the right part of the tile, clear of the rail heading at the
+            // left and the featured panel's tagline (UX-11).
+            x: World.classic ? parent.width * root.cubAt - width / 2 : World.snap(parent.width * root.cubAt - width / 2)
             y: World.classic ? (root.peeking ? -height * 0.74 : height * 0.2)
                              : root.peeking ? World.snap(-height * 0.74) : World.snap(height * 0.2)
             Behavior on y { NumberAnimation { id: peekAnim; duration: 460; easing.type: Easing.OutBack } }
@@ -242,7 +246,7 @@ Item {
         opacity: root.peeking ? 1 : 0
         visible: opacity > 0
         Behavior on opacity { NumberAnimation { duration: 180 } }
-        readonly property real cx: width * 0.46
+        readonly property real cx: width * root.cubAt
         Repeater {
             model: 2
             Ornament {

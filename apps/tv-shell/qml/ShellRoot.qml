@@ -354,6 +354,7 @@ FocusScope {
             Behavior on opacity { NumberAnimation { duration: Theme.ms(220); easing.type: Easing.OutCubic } }
             Behavior on y { NumberAnimation { duration: Theme.ms(260); easing.type: Easing.OutCubic } }
             onOpenScreen: (name) => root.open(name)
+            onDone: root.pop()
         }
         DevicesScreen {
             id: devices
@@ -363,6 +364,7 @@ FocusScope {
             y: root.screen === "devices" ? 0 : 24 * Theme.scale
             Behavior on opacity { NumberAnimation { duration: Theme.ms(220); easing.type: Easing.OutCubic } }
             Behavior on y { NumberAnimation { duration: Theme.ms(260); easing.type: Easing.OutCubic } }
+            onOpenScreen: (name) => root.open(name)
             onConfirm: (title, body, label, accept, danger) => confirmDialog.open({ title: title, body: body, confirmLabel: label, onAccept: accept, danger: danger })
         }
         DiagnosticsScreen {

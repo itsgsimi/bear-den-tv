@@ -1066,6 +1066,62 @@ private slots:
         QVERIFY2(m_nav->screen() != QLatin1String("dialog") || m_nav->itemId().startsWith(QLatin1String("install")), qPrintable(m_nav->itemId()));
     }
 
+    // Pairing and Paired phones say what happened: after a phone pairs the
+    // TV names it with Pair another / Done instead of "Code used or
+    // expired" (UX-06); the list says "2 phones" and when each paired
+    // (UX-16); with none paired OK pairs one (UX-17).
+    void pairingSaysWhoJoined()
+    {
+        SessionModel *session = SessionModel::instance();
+        const auto restore = qScopeGuard([session, this] { session->applySnapshot(fixture()); goHome(); });
+        auto text = [this](const QString &name) { QObject *o = m_window->findChild<QObject *>(name); return o ? o->property("text").toString() : QString(); };
+        openFromHeader(QStringLiteral("pairing"));
+        QCOMPARE(shellScreen(), QStringLiteral("pairing"));
+        QJsonObject snap = fixture();
+        QJsonArray devices = snap.value(QStringLiteral("devices")).toArray();
+        devices.append(QJsonObject{{QStringLiteral("id"), QStringLiteral("dev_k9")}, {QStringLiteral("name"), QStringLiteral("DEMO kitchen tablet")},
+                                   {QStringLiteral("permissions"), QJsonArray{QStringLiteral("controller")}}, {QStringLiteral("connected"), true},
+                                   {QStringLiteral("last_seen_ms"), 120000}, {QStringLiteral("created_at"), QStringLiteral("2026-09-29T18:30:00Z")}});
+        snap.insert(QStringLiteral("devices"), devices);
+        QVERIFY2(session->applySnapshot(snap), qPrintable(session->lastError()));
+        QCOMPARE(text(QStringLiteral("pairedTitle")), QStringLiteral("“DEMO kitchen tablet” is paired"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("pair-another"));
+        act(QStringLiteral("nav.right"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("done"));
+        act(QStringLiteral("select"));
+        QCOMPARE(shellScreen(), QStringLiteral("home"));
+
+        // Paired phones: a real plural and when each phone paired.
+        openSettings();
+        toSettingsRow(QStringLiteral("devices"));
+        act(QStringLiteral("select"));
+        QCOMPARE(shellScreen(), QStringLiteral("devices"));
+        QString subtitle, row;
+        std::function<void(QQuickItem *)> find = [&](QQuickItem *item) {
+            if (!item->isVisible()) return;
+            if (item->property("title").toString() == QLatin1String("Paired phones")) subtitle = item->property("subtitle").toString();
+            if (item->objectName() == QLatin1String("deviceRow") && item->property("label").toString() == QLatin1String("DEMO kitchen tablet"))
+                row = item->property("description").toString();
+            for (QQuickItem *c : item->childItems()) find(c);
+        };
+        find(m_window->contentItem());
+        QCOMPARE(subtitle, QStringLiteral("3 phones can control this TV"));
+        QVERIFY2(row.contains(QStringLiteral(" · paired ")), qPrintable(row));
+        act(QStringLiteral("back"));
+        act(QStringLiteral("back"));
+
+        // None paired: OK pairs one.
+        snap.insert(QStringLiteral("devices"), QJsonArray{});
+        QVERIFY(session->applySnapshot(snap));
+        openSettings();
+        toSettingsRow(QStringLiteral("devices"));
+        act(QStringLiteral("select"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("pair"));
+        QVERIFY(visibleItem(QStringLiteral("pairFromDevices")));
+        act(QStringLiteral("select"));
+        QCOMPARE(shellScreen(), QStringLiteral("pairing"));
+    }
+
     // Home says what to do next: an installing app has no "Not installed"
     // pill beside "Installing 42%" (UX-07); a failed open offers "Try
     // opening … again" (UX-08); OK on a running app asks Switch (focused) or
@@ -1777,7 +1833,7 @@ private slots:
         // 04:00 and 08:00, so the test used to fail then: in the UTC morning on CI.)
         const qint64 endsMs = (QDateTime::currentMSecsSinceEpoch() + 6 * 3600 * 1000) / 60000 * 60000;
         const double ends = double(endsMs);
-        const QString endsAt = QDateTime::fromMSecsSinceEpoch(endsMs).toString(QStringLiteral("HH:mm"));
+        const QString endsAt = QLocale().toString(QDateTime::fromMSecsSinceEpoch(endsMs).time(), QLocale::ShortFormat);
         QFile pf(QStringLiteral(BDTV_FIXTURE_DIR "/pairing.guest-demo.json")); // DEMO invitation with a real QR
         QVERIFY(pf.open(QIODevice::ReadOnly));
         QJsonObject pairing = QJsonDocument::fromJson(pf.readAll()).object();
