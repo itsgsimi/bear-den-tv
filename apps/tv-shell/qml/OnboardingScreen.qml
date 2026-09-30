@@ -110,7 +110,7 @@ Item {
           value: Session.weather.status === undefined || Session.weather.status === "disabled" ? qsTr("Off") : (Session.weather.place || qsTr("On")) },
         { id: "autostart", kind: "toggle", icon: "power", label: qsTr("Start Bear Den when this PC starts"),
           description: autostart.available === false ? (autostart.reason || qsTr("Not available here"))
-                     : autostart.enabled === undefined ? qsTr("Not available from this coordinator") : qsTr("Opens Bear Den when you log in"),
+                     : autostart.enabled === undefined ? qsTr("Not available in this version of Bear Den") : qsTr("Opens Bear Den when you log in"),
           value: autostart.enabled === true ? "on" : "off" }
     ]
 
