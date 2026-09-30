@@ -59,7 +59,10 @@ ListView {
     // Leaving without OK: back to the theme in use.
     function cancel() { Session.endUiPreview() }
 
-    height: 284 * Theme.scale
+    // Room above and below the cards for the focused card's 5% scale-up, its
+    // focus frame (drawn outside the card) and the world's focus decorations:
+    // the strip clips, and 22 px cut the frame and art off on the TV.
+    height: (240 + 2 * 32) * Theme.scale
     orientation: ListView.Horizontal
     spacing: 26 * Theme.scale
     interactive: false
@@ -86,7 +89,9 @@ ListView {
         property string themeId: modelData.id
         width: 360 * Theme.scale
         height: 240 * Theme.scale
-        y: 22 * Theme.scale
+        // A horizontal ListView sets its delegates' y, so a y binding here was
+        // ignored (the cards sat at the top edge): move them with a transform.
+        transform: Translate { y: 32 * Theme.scale }
         scale: focused ? 1.05 : 1
         z: focused ? 2 : 0
         Behavior on scale { NumberAnimation { duration: Theme.durationFast } }
@@ -161,6 +166,6 @@ ListView {
                 }
             }
         }
-        FocusFrame { shown: card.focused; cornerRadius: frame.radius }
+        FocusFrame { objectName: "themeCardFocus"; shown: card.focused; cornerRadius: frame.radius }
     }
 }

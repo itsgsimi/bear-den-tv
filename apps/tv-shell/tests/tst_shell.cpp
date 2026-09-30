@@ -1853,6 +1853,34 @@ private slots:
         goHome();
     }
 
+    // The Themes strip clips its cards: the focused card (scaled up, with its
+    // focus frame drawn outside it) must fit inside it (on the TV the top was cut).
+    void themeCardFocusFitsInsideTheStrip()
+    {
+        openFromHeader(QStringLiteral("themes"));
+        QQuickItem *frame = nullptr;
+        std::function<void(QQuickItem *)> find = [&](QQuickItem *item) {
+            if (frame || !item->isVisible())
+                return;
+            if (item->objectName() == QLatin1String("themeCardFocus") && item->property("shown").toBool()) {
+                frame = item;
+                return;
+            }
+            for (QQuickItem *child : item->childItems())
+                find(child);
+        };
+        find(m_window->contentItem());
+        QVERIFY2(frame, "no focused theme card");
+        QQuickItem *strip = frame->parentItem();
+        while (strip && !strip->inherits("QQuickListView"))
+            strip = strip->parentItem();
+        QVERIFY(strip);
+        const QRectF r = frame->mapRectToItem(strip, QRectF(0, 0, frame->width(), frame->height()));
+        QVERIFY2(r.top() >= 0 && r.bottom() <= strip->height(),
+                 qPrintable(QStringLiteral("focus frame %1..%2 outside strip 0..%3").arg(r.top()).arg(r.bottom()).arg(strip->height())));
+        goHome();
+    }
+
     void appIconsRowSwitchesTheChoice()
     {
         SessionModel *session = SessionModel::instance();
