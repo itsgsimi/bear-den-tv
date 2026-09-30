@@ -531,6 +531,8 @@ export interface PlexSignIn {
   /** link_url as QR rows of 0/1 while linking. */
   qr_modules?: string[] | null;
   server: string | null;
+  /** Where the TV keeps the sign-in, once known (absent while unknown). */
+  stored_in?: 'keyring' | 'file';
   servers: PlexServer[];
   libraries: PlexLibrary[];
 }

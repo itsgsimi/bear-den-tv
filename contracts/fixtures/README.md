@@ -56,8 +56,9 @@ Canonical messages consumed by contract tests in Go ([`tests/contract/fixtures_t
 | `state.app-note-url.invalid.json` | rejected: a note never carries a URL |
 | `state.app-note-too-long.invalid.json` | rejected: a note is at most 160 characters |
 | `state.shell-plex-linking.valid.json` | `state.schema.json` (shell view in Settings → Plex, a link code shown) |
-| `state.shell-plex-libraries.valid.json` | `state.schema.json` (shell view choosing DEMO libraries) |
+| `state.shell-plex-libraries.valid.json` | `state.schema.json` (shell view choosing DEMO libraries; the sign-in kept in a private file, `stored_in: "file"`) |
 | `state.plex-bad-status.invalid.json` | rejected: `plex.status` must be one of the six sign-in states |
+| `state.plex-stored-in-bad.invalid.json` | rejected: `plex.stored_in` must be `keyring` or `file` |
 | `state.plex-token-field.invalid.json` | rejected: `plex` has no room for a token (`additionalProperties: false`) |
 | `state.phone-guest.valid.json` | `state.schema.json` (phone view of a guest pass: `me.permissions` `["guest"]` with `me.expires_at_ms`, DEMO `now_playing`) |
 | `state.shell-guest-pass.valid.json` | `state.schema.json` (shell view: a live guest-pass invitation, a family phone and a guest in `devices`) |

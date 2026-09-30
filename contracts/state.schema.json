@@ -239,6 +239,7 @@
         "link_url": {"type": ["string", "null"], "description": "Where to type the code (https://plex.tv/link) while status is linking; otherwise null. Shown and drawn as a QR code by the shell; the coordinator never fetches it."},
         "qr_modules": {"type": ["array", "null"], "items": {"type": "string", "pattern": "^[01]+$"}, "description": "link_url as a QR code while status is linking (rows of 0/1 characters, rendered by the shell like pairing.qr_modules); otherwise absent or null."},
         "server": {"type": ["string", "null"], "description": "The chosen server's name, when known."},
+        "stored_in": {"enum": ["keyring", "file"], "description": "Where this TV keeps the Plex sign-in, once known: the desktop keyring, or a private file only this user can read ($XDG_DATA_HOME/bear-den-tv/secrets, docs/security.md) when the keyring is locked or missing. Absent while unknown and from older coordinators."},
         "servers": {
           "type": "array",
           "description": "The account's servers while status is choose_server; otherwise empty.",

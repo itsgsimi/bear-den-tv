@@ -199,11 +199,11 @@ func (p *Provider) Connect(ctx context.Context) error {
 	token, err := p.opts.Secrets.Get(ctx, p.opts.ConnectionRef)
 	switch {
 	case errors.Is(err, secrets.ErrLocked):
-		return fail("Keyring is locked; unlock it to load Plex rows", err)
+		return fail("Your Plex sign-in is in the desktop keyring, which is locked; sign out and sign in again to keep it on this TV instead", err)
 	case errors.Is(err, secrets.ErrNotFound):
 		return fail("Plex account is not linked", err)
 	case errors.Is(err, secrets.ErrUnavailable):
-		return fail("No keyring is available for the Plex token", err)
+		return fail("This TV cannot read your Plex sign-in; sign out and sign in again", err)
 	case err != nil:
 		return fail("Plex token could not be read", err)
 	}

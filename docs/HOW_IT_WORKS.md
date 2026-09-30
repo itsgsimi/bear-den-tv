@@ -221,7 +221,9 @@ capability. Only a headless sway in a container has been tested
 Home can show Continue Watching and Recently Added from the owner's Plex
 server. Signing in happens on the TV (Settings → Plex): the coordinator
 gets a link code from plex.tv, the owner enters it at plex.tv/link, and the
-token goes into the desktop keyring (never a file). The coordinator then
+token goes into the desktop keyring, or, when that is locked or missing (a
+TV that logs in automatically never unlocks it), into a private file only
+the TV's user can read. The coordinator then
 talks only to the chosen server, refreshes the rows when Home shows and
 every 10 minutes while it stays in front (never behind an app), and caches
 the posters. Selecting a card opens Plex HTPC. Code: `internal/plexlink`,

@@ -5,11 +5,14 @@
 package plexlink
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -37,6 +40,12 @@ type rig struct {
 }
 
 func newRig(t *testing.T, fopts plexfake.Options, keyring secrets.Store) *rig {
+	t.Helper()
+	return newRigLogged(t, fopts, keyring, nil)
+}
+
+// newRigLogged is newRig with the manager's logger (nil: slog's default).
+func newRigLogged(t *testing.T, fopts plexfake.Options, keyring secrets.Store, logger *slog.Logger) *rig {
 	t.Helper()
 	clk := clock.NewFake(time.Date(2026, 9, 28, 20, 0, 0, 0, time.UTC))
 	fopts.Now = clk.Now
@@ -66,7 +75,7 @@ func newRig(t *testing.T, fopts plexfake.Options, keyring secrets.Store) *rig {
 	r.keyring = keyring
 	r.artDir = filepath.Join(t.TempDir(), "art")
 	r.m, err = New(Options{
-		Config: r.store, Secrets: keyring, Clock: clk, AccountURL: f.URL,
+		Config: r.store, Secrets: keyring, Clock: clk, AccountURL: f.URL, Logger: logger,
 		ClientIdentifier: "0123456789abcdef0123456789abcdef", ArtworkDir: r.artDir,
 		OnChange:      func() { r.changes.Add(1) },
 		ClientOptions: plex.ClientOptions{Retries: -1},
@@ -217,11 +226,11 @@ func pinID(r *rig) string {
 func TestSignInWithoutAKeyringFailsClosed(t *testing.T) {
 	r := newRig(t, plexfake.Options{}, secrets.Unavailable{Reason: "no D-Bus session bus"})
 	err := r.m.SignIn(context.Background())
-	if err == nil || !strings.Contains(err.Error(), MsgNoKeyring) {
+	if err == nil || !strings.Contains(err.Error(), MsgNoStore) {
 		t.Fatalf("err = %v", err)
 	}
 	st := r.m.State()
-	if st.Status != contract.PlexError || !strings.HasPrefix(st.Message, MsgNoKeyring) || st.Code != nil {
+	if st.Status != contract.PlexError || !strings.HasPrefix(st.Message, MsgNoStore) || st.Code != nil {
 		t.Fatalf("state = %+v", st)
 	}
 	if n := len(r.fake.Requests()); n != 0 {
@@ -238,6 +247,97 @@ func TestLockedKeyringFailsClosed(t *testing.T) {
 	}
 	if !strings.Contains(r.m.State().Message, "locked") || len(r.fake.Requests()) != 0 {
 		t.Fatalf("state = %+v, requests = %d", r.m.State(), len(r.fake.Requests()))
+	}
+}
+
+// syncBuffer is a log sink safe for the loop's goroutines.
+type syncBuffer struct {
+	mu  sync.Mutex
+	buf bytes.Buffer
+}
+
+func (b *syncBuffer) Write(p []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.Write(p)
+}
+
+func (b *syncBuffer) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.String()
+}
+
+// The TV logs in automatically, so its keyring stays locked: the sign-in
+// goes into a private file (0700 folder, 0600 file), the screen says so,
+// the rows read it back, sign-out deletes it, and the token never reaches
+// a log line (at debug level), config.json or the state.
+func TestLockedKeyringKeepsTheSignInInAPrivateFile(t *testing.T) {
+	keyring := secrets.NewMemory()
+	keyring.SetLocked(true)
+	dir := filepath.Join(t.TempDir(), "bear-den-tv", "secrets")
+	store := secrets.NewFallback(keyring, secrets.NewFile(dir, "plex-"))
+	logs := &syncBuffer{}
+	logger := slog.New(slog.NewTextHandler(logs, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	r := newRigLogged(t, plexfake.Options{}, store, logger)
+	r.run()
+	r.m.Observe(true, true)
+	r.signIn("1")
+	r.eventually("rows", func() bool { c := r.m.Content(); return c != nil && c.Status == providers.StatusReady })
+
+	file := filepath.Join(dir, "plex-"+DefaultConnectionRef)
+	raw, err := os.ReadFile(file)
+	if err != nil || string(raw) != r.fake.Token() {
+		t.Fatalf("the private file holds %q, %v", raw, err)
+	}
+	for path, want := range map[string]os.FileMode{dir: 0o700, file: 0o600} {
+		fi, err := os.Lstat(path)
+		if err != nil || fi.Mode().Perm() != want {
+			t.Fatalf("%s: mode %v, %v; want %o", path, fi.Mode().Perm(), err, want)
+		}
+	}
+	st := r.m.State()
+	if st.Status != contract.PlexConnected || st.StoredIn != secrets.InFile {
+		t.Fatalf("state = %+v, want connected with stored_in file", st)
+	}
+	cfgRaw, err := os.ReadFile(filepath.Join(r.cfgDir, config.FileName))
+	if err != nil || strings.Contains(string(cfgRaw), r.fake.Token()) {
+		t.Fatalf("config.json holds the token (or cannot be read: %v)", err)
+	}
+
+	if err := r.m.SignOut(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Lstat(file); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("sign-out left the private file: %v", err)
+	}
+	if st := r.m.State(); st.Status != contract.PlexSignedOut || st.StoredIn != "" {
+		t.Fatalf("state after sign-out = %+v", st)
+	}
+	out := logs.String()
+	if !strings.Contains(out, "plex") {
+		t.Fatalf("nothing was logged, so the check below proves nothing:\n%s", out)
+	}
+	if strings.Contains(out, r.fake.Token()) {
+		t.Fatalf("the token reached the log:\n%s", out)
+	}
+}
+
+// An unlocked keyring is used, and the state says so.
+func TestUnlockedKeyringKeepsTheSignIn(t *testing.T) {
+	keyring := secrets.NewMemory()
+	dir := filepath.Join(t.TempDir(), "secrets")
+	store := secrets.NewFallback(keyring, secrets.NewFile(dir, "plex-"))
+	r := newRig(t, plexfake.Options{}, store)
+	r.signIn("1")
+	if tok, err := keyring.Get(context.Background(), DefaultConnectionRef); err != nil || tok != r.fake.Token() {
+		t.Fatalf("keyring holds %q, %v", tok, err)
+	}
+	if _, err := os.Lstat(filepath.Join(dir, "plex-"+DefaultConnectionRef)); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("a file copy was written too: %v", err)
+	}
+	if st := r.m.State(); st.StoredIn != secrets.InKeyring {
+		t.Fatalf("stored_in = %q", st.StoredIn)
 	}
 }
 

@@ -493,6 +493,9 @@ bool SessionModel::validateSnapshot(const QJsonObject &snapshot, QString *error)
             || !requireType(plex, QStringLiteral("servers"), QJsonValue::Array, where, error)
             || !requireType(plex, QStringLiteral("libraries"), QJsonValue::Array, where, error))
             return false;
+        // stored_in (optional): where the sign-in is kept.
+        if (plex.contains(QStringLiteral("stored_in")) && !requireEnum(plex, QStringLiteral("stored_in"), {QStringLiteral("keyring"), QStringLiteral("file")}, where, error))
+            return false;
         for (const QJsonValue &sv : plex.value(QStringLiteral("servers")).toArray()) {
             if (!requireKeys(sv.toObject(), {QStringLiteral("id"), QStringLiteral("name"), QStringLiteral("owned"), QStringLiteral("local")}, QStringLiteral("state.plex.servers[]"), error))
                 return false;

@@ -150,8 +150,9 @@ why when installs are unavailable (for example no Flatpak).
 [`operations.md` → App installs](operations.md#app-installs).
 
 **Keyring (Secret Service).** The desktop's password store (for example
-gnome-keyring). Bear Den keeps the Plex token there and nowhere else; without
-a usable keyring, Plex sign-in fails closed.
+gnome-keyring). Bear Den keeps the Plex token there when it is unlocked;
+otherwise in a private file only the TV's user can read
+(`$XDG_DATA_HOME/bear-den-tv/secrets/`, [`security.md`](security.md#plex-sign-in)).
 [`internal/secrets`](../internal/secrets/secrets.go).
 
 **Layout.** The owner's home screen setup: `ui` options (theme, style, text

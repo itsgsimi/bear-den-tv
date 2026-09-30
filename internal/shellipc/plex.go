@@ -53,7 +53,8 @@ type PlexChooseLibraries struct {
 // Kind implements Message.
 func (PlexChooseLibraries) Kind() string { return TypePlexChooseLibraries }
 
-// PlexSignOut forgets the account: the token leaves the keyring, rows and
+// PlexSignOut forgets the account: the token leaves the keyring and the
+// private file (internal/secrets), rows and
 // cached artwork go.
 type PlexSignOut struct {
 	Type      string `json:"type"`

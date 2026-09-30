@@ -17,12 +17,15 @@ const (
 // the sign-in flow. The link code is for the TV screen only; the account
 // token never appears in this struct.
 type Plex struct {
-	Status    string        `json:"status"`
-	Message   string        `json:"message"`
-	Code      *string       `json:"code"`
-	LinkURL   *string       `json:"link_url"`
-	QRModules []string      `json:"qr_modules,omitempty"` // link_url as a QR code while linking (filled by the session)
-	Server    *string       `json:"server"`
+	Status    string   `json:"status"`
+	Message   string   `json:"message"`
+	Code      *string  `json:"code"`
+	LinkURL   *string  `json:"link_url"`
+	QRModules []string `json:"qr_modules,omitempty"` // link_url as a QR code while linking (filled by the session)
+	Server    *string  `json:"server"`
+	// StoredIn is where the sign-in is kept, once known: "keyring" or
+	// "file" (secrets.InKeyring, secrets.InFile); "" is omitted.
+	StoredIn  string        `json:"stored_in,omitempty"`
 	Servers   []PlexServer  `json:"servers"`
 	Libraries []PlexLibrary `json:"libraries"`
 }

@@ -390,7 +390,7 @@
   "code": null,
   "link_url": null,
   "server": "DEMO Plex Server",
-  "stored_in": "file",
+  "stored_in": "config",
   "servers": [],
   "libraries": [
    {

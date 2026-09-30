@@ -490,20 +490,33 @@ build/bin/bear-den-tv plex sign-in          # prints the code; type it at plex.t
 build/bin/bear-den-tv plex status           # servers / libraries with their ids once linked
 build/bin/bear-den-tv plex server ID        # only when you have several servers
 build/bin/bear-den-tv plex libraries 1 2    # finish with these library ids
-build/bin/bear-den-tv plex sign-out         # token out of the keyring, rows and posters gone
+build/bin/bear-den-tv plex sign-out         # sign-in deleted (keyring and private file), rows and posters gone
 ```
 
 `bear-den-tv plex cancel` abandons a sign-in in progress.
 
 | You see | Do |
 |---|---|
-| "Plex sign-in needs a keyring; install or enable gnome-keyring" | The desktop session has no Secret Service (or it is locked). Install/enable gnome-keyring (or another Secret Service) for the TV user, log in again, retry. Bear Den never stores the token in a file. |
+| "This TV could not keep your Plex sign-in (…)" | Neither the keyring nor the private file worked; the brackets say why (for example the secrets folder is a link to somewhere else, or belongs to another user). Fix that folder (below) and retry. |
 | "The code expired" | Choose **Try again** for a new code. |
 | "Can't reach plex.tv" | The TV has no internet; check it and retry. |
 | "can't reach <server> from this TV" | None of that server's addresses answered as that server. Is it on and on the same network? |
 | Rows say "Can't reach your Plex server" | The server is off or unreachable. Rows retry after 30 s, 1, 2, 5, then every 10 minutes while Home is in front. |
 | Rows say "Plex no longer accepts this TV's sign-in" | The device was removed on plex.tv. Sign out, then sign in again. |
-| Rows say "Plex account is not linked" | The keyring lost the token (for example a new keyring). Sign in again. |
+| Rows say "Plex account is not linked" | The keyring or the private file lost the token (for example a new keyring, or the file was deleted). Sign in again. |
+| Rows say "Your Plex sign-in is in the desktop keyring, which is locked" | You signed in once while the keyring was unlocked, and it is locked now (after a reboot with automatic login). Sign out, then sign in again: it is then kept in the private file. |
+
+### Where the Plex sign-in is kept
+
+Your Plex sign-in is kept in a private file on this TV (only your user can read it), like Plex HTPC keeps its own. More precisely: in the desktop keyring when it is unlocked, and
+otherwise (the usual case on a TV that logs in automatically) in
+`~/.local/share/bear-den-tv/secrets/plex-plex` (`$XDG_DATA_HOME`), a 0600
+file in a 0700 folder. Settings → Plex says which. To remove it, sign out
+(TV Settings → Plex → **Sign out**, or `build/bin/bear-den-tv plex sign-out`):
+that deletes the file (and the keyring entry). Deleting the file by hand
+while Bear Den is stopped does the same for the token, but leaves Plex
+turned on in `config.json` until you sign out. Details:
+[`security.md` → Plex sign-in](security.md#plex-sign-in).
 
 For development, `bear-den-tv dev --dev-plex-fake` runs the whole flow against
 a local fake plex.tv and server with DEMO titles and generated DEMO posters

@@ -1431,12 +1431,24 @@ private slots:
         snap.insert(QStringLiteral("plex"), plex);
         QVERIFY(!session->applySnapshot(snap));
         QVERIFY2(session->lastError().contains(QStringLiteral("state.plex")), qPrintable(session->lastError()));
+        // stored_in is optional, keyring or file.
+        plex.insert(QStringLiteral("status"), QStringLiteral("connected"));
+        plex.insert(QStringLiteral("stored_in"), QStringLiteral("file"));
+        snap.insert(QStringLiteral("plex"), plex);
+        QVERIFY2(session->applySnapshot(snap), qPrintable(session->lastError()));
+        QCOMPARE(session->plex().value(QStringLiteral("stored_in")).toString(), QStringLiteral("file"));
+        snap.insert(QStringLiteral("context_epoch"), epoch + 410);
+        plex.insert(QStringLiteral("stored_in"), QStringLiteral("config"));
+        snap.insert(QStringLiteral("plex"), plex);
+        QVERIFY(!session->applySnapshot(snap));
+        QVERIFY2(session->lastError().contains(QStringLiteral("stored_in")), qPrintable(session->lastError()));
+        plex.remove(QStringLiteral("stored_in"));
         plex.insert(QStringLiteral("status"), QStringLiteral("choose_libraries"));
         lib.insert(QStringLiteral("kind"), QStringLiteral("podcast"));
         plex.insert(QStringLiteral("libraries"), QJsonArray{lib});
         snap.insert(QStringLiteral("plex"), plex);
         QVERIFY(!session->applySnapshot(snap));
-        QCOMPARE(session->contextEpoch(), epoch + 210); // the previous state stays
+        QCOMPARE(session->contextEpoch(), epoch + 310); // the previous state stays
         QVERIFY(session->applySnapshot(fixture()));
         QVERIFY(session->plex().isEmpty());
     }
@@ -1539,7 +1551,12 @@ private slots:
 
         QJsonObject connected = plexState(QStringLiteral("connected"));
         connected.insert(QStringLiteral("server"), QStringLiteral("DEMO B"));
+        connected.insert(QStringLiteral("stored_in"), QStringLiteral("file"));
         withPlex(connected);
+        // Where the sign-in is kept, in plain words.
+        QObject *stored = m_window->findChild<QObject *>(QStringLiteral("plexStoredLine"));
+        QVERIFY(stored);
+        QTRY_VERIFY(stored->property("text").toString().contains(QStringLiteral("private file on this TV (only your user can read it)")));
         act(QStringLiteral("select"));
         QCOMPARE(m_nav->itemId(), QStringLiteral("sign-out"));
         act(QStringLiteral("select")); // confirmation, focus on the safe choice

@@ -84,6 +84,7 @@ const SCHEMA_FOR: Record<string, string> = {
   'state.shell-plex-libraries.valid.json': 'state.schema.json',
   'state.plex-bad-status.invalid.json': 'state.schema.json',
   'state.plex-token-field.invalid.json': 'state.schema.json',
+  'state.plex-stored-in-bad.invalid.json': 'state.schema.json',
   'state.phone-guest.valid.json': 'state.schema.json',
   'state.shell-guest-pass.valid.json': 'state.schema.json',
   'state.guest-with-controller.invalid.json': 'state.schema.json',

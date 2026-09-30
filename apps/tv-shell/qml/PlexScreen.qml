@@ -7,7 +7,8 @@
 //   choose_libraries    a toggle per library (movies and shows proposed); Done
 //   connected           the server, the libraries, how the rows are; Sign out
 // Leaving the screen mid-flow cancels it (nothing is stored). The token never
-// reaches the shell; the coordinator keeps it in the keyring.
+// reaches the shell; the coordinator keeps it in the desktop keyring, or when
+// that is locked in a private file (state.plex.stored_in, storedLine).
 
 pragma ComponentBehavior: Bound
 import QtQuick
@@ -30,6 +31,12 @@ Item {
     // choose_libraries: the owner's changes to the proposal (state.plex
     // libraries[].selected), by library id.
     property var picks: ({})
+    // Where the sign-in is kept, in plain words (state.plex.stored_in).
+    readonly property string storedLine: plex.stored_in === "file"
+        ? qsTr("Your Plex sign-in is kept in a private file on this TV (only your user can read it), like Plex HTPC keeps its own. Sign out deletes it.")
+        : plex.stored_in === "keyring"
+            ? qsTr("Your Plex sign-in is kept in the desktop keyring. Sign out deletes it.")
+            : ""
     function picked(lib) { return picks[lib.id] !== undefined ? picks[lib.id] : lib.selected === true }
 
     onStatusChanged: {
@@ -75,7 +82,7 @@ Item {
             Shell.plexChooseLibraries(ids)
         } else if (it.id === "sign-out") {
             confirm(qsTr("Sign out of Plex?"),
-                    qsTr("The Home rows and their pictures go, and this TV forgets its Plex sign-in. Plex HTPC keeps its own sign-in."),
+                    qsTr("The Home rows and their pictures go, and this TV deletes its Plex sign-in. Plex HTPC keeps its own sign-in."),
                     qsTr("Sign out"), () => { root.busy = true; Shell.plexSignOut() })
         }
     }
@@ -162,7 +169,7 @@ Item {
             Text {
                 width: parent.width
                 wrapMode: Text.WordWrap
-                text: qsTr("Nothing is sent to Plex until you sign in. Then this TV talks only to plex.tv and the server you choose, and keeps its sign-in in the desktop keyring.")
+                text: qsTr("Nothing is sent to Plex until you sign in. Then this TV talks only to plex.tv and the server you choose. It keeps your sign-in in the desktop keyring, or, when that is locked, in a private file on this TV that only your user can read (as Plex HTPC keeps its own).")
                 color: Theme.textSecondary
                 font.family: Theme.fontFamily
                 font.pixelSize: 24 * Theme.fontUnit
@@ -371,6 +378,16 @@ Item {
                 width: parent.width
                 wrapMode: Text.WordWrap
                 text: qsTr("Choosing an item on Home opens Plex. Phones see the rows, never this sign-in.")
+                color: Theme.textMuted
+                font.family: Theme.fontFamily
+                font.pixelSize: 22 * Theme.fontUnit
+            }
+            Text {
+                objectName: "plexStoredLine"
+                visible: text.length > 0
+                width: parent.width
+                wrapMode: Text.WordWrap
+                text: root.storedLine
                 color: Theme.textMuted
                 font.family: Theme.fontFamily
                 font.pixelSize: 22 * Theme.fontUnit

@@ -27,7 +27,8 @@ import (
 const plexUsage = `usage: bear-den-tv plex status | sign-in | server ID | libraries ID... | cancel | sign-out`
 
 // newPlexLink builds the Plex connector for a session. A real session gets
-// the desktop keyring and plex.tv, but no traffic until the owner signs in.
+// the desktop keyring (or, when it is locked or missing, a private file under
+// $XDG_DATA_HOME/bear-den-tv/secrets) and plex.tv, but no traffic until the owner signs in.
 // dev gets one only with --dev-plex-fake: an in-memory keyring and a local
 // fake plex.tv/server with DEMO titles, which links a code on its third poll.
 // The returned stop closes the fake.
@@ -57,7 +58,9 @@ func newPlexLink(f sessionFlags, paths doctor.Paths, store *config.Store, log *s
 			return nil, stop, err
 		}
 		opts.ClientIdentifier = id
-		opts.Secrets = secrets.Detect()
+		// The desktop keyring when it is unlocked, else a private file
+		// (a TV that logs in automatically never unlocks its keyring).
+		opts.Secrets = secrets.NewFallback(secrets.Detect(), secrets.NewFile(filepath.Join(paths.DataDir, "secrets"), "plex-"))
 	}
 	m, err := plexlink.New(opts)
 	if err != nil {

@@ -5,8 +5,11 @@
 // Privacy (docs/security.md): nothing here touches the network until the
 // owner chooses Sign in. From then on it talks to plex.tv (link code, server
 // list) and, after the owner picks a server, only to that server. The token
-// goes into the keyring (internal/secrets) under plex_content.connection_ref
-// and nowhere else; without a usable keyring sign-in fails closed.
+// goes into the secret store (internal/secrets) under
+// plex_content.connection_ref and nowhere else: the desktop keyring when it
+// is unlocked, else a private file only this user can read (secrets.Fallback;
+// state.plex.stored_in says which). When neither can keep it, sign-in fails
+// closed before anything is sent.
 //
 // Refresh cadence: rows refresh when Home comes to the front (unless they
 // did less than MinRefreshGap ago) and every RefreshInterval while Home stays
@@ -35,8 +38,8 @@ import (
 	"bear-den-tv/internal/secrets"
 )
 
-// DefaultConnectionRef is the keyring reference used when plex_content has
-// none.
+// DefaultConnectionRef is the secret store reference used when
+// plex_content has none.
 const DefaultConnectionRef = "plex"
 
 // Cadence defaults (Options fields override them).
@@ -55,7 +58,9 @@ var DefaultBackoff = []time.Duration{30 * time.Second, time.Minute, 2 * time.Min
 
 // User-facing messages (state.plex.message).
 const (
-	MsgNoKeyring     = "Plex sign-in needs a keyring; install or enable gnome-keyring"
+	// MsgNoStore: neither the keyring nor the private file could keep the
+	// sign-in; the reason follows in brackets.
+	MsgNoStore       = "This TV could not keep your Plex sign-in"
 	MsgPlexTV        = "Can't reach plex.tv; check the TV's internet connection"
 	MsgCodeExpired   = "The code expired. Choose Sign in to get a new one."
 	MsgNoServers     = "This Plex account has no Plex Media Server"
@@ -241,6 +246,10 @@ func (m *Manager) State() contract.Plex {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	st := contract.Plex{Status: contract.PlexSignedOut, Servers: []contract.PlexServer{}, Libraries: []contract.PlexLibrary{}}
+	// Where the sign-in is kept, as the store last saw it (no I/O here).
+	if loc, ok := m.opts.Secrets.(secrets.Locator); ok {
+		st.StoredIn = loc.StoredIn(m.ref(cfg))
+	}
 	if f := m.fl; f != nil {
 		st.Status, st.Message = f.status, f.message
 		if f.status == contract.PlexLinking && f.code != "" {
@@ -563,12 +572,12 @@ func (m *Manager) setFlow(f *flow, status, message string) {
 	m.changed()
 }
 
-// SignIn starts linking: a keyring check, then a link code from plex.tv.
+// SignIn starts linking: a secret store check, then a link code from plex.tv.
 // It returns once the code is shown (or with the reason it cannot be).
 func (m *Manager) SignIn(ctx context.Context) error {
 	m.stopFlow()
 	if ok, reason := m.opts.Secrets.Available(ctx); !ok {
-		msg := MsgNoKeyring
+		msg := MsgNoStore
 		if reason != "" {
 			msg += " (" + reason + ")"
 		}
@@ -639,7 +648,7 @@ func (m *Manager) linked(ctx context.Context, f *flow, acct *plex.Account, token
 	cfg := m.opts.Config.Current()
 	if err := m.opts.Secrets.Set(ctx, m.ref(cfg), token, "Bear Den TV: Plex sign-in"); err != nil {
 		m.log.Warn("plex: could not store the token", "err", err)
-		m.setFlow(f, contract.PlexError, MsgNoKeyring)
+		m.setFlow(f, contract.PlexError, MsgNoStore)
 		return
 	}
 	servers, err := acct.DiscoverServers(ctx, token)
@@ -793,7 +802,7 @@ func (m *Manager) ChooseLibraries(ctx context.Context, ids []string) error {
 	return nil
 }
 
-// stopFlow ends a running flow without touching the keyring.
+// stopFlow ends a running flow without touching the secret store.
 func (m *Manager) stopFlow() *flow {
 	m.mu.Lock()
 	f := m.fl
@@ -820,15 +829,16 @@ func (m *Manager) Cancel(ctx context.Context) error {
 }
 
 // SignOut forgets the account (plex.sign_out): the token leaves the
-// keyring, plex_content is turned off, the Plex sections are hidden and the
-// cached artwork is deleted. Everything but the keyring step happens even
+// keyring and the private file (whichever holds it), plex_content is
+// turned off, the Plex sections are hidden and the cached artwork is
+// deleted. Everything but the secret step happens even
 // when that step fails; the error then says why.
 func (m *Manager) SignOut(ctx context.Context) error {
 	m.stopFlow()
 	cfg := m.opts.Config.Current()
 	var errs []error
 	if err := m.opts.Secrets.Delete(ctx, m.ref(cfg)); err != nil && !errors.Is(err, secrets.ErrNotFound) {
-		errs = append(errs, fmt.Errorf("the token could not be removed from the keyring: %w", err))
+		errs = append(errs, fmt.Errorf("the Plex sign-in could not be deleted: %w", err))
 	}
 	if _, err := m.opts.Config.Update(func(c *config.Config) error {
 		c.PlexContent.Enabled = false

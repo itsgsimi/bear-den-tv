@@ -1,12 +1,14 @@
 // Package secrets stores optional connector tokens (the Plex content
 // connector's account token) outside config.json, exports, logs, and phone
 // payloads. Configuration only ever holds an opaque connection_ref; the value
-// behind it lives in the desktop Secret Service when one is usable.
+// behind it lives in the desktop Secret Service when one is usable (dbus.go),
+// otherwise in a private file only this user can read (file.go), chosen by
+// Fallback (fallback.go): a TV that logs in automatically never unlocks its
+// login keyring. Memory and Unavailable serve tests and dev runs.
 //
-// A locked or absent keyring is a clean, explained failure: callers get
-// ErrLocked or ErrUnavailable with a user-facing reason and must disable the
-// connector or ask the user for a storage choice. Nothing in this package
-// falls back to writing a token into a file, and nothing here logs values.
+// Every failure is explained: callers get ErrLocked or ErrUnavailable with
+// a user-facing reason. Nothing here logs values or puts them in errors.
+// Spec: docs/security.md "Plex sign-in".
 package secrets
 
 import (
