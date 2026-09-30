@@ -26,6 +26,7 @@ library (no Pillow, no image editor). Why: [ADR 0005](../../docs/decisions/0005-
 | [`hero.py`](hero.py) | the featured panel's rooms: cinema, cabin, arcade, nook (Spotify), theatre (Jellyfin), retro (RetroArch) | `apps/tv-shell/assets/pixel/hero-<scene>.png`, `apps/tv-shell/qml/HeroRig.js` |
 | [`weather.py`](weather.py) | ten weather icons | `apps/tv-shell/assets/pixel/weather-<name>.png` |
 | [`appicons.py`](appicons.py) | Bear Den's own app icons: one 32×32 badge per adapter (bear ears, brand colours, a motif; never an official logo; shown with Settings → App icons → Bear Den style, or when an app's own icon is not available; [`docs/THEMES.md` → App icons](../../docs/THEMES.md#app-icons)) | `apps/tv-shell/assets/pixel/app-<adapter>.png`; phone copies in `apps/remote-web/static/art/pixel/` |
+| [`uiicons.py`](uiicons.py) | Bear Den's UI icons: one 32×32 badge per shell pill, settings row or setup card (`gear`, `apps`, `themes`, `phone`, `display`, `home`, `play`, `power`, `about`, `plus`, `globe`, `refresh`, `medal`, `wave`), the app icons' bear-ear badge in its own den colour with a bold cream motif ([`docs/THEMES.md` → UI icons](../../docs/THEMES.md#ui-icons)) | `apps/tv-shell/assets/pixel/icon-<name>.png`; phone copies of the icons in `PHONE` (today `plus`) in `apps/remote-web/static/art/pixel/` |
 | [`badges.py`](badges.py) | the Den badge medals and their silhouettes ([`docs/THEMES.md` → Den badges](../../docs/THEMES.md#den-badges)) | `apps/tv-shell/assets/pixel/badge-<id>[-locked].png`; phone copies in `apps/remote-web/static/art/pixel/` |
 | [`weatherprops.py`](weatherprops.py) | the props of the weather in the corner scene: a tarp on poles, the startled "!", a leaf umbrella ([`docs/THEMES.md` → Weather in the corner scene](../../docs/THEMES.md#weather-in-the-corner-scene)) | `apps/tv-shell/assets/pixel/scene-wx-{tarp,startle,umbrella}.png` |
 
@@ -42,10 +43,11 @@ python3 -B tools/pixelart/build.py --preview winter     # also write enlarged pr
 ```
 
 - Part names: `den`, `forest`, `midnight`, `campfire`, `winter`, `bears`,
-  `ornaments`, `scenes`, `hero`, `weather`, `weatherprops`, `appicons`, `badges`.
+  `ornaments`, `scenes`, `hero`, `weather`, `weatherprops`, `appicons`, `badges`, `uiicons`.
 - `--preview` writes to `build/pixel-preview/` (for example `winter-f0.png`,
   `bears.png`, `ornaments.png`, `scenes.png`, `hero.png`, `weather.png`,
-  `weatherprops.png`, `appicons.png`, `badges.png`).
+  `weatherprops.png`, `appicons.png`, `badges.png`, `uiicons.png` and
+  `uiicons-small.png`).
 - `-B` stops Python writing `__pycache__` files into the tree.
 
 ## Recipes

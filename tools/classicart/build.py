@@ -4,7 +4,7 @@ tools/pixelart for the parts that were only ever drawn as pixels.
     python3 -B tools/classicart/build.py            # everything
     python3 -B tools/classicart/build.py winter     # only these parts
 
-Parts: winter, hero, weather, extras, layers, appicons, badges. Deterministic: a second run changes
+Parts: winter, hero, weather, extras, layers, appicons, badges, uiicons. Deterministic: a second run changes
 nothing. See README.md.
 """
 
@@ -20,11 +20,13 @@ import badges   # noqa: E402
 import extras   # noqa: E402
 import hero     # noqa: E402
 import layers   # noqa: E402
+import uiicons  # noqa: E402
 import weather  # noqa: E402
 import winter   # noqa: E402
 
 PARTS = {'winter': winter.build, 'hero': hero.build, 'weather': weather.build, 'extras': extras.build,
-         'layers': layers.build, 'appicons': appicons.build, 'badges': badges.build}
+         'layers': layers.build, 'appicons': appicons.build, 'badges': badges.build,
+         'uiicons': uiicons.build}
 
 
 def main(argv):

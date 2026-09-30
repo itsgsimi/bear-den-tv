@@ -912,6 +912,44 @@ is a streaming site, or its Flatpak exports none).
   (preview `build/pixel-preview/appicons.png`) and
   `python3 -B tools/classicart/build.py appicons`.
 
+## UI icons
+
+The shell's own pictures for its pills, settings rows and setup cards are
+generated in both art styles, in the same family as the [app icons](#app-icons):
+the bear-ear badge, each in its own den colour, holding one bold cream motif
+that reads at 48–96 screen pixels from the couch. Original art only.
+
+| Name | Motif | For |
+|---|---|---|
+| `gear` | a chunky cog | Settings |
+| `apps` | a 2×2 grid of tiles | Apps |
+| `themes` | a painter's palette with a brush | Themes |
+| `phone` | a phone with a bear face on its screen | Pair phone; Phones & remote |
+| `display` | a TV screen with an eye | Display & accessibility |
+| `home` | a little log cabin | Home screen |
+| `play` | a play triangle on a film frame | Playback |
+| `power` | a crescent moon with a power symbol | Power & TV |
+| `about` | a round "i" | About |
+| `plus` | a big bold "+" | Add apps |
+| `globe` | a wireframe globe | Streaming sites |
+| `refresh` | two circular arrows | Keep apps up to date |
+| `medal` | a gold medal with a paw | Den badges |
+| `wave` | a bear paw waving | Welcome / setup |
+
+- **Where:** `apps/tv-shell/assets/pixel/icon-<name>.png` (32×32 art pixels,
+  `tools/pixelart/uiicons.py`) and `apps/tv-shell/assets/classic/icon-<name>.svg`
+  (a 32×32 view box, `tools/classicart/uiicons.py`, colours read from the
+  pixel module). Both folders are globbed into the shell build. Icons listed
+  in `PHONE` (today `plus`) are also copied to `apps/remote-web/static/art/`.
+- **Generated:** edit the code, never the files. Regenerate with
+  `python3 -B tools/pixelart/build.py --preview uiicons` (look at
+  `build/pixel-preview/uiicons.png` and `uiicons-small.png`) and
+  `python3 -B tools/classicart/build.py uiicons`.
+- **Add one:** a colour in `BADGE` and a motif function in `ICONS` in
+  `tools/pixelart/uiicons.py`, the smooth twin with the same name in
+  `tools/classicart/uiicons.py`, a row in the table above; rebuild both and
+  look at the preview at 1× and 2×.
+
 ## Den badges
 
 Each Den badge ([`docs/operations.md`](operations.md#den-badges)) has an
