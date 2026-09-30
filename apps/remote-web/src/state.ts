@@ -46,6 +46,8 @@ export interface PendingAction {
   outcome: Outcome | null;
   code: ResultCode | 'transport' | null;
   message: string;
+  /** audio.mute only: what it asked for (the Mute/Unmute toggle). */
+  muted?: boolean;
 }
 
 export type HoldPhase = 'idle' | 'active' | 'busy' | 'expired' | 'cancelled';
@@ -81,6 +83,8 @@ export interface PairState {
   notice: string | null;
   device_name: string;
   infoError: string | null;
+  /** A QR invitation waits for this phone's name and Connect (UX-16). */
+  invite?: boolean;
 }
 
 export interface EditorState {
@@ -111,6 +115,8 @@ export interface AppState {
   info: Info | null;
   session: Session | null;
   connection: Connection;
+  /** When the connection to the TV was lost (phone clock, ms), or null while online (UX-12). */
+  lostAt: number | null;
   snapshot: StateSnapshot | null;
   /** When the last snapshot arrived, on the controller clock (`now()` in app.ts); 0 before any. */
   snapshotAt: number;
@@ -142,7 +148,8 @@ export type Event =
   | { type: 'session_started'; session: Session }
   | { type: 'session_ended'; reason: SessionEndReason }
   | { type: 'pair_required' }
-  | { type: 'connection_changed'; connection: Connection }
+  | { type: 'connection_changed'; connection: Connection; at?: number }
+  | { type: 'pair_invited' }
   | { type: 'state_received'; snapshot: StateSnapshot; at: number }
   | { type: 'visibility_changed'; hidden: boolean }
   | { type: 'install_ready_expired'; at: number }
@@ -202,6 +209,7 @@ export function initialState(deviceName = ''): AppState {
     info: null,
     session: null,
     connection: 'idle',
+    lostAt: null,
     snapshot: null,
     snapshotAt: 0,
     hidden: false,
@@ -247,8 +255,12 @@ export function reduce(state: AppState, event: Event): AppState {
     }
     case 'pair_required':
       return { ...state, screen: 'pair', pair: { ...state.pair, busy: false, redeeming: false } };
+    case 'pair_invited':
+      return { ...state, screen: 'pair', pair: { ...state.pair, busy: false, redeeming: false, invite: true } };
     case 'connection_changed': {
-      const next: AppState = { ...state, connection: event.connection };
+      // The first moment it was lost; cleared once online again.
+      const lostAt = event.connection === 'online' ? null : state.connection === 'online' ? (event.at ?? null) : state.lostAt;
+      const next: AppState = { ...state, connection: event.connection, lostAt };
       if (state.hold.phase === 'active' && event.connection !== 'online') {
         next.hold = { ...state.hold, phase: 'cancelled', reason: 'disconnected' };
       }
@@ -286,6 +298,7 @@ export function reduce(state: AppState, event: Event): AppState {
             outcome: null,
             code: null,
             message: '',
+            ...(event.request.action === 'audio.mute' ? { muted: (event.request.args as { muted?: boolean }).muted === true } : {}),
           },
         },
       };
@@ -300,6 +313,7 @@ export function reduce(state: AppState, event: Event): AppState {
         outcome: result.outcome,
         code: result.code,
         message: result.message,
+        ...(previous?.muted !== undefined ? { muted: previous.muted } : {}),
       };
       if (!previous) return state;
       const next: AppState = { ...state, pending: { ...state.pending, [result.request_id]: entry } };
@@ -352,7 +366,7 @@ export function reduce(state: AppState, event: Event): AppState {
     case 'pair_device_name':
       return { ...state, pair: { ...state.pair, device_name: event.name } };
     case 'pair_started':
-      return { ...state, screen: 'pair', pair: { ...state.pair, busy: true, redeeming: event.redeeming, error: null } };
+      return { ...state, screen: 'pair', pair: { ...state.pair, busy: true, redeeming: event.redeeming, error: null, invite: false } };
     case 'pair_failed':
       return { ...state, screen: 'pair', pair: { ...state.pair, busy: false, redeeming: false, error: event.error } };
     case 'editor_loading':
@@ -538,6 +552,30 @@ export function canWriteLayout(state: AppState): boolean {
   if (!permissionsOf(state).includes('layout_editor')) return false;
   if (isSecureTransport(state)) return true;
   return state.snapshot?.remote.http_layout_editing ?? false;
+}
+
+/**
+ * @param state Application state.
+ * @returns The controls are dimmed and a banner says the TV was lost: the
+ *   phone had a session and the connection is not online (UX-12).
+ */
+export function tvLost(state: AppState): boolean {
+  return state.session !== null && state.screen === 'app' && state.connection !== 'online' && state.connection !== 'idle' && state.connection !== 'connecting';
+}
+
+/**
+ * @param state Application state.
+ * @returns Whether the last mute this phone sent (and the TV accepted) muted
+ *   the sound: the single Mute/Unmute toggle's state, as far as this phone
+ *   knows (UX-33; the TV reports no mute state).
+ */
+export function mutedByThisPhone(state: AppState): boolean {
+  let last: PendingAction | null = null;
+  for (const p of Object.values(state.pending)) {
+    if (p.action !== 'audio.mute' || p.outcome === null || p.outcome === 'failed') continue;
+    if (!last || p.sent_at >= last.sent_at) last = p;
+  }
+  return last?.muted === true;
 }
 
 /**

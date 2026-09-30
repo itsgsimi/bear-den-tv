@@ -58,7 +58,7 @@
   },
   "media.pause": {
    "available": false,
-   "reason": "Bear Den TV is not a media player."
+   "reason": "Play and pause work inside apps like YouTube and Plex."
   },
   "audio.volume_delta": {
    "available": true,

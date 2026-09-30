@@ -1033,3 +1033,11 @@ input[type='range'] { width: 100%; accent-color: var(--accent); min-height: 32px
   100% { transform: translate(-14px, 105vh) rotate(330deg); opacity: 0; }
 }
 @keyframes star-pulse-smooth { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.35); } }
+
+/* The TV went away (views/shell.tsx LostBanner): dimmed, inert controls. */
+.content-lost { opacity: 0.45; filter: grayscale(0.6); }
+.lost-banner { margin: 0.5rem 1rem 0; }
+.bear-awake .bear-when-asleep, .bear-asleep .bear-when-awake { display: none; }
+.group-reason { margin: 0.35rem 0 0; }
+.about-details summary { cursor: pointer; color: var(--text-2); margin: 0.5rem 0; }
+.pair-invite-note { margin: 0 0 0.75rem; }

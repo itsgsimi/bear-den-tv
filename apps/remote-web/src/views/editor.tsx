@@ -82,7 +82,6 @@ export function EditorView({ app, state }: { app: App; state: AppState }): JSX.E
     <section class="page editor">
       <h2>{t.editor.heading}</h2>
       <p class="muted">{t.editor.intro}</p>
-      {editor.revision !== null ? <p class="muted small">{t.editor.revision(editor.revision)}</p> : null}
       {!writable ? (
         <div class="notice notice-warning" data-testid="editor-http-notice">
           {t.editor.httpReadOnly}
@@ -158,7 +157,7 @@ export function EditorView({ app, state }: { app: App; state: AppState }): JSX.E
       <div class="appearance">
         <label class="field">
           <span class="field-label">
-            {t.editor.textScale} <span class="muted">{draft.ui.text_scale.toFixed(1)}×</span>
+            {t.editor.textScale} <span class="muted">{Math.round(draft.ui.text_scale * 100)}%</span>
           </span>
           <input type="range" min={0.8} max={2} step={0.1} value={draft.ui.text_scale} disabled={busy} aria-describedby={helpId('text')} onInput={(ev) => setUi('text_scale', round1(Number(ev.currentTarget.value)))} />
         </label>

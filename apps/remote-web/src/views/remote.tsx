@@ -8,6 +8,11 @@
 // the controller owns the hold lease; keyboard activation sends a single tap.
 // The last result is shown with its outcome (accepted/delivered/observed/failed)
 // kept distinct; nothing here pretends a press was observed when it was delivered.
+// A reason a control is greyed out sits right under its group (groupReason,
+// UX-14); with something playing the Now playing card and its buttons come
+// right under the D-pad, and the owner's Add apps and Remove apps come after
+// Sleep (UX-21); Play and Pause are one button that follows the Now playing
+// status, and Mute is one toggle (UX-33).
 // A guest pass sees only what it may use (`mayUse`): no Close app, no restart,
 // no sleep timer or screen off. With a web app in front the Touchpad
 // (touchpad.tsx) appears under the D-pad. The owner's phone also gets Add
@@ -31,7 +36,7 @@ import { TouchpadPanel } from './touchpad.tsx';
 import { AddAppsPanel, AddAppsTile, mayInstall } from './install.tsx';
 import { RemoveAppsPanel } from './remove.tsx';
 import { NotesPanel, NotesToggle } from './notes.tsx';
-import { type AppState, type PendingAction, type TileStatus, capabilityFor, closableApp, isSecureTransport, mayUse, permissionsOf, textEntrySurfaced, tileStatus, visibleApps } from '../state.ts';
+import { type AppState, type PendingAction, type TileStatus, capabilityFor, closableApp, isSecureTransport, isGuest, mayUse, mutedByThisPhone, permissionsOf, textEntrySurfaced, tileStatus, visibleApps } from '../state.ts';
 
 const TEXT_MAX = 256;
 const VOLUME_STEP = 5;
@@ -55,17 +60,101 @@ function listed(state: AppState, action: ActionName): boolean {
   return state.snapshot?.capabilities[action] !== undefined && mayUse(state, action);
 }
 
+/**
+ * @param state Application state.
+ * @param actions A group's actions (the D-pad, playback, volume, text).
+ * @returns The first reason one of them is listed but unavailable, shown
+ *   right under that group (UX-14: the reasons used to pile up at the
+ *   bottom of the page), or null.
+ */
+export function groupReason(state: AppState, actions: readonly ActionName[]): string | null {
+  for (const a of actions) {
+    if (!listed(state, a)) continue;
+    const g = gate(state, a);
+    if (g.disabled && g.reason) return g.reason;
+  }
+  return null;
+}
+
+function GroupReason({ text }: { text: string | null }): JSX.Element | null {
+  return text ? (
+    <p class="muted small group-reason" data-testid="group-reason">
+      {text}
+    </p>
+  ) : null;
+}
+
+const DPAD_ACTIONS: readonly ActionName[] = ['nav.up', 'nav.down', 'nav.left', 'nav.right', 'select', 'back', 'home'];
+const PLAYBACK_ACTIONS: readonly ActionName[] = ['media.play', 'media.pause', 'media.seek_relative'];
+const VOLUME_ACTIONS: readonly ActionName[] = ['audio.volume_delta', 'audio.mute'];
+
+/**
+ * @param state Application state.
+ * @returns Which play buttons to draw: one that matches the Now playing
+ *   status (Pause while playing, Play while paused or stopped; UX-33), or
+ *   both when the phone does not know.
+ */
+export function playButtons(state: AppState): ('play' | 'pause')[] {
+  const np = nowPlayingOf(state.snapshot);
+  const both: ('play' | 'pause')[] = [];
+  if (listed(state, 'media.play')) both.push('play');
+  if (listed(state, 'media.pause')) both.push('pause');
+  if (!np) return both;
+  const want = np.status === 'playing' ? 'pause' : 'play';
+  return both.includes(want) ? [want] : both;
+}
+
+/**
+ * @param state Application state.
+ * @returns Whether playback comes right under the D-pad: something is
+ *   playing (UX-21).
+ */
+export function playbackFirst(state: AppState): boolean {
+  return nowPlayingOf(state.snapshot) !== null;
+}
+
 export function RemoteView({ app, state }: { app: App; state: AppState }): JSX.Element {
   const snapshot = state.snapshot;
   const surfaced = textEntrySurfaced(state);
   const addAppsHeading = useRef<HTMLHeadingElement>(null);
   const [notesFor, setNotesFor] = useState<string | null>(null);
   const toggleNotes = (id: string) => setNotesFor((open) => (open === id ? null : id));
-  const reasons = new Set<string>();
-  const note = (g: Gate): Gate => {
-    if (g.reason) reasons.add(g.reason);
-    return g;
-  };
+  const muted = mutedByThisPhone(state);
+  // Something playing: the card and its buttons come right under the D-pad
+  // (UX-21: they sat below the apps and the whole Add apps list).
+  const playingFirst = playbackFirst(state);
+
+  const playback =
+    listed(state, 'media.play') || listed(state, 'media.pause') || listed(state, 'media.seek_relative') || nowPlayingOf(snapshot) ? (
+      <div class="group" aria-labelledby="playback-heading" data-testid="playback-group">
+        <h3 id="playback-heading">{t.remote.playback}</h3>
+        <NowPlayingPanel state={state} />
+        <div class="button-row">
+          {listed(state, 'media.seek_relative') ? (
+            <TapButton app={app} state={state} action="media.seek_relative" args={{ seconds: -SEEK_SECONDS }} icon="rewind" label={t.remote.seekBackLabel} gate={gate(state, 'media.seek_relative')}>
+              {t.remote.seekBack}
+            </TapButton>
+          ) : null}
+          {playButtons(state).map((b) =>
+            b === 'play' ? (
+              <TapButton key="play" app={app} state={state} action="media.play" args={{}} icon="play" gate={gate(state, 'media.play')}>
+                {t.remote.play}
+              </TapButton>
+            ) : (
+              <TapButton key="pause" app={app} state={state} action="media.pause" args={{}} icon="pause" gate={gate(state, 'media.pause')}>
+                {t.remote.pause}
+              </TapButton>
+            ),
+          )}
+          {listed(state, 'media.seek_relative') ? (
+            <TapButton app={app} state={state} action="media.seek_relative" args={{ seconds: SEEK_SECONDS }} icon="forward" label={t.remote.seekForwardLabel} gate={gate(state, 'media.seek_relative')}>
+              {t.remote.seekForward}
+            </TapButton>
+          ) : null}
+        </div>
+        <GroupReason text={groupReason(state, PLAYBACK_ACTIONS)} />
+      </div>
+    ) : null;
 
   return (
     <section class="page remote">
@@ -80,7 +169,7 @@ export function RemoteView({ app, state }: { app: App; state: AppState }): JSX.E
       <div class="dpad" data-testid="dpad">
         <NavButton app={app} state={state} action="nav.up" icon="up" label={t.remote.up} />
         <NavButton app={app} state={state} action="nav.left" icon="left" label={t.remote.left} />
-        <TapButton app={app} state={state} action="select" args={{}} class="dpad-select" gate={note(gate(state, 'select'))}>
+        <TapButton app={app} state={state} action="select" args={{}} class="dpad-select" gate={gate(state, 'select')}>
           {t.remote.select}
         </TapButton>
         <NavButton app={app} state={state} action="nav.right" icon="right" label={t.remote.right} />
@@ -89,13 +178,14 @@ export function RemoteView({ app, state }: { app: App; state: AppState }): JSX.E
       <p class="muted small dpad-hint">{t.remote.dpadHint}</p>
 
       <div class="button-row">
-        <TapButton app={app} state={state} action="back" args={{}} icon="back" gate={note(gate(state, 'back'))}>
+        <TapButton app={app} state={state} action="back" args={{}} icon="back" gate={gate(state, 'back')}>
           {t.remote.back}
         </TapButton>
-        <TapButton app={app} state={state} action="home" args={{}} icon="home" class="btn-home" gate={note(gate(state, 'home'))}>
+        <TapButton app={app} state={state} action="home" args={{}} icon="home" class="btn-home" gate={gate(state, 'home')}>
           {t.remote.home}
         </TapButton>
       </div>
+      <GroupReason text={groupReason(state, DPAD_ACTIONS)} />
       {mayUse(state, 'app.close') ? (
         <div class="button-row">
           <CloseButton app={app} state={state} />
@@ -105,6 +195,8 @@ export function RemoteView({ app, state }: { app: App; state: AppState }): JSX.E
       <TouchpadPanel app={app} state={state} />
 
       <LastResult state={state} />
+
+      {playingFirst ? playback : null}
 
       {visibleApps(snapshot).length > 0 ? (
         <div class="group" aria-labelledby="apps-heading">
@@ -116,43 +208,13 @@ export function RemoteView({ app, state }: { app: App; state: AppState }): JSX.E
             <AddAppsTile state={state} heading={addAppsHeading} />
           </div>
           <NotesPanel application={visibleApps(snapshot).find((a) => a.id === notesFor) ?? null} onClose={() => setNotesFor(null)} />
-          {!mayInstall(state) && visibleApps(snapshot).some((a) => !a.installed) ? (
+          {!mayInstall(state) && !isGuest(state) && visibleApps(snapshot).some((a) => !a.installed) ? (
             <p class="muted small" data-testid="owner-installs">{t.remote.ownerInstalls}</p>
           ) : null}
         </div>
       ) : null}
 
-      <AddAppsPanel app={app} state={state} headingRef={addAppsHeading} />
-      <RemoveAppsPanel app={app} state={state} />
-
-      {listed(state, 'media.play') || listed(state, 'media.pause') || listed(state, 'media.seek_relative') || nowPlayingOf(snapshot) ? (
-        <div class="group" aria-labelledby="playback-heading">
-          <h3 id="playback-heading">{t.remote.playback}</h3>
-          <NowPlayingPanel state={state} />
-          <div class="button-row">
-            {listed(state, 'media.seek_relative') ? (
-              <TapButton app={app} state={state} action="media.seek_relative" args={{ seconds: -SEEK_SECONDS }} icon="rewind" label={t.remote.seekBackLabel} gate={note(gate(state, 'media.seek_relative'))}>
-                {t.remote.seekBack}
-              </TapButton>
-            ) : null}
-            {listed(state, 'media.play') ? (
-              <TapButton app={app} state={state} action="media.play" args={{}} icon="play" gate={note(gate(state, 'media.play'))}>
-                {t.remote.play}
-              </TapButton>
-            ) : null}
-            {listed(state, 'media.pause') ? (
-              <TapButton app={app} state={state} action="media.pause" args={{}} icon="pause" gate={note(gate(state, 'media.pause'))}>
-                {t.remote.pause}
-              </TapButton>
-            ) : null}
-            {listed(state, 'media.seek_relative') ? (
-              <TapButton app={app} state={state} action="media.seek_relative" args={{ seconds: SEEK_SECONDS }} icon="forward" label={t.remote.seekForwardLabel} gate={note(gate(state, 'media.seek_relative'))}>
-                {t.remote.seekForward}
-              </TapButton>
-            ) : null}
-          </div>
-        </div>
-      ) : null}
+      {playingFirst ? null : playback}
 
       {listed(state, 'audio.volume_delta') || listed(state, 'audio.mute') ? (
         <div class="group" aria-labelledby="volume-heading">
@@ -161,17 +223,21 @@ export function RemoteView({ app, state }: { app: App; state: AppState }): JSX.E
           <div class="button-row">
             {listed(state, 'audio.volume_delta') ? (
               <>
-                <TapButton app={app} state={state} action="audio.volume_delta" args={{ delta: -VOLUME_STEP }} icon="volume-down" label={t.remote.volumeDown} gate={note(gate(state, 'audio.volume_delta'))} />
-                <TapButton app={app} state={state} action="audio.volume_delta" args={{ delta: VOLUME_STEP }} icon="volume-up" label={t.remote.volumeUp} gate={note(gate(state, 'audio.volume_delta'))} />
+                <TapButton app={app} state={state} action="audio.volume_delta" args={{ delta: -VOLUME_STEP }} icon="volume-down" label={t.remote.volumeDown} gate={gate(state, 'audio.volume_delta')}>
+                  {t.remote.volumeLess}
+                </TapButton>
+                <TapButton app={app} state={state} action="audio.volume_delta" args={{ delta: VOLUME_STEP }} icon="volume-up" label={t.remote.volumeUp} gate={gate(state, 'audio.volume_delta')}>
+                  {t.remote.volumeMore}
+                </TapButton>
               </>
             ) : null}
             {listed(state, 'audio.mute') ? (
-              <>
-                <TapButton app={app} state={state} action="audio.mute" args={{ muted: true }} icon="mute" label={t.remote.mute} gate={note(gate(state, 'audio.mute'))} />
-                <TapButton app={app} state={state} action="audio.mute" args={{ muted: false }} icon="unmute" label={t.remote.unmute} gate={note(gate(state, 'audio.mute'))} />
-              </>
+              <TapButton app={app} state={state} action="audio.mute" args={{ muted: !muted }} icon={muted ? 'unmute' : 'mute'} gate={gate(state, 'audio.mute')}>
+                {muted ? t.remote.unmute : t.remote.mute}
+              </TapButton>
             ) : null}
           </div>
+          <GroupReason text={groupReason(state, VOLUME_ACTIONS)} />
         </div>
       ) : null}
 
@@ -179,15 +245,11 @@ export function RemoteView({ app, state }: { app: App; state: AppState }): JSX.E
 
       {mayUse(state, 'power.sleep_timer') || mayUse(state, 'display.off') ? <SleepPanel app={app} state={state} /> : null}
 
-      {!surfaced && listed(state, 'text.submit') ? <TextEntry key="text-bottom" app={app} state={state} gate={note(gate(state, 'text.submit'))} /> : null}
+      {!surfaced && listed(state, 'text.submit') ? <TextEntry key="text-bottom" app={app} state={state} gate={gate(state, 'text.submit')} /> : null}
 
-      {reasons.size > 0 ? (
-        <ul class="reasons muted small" data-testid="unavailable-reasons">
-          {Array.from(reasons).map((reason) => (
-            <li key={reason}>{reason}</li>
-          ))}
-        </ul>
-      ) : null}
+      {/* Owner's app installs and removals come after the everyday controls (UX-21). */}
+      <AddAppsPanel app={app} state={state} headingRef={addAppsHeading} />
+      <RemoveAppsPanel app={app} state={state} />
 
       {!isSecureTransport(state) && snapshot?.remote.transport === 'trusted-lan-http' ? <p class="muted small">{t.pair.httpNotice}</p> : null}
     </section>
@@ -441,6 +503,7 @@ function TextEntry({ app, gate: g, surfaced = false }: { app: App; state: AppSta
           <Icon name="keyboard" size={22} />
           <span>{t.remote.text}</span>
         </button>
+        <GroupReason text={g.disabled ? g.reason : null} />
       </div>
     );
   }

@@ -2,7 +2,8 @@
 // state while a QR fragment invitation is claimed. Contract: the code field only
 // accepts digits; Connect waits only for six digits and says so under the
 // button (pairBlocker) — the name is prefilled from the browser
-// (defaultDeviceName) and an empty one falls back to it (UX-02); server
+// (defaultDeviceName) and an empty one falls back to it (UX-02); a QR
+// invitation asks only for the name before Connect (UX-16); server
 // failures (401/410/429/network) render the i18n message for their code.
 import { useState } from 'preact/hooks';
 import type { JSX } from 'preact';
@@ -28,11 +29,17 @@ export function PairView({ app, state }: { app: App; state: AppState }): JSX.Ele
   const tvName = state.info?.device_name || t.productName;
   const secure = state.info?.https ?? false;
   const name = state.pair.device_name;
-  const blocker = pairBlocker(code, state.pair.busy);
+  const blocker = state.pair.invite === true ? null : pairBlocker(code, state.pair.busy);
   const canSubmit = blocker === null && !state.pair.busy;
 
+  const invite = state.pair.invite === true;
   const submit = (ev: Event) => {
     ev.preventDefault();
+    if (invite) {
+      setLocalError(null);
+      void app.pairWithInvitation();
+      return;
+    }
     if (code.length !== 6) {
       setLocalError(t.pair.needSixDigits);
       return;
@@ -90,7 +97,12 @@ export function PairView({ app, state }: { app: App; state: AppState }): JSX.Ele
           </div>
         ) : null}
         <form class="pair-form" onSubmit={submit} noValidate>
-          <label class="field">
+          {invite ? (
+            <p class="pair-invite-note" data-testid="pair-invite">
+              {t.pair.inviteNote}
+            </p>
+          ) : null}
+          <label class="field" hidden={invite}>
             <span class="field-label">{t.pair.codeLabel}</span>
             <input
               class="code-input"

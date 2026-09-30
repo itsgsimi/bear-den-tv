@@ -11,7 +11,7 @@
     "back": {"available": true, "backend": "shell-ipc"},
     "home": {"available": true, "backend": "shell-ipc"},
     "app.launch": {"available": true, "backend": "flatpak"},
-    "media.pause": {"available": false, "reason": "Bear Den TV is not a media player."},
+    "media.pause": {"available": false, "reason": "Play and pause work inside apps like YouTube and Plex."},
     "audio.volume_delta": {"available": true, "backend": "pulseaudio"},
     "audio.mute": {"available": true, "backend": "pulseaudio"},
     "text.submit": {"available": false, "reason": "No text field is focused."}

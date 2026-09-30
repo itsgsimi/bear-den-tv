@@ -128,7 +128,7 @@ func (c *Coordinator) behindControlLocked() (*mediaProbe, string) {
 		return nil, "Open " + label + " to control it."
 	}
 	if !b.canCtl {
-		return nil, label + " does not expose verified media controls."
+		return nil, noMediaControls(label)
 	}
 	return b, label
 }

@@ -45,6 +45,8 @@ export const t = {
     online: 'Connected',
     reconnecting: 'Reconnecting…',
     offline: 'Offline',
+    lost: 'Lost the TV. Trying again…',
+    lostSince: (time: string): string => `Lost the TV at ${time}. Trying again…`,
   },
 
   // Tabs.
@@ -68,6 +70,7 @@ export const t = {
     connecting: 'Connecting…',
     redeeming: 'Redeeming the invitation from the QR code…',
     needSixDigits: 'Type the six-digit code the TV shows.',
+    inviteNote: 'Almost there: check this phone’s name, then tap Connect. The TV shows the name in Paired phones.',
     loadingInfo: 'Looking for the TV…',
     paired: (tvName: string) => `Paired with ${tvName}`,
     infoFailed: 'Could not reach the TV. Check that you are on the same Wi‑Fi and try again.',
@@ -83,7 +86,7 @@ export const t = {
     passEndedBody: 'Thanks for visiting. To use this phone as a remote again, ask for a new code on the TV.',
     loggedOut: 'You have been logged out.',
     sessionExpired: 'The session ended. Pair again to continue.',
-    httpNotice: 'Trusted-LAN HTTP: pairing prevents casual unpaired control but does not encrypt traffic.',
+    httpNotice: 'Works on your home network only. It isn’t encrypted: others on your Wi-Fi could see what this remote sends.',
   },
 
   // Remote screen.
@@ -153,6 +156,8 @@ export const t = {
     tvVolume: 'TV volume',
     volumeDown: 'Volume down',
     volumeUp: 'Volume up',
+    volumeLess: 'Volume −',
+    volumeMore: 'Volume +',
     mute: 'Mute',
     unmute: 'Unmute',
     text: 'Text entry',
@@ -181,7 +186,7 @@ export const t = {
         : 'The shell stopped unexpectedly and is being restarted.',
     restartShell: 'Restart Bear Den shell',
     restartShellOwnerOnly: 'An owner phone can restart the shell.',
-    staleRefreshed: 'The TV changed target; the remote refreshed itself.',
+    staleRefreshed: 'Something else came to the front on the TV. The remote is up to date now: press again.',
     ack: (outcome: Outcome): string => {
       switch (outcome) {
         case 'accepted':
@@ -304,7 +309,7 @@ export const t = {
     resetSection: 'Reset section',
     appearance: 'Appearance',
     textScale: 'Text size',
-    density: 'Tile density',
+    density: 'Tile size',
     densityComfortable: 'Comfortable',
     densityLarge: 'Large',
     artStyle: 'Art style',
@@ -347,7 +352,6 @@ export const t = {
     undone: 'Restored the previous layout.',
     reset: 'Reset to defaults.',
     forbidden: 'This phone may not change the layout.',
-    revision: (n: number) => `Revision ${n}`,
   },
 
   // App notes (views/notes.tsx): the TV's sentences are shown as sent.
@@ -390,27 +394,27 @@ export const t = {
   // Devices.
   devices: {
     heading: 'Paired phones',
-    intro: 'Every phone that can control this TV. Revoking ends its control immediately.',
-    hiddenOnHttp: 'Managing paired phones needs HTTPS or the TV itself. Over trusted-LAN HTTP this list is read-only on the TV.',
+    intro: 'Every phone that can control this TV. Removing one ends its control immediately.',
+    readOnly: 'To remove a phone or make it an owner, use the TV: Settings → Phones & remote → Paired phones.',
     loading: 'Loading…',
     empty: 'No phones are paired.',
     you: 'this phone',
     connected: 'Connected',
     disconnected: 'Not connected',
-    revoke: 'Revoke',
-    revokeAll: 'Revoke all',
-    confirmRevoke: (name: string) => `Revoke “${name}”? It will lose control right away.`,
-    confirmRevokeAll: 'Revoke every phone, including this one? You will need to pair again.',
-    confirm: 'Yes, revoke',
+    revoke: 'Remove',
+    revokeAll: 'Remove all',
+    confirmRevoke: (name: string) => `Remove “${name}”? It will lose control right away.`,
+    confirmRevokeAll: 'Remove every phone, including this one? You will need to pair again.',
+    confirm: 'Yes, remove',
     cancel: 'Cancel',
-    revoked: (name: string) => `Revoked ${name}.`,
-    failed: (message: string) => `Could not revoke: ${message}`,
+    revoked: (name: string) => `Removed ${name}.`,
+    failed: (message: string) => `Could not remove: ${message}`,
     permission: (p: Permission): string => {
       switch (p) {
         case 'controller':
-          return 'Controller';
+          return 'Remote';
         case 'layout_editor':
-          return 'Layout editor';
+          return 'Can edit layout';
         case 'owner':
           return 'Owner';
         case 'guest':
@@ -428,20 +432,24 @@ export const t = {
     transport: 'Connection',
     transportText: (transport: Transport, https: boolean): string => {
       if (https || transport === 'https') {
-        return 'HTTPS — encrypted. Secure cookies and every remote feature are available.';
+        return 'Encrypted. Every remote feature is available.';
       }
       if (transport === 'trusted-lan-http') {
-        return 'Trusted home LAN over HTTP — not encrypted. Pairing stops casual unpaired control but not interception on this network. Sensitive changes (paired phones, admin settings) need HTTPS or the TV itself.';
+        return 'Your home network, not encrypted. Pairing keeps strangers from controlling the TV, but others on your network could see what this remote sends. Removing phones is done on the TV.';
       }
       return 'Local only — the TV is not exposing the remote on the network.';
     },
     deviceName: 'This phone',
-    deviceId: 'Device id',
-    permissions: 'Permissions',
-    protocol: 'Protocol',
+    deviceId: 'Phone id',
+    permissions: 'What it may do',
+    protocol: 'Remote version',
+    details: 'Details',
     logout: 'Log out',
-    logoutHint: 'Ends this session. The TV keeps the device until you revoke it.',
-    noPwa: 'Over plain HTTP the browser cannot install this page as an app; open it from the address or the QR code each time.',
+    logoutHint: 'This phone stops controlling the TV until it pairs again with a new code. The TV keeps it in Paired phones until you remove it there.',
+    logoutAsk: 'Log out? You will need a new code from the TV to use this phone again.',
+    logoutYes: 'Log out',
+    logoutCancel: 'Cancel',
+    noPwa: 'Without encryption the browser can’t add this page to your home screen as an app; open it from the address or the TV’s QR code each time.',
   },
 
   toast: {
@@ -456,7 +464,7 @@ export const t = {
 
   errors: {
     network: 'Could not reach the TV.',
-    csrf: 'The session token was refreshed. Try again.',
+    csrf: 'This phone reconnected to the TV. Try again.',
     forbidden: 'This phone is not allowed to do that.',
     generic: (message: string) => (message ? message : 'Something went wrong.'),
   },

@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import type { JSX } from 'preact';
 import type { App } from '../app.ts';
 import { passEndLabel, t } from '../i18n.ts';
-import { type AppState, type Tab, guestEndsAt, subscribeNow, visibleTabs } from '../state.ts';
+import { type AppState, type Tab, guestEndsAt, subscribeNow, tvLost, visibleTabs } from '../state.ts';
 import { Art, artStyleOf, Icon, type IconName } from '../icons.tsx';
 import type { ArtStyle } from '../contract.ts';
 import { PairView } from './pair.tsx';
@@ -130,7 +130,10 @@ function Frame({ app, state }: { app: App; state: AppState }): JSX.Element {
       <header class="header">
         <div class="header-brand">
           <span class={`header-bear bear-${state.connection === 'online' ? 'awake' : 'asleep'}`} aria-hidden="true">
-            <Art name={state.connection === 'online' ? 'bear-mark' : 'bear-sleep'} class="header-bear-img" scale={2} width={40} art={artStyleOf(state.snapshot?.appearance)} />
+            {/* Both loaded while online, so the sleeping bear is already
+                there when the TV goes away (it used to be a broken image). */}
+            <Art name="bear-mark" class="header-bear-img bear-when-awake" scale={2} width={40} art={artStyleOf(state.snapshot?.appearance)} />
+            <Art name="bear-sleep" class="header-bear-img bear-when-asleep" scale={2} width={40} art={artStyleOf(state.snapshot?.appearance)} />
             {state.connection === 'online' ? null : <span class="bear-zz" />}
           </span>
           <div class="header-titles">
@@ -147,8 +150,9 @@ function Frame({ app, state }: { app: App; state: AppState }): JSX.Element {
         </div>
       </header>
       <GuestChip state={state} />
+      <LostBanner state={state} />
       {state.tab === 'remote' ? <TargetBar state={state} /> : null}
-      <main class="content" id="main">
+      <main class={`content ${tvLost(state) ? 'content-lost' : ''}`} id="main" inert={tvLost(state) ? true : undefined}>
         {state.tab === 'remote' ? <RemoteView app={app} state={state} /> : null}
         {state.tab === 'editor' ? <EditorView app={app} state={state} /> : null}
         {state.tab === 'devices' ? <DevicesView app={app} state={state} /> : null}
@@ -196,6 +200,20 @@ function TargetBar({ state }: { state: AppState }): JSX.Element {
         {label}
         {unverified ? <span class="target-unverified-tag"> {t.remote.unverified}</span> : null}
       </span>
+    </div>
+  );
+}
+
+/**
+ * The TV went away (UX-12): a banner says so and since when, and the
+ * controls below are dimmed and inert until the connection is back.
+ */
+export function LostBanner({ state }: { state: AppState }): JSX.Element | null {
+  if (!tvLost(state)) return null;
+  const since = state.lostAt !== null ? new Date(state.lostAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : null;
+  return (
+    <div class="notice notice-warning lost-banner" role="status" data-testid="lost-banner">
+      {since ? t.status.lostSince(since) : t.status.lost}
     </div>
   );
 }

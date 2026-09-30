@@ -766,7 +766,7 @@ func (c *Coordinator) doMedia(ctx context.Context, req contract.ActionRequest, t
 		c.mu.Unlock()
 		switch {
 		case b == nil:
-			return c.fail(req, contract.CodeUnsupported, ShellLabel+" is not a media player.")
+			return c.fail(req, contract.CodeUnsupported, ReasonMediaOnHome)
 		case req.Target != b.appID:
 			return c.fail(req, contract.CodeTargetUnfocused, label+" is playing behind Home: name it as the target.")
 		}

@@ -34,6 +34,13 @@ const (
 	backendLaunch    = "flatpak"
 )
 
+// Reasons phones show right under the greyed group (UX-14): plain words
+// and what to do instead.
+const (
+	ReasonMediaOnHome = "Play and pause work inside apps like YouTube and Plex."
+	ReasonNoVolume    = "Volume from the phone isn't available here: use the TV's own remote."
+)
+
 func (c *Coordinator) buildState(view viewKind) contract.State {
 	return c.buildStateFor(view, nil)
 }
@@ -346,7 +353,7 @@ func (c *Coordinator) capabilitiesLocked() map[string]contract.Capability {
 		}
 	}
 
-	media := unavailable(ShellLabel + " is not a media player.")
+	media := unavailable(ReasonMediaOnHome)
 	if c.target.Kind == "app" {
 		switch {
 		case c.media == nil || strOr(c.target.AppID) != c.media.appID:
@@ -354,12 +361,12 @@ func (c *Coordinator) capabilitiesLocked() map[string]contract.Capability {
 		case c.media.player == nil && c.plexMediaReasonLocked(c.media.appID, c.target.Label) != "":
 			media = unavailable(c.plexMediaReasonLocked(c.media.appID, c.target.Label))
 		case c.media.player == nil || !c.media.canCtl:
-			media = unavailable(c.target.Label + " does not expose verified media controls.")
+			media = unavailable(noMediaControls(c.target.Label))
 		default:
 			media = available(backendMPRIS)
 		}
 	} else if c.target.Kind == "unknown" {
-		media = unavailable("The foreground window is not recognized.")
+		media = unavailable("Bear Den can't tell which app is in front, so it won't send it play or pause.")
 	} else if c.target.Kind == "shell" {
 		// The app playing behind Home, for requests that name it
 		// (state.now_playing.foreground false; doMedia).
@@ -387,9 +394,9 @@ func (c *Coordinator) capabilitiesLocked() map[string]contract.Capability {
 	c.pointerCapsLocked(caps, desk)
 
 	if c.opts.Audio == nil {
-		caps[contract.ActionAudioVolume] = unavailable("PC volume control is not available.")
+		caps[contract.ActionAudioVolume] = unavailable(ReasonNoVolume)
 	} else if ac := c.audioCap; !ac.Available {
-		caps[contract.ActionAudioVolume] = unavailable("PC volume control is not available: " + ac.Reason)
+		caps[contract.ActionAudioVolume] = unavailable(ReasonNoVolume + " (" + ac.Reason + ")")
 	} else {
 		caps[contract.ActionAudioVolume] = available(backendAudio)
 	}
@@ -447,4 +454,10 @@ func randomID() string {
 	b := make([]byte, 8)
 	_, _ = rand.Read(b)
 	return hex.EncodeToString(b)
+}
+
+// noMediaControls is the reason an app in front cannot be played or paused
+// from the phone (it publishes no controls Bear Den could verify).
+func noMediaControls(label string) string {
+	return label + " doesn't let Bear Den play or pause it: use the arrows and OK instead."
 }

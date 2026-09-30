@@ -132,7 +132,7 @@ func TestPlayerOfAnotherFlatpakGivesNoMediaControls(t *testing.T) {
 	h.desk.SetActive(w)
 	h.eventually("VacuumTube in front with its media checked", func() bool {
 		cp := h.phones.Snapshot(context.Background(), &h.ctl).Capabilities[contract.ActionMediaPause]
-		return h.c.Target().Kind == "app" && cp.Reason == "YouTube does not expose verified media controls."
+		return h.c.Target().Kind == "app" && cp.Reason == noMediaControls("YouTube")
 	})
 	req := contract.ActionRequest{Protocol: 1, RequestID: "home-" + randomID(), Target: "shell", Action: contract.ActionHome, Args: map[string]any{}}
 	if res := h.c.doHome(context.Background(), sender{key: shellSender}, req); res.Detail["paused"] != false {

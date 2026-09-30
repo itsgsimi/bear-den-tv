@@ -22,6 +22,7 @@ import {
   capabilityFor,
   createStore,
   currentEpoch,
+  isGuest,
   initialState,
   INSTALL_READY_MS,
   layoutsEqual,
@@ -55,6 +56,9 @@ export interface AppOptions {
 }
 
 const DEVICE_NAME_KEY = 'bdtv.device_name';
+// Set while this phone holds a guest pass, so a visit after the pass ended
+// says so instead of showing a bare pairing form (UX-29).
+const GUEST_KEY = 'bdtv.guest';
 const PRUNE_AFTER_MS = 60_000;
 const DEFAULT_HOLD_RENEW_MS = 200;
 
@@ -84,6 +88,8 @@ export interface App {
   dismissToast(): void;
   setDeviceName(name: string): void;
   pairWithCode(code: string): Promise<void>;
+  /** Redeems the QR invitation read at start, with the name typed (UX-16). */
+  pairWithInvitation(): Promise<void>;
   retryInfo(): Promise<void>;
   tap<A extends ActionName>(action: A, args: ActionArgs[A]): Promise<void>;
   /** Touchpad (web apps): sends quietly; only a refusal other than a rate limit is shown. */
@@ -122,11 +128,12 @@ export function createApp(env: ApiEnvironment, page: PageEnvironment, win: Windo
   let toastTimer: unknown = null;
   let pruneTimer: unknown = null;
 
+  let invitation: string | null = null;
   const socket = new EventsSocket(env, {
     onStatus: (status: SocketStatus) => {
       const connection = status === 'open' ? 'online' : status === 'connecting' ? 'connecting' : status === 'reconnecting' ? 'reconnecting' : 'offline';
       if (connection !== 'online') hold.cancel('disconnected');
-      store.dispatch({ type: 'connection_changed', connection });
+      store.dispatch({ type: 'connection_changed', connection, at: now() });
     },
     onOpen: () => {
       void refreshState();
@@ -189,6 +196,7 @@ export function createApp(env: ApiEnvironment, page: PageEnvironment, win: Windo
   function receiveState(snapshot: StateSnapshot): void {
     const before = store.getState().installReady;
     store.dispatch({ type: 'state_received', snapshot, at: now() });
+    writeFlag(win, GUEST_KEY, isGuest(store.getState()));
     const after = store.getState().installReady;
     if (after !== before && Object.keys(after).length > 0) {
       env.setTimeout(() => store.dispatch({ type: 'install_ready_expired', at: now() }), INSTALL_READY_MS);
@@ -430,9 +438,10 @@ export function createApp(env: ApiEnvironment, page: PageEnvironment, win: Windo
     async start() {
       const ok = await loadInfo();
       if (!ok) return;
-      const invitation = readInvitation(win);
+      invitation = readInvitation(win);
       if (invitation !== null) {
-        await claim(invitation, null);
+        // The QR path asks for this phone's name too, prefilled (UX-16).
+        store.dispatch({ type: 'pair_invited' });
         return;
       }
       try {
@@ -441,6 +450,11 @@ export function createApp(env: ApiEnvironment, page: PageEnvironment, win: Windo
       } catch (err) {
         if (err instanceof ApiError && err.status !== 401 && err.status !== 0) {
           store.dispatch({ type: 'pair_failed', error: { code: err.error, message: t.pair.errors.generic(err.message) } });
+          return;
+        }
+        if (readFlag(win, GUEST_KEY)) {
+          writeFlag(win, GUEST_KEY, false);
+          store.dispatch({ type: 'session_ended', reason: 'pass_ended' });
           return;
         }
         store.dispatch({ type: 'pair_required' });
@@ -463,6 +477,9 @@ export function createApp(env: ApiEnvironment, page: PageEnvironment, win: Windo
     },
     async pairWithCode(code) {
       await claim(null, code);
+    },
+    async pairWithInvitation() {
+      await claim(invitation, null);
     },
     async retryInfo() {
       if (await loadInfo()) store.dispatch({ type: 'pair_required' });
@@ -638,5 +655,21 @@ function storeName(win: WindowEnvironment, name: string): void {
     win.localStorage?.setItem(DEVICE_NAME_KEY, name);
   } catch {
     // Storage access throws in some private modes; the name simply is not remembered.
+  }
+}
+
+function readFlag(win: WindowEnvironment, key: string): boolean {
+  try {
+    return win.localStorage?.getItem(key) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function writeFlag(win: WindowEnvironment, key: string, on: boolean): void {
+  try {
+    win.localStorage?.setItem(key, on ? '1' : '');
+  } catch {
+    // Private mode: the note is a convenience.
   }
 }
