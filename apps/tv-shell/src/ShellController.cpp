@@ -54,6 +54,9 @@ ShellController::ShellController(QObject *parent) : QObject(parent)
     if (ok && bears > 0)
         m_bearsSeconds = bears;
     m_bearsAct = qEnvironmentVariable("BDTV_BEARS_ACT");
+    const int tipIdle = qEnvironmentVariableIntValue("BDTV_TIP_SECONDS", &ok);
+    if (ok && tipIdle > 0)
+        m_tipSeconds = tipIdle;
     const int month = qEnvironmentVariableIntValue("BDTV_MONTH", &ok);
     if (ok && month >= 1 && month <= 12)
         m_monthOverride = month;

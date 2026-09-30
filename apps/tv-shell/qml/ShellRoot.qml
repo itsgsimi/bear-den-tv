@@ -95,6 +95,18 @@ FocusScope {
         else current().enter()
         return true
     }
+    // Where a bear tip's "Show me" goes.
+    function showTip(tipId) {
+        switch (tipId) {
+        case "themes": open("themes"); break
+        case "add-apps": open("add-apps"); break
+        case "phone-remote": open("pairing"); break
+        case "now-playing": toast.show("info", qsTr("Enjoy the show!")); break
+        case "sleep-timer": open("settings"); settings.openCategory("power"); break
+        case "badges": open("badges"); break
+        case "guest-pass": open("pairing"); pairing.chooseKind(1); break
+        }
+    }
     function goHome() {
         screensaver.active = false
         wake()
@@ -156,6 +168,14 @@ FocusScope {
         }
         wake()
         if (secretCode(action)) return
+        // A bear tip waiting on Home: OK and Back answer it (its sign says
+        // so); an arrow or Home sends it off and works as always.
+        tipBear.poke()
+        if (tipBear.waiting && !topDialog) {
+            if (action === "select") { tipBear.answer(true); return }
+            if (action === "back") { tipBear.answer(false); return }
+            tipBear.leaveQuietly()
+        }
         if (action === "home") { goHome(); return }
         if (blocked) { if (action === "back") Nav.noteAtRoot(); return }
         if (topDialog) { topDialog.navigate(action); return }
@@ -446,7 +466,7 @@ FocusScope {
         screen: root.screen
         home: home
         allowed: (root.screen === "home" || root.screen === "settings" || root.screen === "pairing")
-                 && !root.topDialog && !launchOverlay.visible && !root.blocked
+                 && !root.topDialog && !launchOverlay.visible && !root.blocked && !tipBear.active
     }
     // A Den badge earned: celebrated on Home, or queued until Home appears.
     BadgeCelebration {
@@ -455,6 +475,17 @@ FocusScope {
         anchors.fill: parent
         allowed: root.screen === "home" && Session.target.kind === "shell" && !root.topDialog
                  && !launchOverlay.visible && !root.blocked && !screensaver.active
+    }
+    // Bear tips on Home (TipBear.qml): never before setup is done, over an
+    // app, a dialog, the launch overlay, a badge card or the screensaver.
+    TipBear {
+        id: tipBear
+        anchors.fill: parent
+        home: home
+        allowed: root.screen === "home" && !root.topDialog && !launchOverlay.visible && !root.blocked
+                 && !screensaver.active && Session.target.kind === "shell" && !badgeCelebration.active
+                 && !(Session.onboarding && Session.onboarding.completed === false)
+        onShowMe: (tipId) => root.showTip(tipId)
     }
     LaunchOverlay { id: launchOverlay; anchors.fill: parent }
     InstallCard {

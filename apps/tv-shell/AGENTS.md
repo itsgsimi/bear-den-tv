@@ -223,6 +223,29 @@ reports each tip with `Shell.tipEvent(tip, "seen" | "ok" | "not_now")`;
 Settings sends `Shell.setTips(enabled)` and `Shell.resetTips()` (IPC
 `tips.*`, [`contracts/ipc.md`](../../contracts/ipc.md)).
 
+`qml/TipBear.qml` is the bear. Its `table` holds every tip's copy, pill,
+hat and prop in order (Themes, Add apps, Phone remote, Now playing, Sleep
+timer, Den badges, Guest passes); `applies(id)` skips a tip whose feature
+is already in use (e.g. a phone is paired). The rules, all tested in
+`bearTipsFollowTheRules` and `bearTipsEachShowInBothStyles`:
+
+- `allowed` (ShellRoot): Home only, first-run setup done, no dialog, card,
+  launch, lock, screensaver, badge card or app in front. Leaving Home only
+  sends the bear off; it is not an answer.
+- The `tipQuiet` timer (`Shell.tipSeconds`, 8 s, `BDTV_TIP_SECONDS`) runs
+  only while allowed, on, and no tip was shown `today` (the tests set
+  `today`); every key restarts it (`poke()`).
+- The tip never takes focus. While it waits, ShellRoot's `handle()` gives
+  OK to "Show me" (`ok`, then `showMe` opens the place) and Back to "Not
+  now" (`not_now`); any other key sends the bear off and carries on.
+- "seen" only stamps the day; `ok` and `not_now` make the tip done, and
+  the coordinator stops the bears after three `not_now` in a row.
+- It moves only on `World.beat` while walking or hopping (World.visiting);
+  sitting it draws nothing new. Reduced motion: it appears sitting.
+  `scripts/perf-sandbox.sh --tips` checks a waiting bear adds no frames.
+- Never branch on a theme id: the bear's look comes from `World` and the
+  ornaments.
+
 ## App tiles and branding
 
 Supported apps are a closed set keyed by **adapter name** (`plex-htpc`,

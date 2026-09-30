@@ -1221,6 +1221,207 @@ private slots:
         QVERIFY(visibleItem(QStringLiteral("tileBase")));
     }
 
+    // Bear tips (TipBear.qml): the anti-Clippy rules. Never before setup is
+    // done or off Home; only after the quiet spell (the timer is what waits);
+    // with reduced motion the bear simply sits there; the tip never takes
+    // focus: OK and Back answer it (OK goes there), an arrow sends the bear
+    // off without an answer; one tip a day on the injected day; three "Not
+    // now" (state.tips.stopped) stop them; Settings turns them off or starts
+    // over.
+    void bearTipsFollowTheRules()
+    {
+        SessionModel *session = SessionModel::instance();
+        IpcClient *ipc = ShellController::instance()->ipc();
+        QObject *tip = m_window->findChild<QObject *>(QStringLiteral("tipBear"));
+        QObject *quiet = m_window->findChild<QObject *>(QStringLiteral("tipQuiet"));
+        QVERIFY(tip && quiet);
+        const auto restore = qScopeGuard([session, tip, this] {
+            QMetaObject::invokeMethod(tip, "vanish");
+            tip->setProperty("shownDay", QString());
+            tip->setProperty("answered", QVariantMap());
+            session->applySnapshot(fixture());
+            goHome();
+        });
+        auto withTips = [this, session](const QJsonObject &tips, bool setupDone, bool reduced = true) {
+            QJsonObject snap = fixture();
+            snap.insert(QStringLiteral("tips"), tips);
+            snap.insert(QStringLiteral("onboarding"), QJsonObject{{QStringLiteral("completed"), setupDone}});
+            QJsonObject layout = snap.value(QStringLiteral("layout")).toObject();
+            QJsonObject ui = layout.value(QStringLiteral("ui")).toObject();
+            ui.insert(QStringLiteral("reduced_motion"), reduced);
+            ui.insert(QStringLiteral("background"), QStringLiteral("den"));
+            layout.insert(QStringLiteral("ui"), ui);
+            snap.insert(QStringLiteral("layout"), layout);
+            QVERIFY2(session->applySnapshot(snap), qPrintable(session->lastError()));
+            QCoreApplication::processEvents();
+        };
+        const QJsonObject fresh{{QStringLiteral("enabled"), true}, {QStringLiteral("done"), QJsonArray{}}, {QStringLiteral("stopped"), false}};
+        tip->setProperty("today", QStringLiteral("2026-09-29"));
+        // Setup not done: no tip, even on a quiet Home.
+        withTips(fresh, false);
+        goHome();
+        QVERIFY(!quiet->property("running").toBool());
+        // Setup done, on Home: the quiet spell starts; off Home it stops.
+        withTips(fresh, true);
+        goHome();
+        QVERIFY(quiet->property("running").toBool());
+        QCOMPARE(quiet->property("interval").toInt(), 8000);
+        openSettings();
+        QVERIFY(!quiet->property("running").toBool());
+        goHome();
+        const QString focusBefore = m_nav->itemId();
+        // The quiet spell ends: the Themes bear (a beret) sits under Themes.
+        ipc->clearSent();
+        QMetaObject::invokeMethod(quiet, "triggered");
+        QCOMPARE(tip->property("phase").toString(), QStringLiteral("waiting"));
+        QQuickItem *line = visibleItem(QStringLiteral("tipLine"));
+        QVERIFY(line);
+        QVERIFY2(line->property("text").toString().contains(QStringLiteral("theme")), qPrintable(line->property("text").toString()));
+        QCOMPARE(lastSent(QStringLiteral("tips.event")).value(QStringLiteral("event")).toString(), QStringLiteral("seen"));
+        QCOMPARE(m_nav->itemId(), focusBefore); // no focus taken
+        QQuickItem *bear = visibleItem(QStringLiteral("tipBearPuppet"));
+        QQuickItem *pill = visibleItem(QStringLiteral("navPill-themes"));
+        QVERIFY(bear && pill);
+        // The sign's arrow points up at the pill, right under it; the bear beside the sign
+        // (after the sign's Column has laid out).
+        QQuickItem *signItem = visibleItem(QStringLiteral("tipSign"));
+        QVERIFY(signItem);
+        QTRY_VERIFY(!bear->mapRectToScene(QRectF(0, 0, bear->width(), bear->height())).intersects(signItem->mapRectToScene(QRectF(0, 0, signItem->width(), signItem->height()))));
+        QQuickItem *arrow = visibleItem(QStringLiteral("tipArrow"));
+        QVERIFY(arrow);
+        const QRectF a = arrow->mapRectToScene(QRectF(0, 0, arrow->width(), arrow->height()));
+        const QRectF pr = pill->mapRectToScene(QRectF(0, 0, pill->width(), pill->height()));
+        QVERIFY2(qAbs(a.center().x() - pr.center().x()) < 20 && a.top() >= pr.bottom() && a.top() - pr.bottom() < 30,
+                 qPrintable(QStringLiteral("arrow %1,%2 pill %3,%4").arg(a.center().x()).arg(a.top()).arg(pr.center().x()).arg(pr.bottom())));
+        QTRY_VERIFY(!bear->mapRectToScene(QRectF(0, 0, bear->width(), bear->height())).intersects(signItem->mapRectToScene(QRectF(0, 0, signItem->width(), signItem->height()))));
+        QVERIFY(bear->property("hat").toUrl().toString().contains(QStringLiteral("hat-beret")));
+        shot(QStringLiteral("tip-themes-still"));
+        // OK: shown (the tip is answered) and off to Themes.
+        act(QStringLiteral("select"));
+        QJsonObject ev = lastSent(QStringLiteral("tips.event"));
+        QCOMPARE(ev.value(QStringLiteral("tip")).toString(), QStringLiteral("themes"));
+        QCOMPARE(ev.value(QStringLiteral("event")).toString(), QStringLiteral("ok"));
+        QCOMPARE(shellScreen(), QStringLiteral("themes"));
+        goHome();
+        // One a day: nothing more today.
+        QVERIFY(!quiet->property("running").toBool());
+        // The next day: the next tip whose feature is not in use yet. Two
+        // phones are paired in the demo, so Phone remote is skipped.
+        tip->setProperty("today", QStringLiteral("2026-09-30"));
+        withTips(QJsonObject{{QStringLiteral("enabled"), true}, {QStringLiteral("done"), QJsonArray{QStringLiteral("themes")}},
+                             {QStringLiteral("stopped"), false}, {QStringLiteral("last_day"), QStringLiteral("2026-09-29")}}, true);
+        QVERIFY(quiet->property("running").toBool());
+        QCOMPARE(tip->property("next").toMap().value(QStringLiteral("id")).toString(), QStringLiteral("now-playing"));
+        // An arrow: the bear leaves, no answer, the arrow still moves.
+        ipc->clearSent();
+        QMetaObject::invokeMethod(quiet, "triggered");
+        QCOMPARE(tip->property("phase").toString(), QStringLiteral("waiting"));
+        act(QStringLiteral("nav.right"));
+        QCOMPARE(tip->property("phase").toString(), QStringLiteral("idle"));
+        QVERIFY(m_nav->itemId() != focusBefore);
+        const QList<QJsonObject> sent = ipc->sentMessages();
+        for (const QJsonObject &m : sent)
+            QVERIFY2(m.value(QStringLiteral("event")).toString() != QLatin1String("ok") && m.value(QStringLiteral("event")).toString() != QLatin1String("not_now"), "an arrow answered the tip");
+        act(QStringLiteral("nav.left")); // leave focus where later tests expect it
+        QCOMPARE(m_nav->itemId(), focusBefore);
+        // Back on another day: Not now.
+        tip->setProperty("today", QStringLiteral("2026-10-01"));
+        QMetaObject::invokeMethod(quiet, "triggered");
+        act(QStringLiteral("back"));
+        QCOMPARE(lastSent(QStringLiteral("tips.event")).value(QStringLiteral("event")).toString(), QStringLiteral("not_now"));
+        QCOMPARE(shellScreen(), QStringLiteral("home"));
+        // Three Not nows in a row: the bears stop.
+        tip->setProperty("today", QStringLiteral("2026-10-02"));
+        withTips(QJsonObject{{QStringLiteral("enabled"), true}, {QStringLiteral("done"), QJsonArray{}}, {QStringLiteral("stopped"), true}}, true);
+        QVERIFY(!quiet->property("running").toBool());
+        // Settings → Home screen: Bear tips, and Show tips again.
+        withTips(fresh, true);
+        openSettings();
+        toSettingsRow(QStringLiteral("tips"));
+        ipc->clearSent();
+        act(QStringLiteral("select"));
+        QCOMPARE(lastSent(QStringLiteral("tips.configure")).value(QStringLiteral("enabled")), QJsonValue(false));
+        act(QStringLiteral("nav.down"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("tips-again"));
+        act(QStringLiteral("select"));
+        QVERIFY(!lastSent(QStringLiteral("tips.reset")).isEmpty());
+    }
+
+    // Every bear tip, in Pixel and Classic (the reduced-motion still: the bear
+    // sits by its sign at once): each one comes when the ones before it are
+    // done and its feature is unused, points at its pill, and says its line.
+    // Without reduced motion the bear walks in on the heartbeat.
+    void bearTipsEachShowInBothStyles()
+    {
+        SessionModel *session = SessionModel::instance();
+        QObject *tip = m_window->findChild<QObject *>(QStringLiteral("tipBear"));
+        QObject *quiet = m_window->findChild<QObject *>(QStringLiteral("tipQuiet"));
+        QVERIFY(tip && quiet);
+        const auto restore = qScopeGuard([session, tip, this] {
+            QMetaObject::invokeMethod(tip, "vanish");
+            tip->setProperty("shownDay", QString());
+            tip->setProperty("answered", QVariantMap());
+            session->applySnapshot(fixture());
+            goHome();
+        });
+        const QStringList ids{QStringLiteral("themes"), QStringLiteral("add-apps"), QStringLiteral("phone-remote"), QStringLiteral("now-playing"),
+                              QStringLiteral("sleep-timer"), QStringLiteral("badges"), QStringLiteral("guest-pass")};
+        const QHash<QString, QString> pills{{QStringLiteral("themes"), QStringLiteral("themes")}, {QStringLiteral("add-apps"), QStringLiteral("apps")},
+                                            {QStringLiteral("phone-remote"), QStringLiteral("pairing")}, {QStringLiteral("now-playing"), QStringLiteral("pairing")},
+                                            {QStringLiteral("sleep-timer"), QStringLiteral("settings")}, {QStringLiteral("badges"), QStringLiteral("themes")},
+                                            {QStringLiteral("guest-pass"), QStringLiteral("pairing")}};
+        int day = 1;
+        auto show = [&](const QString &id, const char *art, bool reduced) {
+            QJsonObject snap = installSnapshot(QStringLiteral("available"));
+            QJsonArray done;
+            for (const QString &d : ids) {
+                if (d == id) break;
+                done.append(d);
+            }
+            snap.insert(QStringLiteral("tips"), QJsonObject{{QStringLiteral("enabled"), true}, {QStringLiteral("done"), done}, {QStringLiteral("stopped"), false}});
+            snap.insert(QStringLiteral("onboarding"), QJsonObject{{QStringLiteral("completed"), true}});
+            QJsonObject remote = snap.value(QStringLiteral("remote")).toObject();
+            remote.insert(QStringLiteral("paired_device_count"), id == QLatin1String("phone-remote") ? 0 : 2);
+            snap.insert(QStringLiteral("remote"), remote);
+            QJsonObject layout = snap.value(QStringLiteral("layout")).toObject();
+            QJsonObject ui = layout.value(QStringLiteral("ui")).toObject();
+            ui.insert(QStringLiteral("background"), QStringLiteral("den"));
+            ui.insert(QStringLiteral("art_style"), QString::fromLatin1(art));
+            ui.insert(QStringLiteral("reduced_motion"), reduced);
+            layout.insert(QStringLiteral("ui"), ui);
+            snap.insert(QStringLiteral("layout"), layout);
+            QVERIFY2(session->applySnapshot(snap), qPrintable(session->lastError()));
+            QMetaObject::invokeMethod(tip, "vanish");
+            tip->setProperty("answered", QVariantMap());
+            tip->setProperty("today", QStringLiteral("2026-10-%1").arg(++day, 2, 10, QLatin1Char('0')));
+            goHome();
+            QCOMPARE(tip->property("next").toMap().value(QStringLiteral("id")).toString(), id);
+            QVERIFY(quiet->property("running").toBool());
+            QMetaObject::invokeMethod(quiet, "triggered");
+        };
+        for (const char *art : {"pixel", "classic"}) {
+            for (const QString &id : ids) {
+                show(id, art, true);
+                QCOMPARE(tip->property("phase").toString(), QStringLiteral("waiting"));
+                QQuickItem *arrow = visibleItem(QStringLiteral("tipArrow"));
+                QQuickItem *pill = visibleItem(QStringLiteral("navPill-") + pills.value(id));
+                QVERIFY2(arrow && pill, qPrintable(id));
+                QTRY_VERIFY2(qAbs(arrow->mapToScene(QPointF(arrow->width() / 2, 0)).x() - pill->mapToScene(QPointF(pill->width() / 2, 0)).x()) < 20, qPrintable(id));
+                QVERIFY(!visibleItem(QStringLiteral("tipLine"))->property("text").toString().isEmpty());
+                shot(QStringLiteral("tip-%1-%2").arg(id, QString::fromLatin1(art)));
+            }
+        }
+        // With motion: the bear walks in from the right on the heartbeat.
+        Theme::instance()->setForceNoAnimations(false);
+        const auto still = qScopeGuard([] { Theme::instance()->setForceNoAnimations(true); });
+        show(QStringLiteral("themes"), "pixel", false);
+        QCOMPARE(tip->property("phase").toString(), QStringLiteral("arriving"));
+        QQuickItem *bear = m_window->findChild<QQuickItem *>(QStringLiteral("tipBearPuppet"));
+        const qreal start = bear->x();
+        QTRY_VERIFY(bear->x() < start - 20);
+        shot(QStringLiteral("tip-arriving-pixel"));
+    }
+
     // Owner's decision: Settings → Phones & remote → Edit layout from phones
     // (config remote.http_layout_editing, default off) sends
     // remote.layout_editing; turning the phone remote on again keeps it.

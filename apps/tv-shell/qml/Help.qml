@@ -26,6 +26,8 @@ QtObject {
         // Settings → Home screen
         "hero": qsTr("The big panel above your apps that describes what is selected."),
         "clock": qsTr("Shows the time in the top bar."),
+        "tips": qsTr("On a quiet Home a bear may walk in with a sign about something to try, at most once a day. OK shows it, Back says not now; three Not nows in a row and the bears stop."),
+        "tips-again": qsTr("Forgets which tips you have seen, so the bears can offer them again."),
         "weather": qsTr("Your town's weather by the clock, and in the scene if you like. Only the place you choose is looked up."),
         // Settings → Playback
         "playback": qsTr("What this PC can play smoothly, and the settings Bear Den chose for each app."),

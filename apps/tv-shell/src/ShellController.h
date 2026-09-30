@@ -41,6 +41,9 @@ class ShellController : public QObject {
     // Seconds between bear visits; 0 = the normal relaxed, random pace.
     // BDTV_BEARS_SECONDS sets it (renders, live checks).
     Q_PROPERTY(int bearsSeconds READ bearsSeconds CONSTANT)
+    /// How long Home stays quiet before a bear tip may come (8 s;
+    /// BDTV_TIP_SECONDS for checks and screenshots).
+    Q_PROPERTY(int tipSeconds READ tipSeconds CONSTANT)
     // Seconds without input before Home rests (default 45; BDTV_REST_SECONDS, for measurements).
     Q_PROPERTY(int restSeconds READ restSeconds CONSTANT)
     // BDTV_BEARS_ACT forces one visit (walk, peek, hop, parade, chase) for checks.
@@ -89,6 +92,7 @@ public:
     QString launchingAppId() const { return m_launchingAppId; }
     int screensaverSeconds() const { return m_screensaverSeconds; }
     int bearsSeconds() const { return m_bearsSeconds; }
+    int tipSeconds() const { return m_tipSeconds; }
     int restSeconds() const { return m_restSeconds; }
     QString bearsAct() const { return m_bearsAct; }
     int monthOverride() const { return m_monthOverride; }
@@ -278,6 +282,7 @@ private:
     QString m_launchRequestId;
     int m_screensaverSeconds = 300;
     int m_bearsSeconds = 0;
+    int m_tipSeconds = 8;
     int m_restSeconds = 45;
     QString m_bearsAct;
     int m_monthOverride = 0;

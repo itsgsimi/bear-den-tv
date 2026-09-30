@@ -116,6 +116,12 @@ Item {
         add({ id: "contrast", kind: "toggle", label: qsTr("High-contrast focus"), description: "", value: ui.high_contrast_focus ? "on" : "off" })
         add({ id: "hero", kind: "toggle", label: qsTr("Featured panel on Home"), description: "", value: ui.hero_enabled ? "on" : "off" })
         add({ id: "clock", kind: "toggle", label: qsTr("Clock"), description: "", value: ui.clock_enabled ? "on" : "off" })
+        // state.tips (config tips); absent from older coordinators: no rows.
+        add({ id: "tips", kind: "toggle", label: qsTr("Bear tips"),
+              description: Session.tips.stopped === true ? qsTr("The bears stopped after three Not nows. Show tips again to start over")
+                                                         : qsTr("Now and then a bear points out something to try"),
+              value: Session.tips.enabled === true && Session.tips.stopped !== true ? "on" : "off" })
+        add({ id: "tips-again", kind: "link", label: qsTr("Show tips again"), description: qsTr("Every tip, from the start"), value: "" })
         add({ id: "weather", kind: "link", label: qsTr("Weather"), description: qsTr("Your town's weather by the clock, and in the scene"),
               value: Session.weather.status === undefined || Session.weather.status === "disabled" ? qsTr("Off") : (Session.weather.place || qsTr("On")) })
         add({ id: "playback", kind: "link", label: qsTr("Playback"), description: qsTr("What this TV can play smoothly, and the best settings for each app"), value: playbackValue })
@@ -148,7 +154,7 @@ Item {
           help: qsTr("Control this TV from your phone: turn the phone remote on, pair phones and choose what they see.") },
         { id: "display", icon: "display", label: qsTr("Display & accessibility"), rows: ["text", "density", "margin", "motion", "contrast"],
           help: qsTr("Text and tile sizes, the picture's edges, motion and the focus outline.") },
-        { id: "home", icon: "home", label: qsTr("Home screen"), rows: ["hero", "clock", "weather"],
+        { id: "home", icon: "home", label: qsTr("Home screen"), rows: ["hero", "clock", "weather"].concat(Session.tips.enabled === undefined ? [] : ["tips", "tips-again"]),
           help: qsTr("What Home shows: the featured panel, the clock and the weather.") },
         { id: "playback", icon: "play", label: qsTr("Playback"), rows: ["playback", "advanced-playback", "plex"],
           help: qsTr("How well this PC plays video, each app's playback settings, and your Plex account.") },
@@ -240,6 +246,11 @@ Item {
         case "contrast": editUi(u => u.high_contrast_focus = !u.high_contrast_focus); break
         case "hero": editUi(u => u.hero_enabled = !u.hero_enabled); break
         case "clock": editUi(u => u.clock_enabled = !u.clock_enabled); break
+        case "tips":
+            if (Session.tips.stopped === true) Shell.resetTips()
+            else Shell.setTips(Session.tips.enabled !== true)
+            break
+        case "tips-again": Shell.resetTips(); break
         case "version": break
         case "exit":
             confirm(qsTr("Exit Bear Den TV?"), qsTr("The TV returns to the desktop. Bear Den starts again with the next session."),

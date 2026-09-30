@@ -88,6 +88,14 @@ Item {
         report()
     }
     function leave() { if (active) Shell.cancelPairing() }
+    // A bear tip's "Show me" for guest passes: that kind, with its code.
+    function chooseKind(i) {
+        if (!listening) return
+        kindIndex = Math.max(0, Math.min(kinds.length - 1, i))
+        focusIndex = 0
+        issue()
+        report()
+    }
     // A code shown once and then gone was used or expired; never re-issue
     // silently: the owner presses OK for a new one.
     Timer { id: requestTimer; interval: 1500; onTriggered: root.requested = true }

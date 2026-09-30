@@ -18,7 +18,11 @@
 # Bear visits are switched off unless --bears: a visit legitimately draws at
 # 20 fps for its few seconds and would make the quiet-phase budgets random.
 #
-# Usage: scripts/perf-sandbox.sh [--quota 50%] [--fixture PATH] [--theme ID] [--bears]
+# --tips turns bear tips on with a 3 s quiet spell: a tip bear walks in while
+# awake and sits waiting by its sign through resting (it must draw nothing
+# new), then leaves for the screensaver.
+#
+# Usage: scripts/perf-sandbox.sh [--quota 50%] [--fixture PATH] [--theme ID] [--bears] [--tips]
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -26,13 +30,15 @@ QUOTA=${BDTV_SANDBOX_QUOTA:-50%}
 FIXTURE=apps/tv-shell/tests/fixtures/state.demo.json
 THEME=""
 BEARS=100000
+TIPS=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --quota) QUOTA=$2; shift 2 ;;
     --fixture) FIXTURE=$2; shift 2 ;;
     --theme) THEME=$2; shift 2 ;;
     --bears) BEARS=""; shift ;;
-    *) echo "usage: $0 [--quota 50%] [--fixture PATH] [--theme ID] [--bears]" >&2; exit 2 ;;
+    --tips) TIPS=3; shift ;;
+    *) echo "usage: $0 [--quota 50%] [--fixture PATH] [--theme ID] [--bears] [--tips]" >&2; exit 2 ;;
   esac
 done
 
@@ -51,17 +57,21 @@ work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 
 fixture=$FIXTURE
-if [ -n "$THEME" ]; then
+if [ -n "$THEME" ] || [ -n "$TIPS" ]; then
   fixture=$work/state.json
-  python3 - "$FIXTURE" "$fixture" "$THEME" <<'EOF'
+  python3 - "$FIXTURE" "$fixture" "$THEME" "$TIPS" <<'EOF'
 import json, sys
 d = json.load(open(sys.argv[1]))
-d["layout"]["ui"]["background"] = sys.argv[3]
+if sys.argv[3]:
+    d["layout"]["ui"]["background"] = sys.argv[3]
+if sys.argv[4]:
+    d["tips"] = {"enabled": True, "done": [], "stopped": False}
+    d["onboarding"] = {"completed": True}
 json.dump(d, open(sys.argv[2], "w"))
 EOF
 fi
 
-run=(env ${BEARS:+BDTV_BEARS_SECONDS=$BEARS} QT_QPA_PLATFORM=offscreen BDTV_FPS_LOG=1 BDTV_REST_SECONDS=$REST BDTV_SCREENSAVER_SECONDS=$SAVER
+run=(env ${BEARS:+BDTV_BEARS_SECONDS=$BEARS} ${TIPS:+BDTV_TIP_SECONDS=$TIPS} QT_QPA_PLATFORM=offscreen BDTV_FPS_LOG=1 BDTV_REST_SECONDS=$REST BDTV_SCREENSAVER_SECONDS=$SAVER
      taskset -c 0,1 "$SHELL_BIN" --dev --fixture "$fixture" --windowed --size 1920x1080 --exit-after $((END * 1000)))
 if systemd-run --user --scope --quiet -p CPUQuota=100% true 2>/dev/null; then
   run=(systemd-run --user --scope --quiet -p "CPUQuota=$QUOTA" "${run[@]}")
