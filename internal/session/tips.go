@@ -3,9 +3,10 @@
 // and the shell-only state.tips they change. The shell decides when a tip
 // may show and which one (apps/tv-shell/qml/TipBear.qml); the coordinator
 // only remembers what happened, on its injected clock: which tips were
-// shown (each at most once), the local day of the last one (at most one a
-// day) and the "Not now" answers in a row (three stop the tips until Show
-// tips again).
+// answered (each at most once), the local day of the last one shown (at
+// most one a day) and the "Not now" answers in a row (three stop the tips
+// until Show tips again). A tip shown and left unanswered (the owner moved
+// on or left Home) uses the day but may come back another day.
 
 package session
 
@@ -54,10 +55,10 @@ func (c *Coordinator) resetTips() error {
 	return nil
 }
 
-// tipEvent is tips.event from the shell: seen marks the tip done and uses
-// today (the clock's local calendar day); ok ends a run of "Not now";
-// not_now adds one (at most config.TipsStopAfter). Answers also mark the
-// tip done. An unknown tip or event is refused.
+// tipEvent is tips.event from the shell: seen uses today (the clock's
+// local calendar day); ok ends a run of "Not now" and not_now adds one (at
+// most config.TipsStopAfter); both answers mark the tip done. An unknown
+// tip or event is refused.
 func (c *Coordinator) tipEvent(tip, event string) error {
 	if !contract.IsTipID(tip) {
 		return errors.New("unknown tip")
@@ -70,11 +71,11 @@ func (c *Coordinator) tipEvent(tip, event string) error {
 	day := c.clock.Now().Local().Format("2006-01-02")
 	if _, err := c.opts.Config.Update(func(cfg *config.Config) error {
 		t := tipsOf(cfg)
-		seen := false
+		done := false
 		for _, d := range t.Done {
-			seen = seen || d == tip
+			done = done || d == tip
 		}
-		if !seen {
+		if !done && event != shellipc.TipEventSeen {
 			t.Done = append(t.Done, tip)
 		}
 		switch event {

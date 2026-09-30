@@ -66,20 +66,23 @@ func TestTipsFreshBoxOffersEveryTip(t *testing.T) {
 
 // Seen marks the tip done and uses the day on the coordinator's clock;
 // the next day's tip moves the day.
-func TestTipSeenIsDoneAndUsesTheDay(t *testing.T) {
+func TestTipSeenUsesTheDayAndAnswersAreDone(t *testing.T) {
 	h, clk := newTipsHarness(t)
 	h.tipEvent("themes", shellipc.TipEventSeen)
 	got := h.tips()
-	if !reflect.DeepEqual(got.Done, []string{"themes"}) || got.LastDay != "2026-09-29" {
+	// Shown uses the day; only an answer makes it done (left unanswered,
+	// it may come back another day).
+	if len(got.Done) != 0 || got.LastDay != "2026-09-29" {
 		t.Fatalf("after seen: %+v", got)
 	}
-	// Answering the same tip keeps it once.
+	h.tipEvent("themes", shellipc.TipEventOK)
 	h.tipEvent("themes", shellipc.TipEventOK)
 	if got := h.tips(); !reflect.DeepEqual(got.Done, []string{"themes"}) {
 		t.Fatalf("themes listed twice: %+v", got.Done)
 	}
 	clk.Advance(3 * time.Hour) // past midnight, local time
 	h.tipEvent("add-apps", shellipc.TipEventSeen)
+	h.tipEvent("add-apps", shellipc.TipEventNotNow)
 	if got := h.tips(); got.LastDay != "2026-09-30" || !reflect.DeepEqual(got.Done, []string{"themes", "add-apps"}) {
 		t.Fatalf("the next day: %+v", got)
 	}
@@ -145,7 +148,7 @@ func TestTipEventUnknownIsIgnored(t *testing.T) {
 	rev := h.c.opts.Config.Revision()
 	_ = h.shell.Send(shellipc.TipsEvent{Type: shellipc.TypeTipsEvent, Tip: "clippy", Event: shellipc.TipEventSeen})
 	_ = h.shell.Send(shellipc.TipsEvent{Type: shellipc.TypeTipsEvent, Tip: "themes", Event: "maybe"})
-	h.tipEvent("add-apps", shellipc.TipEventSeen) // processed after the two above
+	h.tipEvent("add-apps", shellipc.TipEventOK) // processed after the two above
 	if got := h.c.opts.Config.Revision(); got != rev+1 {
 		t.Fatalf("revision %d → %d, want one bump", rev, got)
 	}
