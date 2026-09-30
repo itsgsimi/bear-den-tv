@@ -293,6 +293,8 @@ void ShellController::onReply(const QString &requestId, const QString &type, con
         emit requestFailed(tr("Edit layout from phones"), error);
     else if (type == QLatin1String("apps.configure"))
         emit requestFailed(tr("Keep apps up to date"), error);
+    else if (type.startsWith(QLatin1String("tips.")))
+        emit requestFailed(tr("Bear tips"), error);
     else if (type == QLatin1String("cec.configure"))
         emit requestFailed(tr("TV control over HDMI"), error);
     else if (type == QLatin1String("playback.set"))
@@ -487,6 +489,9 @@ void ShellController::achievementsCelebrated(const QStringList &ids)
         m_ipc->sendAchievementsCelebrated(ids);
 }
 void ShellController::achievementEvent(const QString &event) { m_ipc->sendAchievementsEvent(event); }
+void ShellController::setTips(bool enabled) { m_ipc->sendTips(QStringLiteral("tips.configure"), QJsonObject{{QStringLiteral("enabled"), enabled}}); }
+void ShellController::resetTips() { m_ipc->sendTips(QStringLiteral("tips.reset")); }
+void ShellController::tipEvent(const QString &tip, const QString &event) { m_ipc->sendTipsEvent(tip, event); }
 
 void ShellController::setCEC(bool enabled, const QString &volumeTarget)
 {

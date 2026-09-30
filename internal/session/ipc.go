@@ -213,6 +213,8 @@ func (h *ShellHandler) Receive(cl *shellipc.Client, m shellipc.Message) {
 		h.reply(cl, msg.RequestID, c.setBrowsers(msg.Browser, msg.StreamingBrowser), nil)
 	case shellipc.AppsConfigure:
 		h.reply(cl, msg.RequestID, c.configureApps(msg.AutoUpdate), nil)
+	case shellipc.TipsConfigure, shellipc.TipsReset, shellipc.TipsEvent:
+		h.receiveTips(cl, m, isShell)
 	case shellipc.OnboardingComplete:
 		h.reply(cl, msg.RequestID, c.completeOnboarding(), nil)
 	case shellipc.AutostartConfigure:

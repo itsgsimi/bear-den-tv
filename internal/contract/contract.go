@@ -688,6 +688,8 @@ type State struct {
 	// Onboarding and Autostart are for the shell view only (setup.go).
 	Onboarding *Onboarding `json:"onboarding,omitempty"`
 	Autostart  *Autostart  `json:"autostart,omitempty"`
+	// Tips is for the shell view only (tips.go).
+	Tips *Tips `json:"tips,omitempty"`
 }
 
 // Achievements is state.schema.json#/properties/achievements: Den badges

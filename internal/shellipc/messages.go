@@ -483,7 +483,7 @@ func (ShellExit) Kind() string { return TypeShellExit }
 // app.enable, app.install, app.install_info, app.install_cancel,
 // apps.configure, applications.install_request, playback.set,
 // weather.configure, achievements.configure, achievements.reset,
-// onboarding.complete, autostart.configure).
+// onboarding.complete, autostart.configure, tips.configure, tips.reset).
 // Data carries an operation-specific payload, for example the issued
 // invitation for pair.issue. contracts/ipc.md does not list this message yet.
 type Result struct {
@@ -598,6 +598,9 @@ func Decode(frame []byte) (Message, error) {
 		if m = decodeSetup(head.Type); m != nil {
 			break
 		}
+		if m = decodeTips(head.Type); m != nil {
+			break
+		}
 		return nil, fmt.Errorf("%w: %q", ErrUnknownType, head.Type)
 	}
 	if err := json.Unmarshal(frame, m); err != nil {
@@ -695,6 +698,9 @@ func deref(m Message) Message {
 		return v
 	}
 	if v := derefSetup(m); v != nil {
+		return v
+	}
+	if v := derefTips(m); v != nil {
 		return v
 	}
 	return m

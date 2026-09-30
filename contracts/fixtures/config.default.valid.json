@@ -28,5 +28,6 @@
   "onboarding": {"completed": false, "lan_consent": false},
   "weather": {"enabled": false, "place": null, "units": "celsius", "scene": true},
   "achievements": {"enabled": true},
+  "tips": {"enabled": true, "done": [], "not_now_streak": 0},
   "apps": {"auto_update": true, "browser": "brave", "streaming_browser": "chrome"}
 }

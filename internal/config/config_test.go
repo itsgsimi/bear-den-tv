@@ -780,6 +780,48 @@ func TestAchievementsSwitch(t *testing.T) {
 	}
 }
 
+// tips is optional (absent = on, nothing shown), written on in the product
+// default, refused with an unknown tip or a streak past 3, reported as
+// stopped at 3, and deep-copied by Clone.
+func TestTipsBlock(t *testing.T) {
+	if d := Defaults(); d.Tips == nil || !d.Tips.Enabled || len(d.Tips.Done) != 0 {
+		t.Fatalf("the product default must write tips on with nothing done: %+v", d.Tips)
+	}
+	base := defaultRaw(t)
+	cfg, err := Parse(mutateJSON(t, base, func(m map[string]any) { delete(m, "tips") }), testRules())
+	if err != nil {
+		t.Fatalf("a file without tips must keep loading: %v", err)
+	}
+	if st := cfg.TipsState(); !st.Enabled || st.Stopped || st.Done == nil || len(st.Done) != 0 {
+		t.Fatalf("absent tips: %+v", st)
+	}
+	for name, tips := range map[string]map[string]any{
+		"unknown tip":    {"enabled": true, "done": []any{"clippy"}, "not_now_streak": 0},
+		"repeated tip":   {"enabled": true, "done": []any{"themes", "themes"}, "not_now_streak": 0},
+		"streak past 3":  {"enabled": true, "done": []any{}, "not_now_streak": 4},
+		"a time of day":  {"enabled": true, "done": []any{}, "not_now_streak": 0, "last_day": "2026-09-29T20:00"},
+		"unknown member": {"enabled": true, "done": []any{}, "not_now_streak": 0, "shown": 2},
+	} {
+		if _, err := Parse(mutateJSON(t, base, func(m map[string]any) { m["tips"] = tips }), testRules()); err == nil {
+			t.Errorf("%s was accepted", name)
+		}
+	}
+	stopped, err := Parse(mutateJSON(t, base, func(m map[string]any) {
+		m["tips"] = map[string]any{"enabled": true, "done": []any{"themes"}, "not_now_streak": 3, "last_day": "2026-09-29"}
+	}), testRules())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if st := stopped.TipsState(); !st.Stopped || st.LastDay != "2026-09-29" {
+		t.Fatalf("three Not now: %+v", st)
+	}
+	clone := stopped.Clone()
+	clone.Tips.Done[0] = "badges"
+	if stopped.Tips.Done[0] != "themes" {
+		t.Fatal("Clone aliases tips.done")
+	}
+}
+
 // The optional apps' launch definitions follow rule 3: the Flatpak id and
 // arguments each adapter approves, and nothing else.
 func TestOptionalAppsLaunchRules(t *testing.T) {

@@ -41,6 +41,9 @@ type Config struct {
 	CEC *CEC `json:"cec,omitempty"`
 	// Achievements switches Den badges; nil = on (contracts/config.md).
 	Achievements *Achievements `json:"achievements,omitempty"`
+	// Tips is the TV's bear tips; nil = on, nothing shown yet
+	// (contracts/config.md "Bear tips").
+	Tips *Tips `json:"tips,omitempty"`
 	// Apps holds app install settings; nil = auto_update on
 	// (contracts/config.md "App installs").
 	Apps *Apps `json:"apps,omitempty"`
@@ -100,6 +103,34 @@ type Achievements struct {
 // means on.
 func (c Config) AchievementsEnabled() bool {
 	return c.Achievements == nil || c.Achievements.Enabled
+}
+
+// TipsStopAfter is how many "Not now" answers in a row stop the bear tips.
+const TipsStopAfter = 3
+
+// Tips is config.tips: the TV's bear tips.
+type Tips struct {
+	Enabled bool `json:"enabled"`
+	// Done lists the tips already shown (contract.TipIDs); never shown again.
+	Done []string `json:"done"`
+	// NotNowStreak counts "Not now" answers in a row, up to TipsStopAfter.
+	NotNowStreak int `json:"not_now_streak"`
+	// LastDay is the local calendar day (YYYY-MM-DD) a tip was last shown.
+	LastDay string `json:"last_day,omitempty"`
+}
+
+// TipsState is config.tips as the shell sees it (state.tips); an absent
+// block means on with nothing shown yet.
+func (c Config) TipsState() contract.Tips {
+	if c.Tips == nil {
+		return contract.Tips{Enabled: true, Done: []string{}}
+	}
+	return contract.Tips{
+		Enabled: c.Tips.Enabled,
+		Done:    append([]string{}, c.Tips.Done...),
+		Stopped: c.Tips.NotNowStreak >= TipsStopAfter,
+		LastDay: c.Tips.LastDay,
+	}
 }
 
 // Weather is config.weather: local weather for the Home header and scene.
@@ -381,6 +412,11 @@ func (c Config) Clone() Config {
 	if c.Achievements != nil {
 		a := *c.Achievements
 		out.Achievements = &a
+	}
+	if c.Tips != nil {
+		t := *c.Tips
+		t.Done = append([]string{}, c.Tips.Done...)
+		out.Tips = &t
 	}
 	if c.Apps != nil {
 		a := *c.Apps

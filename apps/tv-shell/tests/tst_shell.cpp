@@ -2317,6 +2317,58 @@ private slots:
         QVERIFY(session->applySnapshot(fixture()));
     }
 
+    // state.tips (bear tips) is accepted and exposed as Session.tips; a
+    // wrong shape or an unknown tip id is rejected and the previous state
+    // stays.
+    void tipsAcceptedAndChecked()
+    {
+        SessionModel *session = SessionModel::instance();
+        const auto restore = qScopeGuard([&] { QVERIFY(session->applySnapshot(fixture())); });
+        const int epoch = session->contextEpoch();
+        QJsonObject snap = fixture();
+        snap.insert(QStringLiteral("context_epoch"), epoch + 1200);
+        snap.insert(QStringLiteral("tips"), QJsonObject{{QStringLiteral("enabled"), true}, {QStringLiteral("stopped"), false},
+                                                        {QStringLiteral("done"), QJsonArray{QStringLiteral("themes")}},
+                                                        {QStringLiteral("last_day"), QStringLiteral("2026-09-29")}});
+        QVERIFY2(session->applySnapshot(snap), qPrintable(session->lastError()));
+        QCOMPARE(session->tips().value(QStringLiteral("done")).toStringList(), QStringList{QStringLiteral("themes")});
+        QCOMPARE(session->tips().value(QStringLiteral("last_day")).toString(), QStringLiteral("2026-09-29"));
+
+        snap.insert(QStringLiteral("context_epoch"), epoch + 1300);
+        const QList<QJsonValue> bad{
+            QJsonObject{{QStringLiteral("enabled"), true}, {QStringLiteral("done"), QJsonArray{}}},
+            QJsonObject{{QStringLiteral("enabled"), 1}, {QStringLiteral("stopped"), false}, {QStringLiteral("done"), QJsonArray{}}},
+            QJsonObject{{QStringLiteral("enabled"), true}, {QStringLiteral("stopped"), false}, {QStringLiteral("done"), QJsonArray{QStringLiteral("clippy")}}},
+            QJsonObject{{QStringLiteral("enabled"), true}, {QStringLiteral("stopped"), false}, {QStringLiteral("done"), QJsonArray{}}, {QStringLiteral("last_day"), QStringLiteral("today")}},
+            QJsonValue(true),
+        };
+        for (const QJsonValue &value : bad) {
+            QJsonObject broken = snap;
+            broken.insert(QStringLiteral("tips"), value);
+            QVERIFY2(!session->applySnapshot(broken), qPrintable(QString::fromUtf8(QJsonDocument(value.toObject()).toJson(QJsonDocument::Compact))));
+            QVERIFY2(session->lastError().contains(QStringLiteral("tips")), qPrintable(session->lastError()));
+        }
+        QCOMPARE(session->contextEpoch(), epoch + 1200); // the previous state stays
+    }
+
+    // Shell.setTips, Shell.resetTips and Shell.tipEvent send tips.configure,
+    // tips.reset and tips.event (recorded offline).
+    void tipsRequestsAreSent()
+    {
+        IpcClient *ipc = ShellController::instance()->ipc();
+        ipc->clearSent();
+        ShellController::instance()->setTips(false);
+        QCOMPARE(lastSent(QStringLiteral("tips.configure")).value(QStringLiteral("enabled")), QJsonValue(false));
+        QVERIFY(!lastSent(QStringLiteral("tips.configure")).value(QStringLiteral("request_id")).toString().isEmpty());
+        ShellController::instance()->resetTips();
+        QVERIFY(!lastSent(QStringLiteral("tips.reset")).value(QStringLiteral("request_id")).toString().isEmpty());
+        ShellController::instance()->tipEvent(QStringLiteral("themes"), QStringLiteral("not_now"));
+        const QJsonObject event = lastSent(QStringLiteral("tips.event"));
+        QCOMPARE(event.value(QStringLiteral("tip")).toString(), QStringLiteral("themes"));
+        QCOMPARE(event.value(QStringLiteral("event")).toString(), QStringLiteral("not_now"));
+        QVERIFY(!event.contains(QStringLiteral("request_id")));
+    }
+
     // Shell.completeOnboarding and Shell.setAutostart send the IPC messages
     // (recorded offline).
     void setupRequestsAreSent()

@@ -53,6 +53,11 @@ Canonical messages consumed by contract tests in Go ([`tests/contract/fixtures_t
 | `state.onboarding-not-bool.invalid.json` | rejected: `onboarding.completed` must be a boolean |
 | `state.autostart-no-available.invalid.json` | rejected: `autostart` must say whether it is `available` |
 | `state.phone-autostart.invalid.json` | rejected: a phone view (with `me`) never carries `onboarding` or `autostart` |
+| `state.shell-tips.valid.json` | `state.schema.json` (shell view after setup: bear tips on, two done, one shown today) |
+| `state.tips-unknown-id.invalid.json` | rejected: `tips.done` holds only the seven tip ids |
+| `state.phone-tips.invalid.json` | rejected: a phone view (with `me`) never carries `tips` |
+| `config.tips.valid.json` | `config.schema.json` (bear tips: two done, one "Not now", last shown the day before) |
+| `config.tips-streak-too-high.invalid.json` | rejected structurally: `tips.not_now_streak` is at most 3 |
 | `state.phone-app-notes.valid.json` | `state.schema.json` (phone view: Plex HTPC and YouTube with their `applications[].notes`) |
 | `state.app-notes-too-many.invalid.json` | rejected: `applications[].notes` holds at most 6 notes |
 | `state.app-note-url.invalid.json` | rejected: a note never carries a URL |

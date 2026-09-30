@@ -592,6 +592,21 @@ void IpcClient::sendAchievementsEvent(const QString &event)
     send(QJsonObject{{QStringLiteral("type"), QStringLiteral("achievements.event")}, {QStringLiteral("event"), event}});
 }
 
+QString IpcClient::sendTips(const QString &type, const QJsonObject &fields)
+{
+    const QString id = newRequestId();
+    QJsonObject message = fields;
+    message.insert(QStringLiteral("type"), type);
+    message.insert(QStringLiteral("request_id"), id);
+    send(message);
+    return track(id, type);
+}
+
+void IpcClient::sendTipsEvent(const QString &tip, const QString &event)
+{
+    send(QJsonObject{{QStringLiteral("type"), QStringLiteral("tips.event")}, {QStringLiteral("tip"), tip}, {QStringLiteral("event"), event}});
+}
+
 void IpcClient::sendShellExit(const QString &reason)
 {
     send(QJsonObject{{QStringLiteral("type"), QStringLiteral("shell.exit")}, {QStringLiteral("reason"), reason}});

@@ -86,6 +86,13 @@ as `state.appearance.app_icons` and fetch the icon from
 - Written by the trusted local `achievements.configure` (`ipc.md`: TV Themes → Den badges, or `bear-den-tv badges on|off`). The counters themselves live in the state database, never in `config.json` ([`docs/security.md`](../docs/security.md#den-badges)).
 - Additive: `schema_version` stays 1.
 
+## Bear tips (optional field)
+
+- `tips` (object, absent = on with nothing shown yet): `{"enabled": true|false, "done": [<tip id>…], "not_now_streak": 0..3, "last_day"?: "YYYY-MM-DD"}`. The built-in default file writes `{"enabled": true, "done": [], "not_now_streak": 0}`. The tip ids are `themes`, `add-apps`, `phone-remote`, `now-playing`, `sleep-timer`, `badges`, `guest-pass` (`$defs/tipId`), each at most once in `done`.
+- The TV shell decides when a tip may show and which (never before the first-run setup is done, never over an app or a dialog, only on Home after a quiet spell, at most one a day: [`apps/tv-shell/AGENTS.md`](../apps/tv-shell/AGENTS.md#bear-tips)); the coordinator only remembers: `done` (the tips shown, never again), `last_day` (the local calendar day of the last one, on the coordinator's clock) and `not_now_streak` ("Not now" answers in a row; at 3 the bears stop offering tips, `state.tips.stopped`).
+- Written only by the trusted local `tips.configure`, `tips.reset` and the shell's `tips.event` (`ipc.md`: Settings → Home screen → Bear tips and Show tips again). The shell sees it as `state.tips` (shell view only); phones never do.
+- Additive: `schema_version` stays 1.
+
 ## App installs (optional field)
 
 - `apps` (object, absent = `{"auto_update": true}`): `{"auto_update": true|false, "browser"?: "brave"|"chrome", "streaming_browser"?: "chrome"|"brave"}`. The built-in default file writes `true`. While `true` the coordinator updates the apps it can install (the adapter table's Flatpak ids) that are installed **for this user**, with `flatpak update --user --noninteractive -y <ids>`, at most once a day, only while nothing is playing, no app is running and Bear Den is in front (its screensaver may be on); an app starting cancels the update. Apps installed system-wide are never touched ("Updated by your system").

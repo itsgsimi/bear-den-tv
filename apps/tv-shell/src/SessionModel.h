@@ -67,6 +67,8 @@ class SessionModel : public QObject {
     Q_PROPERTY(QVariantMap onboarding READ onboarding NOTIFY snapshotChanged)
     /// Start with this PC (state.autostart: {enabled, available, reason?}; empty when absent: an older coordinator).
     Q_PROPERTY(QVariantMap autostart READ autostart NOTIFY snapshotChanged)
+    /// Bear tips (state.tips: {enabled, done, stopped, last_day?}; empty when absent: an older coordinator, no tips).
+    Q_PROPERTY(QVariantMap tips READ tips NOTIFY snapshotChanged)
     Q_PROPERTY(SectionsModel *sections READ sections CONSTANT)
     Q_PROPERTY(QString lastError READ lastError NOTIFY snapshotRejected)
 
@@ -133,6 +135,7 @@ public:
     QVariantMap apps() const { return m_snapshot.value(QStringLiteral("apps")).toObject().toVariantMap(); }
     QVariantMap onboarding() const { return m_snapshot.value(QStringLiteral("onboarding")).toObject().toVariantMap(); }
     QVariantMap autostart() const { return m_snapshot.value(QStringLiteral("autostart")).toObject().toVariantMap(); }
+    QVariantMap tips() const { return m_snapshot.value(QStringLiteral("tips")).toObject().toVariantMap(); }
     SectionsModel *sections() const { return m_sections; }
     QString lastError() const { return m_lastError; }
 

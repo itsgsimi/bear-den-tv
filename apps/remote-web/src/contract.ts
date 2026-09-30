@@ -455,6 +455,23 @@ export interface StateSnapshot {
   onboarding?: Onboarding;
   /** Shell view only: phones never receive it (the TV's "Start with this PC"). */
   autostart?: Autostart;
+  /** Shell view only: phones never receive it (the TV's bear tips). */
+  tips?: Tips;
+}
+
+/** A bear tip (config.schema.json#/$defs/tipId), in the order the TV offers them. */
+export type TipId = 'themes' | 'add-apps' | 'phone-remote' | 'now-playing' | 'sleep-timer' | 'badges' | 'guest-pass';
+
+/** state.tips (shell view only): config tips, for the TV's bear tips. */
+export interface Tips {
+  /** Settings → Home screen → Bear tips. */
+  enabled: boolean;
+  /** Tips already shown; never shown again. */
+  done: TipId[];
+  /** Three "Not now" in a row: no more tips until Show tips again. */
+  stopped: boolean;
+  /** The local calendar day (YYYY-MM-DD) a tip was last shown. */
+  last_day?: string;
 }
 
 /** state.onboarding (shell view only): config onboarding.completed. */

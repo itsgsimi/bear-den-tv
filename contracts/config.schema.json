@@ -150,6 +150,18 @@
       "required": ["enabled"],
       "additionalProperties": false
     },
+    "tips": {
+      "type": "object",
+      "description": "Optional; absent means on with nothing shown yet. Bear tips: a bear on Home now and then points at something the owner has not tried (contracts/config.md). Shell only; never sent to phones.",
+      "properties": {
+        "enabled": {"type": "boolean", "description": "Settings → Home screen → Bear tips."},
+        "done": {"type": "array", "uniqueItems": true, "maxItems": 7, "items": {"$ref": "#/$defs/tipId"}, "description": "Tips already shown (seen, answered or dismissed); each is shown at most once."},
+        "not_now_streak": {"type": "integer", "minimum": 0, "maximum": 3, "description": "\"Not now\" answers in a row; at 3 the bears stop offering tips until Show tips again."},
+        "last_day": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$", "description": "The local calendar day a tip was last shown (at most one a day). Absent before the first."}
+      },
+      "required": ["enabled", "done", "not_now_streak"],
+      "additionalProperties": false
+    },
     "weather": {
       "type": "object",
       "description": "Optional; absent means off. Local weather for the Home header and scene (contracts/config.md). Coordinates carry at most 2 decimals; never a URL, key or token.",
@@ -206,5 +218,8 @@
     }
   },
   "required": ["schema_version", "revision", "device", "ui", "applications", "sections", "plex_content", "remote", "cache", "startup", "privacy", "onboarding"],
-  "additionalProperties": false
+  "additionalProperties": false,
+  "$defs": {
+    "tipId": {"enum": ["themes", "add-apps", "phone-remote", "now-playing", "sleep-timer", "badges", "guest-pass"], "description": "A bear tip, in the order the bears offer them (apps/tv-shell/qml/Tips.qml). Also state.tips.done."}
+  }
 }

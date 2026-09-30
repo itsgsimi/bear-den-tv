@@ -47,8 +47,8 @@ func (c *Coordinator) buildState(view viewKind) contract.State {
 
 // buildStateFor assembles a snapshot redacted for the viewer (contracts/http.md
 // and state.schema.json): pairing is shell-only, devices owner/shell only,
-// layout editor/shell only, playback, weather, plex, onboarding and autostart
-// shell only, now_playing
+// layout editor/shell only, playback, weather, plex, onboarding, autostart and
+// tips shell only, now_playing
 // controller and guest phones only (never the shell); while locked no focus,
 // devices, layout, content, playback, weather, plex or now_playing. A guest's
 // me carries its pass end (contracts/http.md#guest-passes).
@@ -115,6 +115,8 @@ func (c *Coordinator) buildStateFor(view viewKind, v *remote.Viewer) contract.St
 		st.Apps = apps
 		st.Onboarding = &contract.Onboarding{Completed: cfg.Onboarding.Completed}
 		st.Autostart = c.autostartState()
+		tips := cfg.TipsState()
+		st.Tips = &tips
 		p := c.opts.Pairing.State()
 		st.Pairing = &p
 		if !locked {

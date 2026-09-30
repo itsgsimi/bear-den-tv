@@ -480,6 +480,38 @@ bool SessionModel::validateSnapshot(const QJsonObject &snapshot, QString *error)
         if (autostart.contains(QStringLiteral("reason")) && !requireType(autostart, QStringLiteral("reason"), QJsonValue::String, where, error))
             return false;
     }
+    if (snapshot.contains(QStringLiteral("tips"))) {
+        // state.tips (optional, shell view only): enabled, stopped (booleans),
+        // done (the tip ids), last_day (YYYY-MM-DD) when a tip was shown.
+        const QString where = QStringLiteral("state.tips");
+        if (!requireType(snapshot, QStringLiteral("tips"), QJsonValue::Object, QStringLiteral("state"), error))
+            return false;
+        const QJsonObject tips = snapshot.value(QStringLiteral("tips")).toObject();
+        if (!requireKeys(tips, {QStringLiteral("enabled"), QStringLiteral("done"), QStringLiteral("stopped")}, where, error)
+            || !requireType(tips, QStringLiteral("enabled"), QJsonValue::Bool, where, error)
+            || !requireType(tips, QStringLiteral("stopped"), QJsonValue::Bool, where, error)
+            || !requireType(tips, QStringLiteral("done"), QJsonValue::Array, where, error))
+            return false;
+        static const QStringList tipIds{QStringLiteral("themes"), QStringLiteral("add-apps"), QStringLiteral("phone-remote"), QStringLiteral("now-playing"),
+                                        QStringLiteral("sleep-timer"), QStringLiteral("badges"), QStringLiteral("guest-pass")};
+        for (const QJsonValue &id : tips.value(QStringLiteral("done")).toArray()) {
+            if (!tipIds.contains(id.toString())) {
+                if (error)
+                    *error = QStringLiteral("state.tips.done has an unknown tip");
+                return false;
+            }
+        }
+        if (tips.contains(QStringLiteral("last_day"))) {
+            static const QRegularExpression day(QStringLiteral("^[0-9]{4}-[0-9]{2}-[0-9]{2}$"));
+            if (!requireType(tips, QStringLiteral("last_day"), QJsonValue::String, where, error))
+                return false;
+            if (!day.match(tips.value(QStringLiteral("last_day")).toString()).hasMatch()) {
+                if (error)
+                    *error = QStringLiteral("state.tips.last_day is not a calendar day");
+                return false;
+            }
+        }
+    }
     if (snapshot.contains(QStringLiteral("plex"))) {
         // state.plex (optional, shell view only): the Plex sign-in flow.
         const QString where = QStringLiteral("state.plex");

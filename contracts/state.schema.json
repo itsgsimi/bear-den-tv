@@ -390,6 +390,18 @@
       "required": ["completed"],
       "additionalProperties": false
     },
+    "tips": {
+      "type": "object",
+      "description": "Shell view only; never sent to phones. Absent from older coordinators (the shell then offers no tips). Bear tips (config tips): which tips were already shown and whether the bears still offer them. The shell decides when and which tip to show (apps/tv-shell/qml/TipBear.qml) and reports it with IPC tips.event.",
+      "properties": {
+        "enabled": {"type": "boolean", "description": "config tips.enabled (Settings → Home screen → Bear tips)."},
+        "done": {"type": "array", "uniqueItems": true, "maxItems": 7, "items": {"$ref": "config.schema.json#/$defs/tipId"}, "description": "config tips.done: never shown again."},
+        "stopped": {"type": "boolean", "description": "Three \"Not now\" answers in a row (config tips.not_now_streak is 3): no more tips until Show tips again (IPC tips.reset)."},
+        "last_day": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$", "description": "config tips.last_day: the local calendar day a tip was last shown; the shell shows none on that day. Absent before the first."}
+      },
+      "required": ["enabled", "done", "stopped"],
+      "additionalProperties": false
+    },
     "autostart": {
       "type": "object",
       "description": "Shell view only; never sent to phones. Absent from older coordinators. Whether Bear Den starts with this PC: the user's XDG autostart entry, the same one `bear-den-tv autostart enable` writes (IPC autostart.configure turns it on or off).",
@@ -474,7 +486,7 @@
     {"description": "Only owner phones (and the shell) see installs: a phone without owner, a guest pass included, gets no applications[].install and no apps.",
      "if": {"properties": {"me": {"not": {"properties": {"permissions": {"contains": {"const": "owner"}}}, "required": ["permissions"]}}}, "required": ["me"]},
      "then": {"not": {"required": ["apps"]}, "properties": {"applications": {"items": {"not": {"required": ["install"]}}}}}},
-    {"description": "Setup and autostart are for the shell only: a phone view (with me) carries neither onboarding nor autostart.", "if": {"required": ["me"]}, "then": {"not": {"anyOf": [{"required": ["onboarding"]}, {"required": ["autostart"]}]}}}
+    {"description": "Setup, autostart and bear tips are for the shell only: a phone view (with me) carries none of onboarding, autostart and tips.", "if": {"required": ["me"]}, "then": {"not": {"anyOf": [{"required": ["onboarding"]}, {"required": ["autostart"]}, {"required": ["tips"]}]}}}
   ],
   "$defs": {
     "install": {

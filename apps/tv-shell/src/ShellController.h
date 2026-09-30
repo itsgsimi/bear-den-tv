@@ -21,7 +21,7 @@ class QQuickWindow;
 // shell: it feeds snapshots into Session, applies coordinator input through Nav
 // and answers with input_result, reports focus, and exposes the trusted local
 // requests (launch, pairing, devices, remote onboarding, first-run setup and
-// "Start with this PC", settings) to QML.
+// "Start with this PC", bear tips, settings) to QML.
 class ShellController : public QObject {
     Q_OBJECT
     QML_NAMED_ELEMENT(Shell)
@@ -195,6 +195,12 @@ public:
     Q_INVOKABLE void resetAchievements();
     Q_INVOKABLE void achievementsCelebrated(const QStringList &ids);
     Q_INVOKABLE void achievementEvent(const QString &event);
+    // Bear tips (contracts/ipc.md tips.*): Settings → Home screen → Bear
+    // tips turns them on or off, Show tips again resets them; tipEvent
+    // reports a tip on Home: "seen", "ok" (Show me) or "not_now" (TipBear).
+    Q_INVOKABLE void setTips(bool enabled);
+    Q_INVOKABLE void resetTips();
+    Q_INVOKABLE void tipEvent(const QString &tip, const QString &event);
     Q_INVOKABLE void answerConfirm(const QString &confirmId, bool accepted);
     Q_INVOKABLE void exitShell();
     // Flatpak id for a registered adapter ("" when unknown); the closed set
