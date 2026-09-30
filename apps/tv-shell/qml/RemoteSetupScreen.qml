@@ -1,5 +1,6 @@
 // Phone-remote onboarding. Nothing listens on the LAN until the owner picks
 // one network interface here and accepts the exposure (contracts/http.md).
+// The explanation sits on a surface panel so it reads over any scene.
 
 import QtQuick
 import BearDen
@@ -49,8 +50,17 @@ Item {
         Row {
             anchors.fill: parent
             spacing: 64 * Theme.scale
+            PixelBox {
+                objectName: "remoteSetupPanel"
+                width: parent.width * 0.5
+                height: explain.implicitHeight + 56 * Theme.scale
+                radius: 18 * Theme.scale
+                color: Theme.surface
+                borderColor: Theme.surfaceBorder
+                borderWidth: 1
             Column {
-                width: parent.width * 0.48
+                id: explain
+                anchors { left: parent.left; right: parent.right; top: parent.top; margins: 28 * Theme.scale }
                 spacing: 22 * Theme.scale
                 Text {
                     width: parent.width
@@ -88,7 +98,7 @@ Item {
                     font.family: Theme.fontFamily
                     font.pixelSize: 24 * Theme.fontUnit
                     lineHeight: 1.2
-                    text: qsTr("• Only phones you pair on this TV can control it.\n• It uses plain HTTP on a trusted home network: pairing stops casual control but traffic is not encrypted.\n• It never listens on public, VPN, or container interfaces.\n• You can revoke phones or turn this off at any time.")
+                    text: qsTr("• Only phones you pair on this TV can control it.\n• It is not encrypted: pairing stops casual control, but others on your home network could see what phones send.\n• It never listens on public, VPN or container networks.\n• You can remove phones or turn this off at any time.")
                 }
                 Text {
                     visible: !root.remoteOn && root.interfaces.length === 0
@@ -99,6 +109,7 @@ Item {
                     font.pixelSize: 24 * Theme.fontUnit
                     text: qsTr("No home network connection was found. Connect the TV to your network and come back.")
                 }
+            }
             }
             Column {
                 spacing: 18 * Theme.scale

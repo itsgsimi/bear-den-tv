@@ -1123,6 +1123,12 @@ private slots:
         QQuickItem *panel = visibleItem(QStringLiteral("screenPanel"));
         QVERIFY2(panel, "Diagnostics has no panel behind its rows");
         QCOMPARE(panel->property("color").value<QColor>(), Theme::instance()->surface());
+        // Phone remote setup's explanation too (the owner's pick, 2026-09-29).
+        goHome();
+        QMetaObject::invokeMethod(shellRoot(), "open", Q_ARG(QVariant, QStringLiteral("remote-setup")));
+        QCoreApplication::processEvents();
+        QCOMPARE(shellScreen(), QStringLiteral("remote-setup"));
+        QVERIFY2(visibleItem(QStringLiteral("remoteSetupPanel")), "Phone remote setup has no panel behind its text");
         goHome();
     }
 

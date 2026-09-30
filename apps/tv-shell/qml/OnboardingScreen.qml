@@ -539,7 +539,7 @@ Item {
                     color: Theme.textSecondary
                     font.family: Theme.fontFamily
                     font.pixelSize: 25 * Theme.fontUnit
-                    text: qsTr("• Your phone's browser becomes the remote: arrows, OK, Back, volume and your apps.\n• Only phones you pair here, with a code shown on this TV, can control it.\n• The phone talks to this PC directly on your home network; nothing goes through the internet. It is plain HTTP, so use it on a network you trust.\n• You can turn it off any time: Settings → Phones & remote.")
+                    text: qsTr("• Your phone's browser becomes the remote: arrows, OK, Back, volume and your apps.\n• Only phones you pair here, with a code shown on this TV, can control it.\n• The phone talks to this PC directly on your home network; nothing goes through the internet. It is not encrypted, so use it on a network you trust.\n• You can turn it off any time: Settings → Phones & remote.")
                 }
                 Text {
                     visible: root.remoteOn
