@@ -1066,6 +1066,52 @@ private slots:
         QVERIFY2(m_nav->screen() != QLatin1String("dialog") || m_nav->itemId().startsWith(QLatin1String("install")), qPrintable(m_nav->itemId()));
     }
 
+    // UX-01: a focused primary button's words must read on its accent fill,
+    // for every installed theme's accent and for a dark accent the owner
+    // may choose on the phone (layout ui.accent is any #RRGGBB).
+    void focusedPrimaryButtonTextReadsOnEveryAccent()
+    {
+        Theme *theme = Theme::instance();
+        const QColor before = theme->property("accent").value<QColor>();
+        const auto restore = qScopeGuard([theme, before] { theme->applyUi({{QStringLiteral("accent"), before.name()}}); });
+        QStringList accents{QStringLiteral("#1A3A6A"), QStringLiteral("#3B1F2B"), QStringLiteral("#F4F6F5")};
+        const QVariantList themes = ThemeRegistry::instance()->list();
+        QVERIFY(themes.size() >= 5);
+        for (const QVariant &t : themes)
+            accents << t.toMap().value(QStringLiteral("accent")).toString();
+        for (const QString &a : accents) {
+            theme->applyUi({{QStringLiteral("accent"), a}});
+            const QColor fill = theme->property("accent").value<QColor>();
+            const double ratio = Theme::contrastRatio(fill, theme->onAccent());
+            QVERIFY2(ratio >= 4.5, qPrintable(QStringLiteral("%1 text on %2: %3:1").arg(theme->onAccent().name(), a).arg(ratio, 0, 'f', 2)));
+        }
+        // The first-run setup's "Let's set up" (a focused primary FocusButton) uses it.
+        theme->applyUi({{QStringLiteral("accent"), QStringLiteral("#1A3A6A")}});
+        QMetaObject::invokeMethod(shellRoot(), "open", Q_ARG(QVariant, QStringLiteral("onboarding-0")));
+        QCoreApplication::processEvents();
+        QQuickItem *button = nullptr;
+        std::function<void(QQuickItem *)> find = [&](QQuickItem *item) {
+            if (button || !item->isVisible())
+                return;
+            if (item->property("primary").toBool() && item->property("focused").toBool() && item->property("text").toString() == QLatin1String("Let's set up")) {
+                button = item;
+                return;
+            }
+            for (QQuickItem *child : item->childItems())
+                find(child);
+        };
+        find(m_window->contentItem());
+        QVERIFY2(button, "no focused Let's set up button");
+        QQuickItem *label = nullptr;
+        for (QQuickItem *t : button->findChildren<QQuickItem *>())
+            if (t->property("text").toString() == QLatin1String("Let's set up") && t != button)
+                label = t;
+        QVERIFY(label);
+        QCOMPARE(label->property("color").value<QColor>(), theme->onAccent());
+        QVERIFY(Theme::contrastRatio(button->property("color").value<QColor>(), label->property("color").value<QColor>()) >= 4.5);
+        act(QStringLiteral("home"));
+    }
+
     // TV item 9 (2026-09-29): Apps → Remove apps, one card per Flatpak;
     // the remove card has Cancel focused, says what it frees and what else
     // it turns off (Netflix runs in Google Chrome), sends app.uninstall only

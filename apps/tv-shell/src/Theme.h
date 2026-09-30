@@ -60,6 +60,9 @@ class Theme : public QObject {
     Q_PROPERTY(QString monoFamily READ monoFamily CONSTANT)
     Q_PROPERTY(QColor accentSoft READ accentSoft NOTIFY tokensChanged)
     Q_PROPERTY(QColor accentText READ accentText NOTIFY tokensChanged)
+    // Text on an accent fill (a focused primary button): dark or light,
+    // whichever reads better on the accent the owner chose (UX-01).
+    Q_PROPERTY(QColor onAccent READ onAccent NOTIFY tokensChanged)
     Q_PROPERTY(QColor bgTop READ bgTop NOTIFY tokensChanged)
     Q_PROPERTY(QColor bgBottom READ bgBottom NOTIFY tokensChanged)
     Q_PROPERTY(QUrl wallpaperSource READ wallpaperSource NOTIFY tokensChanged)
@@ -148,6 +151,9 @@ public:
     QString monoFamily() const { return m_monoFamily; }
     QColor accentSoft() const;
     QColor accentText() const;
+    QColor onAccent() const;
+    /// WCAG 2 contrast ratio of two opaque colours (1 to 21).
+    static double contrastRatio(const QColor &a, const QColor &b);
     QColor bgTop() const;
     QColor bgBottom() const;
     QUrl wallpaperSource() const;

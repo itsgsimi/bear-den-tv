@@ -1,6 +1,7 @@
 // D-pad button used on screens and dialogs. Screens own focus bookkeeping and
-// set `focused`; `primary` fills with the accent when focused, with dark text
-// on it (the accents are mid-light colours, so light text would not read).
+// set `focused`; `primary` fills with the accent when focused, with
+// Theme.onAccent text on it: dark on the bundled mid-light accents, light on
+// a dark accent the owner chose, whichever contrasts more (UX-01).
 
 import QtQuick
 import BearDen
@@ -31,7 +32,7 @@ PixelBox {
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
             text: root.text
-            color: root.focused ? Theme.pillActiveText
+            color: root.focused ? (root.primary ? Theme.onAccent : Theme.pillActiveText)
                                 : (root.danger ? Theme.danger : (root.primary ? Theme.accent : Theme.textPrimary))
             font.family: Theme.fontFamily
             font.pixelSize: 26 * Theme.fontUnit
@@ -41,7 +42,7 @@ PixelBox {
             anchors.horizontalCenter: parent.horizontalCenter
             visible: root.detail.length > 0
             text: root.detail
-            color: root.focused ? Theme.pillActiveText : Theme.textSecondary
+            color: root.focused ? (root.primary ? Theme.onAccent : Theme.pillActiveText) : Theme.textSecondary
             font.family: Theme.fontFamily
             font.pixelSize: 20 * Theme.fontUnit
         }

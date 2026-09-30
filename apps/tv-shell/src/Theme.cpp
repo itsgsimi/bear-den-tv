@@ -8,6 +8,7 @@
 #include <QHash>
 #include <QJSEngine>
 #include <QQmlEngine>
+#include <cmath>
 
 namespace {
 Theme *g_instance = nullptr;
@@ -106,6 +107,25 @@ void Theme::setWindowHeight(qreal h)
 QColor Theme::accentSoft() const
 {
     return alpha(m_accent, 0.22);
+}
+
+// WCAG 2 relative luminance of an opaque colour.
+static double luminance(const QColor &c)
+{
+    auto channel = [](double v) { return v <= 0.03928 ? v / 12.92 : std::pow((v + 0.055) / 1.055, 2.4); };
+    return 0.2126 * channel(c.redF()) + 0.7152 * channel(c.greenF()) + 0.0722 * channel(c.blueF());
+}
+
+double Theme::contrastRatio(const QColor &a, const QColor &b)
+{
+    const double la = luminance(a), lb = luminance(b);
+    return (std::max(la, lb) + 0.05) / (std::min(la, lb) + 0.05);
+}
+
+QColor Theme::onAccent() const
+{
+    const QColor dark = pillActiveText(), light = textPrimary();
+    return contrastRatio(m_accent, dark) >= contrastRatio(m_accent, light) ? dark : light;
 }
 
 QColor Theme::accentText() const
