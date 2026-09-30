@@ -172,7 +172,7 @@ What [`packaging/build-deb.sh`](../packaging/build-deb.sh) does:
 
 - **Version:** [`packaging/version.sh`](../packaging/version.sh) maps
   `git describe --tags --always --dirty` to a Debian version (`v1.2.0` → `1.2.0`,
-  `v1.2.0-3-gabc1234` → `1.2.0+git3.gabc1234`, no tag yet → `0.1.0~git.<sha>`).
+  `v1.2.0-3-gabc1234` → `1.2.0+git3.gabc1234`, no tag yet → `0.1.0~git<N>.<sha>` with N the commit count, so every later build sorts higher; a build from before this scheme (`0.1.0~git.<sha>`) must be removed before installing a newer one).
   `VERSION=...` overrides it. The coordinator prints it with `bear-den-tv version`.
 - **Coordinator:** static (`CGO_ENABLED=0`; every Go dependency, SQLite
   included, is pure Go).

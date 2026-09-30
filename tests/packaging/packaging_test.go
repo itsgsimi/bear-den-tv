@@ -37,11 +37,11 @@ func TestVersionMapping(t *testing.T) {
 		"v1.2.0-3-gabc1234-dirty": "1.2.0+git3.gabc1234.dirty",
 		"v1.2.0-rc1":              "1.2.0~rc1",
 		"v1.2.0-rc1-2-gdef5678":   "1.2.0~rc1+git2.gdef5678",
-		"abc1234":                 "0.1.0~git.abc1234",
-		"5ea4119-dirty":           "0.1.0~git.5ea4119.dirty",
-		"1234567":                 "0.1.0~git.1234567",
+		"abc1234":                 "0.1.0~git42.abc1234",
+		"5ea4119-dirty":           "0.1.0~git42.5ea4119.dirty",
+		"1234567":                 "0.1.0~git42.1234567",
 	} {
-		cmd := exec.Command("bash", script, describe)
+		cmd := exec.Command("bash", script, describe, "42")
 		cmd.Env = append(os.Environ(), "VERSION=")
 		out, err := cmd.Output()
 		if err != nil {
@@ -173,5 +173,33 @@ func TestNfpmContents(t *testing.T) {
 		if !strings.Contains(string(raw), "\nExec="+start+" --watch\n") {
 			t.Errorf("%s does not run %s --watch:\n%s", d, start, raw)
 		}
+	}
+}
+
+// Untagged builds must sort in commit order, whatever their hashes look
+// like: "0.1.0~git.c8449a5" sorted above the later "0.1.0~git.17d6a0b"
+// (letters after digits), so apt called the newer package a downgrade.
+func TestUntaggedVersionsRiseWithCommits(t *testing.T) {
+	dpkg, err := exec.LookPath("dpkg")
+	if err != nil {
+		t.Skip("dpkg not installed: the ordering needs Debian's own comparison (not a pass)")
+	}
+	script := filepath.Join(repoRoot(t), "packaging", "version.sh")
+	version := func(describe, count string) string {
+		cmd := exec.Command("bash", script, describe, count)
+		cmd.Env = append(os.Environ(), "VERSION=")
+		out, err := cmd.Output()
+		if err != nil {
+			t.Fatal(err)
+		}
+		return strings.TrimSpace(string(out))
+	}
+	older, newer := version("c8449a5", "150"), version("17d6a0b", "170")
+	if err := exec.Command(dpkg, "--compare-versions", newer, "gt", older).Run(); err != nil {
+		t.Fatalf("%s does not sort after %s", newer, older)
+	}
+	release := version("v0.1.0", "")
+	if err := exec.Command(dpkg, "--compare-versions", release, "gt", newer).Run(); err != nil {
+		t.Fatalf("the 0.1.0 release %s does not sort after the untagged %s", release, newer)
 	}
 }
