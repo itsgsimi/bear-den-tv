@@ -657,6 +657,9 @@ type State struct {
 	Plex           *Plex                 `json:"plex,omitempty"`
 	Achievements   *Achievements         `json:"achievements,omitempty"`
 	Apps           *AppsState            `json:"apps,omitempty"`
+	// Onboarding and Autostart are for the shell view only (setup.go).
+	Onboarding *Onboarding `json:"onboarding,omitempty"`
+	Autostart  *Autostart  `json:"autostart,omitempty"`
 }
 
 // Achievements is state.schema.json#/properties/achievements: Den badges

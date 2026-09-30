@@ -432,6 +432,30 @@ bool SessionModel::validateSnapshot(const QJsonObject &snapshot, QString *error)
         if (cec.contains(QStringLiteral("reason")) && !requireType(cec, QStringLiteral("reason"), QJsonValue::String, where, error))
             return false;
     }
+    if (snapshot.contains(QStringLiteral("onboarding"))) {
+        // state.onboarding (optional, shell view only): completed (boolean).
+        const QString where = QStringLiteral("state.onboarding");
+        if (!requireType(snapshot, QStringLiteral("onboarding"), QJsonValue::Object, QStringLiteral("state"), error))
+            return false;
+        const QJsonObject onboarding = snapshot.value(QStringLiteral("onboarding")).toObject();
+        if (!requireKeys(onboarding, {QStringLiteral("completed")}, where, error)
+            || !requireType(onboarding, QStringLiteral("completed"), QJsonValue::Bool, where, error))
+            return false;
+    }
+    if (snapshot.contains(QStringLiteral("autostart"))) {
+        // state.autostart (optional, shell view only): enabled, available
+        // (booleans); reason (string) when unavailable.
+        const QString where = QStringLiteral("state.autostart");
+        if (!requireType(snapshot, QStringLiteral("autostart"), QJsonValue::Object, QStringLiteral("state"), error))
+            return false;
+        const QJsonObject autostart = snapshot.value(QStringLiteral("autostart")).toObject();
+        if (!requireKeys(autostart, {QStringLiteral("enabled"), QStringLiteral("available")}, where, error)
+            || !requireType(autostart, QStringLiteral("enabled"), QJsonValue::Bool, where, error)
+            || !requireType(autostart, QStringLiteral("available"), QJsonValue::Bool, where, error))
+            return false;
+        if (autostart.contains(QStringLiteral("reason")) && !requireType(autostart, QStringLiteral("reason"), QJsonValue::String, where, error))
+            return false;
+    }
     if (snapshot.contains(QStringLiteral("plex"))) {
         // state.plex (optional, shell view only): the Plex sign-in flow.
         const QString where = QStringLiteral("state.plex");

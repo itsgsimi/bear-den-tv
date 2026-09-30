@@ -9,7 +9,7 @@ config block, IPC message and HTTP route: [`README.md`](README.md).
 | File | What it defines | Go validator (`internal/contract`) |
 |---|---|---|
 | [`action.schema.json`](action.schema.json) + [`actions.md`](actions.md) | action request (`$defs/request`), result (`$defs/result`), hold messages (`$defs/holdMessage`), action names and per-action `args` | `ValidateActionRequest`, `ValidateActionResult`, `ValidateHoldMessage` |
-| [`state.schema.json`](state.schema.json) | the state snapshot sent to the shell and phones (per-view redaction: `buildStateFor` in [`internal/session/state.go`](../internal/session/state.go); `pairing`, `playback`, `weather` and `plex` are shell-only; the blocks are listed in [`README.md` → What the contract carries](README.md#what-the-contract-carries)) | `ValidateState`, `MarshalAndValidateState` (tests only) |
+| [`state.schema.json`](state.schema.json) | the state snapshot sent to the shell and phones (per-view redaction: `buildStateFor` in [`internal/session/state.go`](../internal/session/state.go); `pairing`, `playback`, `weather`, `plex`, `onboarding` and `autostart` are shell-only; the blocks are listed in [`README.md` → What the contract carries](README.md#what-the-contract-carries)) | `ValidateState`, `MarshalAndValidateState` (tests only) |
 | [`layout.schema.json`](layout.schema.json) | `ui` + `sections`, the editable home layout | `ValidateLayout` |
 | [`config.schema.json`](config.schema.json) + [`config.md`](config.md) | `config.json` structure; semantic rules in `config.md` are enforced by `internal/config` | `ValidateConfigStructure` |
 | [`theme.schema.json`](theme.schema.json) | a theme package's `theme.json` ([`docs/THEMES.md`](../docs/THEMES.md)) | `ValidateTheme` |

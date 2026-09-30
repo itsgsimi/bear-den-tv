@@ -446,6 +446,20 @@ QString IpcClient::sendAppsConfigure(bool autoUpdate)
     return track(id, QStringLiteral("apps.configure"));
 }
 
+QString IpcClient::sendOnboardingComplete()
+{
+    const QString id = newRequestId();
+    send(QJsonObject{{QStringLiteral("type"), QStringLiteral("onboarding.complete")}, {QStringLiteral("request_id"), id}});
+    return track(id, QStringLiteral("onboarding.complete"));
+}
+
+QString IpcClient::sendAutostartConfigure(bool enabled)
+{
+    const QString id = newRequestId();
+    send(QJsonObject{{QStringLiteral("type"), QStringLiteral("autostart.configure")}, {QStringLiteral("request_id"), id}, {QStringLiteral("enabled"), enabled}});
+    return track(id, QStringLiteral("autostart.configure"));
+}
+
 QString IpcClient::sendAppsBrowser(const QString &browser, const QString &streamingBrowser)
 {
     const QString id = newRequestId();

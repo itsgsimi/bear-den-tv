@@ -143,6 +143,13 @@ From the .deb, the same commands are `bear-den-tv autostart|shortcut ...` and
 - `autostart enable` and `shortcut enable` find the start script next to the
   binary: `<repo>/scripts/start-session.sh` for `<repo>/build/bin/bear-den-tv`,
   `/usr/lib/bear-den-tv/start-session.sh` for `/usr/bin/bear-den-tv`.
+- **Autostart** can also be turned on or off from the TV: its setup's
+  "Start with this PC" toggle writes or removes the same
+  `~/.config/autostart/bear-den-tv.desktop` as `autostart enable|disable`
+  (IPC `autostart.configure`, [`contracts/ipc.md`](../contracts/ipc.md)).
+  The toggle is the owner's say-so. It is unavailable, with the reason on the
+  TV, when the start script is not found and in `bear-den-tv dev` (a
+  development session never changes the machine's login).
 - **Log:** `${XDG_STATE_HOME:-~/.local/state}/bear-den-tv/session.log`, rotated at 5 MB (one old copy, `session.log.1`).
 - **Detached:** what `start-session.sh` starts runs in a session of its own
   (`setsid`) with no controlling terminal, stdin from `/dev/null` and its

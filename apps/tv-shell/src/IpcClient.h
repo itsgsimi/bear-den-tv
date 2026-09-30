@@ -88,6 +88,10 @@ public:
     /// apps.browser: Settings → Streaming sites, the Browser tile's and the
     /// streaming sites' browsers (state.apps.browsers[].id).
     QString sendAppsBrowser(const QString &browser, const QString &streamingBrowser);
+    /// onboarding.complete: the TV's first-run setup is done (config onboarding.completed).
+    QString sendOnboardingComplete();
+    /// autostart.configure: write (enabled) or remove the user's autostart entry.
+    QString sendAutostartConfigure(bool enabled);
     /// One app's playback setting chosen by hand; value "" returns it to automatic.
     /// weather.search: a city query; the coordinator answers with `weather_places`.
     QString sendWeatherSearch(const QString &query);

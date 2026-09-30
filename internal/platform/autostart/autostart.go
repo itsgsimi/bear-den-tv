@@ -1,7 +1,9 @@
 // Package autostart owns the user's XDG autostart entry for Bear Den TV
 // (docs/operations.md → Autostart): where it lives, which start script it
-// runs, what it says, and writing, removing and checking it. Its caller is
-// `bear-den-tv autostart enable|disable|status` (cmd/bear-den-tv/autostart.go);
+// runs, what it says, and writing, removing and checking it. Two callers
+// share it: `bear-den-tv autostart enable|disable|status`
+// (cmd/bear-den-tv/autostart.go) and the TV's "Start with this PC", IPC
+// autostart.configure (internal/session/setup.go, contracts/ipc.md);
 // `bear-den-tv shortcut` reuses StartScript and ExecQuote. Nothing here runs
 // without the owner asking.
 package autostart

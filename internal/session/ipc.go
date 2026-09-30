@@ -204,6 +204,10 @@ func (h *ShellHandler) Receive(cl *shellipc.Client, m shellipc.Message) {
 		h.reply(cl, msg.RequestID, c.setBrowsers(msg.Browser, msg.StreamingBrowser), nil)
 	case shellipc.AppsConfigure:
 		h.reply(cl, msg.RequestID, c.configureApps(msg.AutoUpdate), nil)
+	case shellipc.OnboardingComplete:
+		h.reply(cl, msg.RequestID, c.completeOnboarding(), nil)
+	case shellipc.AutostartConfigure:
+		h.reply(cl, msg.RequestID, c.configureAutostart(msg.Enabled), nil)
 	case shellipc.PowerActivity:
 		if isShell {
 			c.onTVActivity()
@@ -281,7 +285,9 @@ func (c *Coordinator) configureWeather(m *shellipc.WeatherConfigure) error {
 }
 
 // configureRemote is the trusted local onboarding step and the only path that
-// may enable LAN exposure; enabling requires explicit consent.
+// may enable LAN exposure; enabling requires explicit consent. Turning the
+// remote on also marks onboarding completed: a box whose owner already turned
+// the phone remote on is treated as set up (contracts/config.md).
 func (c *Coordinator) configureRemote(m *shellipc.RemoteConfigure) error {
 	if m.Enabled && !m.LANConsent {
 		return errors.New("enabling the phone remote requires consent to LAN exposure")

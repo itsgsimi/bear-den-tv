@@ -19,6 +19,8 @@
 
 11. **Web adapters** (`netflix`, `disney-plus`, `hulu`, `browser`): `web.url` is the page Chromium opens. It must be `https`, name a host (not an IP address), carry no user name or password, no port and no fragment, no spaces or control characters, at most 512 characters; for `netflix`, `disney-plus` and `hulu` the host must be `netflix.com`, `disneyplus.com`, `hulu.com` or a subdomain (and `web.url` is required); the `browser` takes any such host, and without `web` it opens `about:blank` (no search engine). Only web adapters may carry `web` or `enabled`, and each web adapter is used by at most one application (its window class and profile are its own). Errors never repeat the URL.
 
+12. `onboarding.completed` (boolean) is false on a fresh box and becomes true when the owner finishes the TV's first-run setup (IPC `onboarding.complete`) or turns the phone remote on (IPC `remote.configure` with `enabled: true`: a box whose owner already turned the phone remote on is treated as set up). Nothing sets it back to false. The shell reads it as `state.onboarding.completed` (shell view only). "Start with this PC" is not stored here: it is the user's XDG autostart entry itself (`state.autostart`, IPC `autostart.configure`).
+
 ## Persistence
 
 - Atomic write: temp file in the same directory, fsync, rename over `config.json`, fsync directory.

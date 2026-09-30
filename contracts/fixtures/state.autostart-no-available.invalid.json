@@ -1,0 +1,44 @@
+{
+  "protocol": 1, "context_epoch": 47, "generated_at_ms": 120345, "device_name": "Bear Den", "dev_mode": false, "config_revision": 3,
+  "session": {"locked": false, "display_session": "x11", "desktop_adapter": "x11-ewmh-xtest", "shell_connected": true, "shell_state": "running"},
+  "target": {"kind": "shell", "app_id": null, "label": "Bear Den TV", "observed": true, "window_title": "Bear Den TV"},
+  "capabilities": {
+    "nav.up": {"available": true, "backend": "shell-ipc", "holdable": true},
+    "nav.down": {"available": true, "backend": "shell-ipc", "holdable": true},
+    "nav.left": {"available": true, "backend": "shell-ipc", "holdable": true},
+    "nav.right": {"available": true, "backend": "shell-ipc", "holdable": true},
+    "select": {"available": true, "backend": "shell-ipc"},
+    "back": {"available": true, "backend": "shell-ipc"},
+    "home": {"available": true, "backend": "shell-ipc"},
+    "app.launch": {"available": true, "backend": "flatpak"},
+    "media.pause": {"available": false, "reason": "Bear Den TV is not a media player."},
+    "audio.volume_delta": {"available": true, "backend": "pulseaudio"},
+    "audio.mute": {"available": true, "backend": "pulseaudio"},
+    "text.submit": {"available": false, "reason": "No text field is focused."}
+  },
+  "shell": {"screen": "home", "focus": {"section_id": "favorites", "item_id": "plex-htpc"}},
+  "applications": [
+    {"id": "plex-htpc", "label": "Plex", "adapter": "plex-htpc", "installed": false, "version": null, "installation": "none", "running": false, "foreground": false, "launch_state": "idle", "last_error": null},
+    {"id": "youtube", "label": "YouTube", "adapter": "vacuumtube", "installed": false, "version": null, "installation": "none", "running": false, "foreground": false, "launch_state": "idle", "last_error": null}
+  ],
+  "remote": {"enabled": false, "transport": "local-only", "listening": false, "addresses": [], "https": false, "http_layout_editing": false, "paired_device_count": 0,
+             "hold": {"active": false, "device_id": null, "action": null},
+             "limits": {"repeat_delay_ms": 350, "repeat_hz": 6, "hold_renew_ms": 200, "hold_expiry_ms": 600, "max_message_bytes": 16384}},
+  "pairing": {"active": false, "code": null, "url": null, "qr_modules": null, "expires_in_s": 0, "attempts_left": 0},
+  "devices": [],
+  "layout": {
+    "ui": {"theme":"den-dark","accent":"#79A889","background":"den-gradient","text_scale":1.0,"tile_density":"comfortable","safe_margin_percent":3,"reduced_motion":false,"high_contrast_focus":false,"hero_enabled":true,"clock_enabled":true,"art_style":"classic"},
+    "sections": [
+      {"id":"favorites","title":"Your Apps","kind":"applications","enabled":true,"application_ids":["plex-htpc","youtube"],"hide_when_empty":false},
+      {"id":"plex-continue","title":"Continue Watching","kind":"plex-continue-watching","enabled":false,"hide_when_empty":true},
+      {"id":"plex-recent","title":"Recently Added","kind":"plex-recently-added","enabled":false,"hide_when_empty":true}
+    ]
+  },
+  "playback": {"at_ms": 120000, "summary": "2 CPU cores up to 1.4 GHz, 7.6 GiB RAM — entry level (Bear Den's floor): settings favour smooth playback.", "display": "1920×1080 at 120 Hz on HDMI-1", "notes": [], "apps": [{"label": "Moonlight", "adapter": "moonlight", "hardware": ["H264"], "expect": ["Streams up to 1080p in H.264, decoded on the GPU; the gaming PC encodes it."], "notes": [], "status": "applied", "changes": [], "settings": [{"id": "codec", "label": "Video codec", "auto": "h264", "value": "h264", "overridden": false, "options": [{"value": "auto", "label": "Automatic", "note": "Moonlight picks the best codec both the PC and this box accelerate."}, {"value": "h264", "label": "H.264", "note": "Every GPU decodes it; the most bandwidth for the same quality."}]}, {"id": "fps", "label": "Frame rate", "auto": "120", "value": "60", "overridden": true, "options": [{"value": "30", "label": "30 fps", "note": "Half the work for this box; slower games only."}, {"value": "60", "label": "60 fps", "note": "Moonlight's default."}, {"value": "120", "label": "120 fps", "note": "Matches the TV output's 120 Hz. A lot for this box: lower it if games stutter."}]}, {"id": "resolution", "label": "Resolution", "auto": "1080p", "value": "1080p", "overridden": false, "options": [{"value": "720p", "label": "720p"}, {"value": "1080p", "label": "1080p"}]}, {"id": "framepacing", "label": "Frame pacing", "auto": "on", "value": "on", "overridden": false, "options": [{"value": "on", "label": "On", "note": "Evens out frame timing for smooth motion (up to one frame of latency)."}, {"value": "off", "label": "Off", "note": "Lowest latency; motion may judder."}]}]}, {"label": "YouTube", "adapter": "vacuumtube", "hardware": [], "expect": ["Up to 1080p in H.264, decoded on the CPU."], "notes": [{"level": "warn", "text": "No hardware decoding for YouTube on this box (its runtime has no driver for this GPU): 4K and HDR are unavailable."}], "status": "tuned", "changes": [], "settings": [{"id": "codecs", "label": "Video codecs", "auto": "h264", "value": "h264", "overridden": false, "options": [{"value": "h264", "label": "H.264 only", "note": "Cheapest to decode; YouTube stops at 1080p."}]}, {"id": "super_resolution", "label": "AI-upscaled streams", "auto": "off", "value": "off", "overridden": false, "options": [{"value": "on", "label": "On", "note": "YouTube's \"Super resolution\" streams, heavier to decode."}, {"value": "off", "label": "Off", "note": "Skips the AI-upscaled streams; lighter on the decoder."}]}, {"id": "pause_on_blur", "label": "Pause behind Home", "auto": "on", "value": "on", "overridden": false, "options": [{"value": "on", "label": "On", "note": "Pauses when Bear Den's Home is in front."}, {"value": "off", "label": "Off", "note": "Keeps playing behind Home (still decoding video nobody sees)."}]}, {"id": "low_memory", "label": "Low-memory mode", "auto": "off", "value": "off", "overridden": false, "options": [{"value": "on", "label": "On", "note": "YouTube's own low-memory mode, for 4 GiB boxes."}, {"value": "off", "label": "Off", "note": "YouTube's normal mode."}]}]}]},
+  "notifications": [],
+  "weather": {"status": "ready", "message": "", "place": "Zagreb", "units": "celsius", "scene": true,
+              "current": {"temperature": 12, "condition": "rain", "intensity": "moderate", "is_day": true, "observed_at": "2026-09-23T14:00:00Z"}},
+  "achievements": {"enabled": true, "earned": [{"id": "first-night-in", "day": "2026-09-02"}, {"id": "couch-explorer", "day": "2026-09-05"}, {"id": "style-switcher", "day": "2026-09-12"}, {"id": "parade-spotter", "day": "2026-09-27"}], "progress": [{"id": "first-night-in", "count": 1, "goal": 1}, {"id": "movie-night", "count": 4, "goal": 10}, {"id": "couch-explorer", "count": 3, "goal": 3}, {"id": "night-owl", "count": 2, "goal": 5}, {"id": "early-cub", "count": 0, "goal": 5}, {"id": "rainy-day", "count": 1, "goal": 3}, {"id": "snow-day", "count": 0, "goal": 1}, {"id": "thunder-buddy", "count": 0, "goal": 1}, {"id": "all-seasons", "count": 2, "goal": 4}, {"id": "style-switcher", "count": 2, "goal": 2}, {"id": "theme-tourist", "count": 3, "goal": 5}, {"id": "family-den", "count": 1, "goal": 2}, {"id": "good-host", "count": 0, "goal": 1}, {"id": "sleepy-bear", "count": 1, "goal": 5}, {"id": "parade-spotter", "count": 1, "goal": 1}, {"id": "loyal-den", "count": 12, "goal": 30}], "celebrate": ["parade-spotter"]},
+  "onboarding": {"completed": true},
+  "autostart": {"enabled": false, "reason": "Starting with this PC is not available in this session."}
+}

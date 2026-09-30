@@ -47,6 +47,10 @@ Canonical messages consumed by contract tests in Go ([`tests/contract/fixtures_t
 | `state.phone-cec.valid.json` | `state.schema.json` (phone view: HDMI-CEC enabled, TV on, volume buttons driving the TV) |
 | `state.phone-cec-unavailable.valid.json` | `state.schema.json` (phone view: no HDMI-CEC device, with the reason) |
 | `state.cec-bad-tv-power.invalid.json` | rejected: `cec.tv_power` must be `on`, `standby` or `unknown` |
+| `state.shell-setup.valid.json` | `state.schema.json` (shell view before first-run setup: `onboarding.completed` false, `autostart` off but available) |
+| `state.onboarding-not-bool.invalid.json` | rejected: `onboarding.completed` must be a boolean |
+| `state.autostart-no-available.invalid.json` | rejected: `autostart` must say whether it is `available` |
+| `state.phone-autostart.invalid.json` | rejected: a phone view (with `me`) never carries `onboarding` or `autostart` |
 | `state.shell-plex-linking.valid.json` | `state.schema.json` (shell view in Settings → Plex, a link code shown) |
 | `state.shell-plex-libraries.valid.json` | `state.schema.json` (shell view choosing DEMO libraries) |
 | `state.plex-bad-status.invalid.json` | rejected: `plex.status` must be one of the six sign-in states |

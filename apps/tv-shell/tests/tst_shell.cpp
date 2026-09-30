@@ -1539,6 +1539,72 @@ private slots:
         QVERIFY(session->cec().isEmpty());
     }
 
+    // state.onboarding and state.autostart (shell view only): accepted and
+    // exposed as Session.onboarding / Session.autostart, bad types rejected
+    // with the previous state kept, empty maps when absent.
+    void setupAcceptedAndChecked()
+    {
+        SessionModel *session = SessionModel::instance();
+        const int epoch = session->contextEpoch();
+        QJsonObject snap = fixture();
+        snap.insert(QStringLiteral("context_epoch"), epoch + 800);
+        const QJsonObject onboarding{{QStringLiteral("completed"), false}};
+        QJsonObject autostart{{QStringLiteral("enabled"), false}, {QStringLiteral("available"), false},
+                              {QStringLiteral("reason"), QStringLiteral("Starting with this PC is not available in this session.")}};
+        snap.insert(QStringLiteral("onboarding"), onboarding);
+        snap.insert(QStringLiteral("autostart"), autostart);
+        QSignalSpy changed(session, &SessionModel::snapshotChanged);
+        QVERIFY2(session->applySnapshot(snap), qPrintable(session->lastError()));
+        QVERIFY(changed.count() >= 1);
+        QCOMPARE(session->onboarding().value(QStringLiteral("completed")), QVariant(false));
+        QCOMPARE(session->autostart().value(QStringLiteral("available")), QVariant(false));
+        QVERIFY(session->autostart().value(QStringLiteral("reason")).toString().contains(QStringLiteral("not available")));
+
+        autostart = QJsonObject{{QStringLiteral("enabled"), true}, {QStringLiteral("available"), true}};
+        snap.insert(QStringLiteral("autostart"), autostart);
+        snap.insert(QStringLiteral("onboarding"), QJsonObject{{QStringLiteral("completed"), true}});
+        QVERIFY2(session->applySnapshot(snap), qPrintable(session->lastError()));
+        QCOMPARE(session->onboarding().value(QStringLiteral("completed")), QVariant(true));
+        QCOMPARE(session->autostart().value(QStringLiteral("enabled")), QVariant(true));
+
+        snap.insert(QStringLiteral("context_epoch"), epoch + 900);
+        const QList<std::pair<QString, QJsonValue>> bad{
+            {QStringLiteral("onboarding"), QJsonObject{{QStringLiteral("completed"), QStringLiteral("yes")}}},
+            {QStringLiteral("onboarding"), QJsonObject{}},
+            {QStringLiteral("onboarding"), true},
+            {QStringLiteral("autostart"), QJsonObject{{QStringLiteral("enabled"), false}}},
+            {QStringLiteral("autostart"), QJsonObject{{QStringLiteral("enabled"), 1}, {QStringLiteral("available"), true}}},
+            {QStringLiteral("autostart"), QJsonObject{{QStringLiteral("enabled"), false}, {QStringLiteral("available"), false}, {QStringLiteral("reason"), 3}}},
+        };
+        for (const auto &[key, value] : bad) {
+            QJsonObject broken = snap;
+            broken.insert(key, value);
+            QVERIFY2(!session->applySnapshot(broken), qPrintable(key + QLatin1Char(' ') + QString::fromUtf8(QJsonDocument(broken.value(key).toObject()).toJson(QJsonDocument::Compact))));
+            QVERIFY2(session->lastError().contains(QStringLiteral("state.") + key) || session->lastError().contains(key), qPrintable(session->lastError()));
+        }
+        QCOMPARE(session->contextEpoch(), epoch + 800); // the previous state stays
+        QVERIFY(session->applySnapshot(fixture()));
+        QVERIFY(session->onboarding().isEmpty());
+        QVERIFY(session->autostart().isEmpty());
+    }
+
+    // Shell.completeOnboarding and Shell.setAutostart send the IPC messages
+    // (recorded offline).
+    void setupRequestsAreSent()
+    {
+        IpcClient *ipc = ShellController::instance()->ipc();
+        ipc->clearSent();
+        ShellController::instance()->completeOnboarding();
+        const QJsonObject done = lastSent(QStringLiteral("onboarding.complete"));
+        QVERIFY(!done.isEmpty());
+        QVERIFY(!done.value(QStringLiteral("request_id")).toString().isEmpty());
+        ShellController::instance()->setAutostart(true);
+        QCOMPARE(lastSent(QStringLiteral("autostart.configure")).value(QStringLiteral("enabled")), QJsonValue(true));
+        ShellController::instance()->setAutostart(false);
+        QCOMPARE(lastSent(QStringLiteral("autostart.configure")).value(QStringLiteral("enabled")), QJsonValue(false));
+        QVERIFY(!lastSent(QStringLiteral("autostart.configure")).value(QStringLiteral("request_id")).toString().isEmpty());
+    }
+
     // Settings → App icons (layout.ui.app_icons): "App's own" by default;
     // ◀ ▶ sends the layout with the other choice; a snapshot with bear_den
     // shows "Bear Den style" and Home's tiles switch to Bear Den's icons.

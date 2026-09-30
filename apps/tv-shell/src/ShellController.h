@@ -20,7 +20,8 @@ class QQuickWindow;
 // ShellController is the single bridge between the coordinator IPC and the QML
 // shell: it feeds snapshots into Session, applies coordinator input through Nav
 // and answers with input_result, reports focus, and exposes the trusted local
-// requests (launch, pairing, devices, remote onboarding, settings) to QML.
+// requests (launch, pairing, devices, remote onboarding, first-run setup and
+// "Start with this PC", settings) to QML.
 class ShellController : public QObject {
     Q_OBJECT
     QML_NAMED_ELEMENT(Shell)
@@ -136,6 +137,15 @@ public:
     // (cec.configure): on/off, and whether the phone's volume buttons drive
     // the PC ("pc") or the TV ("tv").
     Q_INVOKABLE void setCEC(bool enabled, const QString &volumeTarget);
+    // First-run setup (contracts/ipc.md): completeOnboarding marks it done
+    // (onboarding.complete → Session.onboarding.completed); setAutostart
+    // writes or removes the user's autostart entry, the same one
+    // `bear-den-tv autostart enable` writes (autostart.configure →
+    // Session.autostart.enabled). The owner's toggle on the TV is the
+    // consent. Replies arrive as setupReplied; a refusal also raises
+    // requestFailed with the reason.
+    Q_INVOKABLE void completeOnboarding();
+    Q_INVOKABLE void setAutostart(bool enabled);
     // Settings → Sleep timer and Screen off: the power.sleep_timer (0 cancels)
     // and display.off actions; powerActivity tells the coordinator a TV key
     // was swallowed to wake the display or stay awake (contracts/ipc.md).
@@ -212,6 +222,8 @@ signals:
     /// The coordinator's `result` for app.install, app.install_info or
     /// app.install_cancel (type), for appId; data carries the sizes.
     void installReplied(const QString &type, const QString &appId, bool ok, const QString &error, const QVariantMap &data);
+    /// The coordinator's `result` for onboarding.complete or autostart.configure (type).
+    void setupReplied(const QString &type, bool ok, const QString &error);
 
 private:
     void onInput(const QString &requestId, const QString &action, const QVariantMap &args, int contextEpoch);

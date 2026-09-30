@@ -34,6 +34,7 @@ import (
 	"bear-den-tv/internal/pairing"
 	"bear-den-tv/internal/platform"
 	"bear-den-tv/internal/platform/audio"
+	"bear-den-tv/internal/platform/autostart"
 	"bear-den-tv/internal/platform/cec"
 	"bear-den-tv/internal/platform/dbusx"
 	"bear-den-tv/internal/platform/detect"
@@ -371,12 +372,19 @@ func runSession(f sessionFlags) error {
 		plexPlaying = plexLink // Now playing for Plex HTPC from the server (session/plexplaying.go)
 	}
 	iconFinder := appicons.DefaultFinder() // phones: the apps' own icons
+	// The TV's "Start with this PC" toggle writes the same entry as
+	// `bear-den-tv autostart enable`. Not in `dev`: a development session
+	// must not change the login of the machine it runs on.
+	var autostartOpt *session.Autostart
+	if !f.dev {
+		autostartOpt = &session.Autostart{Path: autostart.File(), Script: autostart.StartScript}
+	}
 	coord = session.New(session.Options{
 		Themes: themeReg, Tuner: tuner,
 		Logger: log, Desktop: desk, Lock: lockObs, Audio: audioB, Media: media, Display: display, TV: tv, Suspend: suspendR,
 		Launcher: launcher, Adapters: adapters.NewRegistry(), Config: store, Pairing: pair,
 		Supervisor: sup, DevMode: f.dev && (f.devFixtures || f.devPlexFake || f.devInstalls), Feed: feed, Weather: wx, Plex: plexOpt, PlexPlaying: plexPlaying, Web: webApps,
-		Installer: appInstaller, DRM: webDRM, IconFinder: &iconFinder,
+		Installer: appInstaller, DRM: webDRM, IconFinder: &iconFinder, Autostart: autostartOpt,
 		// Den badges: local counters in state.db; nothing counted while
 		// config achievements.enabled is false (docs/security.md#den-badges).
 		Achievements: achievements.New(achievements.Options{DB: db, Logger: log, Enabled: func() bool { return store.Current().AchievementsEnabled() }}),

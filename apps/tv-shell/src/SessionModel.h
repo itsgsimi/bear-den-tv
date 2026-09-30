@@ -62,6 +62,10 @@ class SessionModel : public QObject {
     Q_PROPERTY(QVariantMap achievements READ achievements NOTIFY snapshotChanged)
     /// App install settings (state.apps; empty when absent: an older coordinator).
     Q_PROPERTY(QVariantMap apps READ apps NOTIFY snapshotChanged)
+    /// First-run setup (state.onboarding: {completed}; empty when absent: an older coordinator).
+    Q_PROPERTY(QVariantMap onboarding READ onboarding NOTIFY snapshotChanged)
+    /// Start with this PC (state.autostart: {enabled, available, reason?}; empty when absent: an older coordinator).
+    Q_PROPERTY(QVariantMap autostart READ autostart NOTIFY snapshotChanged)
     Q_PROPERTY(SectionsModel *sections READ sections CONSTANT)
     Q_PROPERTY(QString lastError READ lastError NOTIFY snapshotRejected)
 
@@ -118,6 +122,8 @@ public:
     QVariantMap plex() const { return m_snapshot.value(QStringLiteral("plex")).toObject().toVariantMap(); }
     QVariantMap achievements() const { return m_snapshot.value(QStringLiteral("achievements")).toObject().toVariantMap(); }
     QVariantMap apps() const { return m_snapshot.value(QStringLiteral("apps")).toObject().toVariantMap(); }
+    QVariantMap onboarding() const { return m_snapshot.value(QStringLiteral("onboarding")).toObject().toVariantMap(); }
+    QVariantMap autostart() const { return m_snapshot.value(QStringLiteral("autostart")).toObject().toVariantMap(); }
     SectionsModel *sections() const { return m_sections; }
     QString lastError() const { return m_lastError; }
 

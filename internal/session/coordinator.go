@@ -117,6 +117,10 @@ type Options struct {
 	AppsRefresh time.Duration
 	// Diagnostics produces the redacted doctor report for owners.
 	Diagnostics func(ctx context.Context) map[string]any
+	// Autostart is the user's XDG autostart entry behind the TV's "Start
+	// with this PC" toggle (state.autostart, IPC autostart.configure;
+	// setup.go); nil reports it unavailable.
+	Autostart *Autostart
 }
 
 type appRuntime struct {

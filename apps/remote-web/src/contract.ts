@@ -434,6 +434,25 @@ export interface StateSnapshot {
   cec?: Cec;
   /** App install settings: owner phones only. */
   apps?: AppsSettings;
+  /** Shell view only: phones never receive it (the TV's first-run setup). */
+  onboarding?: Onboarding;
+  /** Shell view only: phones never receive it (the TV's "Start with this PC"). */
+  autostart?: Autostart;
+}
+
+/** state.onboarding (shell view only): config onboarding.completed. */
+export interface Onboarding {
+  completed: boolean;
+}
+
+/** state.autostart (shell view only): the user's XDG autostart entry. */
+export interface Autostart {
+  /** The entry exists. */
+  enabled: boolean;
+  /** The session supports it and Bear Den's start script was found. */
+  available: boolean;
+  /** Why it is not available; present only when available is false. */
+  reason?: string;
 }
 
 /** state.cec (contracts/http.md, "TV control over HDMI-CEC"). */

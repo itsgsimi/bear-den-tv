@@ -373,6 +373,26 @@
       "required": ["auto_update"],
       "additionalProperties": false
     },
+    "onboarding": {
+      "type": "object",
+      "description": "Shell view only; never sent to phones. Absent from older coordinators (the shell then treats setup as done). Mirrors config onboarding.completed: false until the owner finishes the TV's first-run setup (IPC onboarding.complete) or turns the phone remote on (IPC remote.configure with enabled true).",
+      "properties": {
+        "completed": {"type": "boolean", "description": "config onboarding.completed."}
+      },
+      "required": ["completed"],
+      "additionalProperties": false
+    },
+    "autostart": {
+      "type": "object",
+      "description": "Shell view only; never sent to phones. Absent from older coordinators. Whether Bear Den starts with this PC: the user's XDG autostart entry, the same one `bear-den-tv autostart enable` writes (IPC autostart.configure turns it on or off).",
+      "properties": {
+        "enabled": {"type": "boolean", "description": "The user's autostart entry (bear-den-tv.desktop in the XDG autostart folder) exists."},
+        "available": {"type": "boolean", "description": "The TV can turn it on: this session supports it and Bear Den's start script was found."},
+        "reason": {"type": "string", "maxLength": 256, "description": "Why it is not available, in plain words for the TV; present only when available is false. Never a path."}
+      },
+      "required": ["enabled", "available"],
+      "additionalProperties": false
+    },
     "cec": {
       "type": "object",
       "description": "TV control over HDMI-CEC (contracts/http.md \"TV control over HDMI-CEC\"; config cec). Sent to the shell and to every authenticated phone, also while locked; never to anonymous viewers. Absent from older coordinators.",
@@ -433,7 +453,8 @@
     {"description": "celebrate is for the shell only.", "if": {"required": ["me"]}, "then": {"properties": {"achievements": {"not": {"required": ["celebrate"]}}}}},
     {"description": "Only owner phones (and the shell) see installs: a phone without owner, a guest pass included, gets no applications[].install and no apps.",
      "if": {"properties": {"me": {"not": {"properties": {"permissions": {"contains": {"const": "owner"}}}, "required": ["permissions"]}}}, "required": ["me"]},
-     "then": {"not": {"required": ["apps"]}, "properties": {"applications": {"items": {"not": {"required": ["install"]}}}}}}
+     "then": {"not": {"required": ["apps"]}, "properties": {"applications": {"items": {"not": {"required": ["install"]}}}}}},
+    {"description": "Setup and autostart are for the shell only: a phone view (with me) carries neither onboarding nor autostart.", "if": {"required": ["me"]}, "then": {"not": {"anyOf": [{"required": ["onboarding"]}, {"required": ["autostart"]}]}}}
   ],
   "$defs": {
     "install": {

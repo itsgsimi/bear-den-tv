@@ -251,6 +251,14 @@ void ShellController::onReply(const QString &requestId, const QString &type, con
         emit plexReplied(type, payload.value(QStringLiteral("ok")).toBool(), payload.value(QStringLiteral("error")).toString());
         return;
     }
+    if (type == QLatin1String("onboarding.complete") || type == QLatin1String("autostart.configure")) {
+        const bool ok = payload.value(QStringLiteral("ok")).toBool();
+        const QString error = payload.value(QStringLiteral("error")).toString();
+        emit setupReplied(type, ok, error);
+        if (!ok)
+            emit requestFailed(type == QLatin1String("autostart.configure") ? tr("Start with this PC") : tr("Setup"), error);
+        return;
+    }
     if (payload.value(QStringLiteral("ok")).toBool(true))
         return;
     const QString error = payload.value(QStringLiteral("error")).toString();
@@ -360,6 +368,16 @@ void ShellController::cancelInstall(const QString &appId)
 void ShellController::setAutoUpdate(bool enabled)
 {
     m_ipc->sendAppsConfigure(enabled);
+}
+
+void ShellController::completeOnboarding()
+{
+    m_ipc->sendOnboardingComplete();
+}
+
+void ShellController::setAutostart(bool enabled)
+{
+    m_ipc->sendAutostartConfigure(enabled);
 }
 
 void ShellController::setBrowsers(const QString &browser, const QString &streamingBrowser)
