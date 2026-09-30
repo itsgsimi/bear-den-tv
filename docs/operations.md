@@ -192,10 +192,19 @@ bash 5.1 or newer (Ubuntu 22.04 and Mint 21 have it) and says so in the log
 otherwise. The ping connects quietly (`hello` with `quiet: true`,
 [`ipc.md`](../contracts/ipc.md#handshake)), so the checks add nothing else
 to the log. Tests shorten the timings with `BDTV_WATCH_INTERVAL`,
-`BDTV_WATCH_FAILURES`, `BDTV_WATCH_GRACE` and `BDTV_WATCH_PING_TIMEOUT`
-(seconds); leave them unset on the TV. The behaviour is
+`BDTV_WATCH_FAILURES`, `BDTV_WATCH_GRACE`, `BDTV_WATCH_PING_TIMEOUT` and
+`BDTV_STOP_TIMEOUT` (seconds); leave them unset on the TV. The behaviour is
 tested with a fake coordinator in
 [`tests/packaging/watchdog_test.go`](../tests/packaging/watchdog_test.go).
+
+**`start-session.sh stop`** (and every start, which stops first) finds this
+user's watchdogs and coordinators of this layout by their exact executable
+(`/proc/<pid>/exe`, also after an upgrade replaced it on disk) and argument
+list, never by a pattern in a command line: an ssh or editor command that
+mentions `bear-den-tv session` is left alone. It sends SIGCONT, then SIGTERM,
+waits up to 10 s, then SIGKILL. If something still runs after that it says
+which pid and in what state, exits 1, and a start refuses to run a second
+coordinator next to it.
 
 ## Packaging
 

@@ -20,13 +20,16 @@
 # it stops answering `bear-den-tv doctor --ping` on the shell socket
 # BDTV_WATCH_FAILURES times in a row: SIGCONT, SIGTERM, SIGKILL after
 # BDTV_WATCH_GRACE seconds, then a fresh start. Every step is logged.
+# stop finds processes by their exact executable (/proc/<pid>/exe) and
+# argument list, never by a pattern in a command line, and continues a
+# stopped process before asking it to end.
 # Log: ${XDG_STATE_HOME:-~/.local/state}/bear-den-tv/session.log.
 set -euo pipefail
 here="$(readlink -f "$0")"
 dir="$(dirname "$here")"
 if [ -x "$dir/../build/bin/bear-den-tv" ]; then
   # Relative on purpose: the process line stays "build/bin/bear-den-tv
-  # session", which stop_all here and deploy-target.sh match.
+  # session", which deploy-target.sh matches.
   cd "$dir/.."
   bin="build/bin/bear-den-tv"
   shell="build/bin/bear-den-tv-shell"
@@ -40,14 +43,14 @@ else
 fi
 if [ "${1:-}" = "which" ]; then realpath -ms "$bin" "$shell"; exit 0; fi
 uid=$(id -u)
-coord_pattern="$bin session"
-watcher_pattern="start-session.sh __watch"
+bin_abs="$(realpath -ms "$bin")"
 log="${XDG_STATE_HOME:-$HOME/.local/state}/bear-den-tv/session.log"
-# Watchdog timings, in whole seconds (tests shorten them).
+# Watchdog and stop timings, in whole seconds (tests shorten them).
 watch_interval="${BDTV_WATCH_INTERVAL:-30}"  # between liveness checks
 watch_failures="${BDTV_WATCH_FAILURES:-3}"   # failed pings in a row before a restart
 watch_grace="${BDTV_WATCH_GRACE:-10}"        # SIGTERM → SIGKILL
 ping_timeout="${BDTV_WATCH_PING_TIMEOUT:-5}" # one ping's answer
+stop_timeout="${BDTV_STOP_TIMEOUT:-10}"      # stop: SIGTERM → SIGKILL
 
 session_env() {
   export DISPLAY="${DISPLAY:-:0}"
@@ -72,10 +75,73 @@ proc_state() {
   echo "${stat%% *}"
 }
 
+# argv PID: the process's arguments, one per line.
+argv() { tr '\0' '\n' <"/proc/$1/cmdline" 2>/dev/null; }
+
+# coordinator_pids: this user's coordinators of this layout: executable
+# $bin_abs (also after it was replaced on disk, "(deleted)") and first
+# argument "session". A command line that only mentions the name (an ssh
+# command, an editor) never matches.
+coordinator_pids() {
+  local d exe
+  for d in /proc/[0-9]*; do
+    [ -O "$d" ] || continue
+    exe=$(readlink "$d/exe" 2>/dev/null) || continue
+    [ "${exe% (deleted)}" = "$bin_abs" ] || continue
+    [ "$(argv "${d#/proc/}" | sed -n 2p)" = "session" ] && echo "${d#/proc/}"
+  done
+  return 0
+}
+
+# watcher_pids: this user's watchdogs of this script: argument list exactly
+# "bash <this script> __watch ...".
+watcher_pids() {
+  local d p
+  for d in /proc/[0-9]*; do
+    [ -O "$d" ] || continue
+    p=${d#/proc/}
+    [ "$p" = "$$" ] && continue
+    [ "$(argv "$p" | sed -n 1,3p | paste -sd ' ')" = "bash $here __watch" ] && echo "$p"
+  done
+  return 0
+}
+
+# alive PIDS...: prints those still running (not gone, not a zombie).
+alive() {
+  local p s
+  for p in "$@"; do
+    s=$(proc_state "$p")
+    [ -n "$s" ] && [ "$s" != Z ] && echo "$p"
+  done
+  return 0
+}
+
+# stop_all: watchdogs first (so none restarts the coordinator meanwhile), then
+# the coordinators: SIGCONT (a stopped process holds SIGTERM until it runs
+# again), SIGTERM, up to $stop_timeout s, then SIGKILL. Fails with a reason
+# when something is still running after that.
 stop_all() {
-  pkill -u "$uid" -f "$watcher_pattern" 2>/dev/null || true
-  pkill -u "$uid" -f "$coord_pattern" 2>/dev/null || true
-  for _ in $(seq 1 20); do pgrep -u "$uid" -f "$coord_pattern" >/dev/null || return 0; sleep 0.5; done
+  local pids left i
+  pids="$(watcher_pids) $(coordinator_pids)"
+  pids=$(echo $pids)
+  [ -z "$pids" ] && return 0
+  kill -CONT $pids 2>/dev/null || true
+  kill -TERM $pids 2>/dev/null || true
+  for ((i = 0; i < stop_timeout * 5; i++)); do
+    left=$(alive $pids)
+    [ -z "$left" ] && return 0
+    sleep 0.2
+  done
+  left=$(echo $left)
+  echo "still running after ${stop_timeout}s: $left; sending SIGKILL" >&2
+  kill -KILL $left 2>/dev/null || true
+  for ((i = 0; i < 10; i++)); do
+    left=$(alive $left)
+    [ -z "$left" ] && return 0
+    sleep 0.2
+  done
+  echo "could not stop pid $(echo $left) (state $(proc_state "${left%% *}"))" >&2
+  return 1
 }
 
 say() { echo "$(date -Is) watchdog: $*" >&2; }
@@ -156,7 +222,10 @@ if [ "${1:-}" = "__watch" ]; then
   done
 fi
 
-stop_all
+if ! stop_all; then
+  echo "not starting: an earlier Bear Den is still running (see above)" >&2
+  exit 1
+fi
 [ "${1:-}" = "stop" ] && { echo "stopped"; exit 0; }
 
 watch=0

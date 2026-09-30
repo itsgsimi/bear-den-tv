@@ -1,7 +1,9 @@
 // Shell-level tests of scripts/start-session.sh as it runs on the TV
 // (docs/operations.md → The watchdog): it detaches what it starts from the
-// terminal, and its watchdog restarts a coordinator that is stopped (state
-// T), unresponsive, or deaf to SIGTERM.
+// terminal, its watchdog restarts a coordinator that is stopped (state T),
+// unresponsive, or deaf to SIGTERM, and `stop` continues a stopped
+// coordinator before ending it, finds one whose binary an upgrade replaced,
+// and never touches a process whose command line only mentions the name.
 //
 // The coordinator is a fake: this test binary, copied into an installed
 // layout as <prefix>/bin/bear-den-tv (TestMain runs fakeCoordinator when
@@ -289,6 +291,7 @@ func (r *rig) heartbeatAfter(t0 time.Time, within time.Duration) bool {
 // stdin from /dev/null and output in the log; they survive the terminal
 // hanging up, and the terminal's job-control signals cannot stop them.
 func TestStartSessionDetachesFromTheTerminal(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	out := r.runOnTerminal("--watch")
 	var probeTTY int
@@ -355,6 +358,7 @@ func TestStartSessionDetachesFromTheTerminal(t *testing.T) {
 // The incident: the coordinator in state T (SIGSTOP). The watchdog sees the
 // state, continues and terminates it, and starts a fresh one.
 func TestWatchdogRestartsAStoppedCoordinator(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	if out, err := r.run("--watch"); err != nil {
 		t.Fatalf("%v\n%s", err, out)
@@ -383,8 +387,10 @@ func TestWatchdogRestartsAStoppedCoordinator(t *testing.T) {
 
 // A coordinator that runs but no longer answers (a deadlock) is restarted
 // after BDTV_WATCH_FAILURES failed pings in a row; one that ignores SIGTERM
-// is killed after the grace period.
+// is killed after the grace period. stop then also has to SIGKILL the next
+// one, which ignores SIGTERM too.
 func TestWatchdogRestartsAnUnresponsiveCoordinator(t *testing.T) {
+	t.Parallel()
 	r := newRig(t)
 	r.touch("ignore-term")
 	if out, err := r.run("--watch"); err != nil {
@@ -408,5 +414,82 @@ func TestWatchdogRestartsAnUnresponsiveCoordinator(t *testing.T) {
 		fmt.Sprintf("started coordinator pid %d", second),
 	} {
 		r.waitLog(want, 5*time.Second)
+	}
+	start := time.Now()
+	out, err := r.run("stop")
+	if err != nil || !strings.Contains(out, "stopped") || !strings.Contains(out, "sending SIGKILL") {
+		t.Fatalf("stop: %v\n%s", err, out)
+	}
+	if running(second) {
+		t.Fatalf("stop left %d running", second)
+	}
+	if d := time.Since(start); d > 10*time.Second {
+		t.Fatalf("stop took %s", d)
+	}
+}
+
+// stop continues a stopped coordinator (which holds SIGTERM until it runs
+// again) and waits for it, and it matches by executable and arguments: a
+// process whose command line only mentions the coordinator and the watchdog
+// (here a shell, like an ssh command running them) is left alone.
+func TestStopEndsAStoppedCoordinatorAndNothingElse(t *testing.T) {
+	t.Parallel()
+	r := newRig(t)
+	decoy := exec.Command("sh", "-c", "sleep 60; : "+r.bin+" session "+r.script+" __watch")
+	if err := decoy.Start(); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = decoy.Process.Kill(); _ = decoy.Wait() })
+	if out, err := r.run("--watch"); err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	coord := r.waitStarts(1, 15*time.Second)[0]
+	cs, _ := procStat(coord)
+	watcher := cs.ppid
+	if err := syscall.Kill(coord, syscall.SIGSTOP); err != nil {
+		t.Fatal(err)
+	}
+	start := time.Now()
+	out, err := r.run("stop")
+	if err != nil || strings.TrimSpace(out) != "stopped" {
+		t.Fatalf("stop: %v\n%s", err, out)
+	}
+	if running(coord) || running(watcher) {
+		t.Fatalf("stop left the coordinator (%v) or the watchdog (%v) running", running(coord), running(watcher))
+	}
+	if d := time.Since(start); d > 3*time.Second {
+		t.Fatalf("stop took %s: it waited for the timeout instead of continuing the coordinator", d)
+	}
+	raw, _ := os.ReadFile(filepath.Join(r.fake, "events"))
+	if !strings.Contains(string(raw), "term "+strconv.Itoa(coord)) {
+		t.Fatalf("the coordinator did not get SIGTERM (it was killed instead): %q", raw)
+	}
+	if !running(decoy.Process.Pid) {
+		t.Fatal("stop killed a process whose command line only mentions bear-den-tv session")
+	}
+}
+
+// An upgrade (dpkg, deploy-target.sh) replaces the binary by rename; the
+// running coordinator's /proc/<pid>/exe then reads "... (deleted)", and stop
+// must still find it.
+func TestStopFindsACoordinatorWhoseBinaryWasReplaced(t *testing.T) {
+	t.Parallel()
+	r := newRig(t)
+	if out, err := r.run("--watch"); err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	coord := r.waitStarts(1, 15*time.Second)[0]
+	copyFile(t, r.bin, r.bin+".new")
+	if err := os.Rename(r.bin+".new", r.bin); err != nil {
+		t.Fatal(err)
+	}
+	if exe, _ := os.Readlink(fmt.Sprintf("/proc/%d/exe", coord)); !strings.HasSuffix(exe, " (deleted)") {
+		t.Fatalf("exe %q: the replacement did not take", exe)
+	}
+	if out, err := r.run("stop"); err != nil || strings.TrimSpace(out) != "stopped" {
+		t.Fatalf("stop: %v\n%s", err, out)
+	}
+	if running(coord) {
+		t.Fatal("stop missed the coordinator running the replaced binary")
 	}
 }
