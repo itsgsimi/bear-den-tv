@@ -168,8 +168,8 @@ Item {
         : categories.map(c => ({ id: c.id, kind: "link", icon: c.icon, label: c.label,
                                  description: c.rows.filter(id => allRows[id] !== undefined).map(id => allRows[id].label).join(" · "),
                                  value: "" }))
-    readonly property int index: currentCategory ? focusIndex : categoryIndex
-    readonly property var focusedRow: rows[Math.max(0, Math.min(rows.length - 1, index))] || ({})
+    readonly property int shownIndex: currentCategory ? focusIndex : categoryIndex
+    readonly property var focusedRow: rows[Math.max(0, Math.min(rows.length - 1, shownIndex))] || ({})
 
     // Opened from Home (not returning from a page it opened): the category list.
     function opened() { category = ""; focusIndex = 0 }
@@ -282,11 +282,11 @@ Item {
             anchors.rightMargin: parent.width * 0.36
             spacing: 14 * Theme.scale
             model: root.rows
-            currentIndex: root.index
+            currentIndex: root.shownIndex
             // `rows` is rebuilt on every snapshot, and a new model sends the
             // view back to the top: keep the focused row (the sleep timer
             // row's value changes as it is set) in view.
-            onModelChanged: Qt.callLater(() => { currentIndex = Qt.binding(() => root.index); positionViewAtIndex(root.index, ListView.Contain) })
+            onModelChanged: Qt.callLater(() => { currentIndex = Qt.binding(() => root.shownIndex); positionViewAtIndex(root.shownIndex, ListView.Contain) })
             interactive: false
             clip: true
             highlightMoveDuration: Theme.duration
@@ -314,7 +314,7 @@ Item {
                     description: slot.modelData.description
                     value: slot.modelData.value
                     kind: slot.modelData.kind
-                    focused: slot.index === root.index
+                    focused: slot.index === root.shownIndex
                 }
             }
         }
