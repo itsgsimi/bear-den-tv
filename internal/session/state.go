@@ -179,6 +179,11 @@ func (c *Coordinator) buildStateFor(view viewKind, v *remote.Viewer) contract.St
 				if v.Has(contract.PermGuest) && showNowPlaying {
 					st.NowPlaying = nowPlaying
 				}
+				// The PC's real mute state and volume, for the phone's
+				// Mute button (contracts/http.md "The PC's sound").
+				if v.Has(contract.PermGuest) {
+					st.Audio = c.audioStateLocked(cfg)
+				}
 				st.Content = c.content()
 			}
 		}

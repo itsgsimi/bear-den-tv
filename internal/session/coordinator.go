@@ -177,6 +177,7 @@ type Coordinator struct {
 	remote        contract.RemoteState
 	confirms      map[string]int64 // confirm_id → pending layout revision
 	audioCap      platform.Capability
+	audioLevel    *platform.AudioLevel       // the PC's sink as last read (state.audio); nil when unknown
 	fullscreened  map[platform.WindowID]bool // app windows already asked to go fullscreen
 	closing       map[string]*closeWatch     // app id → watch for windows opened while closing
 	homeAfterExit bool                       // an app exited; bring the shell back once no app is launching (reconcileApps)
@@ -580,6 +581,9 @@ func (c *Coordinator) watchAudio(ctx context.Context) {
 		changed := cp != c.audioCap
 		c.audioCap = cp
 		c.mu.Unlock()
+		if c.readAudioLevel(ctx) {
+			changed = true
+		}
 		if changed {
 			c.publish()
 		}
@@ -832,4 +836,41 @@ func (c *Coordinator) emitResult(deviceID string, res contract.ActionResult) {
 		default:
 		}
 	}
+}
+
+// readAudioLevel reads the PC's mute state and volume (state.audio) when
+// the backend can and a sink is there; it reports whether they changed.
+// It execs pactl, so it never runs under the state lock.
+func (c *Coordinator) readAudioLevel(ctx context.Context) bool {
+	var next *platform.AudioLevel
+	if r, ok := c.opts.Audio.(platform.AudioReader); ok {
+		c.mu.Lock()
+		avail := c.audioCap.Available
+		c.mu.Unlock()
+		if avail {
+			rctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+			if lvl, err := r.Level(rctx); err == nil {
+				next = &lvl
+			}
+			cancel()
+		}
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	same := (next == nil && c.audioLevel == nil) || (next != nil && c.audioLevel != nil && *next == *c.audioLevel)
+	c.audioLevel = next
+	return !same
+}
+
+// audioStateLocked is state.audio for a phone: the PC's sound while the
+// volume buttons change the PC (not the TV over HDMI-CEC). c.mu is held.
+func (c *Coordinator) audioStateLocked(cfg config.Config) *contract.AudioState {
+	if c.audioLevel == nil || cfg.CECSettings().TVVolume() {
+		return nil
+	}
+	a := &contract.AudioState{Muted: c.audioLevel.Muted}
+	if p := c.audioLevel.Percent; p >= 0 && p <= 300 {
+		a.VolumePercent = &p
+	}
+	return a
 }

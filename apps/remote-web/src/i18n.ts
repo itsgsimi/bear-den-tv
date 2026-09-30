@@ -156,6 +156,8 @@ export const t = {
     tvVolume: 'TV volume',
     volumeDown: 'Volume down',
     volumeUp: 'Volume up',
+    volumeNow: (p: number): string => `Now at ${p}%`,
+    volumeMuted: (p: number): string => `Muted (at ${p}%)`,
     volumeLess: 'Volume −',
     volumeMore: 'Volume +',
     mute: 'Mute',

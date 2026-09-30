@@ -36,7 +36,7 @@ import { TouchpadPanel } from './touchpad.tsx';
 import { AddAppsPanel, AddAppsTile, mayInstall } from './install.tsx';
 import { RemoveAppsPanel } from './remove.tsx';
 import { NotesPanel, NotesToggle } from './notes.tsx';
-import { type AppState, type PendingAction, type TileStatus, capabilityFor, closableApp, isSecureTransport, isGuest, mayUse, mutedByThisPhone, permissionsOf, textEntrySurfaced, tileStatus, visibleApps } from '../state.ts';
+import { type AppState, type PendingAction, type TileStatus, capabilityFor, closableApp, isSecureTransport, isGuest, isMuted, mayUse, permissionsOf, textEntrySurfaced, tileStatus, visibleApps } from '../state.ts';
 
 const TEXT_MAX = 256;
 const VOLUME_STEP = 5;
@@ -119,7 +119,8 @@ export function RemoteView({ app, state }: { app: App; state: AppState }): JSX.E
   const addAppsHeading = useRef<HTMLHeadingElement>(null);
   const [notesFor, setNotesFor] = useState<string | null>(null);
   const toggleNotes = (id: string) => setNotesFor((open) => (open === id ? null : id));
-  const muted = mutedByThisPhone(state);
+  const muted = isMuted(state);
+  const volumeNow = state.snapshot?.audio?.volume_percent;
   // Something playing: the card and its buttons come right under the D-pad
   // (UX-21: they sat below the apps and the whole Add apps list).
   const playingFirst = playbackFirst(state);
@@ -220,6 +221,11 @@ export function RemoteView({ app, state }: { app: App; state: AppState }): JSX.E
         <div class="group" aria-labelledby="volume-heading">
           <h3 id="volume-heading">{volumeHeading(snapshot)}</h3>
           <VolumeHelp snapshot={snapshot} />
+          {volumeNow !== undefined ? (
+            <p class="muted small" data-testid="volume-now">
+              {muted ? t.remote.volumeMuted(volumeNow) : t.remote.volumeNow(volumeNow)}
+            </p>
+          ) : null}
           <div class="button-row">
             {listed(state, 'audio.volume_delta') ? (
               <>

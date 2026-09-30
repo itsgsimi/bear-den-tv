@@ -836,6 +836,10 @@ func (c *Coordinator) doAudio(ctx context.Context, req contract.ActionRequest) c
 	if err != nil {
 		return c.fail(req, contract.CodeInternal, "PC volume could not be changed.")
 	}
+	// Read it back at once, so phones show the new state.
+	if c.readAudioLevel(ctx) {
+		c.publish()
+	}
 	return c.result(req, contract.OutcomeDelivered, nil)
 }
 

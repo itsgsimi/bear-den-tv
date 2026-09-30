@@ -137,3 +137,38 @@ func TestPactlMissing(t *testing.T) {
 		t.Fatalf("%+v", c)
 	}
 }
+
+// pactl's output format (PipeWire-pulse; the mute line captured as is, the
+// volume line at 65%): the mute flag and the volume of the default sink.
+const (
+	muteNo   = "Mute: no\n"
+	muteYes  = "Mute: yes\n"
+	volume65 = "Volume: front-left: 42598 /  65% / -11.23 dB,   front-right: 42598 /  65% / -11.23 dB\n        balance 0.00\n"
+)
+
+func TestLevelReadsMuteAndVolumeWithFixedArgv(t *testing.T) {
+	var argvs [][]string
+	answers := map[string]string{"get-sink-mute": muteYes, "get-sink-volume": volume65}
+	b := New(func(_ context.Context, argv []string) ([]byte, error) {
+		argvs = append(argvs, argv)
+		return []byte(answers[argv[1]]), nil
+	})
+	lvl, err := b.Level(context.Background())
+	if err != nil || !lvl.Muted || lvl.Percent != 65 {
+		t.Fatalf("level = %+v, %v", lvl, err)
+	}
+	if got := strings.Join(argvs[0], " ") + " | " + strings.Join(argvs[1], " "); got != "pactl get-sink-mute @DEFAULT_SINK@ | pactl get-sink-volume @DEFAULT_SINK@" {
+		t.Fatalf("argv %s", got)
+	}
+	if m, err := ParseMute([]byte(muteNo)); err != nil || m {
+		t.Fatalf("mute no = %v, %v", m, err)
+	}
+	if _, err := ParseMute([]byte("garbage")); err == nil {
+		t.Fatal("parsed a mute flag from garbage")
+	}
+	// The volume is optional: unreadable is -1, the mute flag still counts.
+	answers["get-sink-volume"] = "nothing useful"
+	if lvl, err := b.Level(context.Background()); err != nil || lvl.Percent != -1 || !lvl.Muted {
+		t.Fatalf("level without volume = %+v, %v", lvl, err)
+	}
+}

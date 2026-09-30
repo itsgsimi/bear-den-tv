@@ -133,6 +133,19 @@ type AudioBackend interface {
 	SetMute(ctx context.Context, muted bool) error
 }
 
+// AudioLevel is what the PC's default sink reports: muted, and its volume
+// in percent (-1 when it could not be read).
+type AudioLevel struct {
+	Muted   bool
+	Percent int
+}
+
+// AudioReader is an AudioBackend that can also read the sink's state
+// (state.audio); backends without it simply leave the state out.
+type AudioReader interface {
+	Level(ctx context.Context) (AudioLevel, error)
+}
+
 // MediaPlayer is an MPRIS-style player the coordinator found for a running app.
 type MediaPlayer interface {
 	// Status returns Playing, Paused, Stopped, or Unknown.

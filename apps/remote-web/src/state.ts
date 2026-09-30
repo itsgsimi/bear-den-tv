@@ -565,9 +565,18 @@ export function tvLost(state: AppState): boolean {
 
 /**
  * @param state Application state.
- * @returns Whether the last mute this phone sent (and the TV accepted) muted
- *   the sound: the single Mute/Unmute toggle's state, as far as this phone
- *   knows (UX-33; the TV reports no mute state).
+ * @returns Whether the PC's sound is muted: what the TV reads from its sound
+ *   system (state.audio), else what this phone last sent (UX-33).
+ */
+export function isMuted(state: AppState): boolean {
+  const audio = state.snapshot?.audio;
+  return audio ? audio.muted : mutedByThisPhone(state);
+}
+
+/**
+ * @param state Application state.
+ * @returns Only when the TV does not say (older coordinators, a locked
+ *   session, the TV's own volume): what this phone last asked for.
  */
 export function mutedByThisPhone(state: AppState): boolean {
   let last: PendingAction | null = null;

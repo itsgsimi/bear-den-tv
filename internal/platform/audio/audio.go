@@ -1,7 +1,9 @@
 // Package audio controls the PulseAudio/PipeWire-pulse default sink through
 // the pactl CLI with a fixed argument vector. The only inputs that vary are a
 // clamped signed percentage and a mute flag; nothing from the network reaches
-// argv. The capability is available only while a real default sink exists —
+// argv. Level reads the mute flag and volume back (`pactl get-sink-mute` and
+// `get-sink-volume @DEFAULT_SINK@`) for state.audio. The capability is
+// available only while a real default sink exists —
 // with the HDMI sink inactive PulseAudio reports the dummy auto_null sink and
 // the control is hidden rather than misleading.
 package audio
@@ -176,6 +178,66 @@ func (b *Backend) SetMute(ctx context.Context, muted bool) error {
 	}
 	_, err := b.run(ctx, MuteArgv(muted))
 	return err
+}
+
+// GetMuteArgv and GetVolumeArgv are the fixed argv that read the sink.
+var (
+	GetMuteArgv   = []string{"pactl", "get-sink-mute", DefaultSink}
+	GetVolumeArgv = []string{"pactl", "get-sink-volume", DefaultSink}
+)
+
+// ParseMute reads "Mute: yes" / "Mute: no".
+func ParseMute(out []byte) (bool, error) {
+	for _, line := range strings.Split(string(out), "\n") {
+		if v, ok := strings.CutPrefix(strings.TrimSpace(line), "Mute:"); ok {
+			switch strings.TrimSpace(v) {
+			case "yes":
+				return true, nil
+			case "no":
+				return false, nil
+			}
+		}
+	}
+	return false, fmt.Errorf("pactl: no mute state in %q", strings.TrimSpace(string(out)))
+}
+
+// ParseVolume reads the first channel's percent from
+// "Volume: front-left: 65536 / 100% / 0.00 dB, ...".
+func ParseVolume(out []byte) (int, error) {
+	s := string(out)
+	if i := strings.Index(s, "Volume:"); i >= 0 {
+		s = s[i:]
+		if j := strings.Index(s, "%"); j > 0 {
+			k := j
+			for k > 0 && s[k-1] >= '0' && s[k-1] <= '9' {
+				k--
+			}
+			if n, err := strconv.Atoi(s[k:j]); err == nil {
+				return n, nil
+			}
+		}
+	}
+	return -1, fmt.Errorf("pactl: no volume in %q", strings.TrimSpace(string(out)))
+}
+
+// Level implements platform.AudioReader: the mute flag (required) and the
+// volume (-1 when unreadable).
+func (b *Backend) Level(ctx context.Context) (platform.AudioLevel, error) {
+	out, err := b.run(ctx, GetMuteArgv)
+	if err != nil {
+		return platform.AudioLevel{}, err
+	}
+	muted, err := ParseMute(out)
+	if err != nil {
+		return platform.AudioLevel{}, err
+	}
+	lvl := platform.AudioLevel{Muted: muted, Percent: -1}
+	if out, err := b.run(ctx, GetVolumeArgv); err == nil {
+		if p, err := ParseVolume(out); err == nil {
+			lvl.Percent = p
+		}
+	}
+	return lvl, nil
 }
 
 func (b *Backend) ensureAvailable(ctx context.Context) error {

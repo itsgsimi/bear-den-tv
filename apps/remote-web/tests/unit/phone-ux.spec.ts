@@ -13,7 +13,7 @@ import type { ApiEnvironment, SocketLike } from '../../src/api.ts';
 import { createApp, type PageEnvironment, type WindowEnvironment } from '../../src/app.ts';
 import type { Device, Session, StateSnapshot } from '../../src/contract.ts';
 import { t } from '../../src/i18n.ts';
-import { type AppState, initialState, mutedByThisPhone, reduce, tvLost } from '../../src/state.ts';
+import { type AppState, initialState, isMuted, mutedByThisPhone, reduce, tvLost } from '../../src/state.ts';
 import { LogoutControl } from '../../src/views/about.tsx';
 import { DeviceRows } from '../../src/views/devices.tsx';
 import { groupReason, playButtons, playbackFirst } from '../../src/views/remote.tsx';
@@ -176,5 +176,24 @@ describe('pairing again', () => {
     const plain = boot('', {}, 401);
     await plain.app.start();
     expect(plain.app.store.getState().pair.notice).toBeNull();
+  });
+});
+
+describe('the TV’s real mute state (state.audio)', () => {
+  it('wins over what this phone last sent', () => {
+    const audio = fixture('state.phone-audio.valid.json');
+    let s = online(audio, ['controller']);
+    expect(isMuted(s)).toBe(true);
+    const req = { protocol: 1 as const, request_id: '00000000-0000-4000-8000-000000000002', context_epoch: 1, target: 'active' as const, action: 'audio.mute' as const, args: { muted: false } };
+    s = reduce(s, { type: 'action_sent', request: req, at: 5 });
+    s = reduce(s, { type: 'action_result', result: { protocol: 1, request_id: req.request_id, outcome: 'delivered', code: 'ok', message: '', context_epoch: 1, target: { kind: 'shell' } } as never, at: 6 });
+    expect(isMuted(s)).toBe(true); // the TV still says muted until its next state
+    s = reduce(s, { type: 'state_received', snapshot: { ...audio, audio: { muted: false, volume_percent: 65 } }, at: 7 });
+    expect(isMuted(s)).toBe(false);
+    // Without state.audio, the phone's own last press.
+    const plain = { ...audio };
+    delete plain.audio;
+    s = reduce(s, { type: 'state_received', snapshot: plain, at: 8 });
+    expect(isMuted(s)).toBe(mutedByThisPhone(s));
   });
 });
