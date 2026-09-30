@@ -1066,6 +1066,75 @@ private slots:
         QVERIFY2(m_nav->screen() != QLatin1String("dialog") || m_nav->itemId().startsWith(QLatin1String("install")), qPrintable(m_nav->itemId()));
     }
 
+    // Home says what to do next: an installing app has no "Not installed"
+    // pill beside "Installing 42%" (UX-07); a failed open offers "Try
+    // opening … again" (UX-08); OK on a running app asks Switch (focused) or
+    // Close, drawn red, and Back just closes the question (UX-25, UX-31);
+    // status marks are plain dots, not stepped circles that read as "+"
+    // (UX-26); a focused not-installed tile is at full strength (UX-20).
+    void homeSaysWhatToDoNext()
+    {
+        SessionModel *session = SessionModel::instance();
+        IpcClient *ipc = ShellController::instance()->ipc();
+        const auto restore = qScopeGuard([session, this] { session->applySnapshot(fixture()); goHome(); });
+        auto facts = [this]() {
+            QStringList out;
+            QObject *r = m_window->findChild<QObject *>(QStringLiteral("heroFacts"));
+            for (const QVariant &v : r->property("model").toList())
+                out << v.toMap().value(QStringLiteral("text")).toString();
+            return out;
+        };
+        auto heroAction = [this]() { return m_window->findChild<QObject *>(QStringLiteral("heroAction"))->property("text").toString(); };
+        QJsonObject snap = installSnapshot(QStringLiteral("downloading"), 42);
+        QJsonArray apps = snap.value(QStringLiteral("applications")).toArray();
+        QJsonObject plex = apps.at(0).toObject();
+        plex.insert(QStringLiteral("running"), true);
+        apps.replace(0, plex);
+        snap.insert(QStringLiteral("applications"), apps);
+        QVERIFY2(session->applySnapshot(snap), qPrintable(session->lastError()));
+        goHome();
+        toFavoriteTile(QStringLiteral("youtube"));
+        QTRY_COMPARE(heroAction(), QStringLiteral("Installing 42%"));
+        QVERIFY2(!facts().contains(QStringLiteral("Not installed")), qPrintable(facts().join(',')));
+        QQuickItem *dot = visibleItem(QStringLiteral("statusDot"));
+        QVERIFY(dot);
+        QVERIFY(QByteArray(dot->metaObject()->className()).contains("Rectangle") || QByteArray(dot->metaObject()->superClass()->className()).contains("Rectangle"));
+
+        // Running: OK asks, Switch focused, Close red; Back only closes.
+        toFavoriteTile(QStringLiteral("plex-htpc"));
+        QTRY_COMPARE(heroAction(), QStringLiteral("Switch to or close Plex"));
+        ipc->clearSent();
+        act(QStringLiteral("select"));
+        QCOMPARE(m_nav->screen(), QStringLiteral("dialog"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("cancel"));
+        QVERIFY(visibleItem(QStringLiteral("confirmButton"))->property("danger").toBool());
+        act(QStringLiteral("back"));
+        QCOMPARE(m_nav->screen(), QStringLiteral("home"));
+        QVERIFY(lastSent(QStringLiteral("request")).isEmpty());
+        act(QStringLiteral("select"));
+        act(QStringLiteral("nav.left"));
+        act(QStringLiteral("select"));
+        const QJsonObject close = lastSent(QStringLiteral("request"));
+        QCOMPARE(close.value(QStringLiteral("action")).toString(), QStringLiteral("app.close"));
+        QCOMPARE(close.value(QStringLiteral("args")).toObject().value(QStringLiteral("app_id")).toString(), QStringLiteral("plex-htpc"));
+
+        // A failed open says what to do next.
+        plex.insert(QStringLiteral("running"), false);
+        plex.insert(QStringLiteral("launch_state"), QStringLiteral("failed"));
+        plex.insert(QStringLiteral("last_error"), QStringLiteral("Plex did not answer in time."));
+        apps.replace(0, plex);
+        snap.insert(QStringLiteral("applications"), apps);
+        QVERIFY(session->applySnapshot(snap));
+        QTRY_COMPARE(heroAction(), QStringLiteral("Try opening Plex again"));
+        QVERIFY(facts().contains(QStringLiteral("Plex did not answer in time.")));
+        // A focused not-installed tile is at full strength; unfocused it is dimmed.
+        QVERIFY(session->applySnapshot(installSnapshot(QStringLiteral("available"))));
+        toFavoriteTile(QStringLiteral("youtube"));
+        QVERIFY2(!visibleItem(QStringLiteral("tileBase")), "the focused tile is still dimmed");
+        toFavoriteTile(QStringLiteral("plex-htpc"));
+        QVERIFY(visibleItem(QStringLiteral("tileBase")));
+    }
+
     // Owner's decision: Settings → Phones & remote → Edit layout from phones
     // (config remote.http_layout_editing, default off) sends
     // remote.layout_editing; turning the phone remote on again keeps it.

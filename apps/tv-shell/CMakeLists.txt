@@ -49,6 +49,7 @@ set(BDTV_QML_FILES
   qml/Header.qml
   qml/NavPill.qml
   qml/StatusChip.qml
+  qml/StatusDot.qml
   qml/HeroPanel.qml
   qml/Rail.qml
   qml/AppTile.qml

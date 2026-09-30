@@ -95,7 +95,8 @@ Item {
         anchors.fill: parent
         scale: root.focused ? Theme.focusScale : 1
         Behavior on scale { NumberAnimation { duration: Theme.duration; easing.type: Easing.OutCubic } }
-        opacity: root.item.installed === false && !root.installing ? 0.6 : 1
+        // Dimmed while not installed, but full strength when focused (UX-20).
+        opacity: root.item.installed === false && !root.installing && !root.focused ? 0.6 : 1
 
         BrandBackdrop {
             anchors.fill: parent
@@ -183,8 +184,7 @@ Item {
                 id: pill
                 anchors.centerIn: parent
                 spacing: 8 * Theme.scale
-                PixelBox {
-                    width: 10 * Theme.scale; height: width; radius: width / 2
+                StatusDot {
                     color: root.status ? root.status.color : "transparent"
                     anchors.verticalCenter: parent.verticalCenter
                 }

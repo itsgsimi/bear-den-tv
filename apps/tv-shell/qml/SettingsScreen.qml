@@ -32,7 +32,7 @@ Item {
     property int categoryIndex: 0
     property int focusIndex: 0
     signal openScreen(string name)
-    signal confirm(string title, string body, string confirmLabel, var onAccept)
+    signal confirm(string title, string body, string confirmLabel, var onAccept, bool danger)
 
     readonly property var ui: Session.ui
     readonly property var remote: Session.remote
@@ -243,7 +243,7 @@ Item {
         case "version": break
         case "exit":
             confirm(qsTr("Exit Bear Den TV?"), qsTr("The TV returns to the desktop. Bear Den starts again with the next session."),
-                    qsTr("Exit"), () => Shell.exitShell())
+                    qsTr("Exit"), () => Shell.exitShell(), true)
             break
         default: change(row, 1)
         }

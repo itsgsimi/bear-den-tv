@@ -17,8 +17,8 @@ PixelBox {
         id: row
         anchors.centerIn: parent
         spacing: 10 * Theme.scale
-        PixelBox {
-            width: 12 * Theme.scale; height: width; radius: width / 2
+        StatusDot {
+            width: 12 * Theme.scale
             color: root.dot
             anchors.verticalCenter: parent.verticalCenter
         }

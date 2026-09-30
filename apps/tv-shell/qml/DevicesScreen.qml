@@ -13,7 +13,7 @@ import BearDen
 Item {
     id: root
     property int focusIndex: 0
-    signal confirm(string title, string body, string confirmLabel, var onAccept)
+    signal confirm(string title, string body, string confirmLabel, var onAccept, bool danger)
     readonly property var devices: Session.devices
     readonly property int rowCount: devices.length + (devices.length > 0 ? 1 : 0)
     // The action ◀ ▶ picked on the focused row (index into actionsFor).
@@ -28,17 +28,17 @@ Item {
         switch (a) {
         case "remove":
             confirm(qsTr("Remove “%1”?").arg(d.name), qsTr("This phone will stop controlling the TV immediately and must pair again."),
-                    qsTr("Remove"), () => Shell.revokeDevice(d.id))
+                    qsTr("Remove"), () => Shell.revokeDevice(d.id), true)
             return
         case "owner":
             confirm(qsTr("Make “%1” an owner?").arg(d.name),
                     qsTr("It can then install and remove apps, manage paired phones and edit the Home layout, as the TV can. Make only your own phones owners."),
-                    qsTr("Make owner"), () => Shell.grantDevice(d.id, ["controller", "layout_editor", "owner"]))
+                    qsTr("Make owner"), () => Shell.grantDevice(d.id, ["controller", "layout_editor", "owner"]), false)
             return
         case "remote-only":
             confirm(qsTr("Make “%1” a remote only?").arg(d.name),
                     qsTr("It keeps the remote, but can no longer install apps, manage phones or edit the layout."),
-                    qsTr("Remote only"), () => Shell.grantDevice(d.id, ["controller"]))
+                    qsTr("Remote only"), () => Shell.grantDevice(d.id, ["controller"]), false)
             return
         }
     }
@@ -87,7 +87,7 @@ Item {
                 act(d, acts[Math.min(actionIndex, acts.length - 1)][0])
             } else if (devices.length > 0) {
                 confirm(qsTr("Remove all phones?"), qsTr("Every paired phone stops controlling the TV immediately."),
-                        qsTr("Remove all"), () => Shell.revokeDevice("*"))
+                        qsTr("Remove all"), () => Shell.revokeDevice("*"), true)
             }
             return true
         }

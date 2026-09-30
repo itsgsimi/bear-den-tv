@@ -324,10 +324,14 @@ PixelBox {
             spacing: 12 * Theme.scale
             Repeater {
                 id: facts
+                objectName: "heroFacts"
                 model: {
                     if (!root.isApp) return []
                     const a = root.app, out = []
-                    if (!a.installed) out.push({ text: qsTr("Not installed"), color: Theme.warning })
+                    // While it installs the action says "Installing 42%" (UX-07).
+                    const st = a.install ? a.install.state : ""
+                    if (!a.installed && st !== "preparing" && st !== "downloading" && st !== "installing")
+                        out.push({ text: qsTr("Not installed"), color: Theme.warning })
                     if (a.foreground) out.push({ text: qsTr("On screen"), color: Theme.success })
                     else if (a.running) out.push({ text: qsTr("Running"), color: Theme.success })
                     if (a.last_error) out.push({ text: a.last_error, color: Theme.danger })
@@ -344,8 +348,7 @@ PixelBox {
                         id: factRow
                         anchors.centerIn: parent
                         spacing: 10 * Theme.scale
-                        PixelBox {
-                            width: 10 * Theme.scale; height: width; radius: width / 2
+                        StatusDot {
                             color: modelData.color
                             anchors.verticalCenter: parent.verticalCenter
                         }
@@ -418,7 +421,10 @@ PixelBox {
                         // installs or says why it can't (never "How to install").
                         text: root.isApp
                               ? (root.item.installed === false ? (root.item.installState === "preparing" || root.item.installState === "downloading" || root.item.installState === "installing" ? qsTr("Installing %1%").arg(root.item.installProgress) : qsTr("Install"))
-                                 : (root.item.running ? qsTr("Switch to %1").arg(root.item.title) : qsTr("Open %1").arg(root.item.title)))
+                                 : root.item.running ? qsTr("Switch to or close %1").arg(root.item.title)
+                                 // A failed open says what to do next (UX-08).
+                                 : root.item.launchState === "failed" || root.item.launchState === "crashed" ? qsTr("Try opening %1 again").arg(root.item.title)
+                                 : qsTr("Open %1").arg(root.item.title))
                               : root.isAddApps ? qsTr("See apps to add")
                               : (root.item.kind === "setup" ? qsTr("Open Settings")
                                  // Only a verified exact-item handoff (open_action play_exact)

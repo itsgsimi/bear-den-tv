@@ -1,6 +1,8 @@
 // Modal two-button dialog. Used for destructive confirmations (focus starts on
-// the safe choice) and for timed layout confirmations from the coordinator,
-// where Back or the timeout reverts.
+// the safe choice; `danger` draws the confirm button red, UX-31), for timed
+// layout confirmations from the coordinator, where Back or the timeout
+// reverts, and for a choice between two actions (a running app: Close or
+// Switch), where `dismissOnBack` makes Back just close it.
 
 import QtQuick
 import BearDen
@@ -16,6 +18,8 @@ Rectangle {
     property var onAccept: null
     property var onReject: null
     property bool timedOutAccepts: false
+    property bool danger: false
+    property bool dismissOnBack: false
     visible: false
     color: Theme.scrim
 
@@ -28,6 +32,8 @@ Rectangle {
         focusIndex = opts.focusConfirm ? 0 : 1
         onAccept = opts.onAccept || null
         onReject = opts.onReject || null
+        danger = opts.danger === true
+        dismissOnBack = opts.dismissOnBack === true
         visible = true
         report()
     }
@@ -44,7 +50,10 @@ Rectangle {
         case "nav.right": focusIndex = 1; report(); return true
         case "nav.up": case "nav.down": return true
         case "select": finish(focusIndex === 0); return true
-        case "back": finish(false); return true
+        case "back":
+            if (dismissOnBack) { visible = false; onAccept = null; onReject = null }
+            else finish(false)
+            return true
         }
         return false
     }
@@ -89,7 +98,7 @@ Rectangle {
             Row {
                 spacing: 20 * Theme.scale
                 topPadding: 12 * Theme.scale
-                FocusButton { text: root.confirmLabel; primary: true; focused: root.focusIndex === 0 }
+                FocusButton { objectName: "confirmButton"; text: root.confirmLabel; primary: !root.danger; danger: root.danger; focused: root.focusIndex === 0 }
                 FocusButton { text: root.cancelLabel; focused: root.focusIndex === 1 }
             }
         }

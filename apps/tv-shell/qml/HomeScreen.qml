@@ -3,7 +3,8 @@
 // within a rail; each rail restores its item by id. The first apps rail ends
 // with an "Add apps" tile while Bear Den could install something
 // (SessionModel adds it, kind `add-apps`); OK on it opens the Apps page at
-// Add apps.
+// Add apps. OK on a running app asks Switch (focused) or Close (UX-25:
+// closing an app was only possible from a phone).
 
 import QtQuick
 import BearDen
@@ -17,6 +18,8 @@ Item {
 
     signal openScreen(string name)
     signal appUnavailable(var app)
+    // OK on a running app's tile: Switch to it or Close it (UX-25).
+    signal runningApp(var item)
     signal message(string title, string body)
 
     function restoreFocus() {
@@ -87,6 +90,7 @@ Item {
             openScreen("add-apps")   // the Apps page, at Add apps
         } else if (item.kind === "app") {
             if (item.installed === false) appUnavailable(Session.application(item.appId))
+            else if (item.running) runningApp(item)
             else Shell.launchApp(item.appId)
         } else if (item.kind === "setup") {
             // Empty, loading or failing Plex rows: Settings → Plex when this

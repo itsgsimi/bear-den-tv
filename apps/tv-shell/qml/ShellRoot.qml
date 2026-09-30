@@ -278,6 +278,14 @@ FocusScope {
             Behavior on y { NumberAnimation { duration: Theme.ms(260); easing.type: Easing.OutCubic } }
             onOpenScreen: (name) => root.open(name)
             onAppUnavailable: (app) => installCard.openFor(app.id, true)
+            onRunningApp: (item) => confirmDialog.open({
+                title: qsTr("%1 is open").arg(item.title),
+                body: qsTr("Switch back to it, or close it. Closing asks %1 to quit, as if you closed it yourself.").arg(item.title),
+                confirmLabel: qsTr("Close %1").arg(item.title), cancelLabel: qsTr("Switch to %1").arg(item.title),
+                danger: true, dismissOnBack: true,
+                onAccept: () => Shell.closeApp(item.appId),
+                onReject: () => Shell.launchApp(item.appId)
+            })
             onMessage: (title, body) => messageDialog.open(title, body)
         }
         SettingsScreen {
@@ -289,7 +297,7 @@ FocusScope {
             Behavior on opacity { NumberAnimation { duration: Theme.ms(220); easing.type: Easing.OutCubic } }
             Behavior on y { NumberAnimation { duration: Theme.ms(260); easing.type: Easing.OutCubic } }
             onOpenScreen: (name) => root.open(name)
-            onConfirm: (title, body, label, accept) => confirmDialog.open({ title: title, body: body, confirmLabel: label, onAccept: accept })
+            onConfirm: (title, body, label, accept, danger) => confirmDialog.open({ title: title, body: body, confirmLabel: label, onAccept: accept, danger: danger })
         }
         AppsScreen {
             id: apps
@@ -355,7 +363,7 @@ FocusScope {
             y: root.screen === "devices" ? 0 : 24 * Theme.scale
             Behavior on opacity { NumberAnimation { duration: Theme.ms(220); easing.type: Easing.OutCubic } }
             Behavior on y { NumberAnimation { duration: Theme.ms(260); easing.type: Easing.OutCubic } }
-            onConfirm: (title, body, label, accept) => confirmDialog.open({ title: title, body: body, confirmLabel: label, onAccept: accept })
+            onConfirm: (title, body, label, accept, danger) => confirmDialog.open({ title: title, body: body, confirmLabel: label, onAccept: accept, danger: danger })
         }
         DiagnosticsScreen {
             id: diagnostics
@@ -403,7 +411,7 @@ FocusScope {
             y: root.screen === "plex" ? 0 : 24 * Theme.scale
             Behavior on opacity { NumberAnimation { duration: Theme.ms(220); easing.type: Easing.OutCubic } }
             Behavior on y { NumberAnimation { duration: Theme.ms(260); easing.type: Easing.OutCubic } }
-            onConfirm: (title, body, label, accept) => confirmDialog.open({ title: title, body: body, confirmLabel: label, onAccept: accept })
+            onConfirm: (title, body, label, accept, danger) => confirmDialog.open({ title: title, body: body, confirmLabel: label, onAccept: accept, danger: danger })
         }
         BadgesScreen {
             id: badges
@@ -414,7 +422,7 @@ FocusScope {
             y: root.screen === "badges" ? 0 : 24 * Theme.scale
             Behavior on opacity { NumberAnimation { duration: Theme.ms(220); easing.type: Easing.OutCubic } }
             Behavior on y { NumberAnimation { duration: Theme.ms(260); easing.type: Easing.OutCubic } }
-            onConfirm: (title, body, label, accept) => confirmDialog.open({ title: title, body: body, confirmLabel: label, onAccept: accept })
+            onConfirm: (title, body, label, accept, danger) => confirmDialog.open({ title: title, body: body, confirmLabel: label, onAccept: accept, danger: danger })
         }
         ErrorBanner {
             anchors { bottom: parent.bottom; horizontalCenter: parent.horizontalCenter }

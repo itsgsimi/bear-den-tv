@@ -15,7 +15,7 @@ Item {
     property int focusIndex: 0
     // Set by ShellRoot: this screen is the one in front.
     property bool active: false
-    signal confirm(string title, string body, string confirmLabel, var onAccept)
+    signal confirm(string title, string body, string confirmLabel, var onAccept, bool danger)
 
     readonly property var ach: Session.achievements
     readonly property bool counting: ach.enabled !== false
@@ -48,7 +48,7 @@ Item {
             Shell.setAchievements(!counting)
         } else if (i === resetIndex) {
             root.confirm(qsTr("Reset badges?"), qsTr("Every badge and everything counted toward them is deleted. This cannot be undone."),
-                         qsTr("Reset"), () => Shell.resetAchievements())
+                         qsTr("Reset"), () => Shell.resetAchievements(), true)
         }
     }
     function navigate(action) {

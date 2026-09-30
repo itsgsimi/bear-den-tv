@@ -19,7 +19,7 @@ Item {
     property int focusIndex: 0
     // Set by ShellRoot: this screen is the one in front (focus reports only then).
     property bool active: false
-    signal confirm(string title, string body, string confirmLabel, var onAccept)
+    signal confirm(string title, string body, string confirmLabel, var onAccept, bool danger)
 
     readonly property var plex: Session.plex
     readonly property string status: plex.status || ""
@@ -83,7 +83,7 @@ Item {
         } else if (it.id === "sign-out") {
             confirm(qsTr("Sign out of Plex?"),
                     qsTr("The Home rows and their pictures go, and this TV deletes its Plex sign-in. Plex HTPC keeps its own sign-in."),
-                    qsTr("Sign out"), () => { root.busy = true; Shell.plexSignOut() })
+                    qsTr("Sign out"), () => { root.busy = true; Shell.plexSignOut() }, true)
         }
     }
     Connections {
