@@ -119,13 +119,17 @@ FocusScope {
         restTimer.restart()
         screensaverTimer.restart()
     }
+    // Something the owner is in the middle of: never cover it with the
+    // screensaver (on the TV it fell asleep while Plex was linking).
+    readonly property bool activeFlow: screen === "pairing" || screen === "remote-setup" || screen === "onboarding" || installCard.visible
+        || (!!Session.plex && ["linking", "choose_server", "choose_libraries"].indexOf(Session.plex.status) >= 0)
     // OLED-safe screensaver after a long quiet spell while Bear Den is in front.
     Timer {
         id: screensaverTimer
         interval: Math.max(1, Shell.screensaverSeconds) * 1000
         running: Shell.screensaverSeconds > 0
         onTriggered: {
-            if (Session.loaded && !Session.locked && Session.target.kind === "shell" && !root.topDialog)
+            if (Session.loaded && !Session.locked && Session.target.kind === "shell" && !root.topDialog && !root.activeFlow)
                 screensaver.active = true
             else
                 restart()

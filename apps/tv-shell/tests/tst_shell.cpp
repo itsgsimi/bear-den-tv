@@ -1509,7 +1509,19 @@ private slots:
         QCOMPARE(m_nav->itemId(), QStringLiteral("cancel"));
         QObject *linkingView = m_window->findChild<QObject *>(QStringLiteral("plexLinking"));
         QVERIFY(linkingView && linkingView->property("visible").toBool());
+        QObject *root = m_window->findChild<QObject *>(QStringLiteral("shellRoot"));
+        QVERIFY(root && root->property("activeFlow").toBool()); // no screensaver while linking
         shot(QStringLiteral("plex-linking"));
+        // plex.tv accepted the code: the TV stores the sign-in and tries the
+        // server (the code is gone). Seen on the TV as an empty white QR box.
+        QJsonObject accepted = plexState(QStringLiteral("linking"));
+        withPlex(accepted);
+        QObject *finding = m_window->findChild<QObject *>(QStringLiteral("plexFinding"));
+        QVERIFY(finding && finding->property("visible").toBool());
+        QVERIFY(!linkingView->property("visible").toBool());
+        QVERIFY(root->property("activeFlow").toBool());
+        shot(QStringLiteral("plex-finding-server"));
+        withPlex(linking);
         act(QStringLiteral("select"));
         QCOMPARE(count(QStringLiteral("plex.cancel")), 1);
 

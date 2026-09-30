@@ -192,10 +192,47 @@ Item {
         }
 
         // Linking: the code, where to type it, and a QR code of that address.
+        // After plex.tv accepts the code, the TV stores the sign-in and
+        // tries the server's connections, which can take a while: the code
+        // is gone by then, so show that it worked instead of an empty QR box.
+        Column {
+            id: finding
+            objectName: "plexFinding"
+            visible: root.status === "linking" && !root.plex.code
+            anchors.centerIn: parent
+            spacing: 28 * Theme.scale
+            property real t: 0
+            Connections {
+                target: World
+                enabled: finding.visible && World.beating
+                function onBeat(dt) { finding.t += dt }
+            }
+            BearMark {
+                size: 160 * Theme.scale
+                anchors.horizontalCenter: parent.horizontalCenter
+                // A small hop, stepped on the heartbeat; still under reduced motion.
+                transform: Translate { y: World.beating ? -Math.round(Math.abs(Math.sin(finding.t * 3)) * 12) * Theme.scale : 0 }
+            }
+            Text {
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: qsTr("Linked! Finding your Plex server…")
+                color: Theme.textPrimary
+                font.family: Theme.fontFamily
+                font.pixelSize: 40 * Theme.fontUnit
+                font.weight: Font.DemiBold
+            }
+            Text {
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: qsTr("This can take a minute. The screen moves on by itself.")
+                color: Theme.textSecondary
+                font.family: Theme.fontFamily
+                font.pixelSize: 26 * Theme.fontUnit
+            }
+        }
         Row {
             id: linking
             objectName: "plexLinking"
-            visible: root.status === "linking"
+            visible: root.status === "linking" && !!root.plex.code
             anchors.centerIn: parent
             spacing: 96 * Theme.scale
             PixelBox {
