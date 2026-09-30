@@ -1066,6 +1066,32 @@ private slots:
         QVERIFY2(m_nav->screen() != QLatin1String("dialog") || m_nav->itemId().startsWith(QLatin1String("install")), qPrintable(m_nav->itemId()));
     }
 
+    // Owner's decision: Settings → Phones & remote → Edit layout from phones
+    // (config remote.http_layout_editing, default off) sends
+    // remote.layout_editing; turning the phone remote on again keeps it.
+    void layoutEditingFromPhonesSwitch()
+    {
+        SessionModel *session = SessionModel::instance();
+        IpcClient *ipc = ShellController::instance()->ipc();
+        const auto restore = qScopeGuard([session, this] { session->applySnapshot(fixture()); goHome(); });
+        openSettings();
+        toSettingsRow(QStringLiteral("layout-editing"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("layout-editing"));
+        ipc->clearSent();
+        act(QStringLiteral("select"));
+        QCOMPARE(lastSent(QStringLiteral("remote.layout_editing")).value(QStringLiteral("enabled")), QJsonValue(true));
+        QJsonObject snap = fixture();
+        QJsonObject remote = snap.value(QStringLiteral("remote")).toObject();
+        remote.insert(QStringLiteral("http_layout_editing"), true);
+        snap.insert(QStringLiteral("remote"), remote);
+        QVERIFY2(session->applySnapshot(snap), qPrintable(session->lastError()));
+        act(QStringLiteral("select"));
+        QCOMPARE(lastSent(QStringLiteral("remote.layout_editing")).value(QStringLiteral("enabled")), QJsonValue(false));
+        ShellController::instance()->configureRemote(true, QStringLiteral("eth0"));
+        QCOMPARE(lastSent(QStringLiteral("remote.configure")).value(QStringLiteral("http_layout_editing")), QJsonValue(true));
+        act(QStringLiteral("back"));
+    }
+
     // UX-04: on Winter's white snow, rail headings, a not-installed tile and
     // Diagnostics' rows vanished. Every rail heading has a dark backing, a
     // dimmed tile sits on an opaque base, and Diagnostics draws its rows on

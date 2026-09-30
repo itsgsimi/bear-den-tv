@@ -129,6 +129,9 @@ public:
     // Settings → Now playing on phones (remote.now_playing): whether paired
     // phones see what the app in front is playing.
     Q_INVOKABLE void setNowPlaying(bool enabled);
+    // Settings → Edit layout from phones (remote.layout_editing): owner
+    // phones may change the Home layout over the plain-HTTP remote.
+    Q_INVOKABLE void setLayoutEditing(bool enabled);
     // Apps → Streaming sites (app.enable): turn one web app on or off.
     Q_INVOKABLE void setAppEnabled(const QString &appId, bool enabled);
     // App installs from Flathub (contracts/ipc.md app.install*): the install

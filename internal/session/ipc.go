@@ -159,6 +159,8 @@ func (h *ShellHandler) Receive(cl *shellipc.Client, m shellipc.Message) {
 		h.reply(cl, msg.RequestID, c.configureRemote(&msg), nil)
 	case shellipc.RemoteNowPlaying:
 		h.reply(cl, msg.RequestID, c.setNowPlaying(msg.Enabled), nil)
+	case shellipc.RemoteLayoutEditing:
+		h.reply(cl, msg.RequestID, c.setLayoutEditing(msg.Enabled), nil)
 	case shellipc.AppEnable:
 		h.reply(cl, msg.RequestID, c.setAppEnabled(ctx, msg.AppID, msg.Enabled), nil)
 	case shellipc.CECConfigure:
@@ -295,6 +297,21 @@ func (c *Coordinator) configureWeather(m *shellipc.WeatherConfigure) error {
 // may enable LAN exposure; enabling requires explicit consent. Turning the
 // remote on also marks onboarding completed: a box whose owner already turned
 // the phone remote on is treated as set up (contracts/config.md).
+// setLayoutEditing is remote.layout_editing (IPC): the owner's TV switch
+// for editing the Home layout from phones over the plain-HTTP remote
+// (config remote.http_layout_editing, default off; docs/security.md).
+func (c *Coordinator) setLayoutEditing(enabled bool) error {
+	if _, err := c.opts.Config.Update(func(cfg *config.Config) error {
+		cfg.Remote.HTTPLayoutEditing = enabled
+		return nil
+	}); err != nil {
+		return err
+	}
+	c.log.Info("session: layout editing from phones over HTTP", "enabled", enabled)
+	c.publish()
+	return nil
+}
+
 func (c *Coordinator) configureRemote(m *shellipc.RemoteConfigure) error {
 	if m.Enabled && !m.LANConsent {
 		return errors.New("enabling the phone remote requires consent to LAN exposure")

@@ -102,6 +102,7 @@ public:
     QString sendWeatherConfigure(bool enabled, const QJsonValue &place, const QString &units, bool scene);
     QString sendPlaybackSet(const QString &adapter, const QString &setting, const QString &value);
     QString sendRemoteNowPlaying(bool enabled);
+    QString sendRemoteLayoutEditing(bool enabled);
     QString sendAppEnable(const QString &appId, bool enabled);
     /// cec.configure: TV control over HDMI-CEC on/off and volume_target "pc"|"tv".
     QString sendCECConfigure(bool enabled, const QString &volumeTarget);

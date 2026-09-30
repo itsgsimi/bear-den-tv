@@ -15,6 +15,7 @@ QtObject {
         "remote": qsTr("Lets phones on your home network control this TV once you pair them on the TV. Off: nothing listens on the network."),
         "pairing": qsTr("Shows a QR code and a six-digit code to pair a phone, or a guest pass that ends by itself."),
         "devices": qsTr("The phones that can control this TV. Remove one to take its access away."),
+        "layout-editing": qsTr("Lets owner phones change the Home layout from their Layout tab. The phone remote uses plain HTTP: anyone else on your home network could read or change what a paired phone sends, so leave this off on a network you don't trust. Off by default."),
         "now-playing": qsTr("Paired phones see the title of what is playing. Never while the TV is locked."),
         // Settings → Display & accessibility
         "text": qsTr("Makes all text on the TV bigger or smaller."),

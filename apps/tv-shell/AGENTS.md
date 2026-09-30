@@ -153,7 +153,7 @@ row id; engine code only looks ids up).
 
 | Category | Rows (ids) |
 |---|---|
-| Phones & remote | `remote`, `pairing`, `devices`, `now-playing` (toggle, `Shell.setNowPlaying`) |
+| Phones & remote | `remote`, `pairing`, `devices`, `now-playing` (toggle, `Shell.setNowPlaying`), `layout-editing` (toggle, `Shell.setLayoutEditing` → IPC `remote.layout_editing`, config `remote.http_layout_editing`, default off; not shown with HTTPS) |
 | Display & accessibility | `text`, `density`, `margin`, `motion`, `contrast` |
 | Home screen | `hero`, `clock`, `weather` |
 | Playback | `playback`, `advanced-playback`, `plex` |

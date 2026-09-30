@@ -289,6 +289,8 @@ void ShellController::onReply(const QString &requestId, const QString &type, con
         emit requestFailed(tr("Paired phones"), error);
     else if (type == QLatin1String("remote.now_playing"))
         emit requestFailed(tr("Now playing on phones"), error);
+    else if (type == QLatin1String("remote.layout_editing"))
+        emit requestFailed(tr("Edit layout from phones"), error);
     else if (type == QLatin1String("apps.configure"))
         emit requestFailed(tr("Keep apps up to date"), error);
     else if (type == QLatin1String("cec.configure"))
@@ -308,7 +310,16 @@ void ShellController::grantDevice(const QString &deviceId, const QStringList &pe
 
 void ShellController::configureRemote(bool enabled, const QString &interfaceName)
 {
-    m_ipc->sendRemoteConfigure(enabled, QStringLiteral("trusted-lan-http"), interfaceName, 0, false);
+    // Keeps the owner's Edit layout from phones as it is (remote.configure
+    // stores every field it carries).
+    const SessionModel *s = SessionModel::instance();
+    const bool layoutEditing = s && s->remote().value(QStringLiteral("http_layout_editing")).toBool();
+    m_ipc->sendRemoteConfigure(enabled, QStringLiteral("trusted-lan-http"), interfaceName, 0, layoutEditing);
+}
+
+void ShellController::setLayoutEditing(bool enabled)
+{
+    m_ipc->sendRemoteLayoutEditing(enabled);
 }
 
 void ShellController::updateLayout(const QVariantMap &layout)

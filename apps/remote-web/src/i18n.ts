@@ -280,7 +280,7 @@ export const t = {
     loading: 'Loading layout…',
     loadFailed: (message: string) => `Could not load the layout: ${message}`,
     retry: 'Try again',
-    httpReadOnly: 'This TV allows layout edits only over HTTPS or on the TV itself. You can preview here but not apply.',
+    httpReadOnly: 'You can preview here but not apply. To change the layout from phones, turn on Edit layout from phones on the TV (Settings → Phones & remote).',
     sections: 'Sections',
     sectionKind: (kind: string): string => {
       switch (kind) {

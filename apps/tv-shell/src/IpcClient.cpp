@@ -526,6 +526,13 @@ QString IpcClient::sendRemoteNowPlaying(bool enabled)
     return track(id, QStringLiteral("remote.now_playing"));
 }
 
+QString IpcClient::sendRemoteLayoutEditing(bool enabled)
+{
+    const QString id = newRequestId();
+    send(QJsonObject{{QStringLiteral("type"), QStringLiteral("remote.layout_editing")}, {QStringLiteral("request_id"), id}, {QStringLiteral("enabled"), enabled}});
+    return track(id, QStringLiteral("remote.layout_editing"));
+}
+
 QString IpcClient::sendAppEnable(const QString &appId, bool enabled)
 {
     const QString id = newRequestId();

@@ -3,7 +3,9 @@
 // were on. The categories and their rows (ids stable; apps/tv-shell/AGENTS.md →
 // Settings rows, with where every former row went):
 //   Phones & remote          remote, pairing, devices, now-playing
-//                            (remote.now_playing over IPC)
+//                            (remote.now_playing over IPC), layout-editing
+//                            (remote.layout_editing; only while the remote
+//                            is plain HTTP on the home network)
 //   Display & accessibility  text, density, margin, motion, contrast
 //   Home screen              hero, clock, weather
 //   Playback                 playback, advanced-playback, plex
@@ -103,6 +105,10 @@ Item {
         add({ id: "now-playing", kind: "toggle", label: qsTr("Now playing on phones"),
               description: qsTr("Paired phones show the title of what is playing (never while locked)"),
               value: remote.now_playing === false ? "off" : "on" })
+        // state.remote.http_layout_editing mirrors config remote.http_layout_editing (default off).
+        add({ id: "layout-editing", kind: "toggle", label: qsTr("Edit layout from phones"),
+              description: qsTr("Owner phones can change the Home layout; the phone remote is not encrypted on your network"),
+              value: remote.http_layout_editing === true ? "on" : "off" })
         add({ id: "text", kind: "choice", label: qsTr("Text size"), description: "", value: Math.round((ui.text_scale || 1) * 100) + "%" })
         add({ id: "density", kind: "choice", label: qsTr("Tile size"), description: "", value: ui.tile_density === "large" ? qsTr("Large") : qsTr("Comfortable") })
         add({ id: "margin", kind: "choice", label: qsTr("Screen edge margin"), description: qsTr("Increase if the edges are cut off on your TV"), value: (ui.safe_margin_percent || 3) + "%" })
@@ -138,7 +144,7 @@ Item {
         return r
     }
     readonly property var categories: [
-        { id: "phones", icon: "phone", label: qsTr("Phones & remote"), rows: ["remote", "pairing", "devices", "now-playing"],
+        { id: "phones", icon: "phone", label: qsTr("Phones & remote"), rows: ["remote", "pairing", "devices", "now-playing"].concat(remote.transport === "https" ? [] : ["layout-editing"]),
           help: qsTr("Control this TV from your phone: turn the phone remote on, pair phones and choose what they see.") },
         { id: "display", icon: "display", label: qsTr("Display & accessibility"), rows: ["text", "density", "margin", "motion", "contrast"],
           help: qsTr("Text and tile sizes, the picture's edges, motion and the focus outline.") },
@@ -217,6 +223,7 @@ Item {
         case "pairing": openScreen("pairing"); break
         case "devices": openScreen("devices"); break
         case "now-playing": Shell.setNowPlaying(remote.now_playing === false); break
+        case "layout-editing": Shell.setLayoutEditing(remote.http_layout_editing !== true); break
         // Stored even without an adapter: it takes effect when one appears.
         case "cec": Shell.setCEC(!cecOn, cecTarget); break
         case "cec-volume": Shell.setCEC(true, cecTarget === "tv" ? "pc" : "tv"); break

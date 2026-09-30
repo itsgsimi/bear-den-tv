@@ -45,16 +45,18 @@ const (
 	TypeDevicesGrant     = "devices.grant"
 	TypeRemoteConfigure  = "remote.configure"
 	TypeRemoteNowPlaying = "remote.now_playing"
-	TypeAppEnable        = "app.enable"
-	TypeCECConfigure     = "cec.configure"
-	TypeInstallRequest   = "applications.install_request"
-	TypePlaybackSet      = "playback.set"
-	TypeWeatherSearch    = "weather.search"
-	TypeWeatherPlaces    = "weather_places"
-	TypeWeatherConfigure = "weather.configure"
-	TypeShellExit        = "shell.exit"
-	TypePowerActivity    = "power.activity"
-	TypeResult           = "result"
+	// TypeRemoteLayoutEditing is TV Settings → Edit layout from phones.
+	TypeRemoteLayoutEditing = "remote.layout_editing"
+	TypeAppEnable           = "app.enable"
+	TypeCECConfigure        = "cec.configure"
+	TypeInstallRequest      = "applications.install_request"
+	TypePlaybackSet         = "playback.set"
+	TypeWeatherSearch       = "weather.search"
+	TypeWeatherPlaces       = "weather_places"
+	TypeWeatherConfigure    = "weather.configure"
+	TypeShellExit           = "shell.exit"
+	TypePowerActivity       = "power.activity"
+	TypeResult              = "result"
 )
 
 // Client kinds accepted in hello.
@@ -355,6 +357,19 @@ type RemoteNowPlaying struct {
 // Kind implements Message.
 func (RemoteNowPlaying) Kind() string { return TypeRemoteNowPlaying }
 
+// RemoteLayoutEditing turns layout editing from phones over the plain-HTTP
+// remote on or off (TV Settings → Edit layout from phones); stored as
+// config remote.http_layout_editing (honoured in trusted-lan-http only).
+// Answered with Result.
+type RemoteLayoutEditing struct {
+	Type      string `json:"type"`
+	RequestID string `json:"request_id"`
+	Enabled   bool   `json:"enabled"`
+}
+
+// Kind implements Message.
+func (RemoteLayoutEditing) Kind() string { return TypeRemoteLayoutEditing }
+
 // AppEnable turns one web app on or off (TV Apps → Streaming sites);
 // stored as config applications[].enabled. Only web adapters can be turned
 // off; anything else fails closed. Answered with Result.
@@ -550,6 +565,8 @@ func Decode(frame []byte) (Message, error) {
 		m = &AppEnable{}
 	case TypeRemoteNowPlaying:
 		m = &RemoteNowPlaying{}
+	case TypeRemoteLayoutEditing:
+		m = &RemoteLayoutEditing{}
 	case TypeCECConfigure:
 		m = &CECConfigure{}
 	case TypeInstallRequest:
@@ -656,6 +673,8 @@ func deref(m Message) Message {
 	case *AppEnable:
 		return *t
 	case *RemoteNowPlaying:
+		return *t
+	case *RemoteLayoutEditing:
 		return *t
 	case *CECConfigure:
 		return *t
