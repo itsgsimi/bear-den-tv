@@ -525,6 +525,19 @@ export function canWriteLayout(state: AppState): boolean {
 }
 
 /**
+ * Text entry comes to the top of the Remote by itself while the TV has a
+ * text field focused: the server lists `text.submit` as available only then
+ * (a web page's field from the navigation script's `text_field`, or a shell
+ * field from the shell's focus report), and this phone may send it.
+ * @param state Application state.
+ * @returns Whether the Remote should surface text entry at the top.
+ */
+export function textEntrySurfaced(state: AppState): boolean {
+  if (!mayUse(state, 'text.submit')) return false;
+  return capabilityFor(state.snapshot, 'text.submit').available;
+}
+
+/**
  * @param snapshot Latest server snapshot or null.
  * @param action Action name.
  * @returns The capability record, or an unavailable placeholder when the server did not list it.

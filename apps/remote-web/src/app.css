@@ -508,6 +508,12 @@ input[type='range'] { width: 100%; accent-color: var(--accent); min-height: 32px
 .outcome-failed .last-outcome { color: var(--error); background: rgba(224, 122, 106, 0.12); }
 .last-message { flex-basis: 100%; color: var(--text-2); }
 .group { margin-top: 0.5rem; }
+/* Text entry brought to the top while the TV has a text field focused (views/remote.tsx). */
+.text-entry-surfaced {
+  border: 1px solid var(--line); border-left: 4px solid var(--sage, #79a889); border-radius: var(--r14, 0);
+  background: var(--surface); padding: 0.75rem 1rem; margin: 0.75rem 0;
+}
+.text-entry-waiting { margin: 0 0 0.5rem; font-weight: 700; }
 /* Touchpad for web apps (views/touchpad.tsx): the pad owns every gesture. */
 .touchpad {
   height: 13rem; margin-top: 0.5rem; display: flex; align-items: flex-end; justify-content: center;

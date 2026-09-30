@@ -14,6 +14,9 @@
 // apps (install.tsx) under the app shortcuts, and a "+ Add apps" tile at the
 // end of the Apps grid that scrolls to it (AddAppsTile). A tile whose app
 // has notes carries an ⓘ button that opens them under the grid (notes.tsx).
+// While the TV has a text field focused (`textEntrySurfaced`: text.submit
+// available), text entry moves to the top of the page, already open, and
+// scrolls into view; it goes back to the bottom when the field loses focus.
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { ComponentChildren, JSX } from 'preact';
 import type { App } from '../app.ts';
@@ -27,7 +30,7 @@ import { TvPanel, VolumeHelp, volumeHeading } from './tv.tsx';
 import { TouchpadPanel } from './touchpad.tsx';
 import { AddAppsPanel, AddAppsTile, mayInstall } from './install.tsx';
 import { NotesPanel, NotesToggle } from './notes.tsx';
-import { type AppState, type PendingAction, type TileStatus, capabilityFor, closableApp, isSecureTransport, mayUse, permissionsOf, tileStatus, visibleApps } from '../state.ts';
+import { type AppState, type PendingAction, type TileStatus, capabilityFor, closableApp, isSecureTransport, mayUse, permissionsOf, textEntrySurfaced, tileStatus, visibleApps } from '../state.ts';
 
 const TEXT_MAX = 256;
 const VOLUME_STEP = 5;
@@ -53,6 +56,7 @@ function listed(state: AppState, action: ActionName): boolean {
 
 export function RemoteView({ app, state }: { app: App; state: AppState }): JSX.Element {
   const snapshot = state.snapshot;
+  const surfaced = textEntrySurfaced(state);
   const addAppsHeading = useRef<HTMLHeadingElement>(null);
   const [notesFor, setNotesFor] = useState<string | null>(null);
   const toggleNotes = (id: string) => setNotesFor((open) => (open === id ? null : id));
@@ -70,6 +74,7 @@ export function RemoteView({ app, state }: { app: App; state: AppState }): JSX.E
         </div>
       ) : null}
       <Blockers app={app} state={state} />
+      {surfaced ? <TextEntry key="text-top" app={app} state={state} gate={gate(state, 'text.submit')} surfaced /> : null}
 
       <div class="dpad" data-testid="dpad">
         <NavButton app={app} state={state} action="nav.up" icon="up" label={t.remote.up} />
@@ -172,7 +177,7 @@ export function RemoteView({ app, state }: { app: App; state: AppState }): JSX.E
 
       {mayUse(state, 'power.sleep_timer') || mayUse(state, 'display.off') ? <SleepPanel app={app} state={state} /> : null}
 
-      {listed(state, 'text.submit') ? <TextEntry app={app} state={state} gate={note(gate(state, 'text.submit'))} /> : null}
+      {!surfaced && listed(state, 'text.submit') ? <TextEntry key="text-bottom" app={app} state={state} gate={note(gate(state, 'text.submit'))} /> : null}
 
       {reasons.size > 0 ? (
         <ul class="reasons muted small" data-testid="unavailable-reasons">
@@ -418,10 +423,14 @@ function LastResult({ state }: { state: AppState }): JSX.Element {
   );
 }
 
-function TextEntry({ app, gate: g }: { app: App; state: AppState; gate: Gate }): JSX.Element {
-  const [open, setOpen] = useState(false);
+function TextEntry({ app, gate: g, surfaced = false }: { app: App; state: AppState; gate: Gate; surfaced?: boolean }): JSX.Element {
+  const [open, setOpen] = useState(surfaced);
   const [text, setText] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const form = useRef<HTMLFormElement>(null);
+  useEffect(() => {
+    if (surfaced) form.current?.scrollIntoView?.({ block: 'nearest' });
+  }, [surfaced]);
 
   if (!open) {
     return (
@@ -442,11 +451,12 @@ function TextEntry({ app, gate: g }: { app: App; state: AppState; gate: Gate }):
     setError(null);
     void app.tap('text.submit', { text });
     setText('');
-    setOpen(false);
+    setOpen(surfaced);
   };
 
   return (
-    <form class="group text-entry" onSubmit={submit} noValidate>
+    <form ref={form} class={surfaced ? 'group text-entry text-entry-surfaced' : 'group text-entry'} data-testid="text-entry" data-surfaced={surfaced ? 'true' : undefined} onSubmit={submit} noValidate>
+      {surfaced ? <p class="text-entry-waiting">{t.remote.textWaiting}</p> : null}
       <label class="field">
         <span class="field-label">{t.remote.textTitle}</span>
         <input
