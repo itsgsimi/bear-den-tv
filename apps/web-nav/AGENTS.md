@@ -19,7 +19,7 @@ like the phone remote's `dist/`.
 | [`src/main.ts`](src/main.ts) | entry: `globalThis.__bdtvNav = { install }`; the coordinator appends `__bdtvNav.install(<hints>)` |
 | [`hints/<adapter>.json`](hints/) | per-site data ([`contracts/web-hints.schema.json`](../../contracts/web-hints.schema.json)): selectors to prefer, skip, start on, overlays and their close buttons, the player, the Back order, the media keys. All **UNVERIFIED** (`"verified": false`): no real service may be automated |
 | [`scripts/build.mjs`](scripts/build.mjs) | esbuild → `dist/nav.js` (IIFE, deterministic) |
-| [`tests/nav.spec.ts`](tests/nav.spec.ts), [`tests/driver.ts`](tests/driver.ts), [`tests/fixtures/`](tests/fixtures/) | Playwright (headless Chromium) against local pages that mimic streaming layouts: a poster grid with an overlay, a player with the site's own shortcuts, a search box. `Driver` injects the script exactly like the coordinator (isolated world + binding) and performs effects with trusted input |
+| [`tests/nav.spec.ts`](tests/nav.spec.ts), [`tests/driver.ts`](tests/driver.ts), [`tests/fixtures/`](tests/fixtures/) | Playwright (headless Chromium) against local pages that mimic streaming layouts: a poster grid with an overlay, a player with the site's own shortcuts, a search box. `Driver` injects the script exactly like the coordinator (isolated world + binding) and performs effects with trusted input; `advance(ms)` moves the page's clock by CDP virtual time (the script's timers too, no sleeping) and `ringOpacity()` reads the focus ring from the script's world |
 
 ## Rules
 

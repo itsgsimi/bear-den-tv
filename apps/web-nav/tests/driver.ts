@@ -100,6 +100,29 @@ export class Driver {
     return reply;
   }
 
+  /**
+   * Moves the page's clock by ms of virtual time (CDP Emulation), for every
+   * world, the script's timers included: deterministic, no sleeping. The
+   * first call pauses real time for the page.
+   */
+  async advance(ms: number): Promise<void> {
+    if (!this.virtual) {
+      await this.cdp.send('Emulation.setVirtualTimePolicy', { policy: 'pause' });
+      this.virtual = true;
+    }
+    const expired = new Promise<void>((resolve) => this.cdp.once('Emulation.virtualTimeBudgetExpired', () => resolve()));
+    await this.cdp.send('Emulation.setVirtualTimePolicy', { policy: 'advance', budget: ms });
+    await expired;
+  }
+  private virtual = false;
+
+  /** The focus ring's opacity ("" before it is drawn), read in the script's world. */
+  ringOpacity(): Promise<string> {
+    return this.evaluate<string>(
+      `(() => { const h = document.querySelector('[data-bdtv-overlay]'); const r = h && h.__root && h.__root.firstElementChild; return r && r.style.display !== 'none' ? (r.style.opacity || '1') : ''; })()`,
+    );
+  }
+
   /** Id of the element carrying the focus ring. */
   focused(): Promise<string | null> {
     return this.page.evaluate(() => document.querySelector('[data-bdtv-focused]')?.id ?? null);

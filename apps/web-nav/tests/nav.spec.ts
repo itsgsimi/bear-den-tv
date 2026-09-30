@@ -240,3 +240,30 @@ test('the focus ring is drawn over the focused card', async ({ page }) => {
   const hostCount = await page.locator('[data-bdtv-overlay]').count();
   expect(hostCount).toBe(1);
 });
+
+// The focus ring over a playing video (TV test 2026-09-29 item 1): it fades
+// 3 s after the last key and comes back on the next one; with the video
+// paused it stays. The fixture's video plays a canvas stream, so it truly
+// plays headless; time moves by CDP virtual time, not by sleeping.
+test('the focus ring fades over a playing video and returns on the next key', async ({ page }) => {
+  const d = await Driver.attach(page);
+  await d.open('player.html');
+  await expect.poll(() => page.evaluate(() => !(document.getElementById('video') as HTMLVideoElement).paused)).toBe(true);
+  expect((await d.act('nav.down')).ok).toBe(true);
+  expect(await d.ringOpacity()).toBe('1');
+  await d.advance(2900);
+  expect(await d.ringOpacity()).toBe('1');
+  await d.advance(200);
+  expect(await d.ringOpacity()).toBe('0');
+  // The next key brings it back, and it fades again 3 s later.
+  await d.act('nav.right');
+  expect(await d.ringOpacity()).toBe('1');
+  await d.advance(3100);
+  expect(await d.ringOpacity()).toBe('0');
+  // Paused: the ring stays.
+  await page.evaluate(() => (document.getElementById('video') as HTMLVideoElement).pause());
+  await d.act('nav.left');
+  expect(await d.ringOpacity()).toBe('1');
+  await d.advance(3100);
+  expect(await d.ringOpacity()).toBe('1');
+});
