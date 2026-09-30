@@ -1183,6 +1183,13 @@ private slots:
         QVERIFY(session->applySnapshot(snap));
         QTRY_COMPARE(heroAction(), QStringLiteral("Try opening Plex again"));
         QVERIFY(facts().contains(QStringLiteral("Plex did not answer in time.")));
+        // UX-32: a Continue Watching item opens Plex's Home, and says so.
+        QVERIFY(session->applySnapshot(fixture()));
+        goHome();
+        toFavorites();
+        act(QStringLiteral("nav.down"));
+        QCOMPARE(m_nav->sectionId(), QStringLiteral("plex-continue"));
+        QTRY_COMPARE(heroAction(), QStringLiteral("Open Plex to continue"));
         // A focused not-installed tile is at full strength; unfocused it is dimmed.
         QVERIFY(session->applySnapshot(installSnapshot(QStringLiteral("available"))));
         toFavoriteTile(QStringLiteral("youtube"));
@@ -1740,6 +1747,11 @@ private slots:
         QTest::qWait(50);
         withCelebrate(QStringLiteral("shell"));
         QTRY_VERIFY_WITH_TIMEOUT(layer->property("visible").toBool(), 1000);
+        // UX-30: the first key only dismisses the card; focus stays put.
+        const QString before = m_nav->itemId();
+        act(QStringLiteral("nav.right"));
+        QVERIFY(!layer->property("active").toBool());
+        QCOMPARE(m_nav->itemId(), before);
     }
 
     // Guest passes: pairing.guest/pass_expires_at_ms and devices[].guest/
@@ -4101,6 +4113,38 @@ Item {
         QCoreApplication::processEvents();
         QVERIFY2(clearOfStatus(), "the pills run into the status");
         QVERIFY(visibleItem(QStringLiteral("headerBrandText"))); // room for the name at 100%
+
+        // UX-24 at 200%: the top bar still fits (the phones chip steps
+        // aside), the featured text stops before the app's room, a setting's
+        // description wraps instead of being cut, and the pairing address
+        // stays inside its panel.
+        ui.insert(QStringLiteral("text_scale"), 2.0);
+        layout.insert(QStringLiteral("ui"), ui);
+        snap.insert(QStringLiteral("layout"), layout);
+        QVERIFY(SessionModel::instance()->applySnapshot(snap));
+        const auto restore = qScopeGuard([this] { SessionModel::instance()->applySnapshot(fixture()); goHome(); });
+        goHome();
+        toFavoriteTile(QStringLiteral("plex-htpc"));
+        QCoreApplication::processEvents();
+        QVERIFY2(clearOfStatus(), "the pills run into the status at 200%");
+        QVERIFY(!visibleItem(QStringLiteral("headerPhonesChip")));
+        QQuickItem *text = visibleItem(QStringLiteral("heroText"));
+        QQuickItem *room = visibleItem(QStringLiteral("heroRoom"));
+        QVERIFY(text && room);
+        QVERIFY2(text->mapRectToScene(QRectF(0, 0, text->width(), text->height())).right() <= room->mapRectToScene(QRectF(0, 0, room->width(), room->height())).left(),
+                 "the featured text runs into the room");
+        shot(QStringLiteral("home-text-200"));
+        openFromHeader(QStringLiteral("pairing"));
+        QQuickItem *address = visibleItem(QStringLiteral("pairAddress"));
+        QVERIFY(address);
+        QQuickItem *panel = address->parentItem()->parentItem();
+        QVERIFY2(address->property("contentWidth").toReal() <= address->width() + 1
+                     && address->mapRectToScene(QRectF(0, 0, address->width(), 1)).right() <= panel->mapRectToScene(QRectF(0, 0, panel->width(), 1)).right(),
+                 "the address spills out of its panel");
+        QQuickItem *kind = visibleItem(QStringLiteral("pairKindRow"));
+        QVERIFY(kind);
+        QVERIFY2(kind->height() > 104 * Theme::instance()->property("scale").toReal(), "the row did not grow for its wrapped text");
+        shot(QStringLiteral("pairing-text-200"));
     }
 
     // The campfire scene picks the pieces its data declares for each

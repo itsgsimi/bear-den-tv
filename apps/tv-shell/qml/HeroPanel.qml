@@ -132,6 +132,7 @@ PixelBox {
     // App identity on the right when there is no backdrop photo.
     HeroScene {
         id: room
+        objectName: "heroRoom"
         visible: root.staged
         scene: root.stage ? root.stage.scene : ""
         itemId: root.item.itemId || ""
@@ -236,7 +237,11 @@ PixelBox {
 
     Column {
         id: content
-        anchors { left: parent.left; leftMargin: 104 * Theme.scale; right: parent.right; rightMargin: parent.width * 0.38; verticalCenter: parent.verticalCenter }
+        objectName: "heroText"
+        // Stops before the app's room, so large text wraps instead of
+        // running into it (UX-24).
+        anchors { left: parent.left; leftMargin: 104 * Theme.scale; right: room.visible ? room.left : parent.right
+                  rightMargin: room.visible ? 40 * Theme.scale : parent.width * 0.38; verticalCenter: parent.verticalCenter }
         spacing: 12 * Theme.scale
         Row {
             visible: !root.isApp
@@ -276,6 +281,8 @@ PixelBox {
             width: parent.width
             text: root.isApp ? Apps.about(root.app.adapter)
                   : root.isAddApps ? qsTr("Install more with one press: %1.").arg(root.item.subtitle || "")
+                  : root.item.kind !== "setup" && root.item.openAction !== "play_exact" && root.item.progress > 0
+                    ? [root.item.subtitle || "", qsTr("Find it in Plex's Continue Watching.")].filter(s => s.length > 0).join(" · ")
                   : (root.item.subtitle || "")
             visible: text.length > 0
             opacity: root.revealed >= 0.2 ? 1 : 0
@@ -429,7 +436,8 @@ PixelBox {
                               : (root.item.kind === "setup" ? qsTr("Open Settings")
                                  // Only a verified exact-item handoff (open_action play_exact)
                                  // may promise the item; open_app just opens Plex HTPC.
-                                 : root.item.openAction !== "play_exact" ? qsTr("Open Plex")
+                                 // Plex opens at its own Home, not the item (UX-32).
+                                 : root.item.openAction !== "play_exact" ? (root.item.progress > 0 ? qsTr("Open Plex to continue") : qsTr("Open Plex"))
                                  : (root.item.progress !== undefined && root.item.progress > 0 ? qsTr("Resume in Plex") : qsTr("Play in Plex")))
                         color: Theme.pillActiveText
                         font.family: Theme.fontFamily

@@ -159,6 +159,9 @@ FocusScope {
         if (action === "home") { goHome(); return }
         if (blocked) { if (action === "back") Nav.noteAtRoot(); return }
         if (topDialog) { topDialog.navigate(action); return }
+        // A badge card over the rail: the first key only dismisses it, so
+        // focus never moves unseen underneath (UX-30).
+        if (badgeCelebration.active) { badgeCelebration.finish(); return }
         if (launchOverlay.visible) { launchOverlay.navigate(action); return }
         if (current().navigate(action)) return
         if (action === "back" && !pop()) Nav.noteAtRoot()

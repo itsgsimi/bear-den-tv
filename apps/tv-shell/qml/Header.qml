@@ -4,8 +4,10 @@
 // the pills. Each pill is [screen, label, icon]. When large text leaves no
 // room (Settings → Display & accessibility → Text size), the brand shows only
 // the bear mark (`compact`), then the pills drop their icons (`tight`), then
-// their padding narrows (`crowded`), so the pills never run into the status
-// on the right.
+// their padding narrows (`crowded`), and at the largest text the DEMO badge
+// and the phones chip step aside (`packed`, UX-24), so the pills never run
+// into the status on the right. The widths come from implicit sizes, never
+// from what is shown, so hiding a chip cannot flip the choice back.
 
 import QtQuick
 import BearDen
@@ -19,10 +21,17 @@ Item {
     implicitHeight: Math.max(88 * Theme.scale, brand.implicitHeight)
     // Room for the pills between the bear mark and the status on the right.
     readonly property real gap: 48 * Theme.scale
-    readonly property real pillsRoom: width - mark.width - status.width - 3 * gap
+    // The status at full size: weather and clock, the phones chip, DEMO.
+    readonly property real statusFull: (weatherChip.visible ? weatherChip.implicitWidth + status.spacing : 0)
+                                       + (clock.visible ? clock.implicitWidth : 0)
+                                       + phonesChip.implicitWidth + status.spacing
+                                       + (Session.devMode ? demoBadge.implicitWidth + status.spacing : 0)
+    readonly property real pillsRoom: width - mark.width - statusFull - 3 * gap
     readonly property bool compact: pillsFull.width + brandText.implicitWidth + brand.spacing > pillsRoom
     readonly property bool tight: pillsFull.width > pillsRoom
     readonly property bool crowded: pillsPlain.width > pillsRoom
+    // Even narrow pills (about 26 px less padding a side each) do not fit.
+    readonly property bool packed: pillsPlain.width - root.pills.length * 52 * Theme.scale > pillsRoom
 
     Row {
         id: brand
@@ -98,8 +107,11 @@ Item {
         objectName: "headerStatus"
         anchors { right: parent.right; verticalCenter: parent.verticalCenter }
         spacing: 18 * Theme.scale
-        DemoBadge { visible: Session.devMode; anchors.verticalCenter: parent.verticalCenter }
+        DemoBadge { id: demoBadge; visible: Session.devMode && !root.packed; anchors.verticalCenter: parent.verticalCenter }
         StatusChip {
+            id: phonesChip
+            objectName: "headerPhonesChip"
+            visible: !root.packed
             anchors.verticalCenter: parent.verticalCenter
             readonly property bool listening: Session.remote.listening === true
             readonly property int phones: Session.remote.paired_device_count || 0

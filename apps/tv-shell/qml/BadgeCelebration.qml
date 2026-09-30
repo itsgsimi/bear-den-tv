@@ -9,7 +9,8 @@
 // Motion: the confetti moves on World.beat and only while `alive` (never
 // with reduced motion, resting, the screensaver or an app in front); with
 // reduced motion (or resting) the card simply shows, without confetti. The card leaves after `seconds`
-// (one single-shot timer, not an animation).
+// (one single-shot timer, not an animation), or at the first key press,
+// which does nothing else (ShellRoot.handle; UX-30).
 
 pragma ComponentBehavior: Bound
 import QtQuick

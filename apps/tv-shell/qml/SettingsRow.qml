@@ -1,6 +1,8 @@
 // One settings entry: optional Bear Den icon (UiIcon), label, optional
 // description, value, and an affordance showing whether OK opens a page (›),
 // Left/Right changes the value (‹ ›), or it is only information (`info`).
+// With large text the description wraps to two lines and the row grows
+// (UX-24), instead of cutting it off mid-word.
 
 import QtQuick
 import BearDen
@@ -15,7 +17,7 @@ PixelBox {
     property bool focused: false
     // Optional small marker before the value (e.g. "Auto" on Advanced playback).
     property string badge: ""
-    implicitHeight: (description.length > 0 ? 104 : 84) * Theme.scale
+    implicitHeight: Math.max((description.length > 0 ? 104 : 84) * Theme.scale, texts.implicitHeight + 32 * Theme.scale)
     radius: 18 * Theme.scale
     color: focused ? Theme.surfaceRaised : Theme.surface
     borderColor: Theme.surfaceBorder
@@ -31,9 +33,14 @@ PixelBox {
         anchors { left: parent.left; leftMargin: 24 * Theme.scale; verticalCenter: parent.verticalCenter }
     }
     Column {
+        id: texts
         anchors { left: leadIcon.visible ? leadIcon.right : parent.left; leftMargin: leadIcon.visible ? 20 * Theme.scale : 32 * Theme.scale; verticalCenter: parent.verticalCenter; right: badgePill.visible ? badgePill.left : valueText.left; rightMargin: 24 * Theme.scale }
         spacing: 4 * Theme.scale
         Text {
+            width: parent.width
+            wrapMode: Text.WordWrap
+            maximumLineCount: 2
+            elide: Text.ElideRight
             text: root.label
             color: root.kind === "danger" ? Theme.danger : Theme.textPrimary
             font.family: Theme.fontFamily
@@ -44,6 +51,8 @@ PixelBox {
             visible: root.description.length > 0
             width: parent.width
             text: root.description
+            wrapMode: Text.WordWrap
+            maximumLineCount: 2
             elide: Text.ElideRight
             color: Theme.textMuted
             font.family: Theme.fontFamily

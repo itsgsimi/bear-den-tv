@@ -193,6 +193,8 @@ Item {
                     visible: !root.active
                     anchors.centerIn: parent
                     text: root.requested ? qsTr("Code used or expired.\nPress OK for a new one.") : qsTr("Preparing…")
+                    width: parent.width - 48 * Theme.scale
+                    wrapMode: Text.WordWrap
                     horizontalAlignment: Text.AlignHCenter
                     color: "#333"
                     font.family: Theme.fontFamily
@@ -236,6 +238,8 @@ Item {
                             font.pixelSize: 22 * Theme.fontUnit
                         }
                         Text {
+                            width: parent.width
+                            wrapMode: Text.WordWrap
                             text: qsTr("Or open this address and enter the code")
                             color: Theme.textSecondary
                             font.family: Theme.fontFamily
@@ -243,6 +247,8 @@ Item {
                         }
                         Text {
                             objectName: "pairAddress"
+                            width: parent.width
+                            wrapMode: Text.WrapAnywhere
                             text: (Session.remote.addresses || [])[0] || ""
                             color: Theme.textPrimary
                             font.family: Theme.monoFamily
