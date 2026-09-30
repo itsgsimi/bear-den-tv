@@ -61,6 +61,9 @@ func TestSeedPrefsWritesBraveRowsIntoItsOwnProfile(t *testing.T) {
 		t.Fatalf("SeedPrefs = %q, %v", got, err)
 	}
 	ls := readJSON(t, filepath.Join(profile, "Local State"))
+	if at(ls, "brave", "dark_mode") != float64(1) {
+		t.Fatalf("Brave's browser UI is not set to dark: %v", at(ls, "brave", "dark_mode"))
+	}
 	if at(ls, "brave", "widevine_opted_in") != true || at(ls, "brave", "other") != float64(1) || at(ls, "browser", "enabled_labs_experiments") == nil {
 		t.Fatalf("Local State %v", ls)
 	}

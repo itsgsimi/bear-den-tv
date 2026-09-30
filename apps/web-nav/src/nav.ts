@@ -28,7 +28,7 @@ const MODALS = '[role=dialog],[role=alertdialog],[aria-modal=true],dialog[open]'
 const CLOSERS = '[aria-label*="close" i],[aria-label*="dismiss" i],button[class*="close" i],[data-dismiss],[data-bs-dismiss]';
 const TEXT_TYPES = new Set(['', 'text', 'search', 'email', 'url', 'tel', 'password', 'number']);
 const DEFAULT_BACK: BackStep[] = ['field', 'fullscreen', 'overlay', 'history'];
-const RING = '#F5C542';
+const RING = '#7fd6b0'; // Bear Den's mint focus colour
 
 interface Candidate {
   el: Element;
@@ -216,7 +216,9 @@ function ensureRing(): HTMLDivElement {
   s.zIndex = '2147483647';
   s.border = `5px solid ${RING}`;
   s.borderRadius = '10px';
-  s.boxShadow = '0 0 0 3px rgba(0,0,0,0.65), 0 0 22px 6px rgba(245,197,66,0.75)';
+  s.borderRadius = '12px';
+  s.boxShadow = '0 0 0 3px rgba(0,0,0,0.55), 0 0 18px 4px rgba(127,214,176,0.45)';
+  s.transition = 'opacity 0.35s ease';
   s.display = 'none';
   overlayHost().appendChild(ring);
   return ring;
@@ -235,6 +237,25 @@ function placeRing(): void {
   el.style.width = `${r.width + pad * 2}px`;
   el.style.height = `${r.height + pad * 2}px`;
   el.style.display = 'block';
+  showRingBriefly();
+}
+
+// While a video plays, the ring fades 3 s after the last key and comes back
+// on the next one (on the TV it sat over the picture the whole time).
+let ringFade: number | undefined;
+function videoPlaying(): boolean {
+  return Array.from(document.querySelectorAll('video')).some((v) => !v.paused && !v.ended);
+}
+function showRingBriefly(): void {
+  if (!ring) return;
+  ring.style.opacity = '1';
+  scheduleRingFade();
+}
+function scheduleRingFade(): void {
+  if (ringFade !== undefined) window.clearTimeout(ringFade);
+  ringFade = window.setTimeout(() => {
+    if (ring && videoPlaying()) ring.style.opacity = '0';
+  }, 3000);
 }
 
 function focusInfo(): FocusInfo | undefined {
@@ -544,6 +565,7 @@ export function install(h: Hints | null): Api {
   document.addEventListener('focusin', report, true);
   document.addEventListener('focusout', () => setTimeout(report, 0), true);
   for (const ev of ['play', 'playing', 'pause', 'ended', 'emptied', 'loadeddata']) document.addEventListener(ev, report, true);
+  document.addEventListener('playing', scheduleRingFade, true);
   addEventListener('load', report);
   return api;
 }

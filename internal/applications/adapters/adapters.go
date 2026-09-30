@@ -570,6 +570,10 @@ var browsers = []BrowserInfo{
 		LocalState: map[string]any{
 			"brave.widevine_opted_in":       true,
 			"brave.p3a.notice_acknowledged": true,
+			// Dark browser UI on the TV (owner's request): brave-core's
+			// kBraveDarkMode, a Local State int (BraveDarkModeType: 1 = dark).
+			// Web pages are not forced dark. Not yet seen on the TV.
+			"brave.dark_mode": float64(1),
 		},
 		// Brave's own features stay out of the kiosk profile's way (names
 		// from brave-core's pref_names.h files; effect not seen on a TV).
@@ -586,6 +590,9 @@ var browsers = []BrowserInfo{
 			"brave.new_tab_page.show_brave_news":                      false,
 			"brave.today.should_show_toolbar_button":                  false,
 			"brave.ask_widevine_install":                              false,
+			// Chromium's own browser colour scheme (0 system, 1 light, 2 dark),
+			// so the toolbar and address bar are dark too.
+			"browser.theme.color_scheme2": float64(2),
 		},
 	},
 }
