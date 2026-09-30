@@ -454,7 +454,7 @@ FocusScope {
     RemoveCard {
         id: removeCard
         anchors.fill: parent
-        onRemoved: (name) => toast.show("info", qsTr("%1 was removed").arg(name))
+        onRemoved: (name, message) => toast.show("info", message.length > 0 ? qsTr("%1: %2").arg(name).arg(message) : qsTr("%1 was removed").arg(name))
     }
     MessageDialog { id: messageDialog; anchors.fill: parent }
     ConfirmDialog { id: confirmDialog; anchors.fill: parent }

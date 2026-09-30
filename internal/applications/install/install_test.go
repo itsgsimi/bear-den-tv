@@ -84,6 +84,8 @@ type fakeRunner struct {
 	argvs   [][]string
 	answers map[string]Result
 	started chan *fakeProc
+	// hooks run when that argv is answered (the disk filling or freeing).
+	hooks map[string]func()
 }
 
 func newFakeRunner() *fakeRunner {
@@ -91,6 +93,15 @@ func newFakeRunner() *fakeRunner {
 }
 
 func (f *fakeRunner) answer(argv string, res Result) { f.answers[argv] = res }
+
+func (f *fakeRunner) on(argv string, fn func()) {
+	f.mu.Lock()
+	if f.hooks == nil {
+		f.hooks = map[string]func(){}
+	}
+	f.hooks[argv] = fn
+	f.mu.Unlock()
+}
 
 func (f *fakeRunner) record(argv []string) {
 	f.mu.Lock()
@@ -105,7 +116,11 @@ func (f *fakeRunner) Output(ctx context.Context, cmd Command) (Result, error) {
 	}
 	f.mu.Lock()
 	res, ok := f.answers[strings.Join(cmd.Argv, " ")]
+	hook := f.hooks[strings.Join(cmd.Argv, " ")]
 	f.mu.Unlock()
+	if hook != nil {
+		hook()
+	}
 	if !ok {
 		return Result{ExitCode: 1, Stderr: []byte("error: not installed\n")}, nil
 	}
@@ -580,13 +595,19 @@ func TestUpdateArgvAndCancel(t *testing.T) {
 }
 
 // Removal (Uninstall) with flatpak's real output: exactly `flatpak
-// uninstall --user --noninteractive -y [--delete-data] <id>`, never
-// --system or --unused; "removing" while it runs, cleared afterwards; the
-// owner's words when flatpak refuses or the app is still there; one job at
-// a time; the adapter table's ids only.
+// uninstall --user --noninteractive -y [--delete-data] <id>`, then the
+// user's unused shared parts (`--unused`), never --system; "removing"
+// while it runs, then what it freed, measured on the disk; the owner's
+// words when flatpak refuses or the app is still there; one job at a time;
+// the adapter table's ids only.
 func TestUninstallRunsTheFixedArgvForThisUserOnly(t *testing.T) {
 	f := newFakeRunner()
-	in := newInstaller(t, f, &disk{free: 50e9})
+	d := &disk{free: 50e9}
+	in := newInstaller(t, f, d)
+	// The container's numbers: the app 26 MB, its runtime and extensions 2.5 GB.
+	f.on("flatpak uninstall --user --noninteractive -y "+moonlight, func() { d.use(-26_200_000) })
+	f.on("flatpak uninstall --user --noninteractive -y --unused", func() { d.use(-2_509_613_472) })
+	f.answer("flatpak uninstall --user --noninteractive -y --unused", Result{Stdout: testdata(t, "uninstall-unused.stdout")})
 	var states []string
 	in.onChange = func() { states = append(states, in.Status(moonlight).State) }
 	f.answer("flatpak uninstall --user --noninteractive -y "+moonlight, Result{Stdout: testdata(t, "uninstall-moonlight.stdout"), Stderr: testdata(t, "uninstall-moonlight.stderr")})
@@ -594,25 +615,30 @@ func TestUninstallRunsTheFixedArgvForThisUserOnly(t *testing.T) {
 	if err := in.Uninstall(context.Background(), moonlight, false); err != nil {
 		t.Fatalf("Uninstall = %v", err)
 	}
+	if st := in.Status(moonlight); st.Message != "Removed. It freed about 2.5 GB." {
+		t.Fatalf("freed %+v", st)
+	}
+	f.on("flatpak uninstall --user --noninteractive -y --unused", nil)
 	if err := in.Uninstall(context.Background(), moonlight, true); err != nil {
 		t.Fatalf("Uninstall with data = %v", err)
 	}
 	want := "[[flatpak uninstall --user --noninteractive -y com.moonlight_stream.Moonlight] [flatpak info --user com.moonlight_stream.Moonlight]" +
-		" [flatpak uninstall --user --noninteractive -y --delete-data com.moonlight_stream.Moonlight] [flatpak info --user com.moonlight_stream.Moonlight]]"
+		" [flatpak uninstall --user --noninteractive -y --unused]" +
+		" [flatpak uninstall --user --noninteractive -y --delete-data com.moonlight_stream.Moonlight] [flatpak info --user com.moonlight_stream.Moonlight]" +
+		" [flatpak uninstall --user --noninteractive -y --unused]]"
 	if fmt.Sprint(f.all()) != want {
 		t.Fatalf("argv %q", f.all())
 	}
 	checkArgvs(t, f.all())
-	for _, argv := range f.all() {
-		if strings.Contains(strings.Join(argv, " "), "--unused") {
-			t.Fatalf("ran %q", argv)
-		}
-	}
 	if fmt.Sprint(states) != "[removing  removing ]" {
 		t.Fatalf("states %q", states)
 	}
-	if in.Busy() || in.Removing() || in.Status(moonlight) != (Status{}) {
-		t.Fatalf("after: busy %v removing %v status %+v", in.Busy(), in.Removing(), in.Status(moonlight))
+	if in.Busy() || in.Removing() {
+		t.Fatalf("after: busy %v removing %v", in.Busy(), in.Removing())
+	}
+	// The second removal freed less than a megabyte on the fake disk.
+	if st := in.Status(moonlight); st.State != "" || st.Message != ReasonRemoved {
+		t.Fatalf("second status %+v", st)
 	}
 	// Only the adapter table's ids.
 	if err := in.Uninstall(context.Background(), "org.example.Other", false); !errors.Is(err, ErrNotAllowed) {

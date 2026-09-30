@@ -5,6 +5,7 @@ import BearDen
 
 PixelBox {
     id: root
+    objectName: "toast"
     property string kind: "info"
     property string text
     visible: opacity > 0

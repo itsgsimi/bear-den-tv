@@ -255,7 +255,7 @@ export const t = {
     cancel: 'Cancel',
     removing: 'Removing…',
     system: "Installed for everyone on this PC, so only the PC's own software tool can remove it.",
-    frees: (size: string): string => `Frees about ${size} on the TV`,
+    frees: (size: string): string => `Frees about ${size} on the TV, and more if no other app uses its shared parts`,
     alsoOff: (labels: readonly string[], name: string): string =>
       labels.length === 1
         ? `${labels[0]} uses ${name}, so removing it turns ${labels[0]} off.`

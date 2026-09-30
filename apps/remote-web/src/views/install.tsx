@@ -123,7 +123,8 @@ function statusText(i: Install): string {
     case 'none':
       return i.message ?? '';
     default:
-      return i.size_bytes ? t.install.size(sizeText(i.size_bytes)) : t.install.from;
+      // After a Remove: what it freed ("Removed. It freed about 2.5 GB.").
+      return i.message ?? (i.size_bytes ? t.install.size(sizeText(i.size_bytes)) : t.install.from);
   }
 }
 

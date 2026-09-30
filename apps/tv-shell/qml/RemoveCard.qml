@@ -8,7 +8,8 @@
 // Cancel (focused), Remove, Remove and delete its data; each Remove sends
 // IPC app.uninstall (Shell.uninstallApp). While flatpak works the card says
 // "Removing …" (install.state removing); once the app is gone it closes and
-// ShellRoot says so. A system-wide install is refused plainly with OK only;
+// ShellRoot says so with what it freed (the app and the shared parts
+// nothing else uses, measured by the coordinator). A system-wide install is refused plainly with OK only;
 // the coordinator's refusals and failures (a running app, flatpak's error)
 // show in the card. Nothing is removed without one of the Remove presses.
 
@@ -27,7 +28,8 @@ Rectangle {
     visible: false
     color: Theme.scrim
 
-    signal removed(string name)
+    // message: what the removal freed ("Removed. It freed about 2.5 GB.").
+    signal removed(string name, string message)
 
     readonly property var app: Session.applications && appId.length > 0 ? Session.application(appId) : ({})
     readonly property var inst: app.install || ({})
@@ -106,7 +108,7 @@ Rectangle {
             if (root.visible && root.pressed && root.app.installed === false) {
                 root.pressed = false
                 root.close()
-                root.removed(root.name)
+                root.removed(root.name, root.inst.message || "")
             }
         }
     }
@@ -153,7 +155,7 @@ Rectangle {
                         return qsTr("It is installed for everyone on this PC, so only the PC's own software tool can remove it.")
                     const lines = []
                     if ((root.inst.installed_bytes || 0) > 0)
-                        lines.push(qsTr("Frees about %1 on this box.").arg(root.size(root.inst.installed_bytes)))
+                        lines.push(qsTr("Frees about %1 on this box, and more if no other app uses its shared parts.").arg(root.size(root.inst.installed_bytes)))
                     if (root.alsoOff.length === 1)
                         lines.push(qsTr("%1 uses %2, so removing it turns %1 off.").arg(root.alsoOff[0]).arg(root.name))
                     else if (root.alsoOff.length > 1)

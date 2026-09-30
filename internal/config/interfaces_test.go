@@ -36,7 +36,7 @@ func TestShellHidesTheSameInterfaces(t *testing.T) {
 			t.Errorf("%s is offered", vpn)
 		}
 	}
-	for _, home := range []string{"enp9s0", "eth0", "wlp2s0"} {
+	for _, home := range []string{"enp3s0", "eth0", "wlp2s0"} {
 		if IsVirtualInterface(home) {
 			t.Errorf("%s is refused", home)
 		}

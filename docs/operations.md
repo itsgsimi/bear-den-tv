@@ -842,13 +842,16 @@ owner's phone) removes an app Bear Den can install, for this user only:
 `flatpak uninstall --user --noninteractive -y <id>`, plus `--delete-data`
 when you choose "Remove and delete its data" (its sign-ins and settings in
 `~/.var/app/<id>`). It asks first (Cancel is focused), says how much it
-frees (the app itself; the shared runtime stays, so a first removal frees
-less than the install took: `flatpak uninstall --user --unused` frees the
-rest, which Bear Den never runs for you) and which apps it turns off
+frees (the app itself, and more when no other app uses its shared parts)
+and which apps it turns off
 (removing Google Chrome turns off Netflix, Disney+ and Hulu). An app
 installed for everyone on the PC is left to the PC's own software tool.
-The log says `session: removed from this TV` or `session: remove failed`
-with the reason.
+After the app, Bear Den runs `flatpak uninstall --user --noninteractive -y
+--unused`, which removes the shared parts (runtimes, drivers, codecs) that
+nothing else installed for this user needs, and the TV then says how much
+space the removal freed, measured on the disk ("Removed. It freed about
+2.5 GB."). The log says `session: removed from this TV` or `session:
+remove failed` with the reason.
 
 **Tried in a container, not on the TV.** In `ubuntu:24.04` with `apt install
 flatpak dbus dbus-user-session`, as an unprivileged user,

@@ -10,8 +10,9 @@
 // here decides *whether* to install or remove: the coordinator calls Start
 // and Uninstall only after an owner press (internal/session/install.go).
 // Uninstall is `flatpak uninstall --user --noninteractive -y
-// [--delete-data] <id>`: never --system, never --unused (shared runtimes
-// stay).
+// [--delete-data] <id>`, then `flatpak uninstall --user --noninteractive -y
+// --unused` (the shared parts nothing else of this user's needs), never
+// --system; the space freed is measured on the disk.
 package install
 
 import (
@@ -65,6 +66,7 @@ const (
 	// Removal (Uninstall).
 	ReasonNotHere   = "It isn't installed for this TV's user, so there is nothing to remove here."
 	ReasonStillHere = "Flatpak finished, but the app is still there."
+	ReasonRemoved   = "Removed."
 )
 
 // Errors from Start and Cancel.
@@ -527,8 +529,10 @@ func (i *Installer) finish() {
 // Uninstall removes id for this user and blocks until flatpak is done (or
 // ctx ends): `flatpak uninstall --user --noninteractive -y [--delete-data]
 // <id>`. deleteData also deletes the app's own data (~/.var/app/<id>).
-// Status is removing while it runs; afterwards it is cleared (the app can
-// be installed again), or on failure carries the owner's words in Message.
+// Afterwards it removes the user's unused shared parts (--unused). Status
+// is removing while it runs; afterwards Message says what it freed
+// ("Removed. It freed about 2.5 GB.", measured on the disk; the app can be
+// installed again), or on failure carries the owner's words.
 // One job at a time: ErrBusy while an install, update or removal runs.
 func (i *Installer) Uninstall(ctx context.Context, id string, deleteData bool) error {
 	if err := i.check(id); err != nil {
@@ -549,6 +553,7 @@ func (i *Installer) Uninstall(ctx context.Context, id string, deleteData bool) e
 		argv = append(argv, "--delete-data")
 	}
 	argv = append(argv, id)
+	freeBefore, freeErr := i.free(existingParent(i.userDir))
 	res, err := i.output(ctx, argv...)
 	var failed *Failure
 	switch {
@@ -563,10 +568,16 @@ func (i *Installer) Uninstall(ctx context.Context, id string, deleteData bool) e
 		i.set(id, func(s *Status) { *s = Status{Message: truncate(failed.Reason, 200)} })
 		return failed
 	}
-	i.mu.Lock()
-	delete(i.status, id)
-	i.mu.Unlock()
-	i.changed()
+	// The shared parts (runtimes, drivers, codecs) that nothing installed
+	// for this user uses any more go too: the owner decided Remove frees
+	// them. Fixed argv, the user installation only; a failure here leaves
+	// the app removed and is not an error.
+	_, _ = i.output(ctx, "flatpak", "uninstall", "--user", "--noninteractive", "-y", "--unused")
+	msg := ReasonRemoved
+	if freeAfter, err := i.free(existingParent(i.userDir)); err == nil && freeErr == nil && freeAfter-freeBefore >= 1e6 {
+		msg = fmt.Sprintf("Removed. It freed about %s.", HumanSize(freeAfter-freeBefore))
+	}
+	i.set(id, func(s *Status) { *s = Status{Message: msg} })
 	return nil
 }
 

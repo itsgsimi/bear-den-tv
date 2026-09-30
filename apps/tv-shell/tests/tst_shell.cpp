@@ -1162,7 +1162,7 @@ private slots:
         auto offered = [](const QString &name, bool p2p, bool wifi, const QStringList &ipv4) {
             return ShellController::lanCandidate(name, true, false, p2p, wifi, ipv4);
         };
-        const QVariantMap wired = offered(QStringLiteral("enp9s0"), false, false, {QStringLiteral("192.168.1.50")});
+        const QVariantMap wired = offered(QStringLiteral("enp3s0"), false, false, {QStringLiteral("192.168.1.50")});
         QCOMPARE(wired.value(QStringLiteral("label")).toString(), QStringLiteral("home network (wired)"));
         QCOMPARE(wired.value(QStringLiteral("addresses")).toString(), QStringLiteral("192.168.1.50"));
         QCOMPARE(offered(QStringLiteral("wlp2s0"), false, true, {QStringLiteral("10.0.0.5")}).value(QStringLiteral("label")).toString(), QStringLiteral("home network (Wi-Fi)"));
@@ -1243,8 +1243,11 @@ private slots:
                 if (id == QLatin1String("youtube")) {
                     a.insert(QStringLiteral("installed"), youtubeInstalled);
                     a.insert(QStringLiteral("installation"), youtubeInstalled ? QStringLiteral("user") : QStringLiteral("none"));
-                    a.insert(QStringLiteral("install"), QJsonObject{{QStringLiteral("state"), youtubeState}, {QStringLiteral("progress"), 0},
-                                                                    {QStringLiteral("phase"), QString()}, {QStringLiteral("installed_bytes"), 142300000}});
+                    QJsonObject inst{{QStringLiteral("state"), youtubeState}, {QStringLiteral("progress"), 0},
+                                     {QStringLiteral("phase"), QString()}, {QStringLiteral("installed_bytes"), 142300000}};
+                    if (!youtubeInstalled)
+                        inst.insert(QStringLiteral("message"), QStringLiteral("Removed. It freed about 2.5 GB."));
+                    a.insert(QStringLiteral("install"), inst);
                 }
                 if (id == QLatin1String("netflix") || id == QLatin1String("hulu")) {
                     a.insert(QStringLiteral("installed"), true);
@@ -1319,6 +1322,9 @@ private slots:
         QVERIFY(session->applySnapshot(snapshot(QStringLiteral("available"), false)));
         QCoreApplication::processEvents();
         QVERIFY2(!card->isVisible(), "the card stayed after the app was removed");
+        QObject *toast = m_window->findChild<QObject *>(QStringLiteral("toast"));
+        QVERIFY(toast);
+        QCOMPARE(toast->property("text").toString(), QStringLiteral("YouTube: Removed. It freed about 2.5 GB."));
 
         // Google Chrome: Netflix (on) uses it and goes off with it; Hulu is off already.
         for (int i = 0; i < 12 && m_nav->sectionId() != QLatin1String("remove-apps"); ++i)

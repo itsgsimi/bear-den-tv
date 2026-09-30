@@ -38,7 +38,7 @@ describe('remove apps', () => {
     const entries = removeEntries(owner);
     const byId = Object.fromEntries(entries.map((e) => [e.id, e]));
     expect(byId['youtube']?.label).toBe('YouTube');
-    expect(removeLines(byId['youtube']!)).toEqual(['Frees about 142 MB on the TV']);
+    expect(removeLines(byId['youtube']!)).toEqual(['Frees about 142 MB on the TV, and more if no other app uses its shared parts']);
     expect(byId['plex-htpc']?.system).toBe(true);
     expect(removeLines(byId['plex-htpc']!)[0]).toMatch(/only the PC's own software tool/);
     expect(removeLines(byId['spotify']!)).toEqual(['Removing…']);
@@ -60,7 +60,7 @@ describe('remove apps', () => {
     const chrome = removeEntries(snap).find((e) => e.id === 'netflix')!;
     expect(chrome.label).toBe('Google Chrome');
     expect(removeEntries(snap).filter((e) => e.label === 'Google Chrome')).toHaveLength(1);
-    expect(removeLines(chrome)).toEqual(['Frees about 142 MB on the TV', 'Netflix and Hulu use Google Chrome, so removing it turns them off.']);
+    expect(removeLines(chrome)).toEqual(['Frees about 142 MB on the TV, and more if no other app uses its shared parts', 'Netflix and Hulu use Google Chrome, so removing it turns them off.']);
   });
 
   it('asks first, then sends app.uninstall with or without the data', () => {
