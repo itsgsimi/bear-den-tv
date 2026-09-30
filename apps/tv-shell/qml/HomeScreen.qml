@@ -1,6 +1,9 @@
 // Home: header pills, hero for the focused item, and one rail per enabled
 // section. Up/Down moves between rails (and up into the header), Left/Right
-// within a rail; each rail restores its item by id.
+// within a rail; each rail restores its item by id. The first apps rail ends
+// with an "Add apps" tile while Bear Den could install something
+// (SessionModel adds it, kind `add-apps`); OK on it opens the Apps page at
+// Add apps.
 
 import QtQuick
 import BearDen
@@ -80,7 +83,9 @@ Item {
     }
 
     function activateItem(item) {
-        if (item.kind === "app") {
+        if (item.kind === "add-apps") {
+            openScreen("add-apps")   // the Apps page, at Add apps
+        } else if (item.kind === "app") {
             if (item.installed === false) appUnavailable(Session.application(item.appId))
             else Shell.launchApp(item.appId)
         } else if (item.kind === "setup") {

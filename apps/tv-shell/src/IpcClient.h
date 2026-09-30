@@ -83,9 +83,9 @@ public:
     /// app.install | app.install_info | app.install_cancel (contracts/ipc.md)
     /// for one app; answered with result.
     QString sendAppInstall(const QString &type, const QString &appId);
-    /// apps.configure: Settings → Keep apps up to date.
+    /// apps.configure: Apps → Keep apps up to date.
     QString sendAppsConfigure(bool autoUpdate);
-    /// apps.browser: Settings → Streaming sites, the Browser tile's and the
+    /// apps.browser: Apps → Streaming sites, the Browser tile's and the
     /// streaming sites' browsers (state.apps.browsers[].id).
     QString sendAppsBrowser(const QString &browser, const QString &streamingBrowser);
     /// onboarding.complete: the TV's first-run setup is done (config onboarding.completed).

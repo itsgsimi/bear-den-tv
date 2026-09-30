@@ -44,6 +44,7 @@ class SessionModel : public QObject {
     Q_PROPERTY(QVariantMap ui READ ui NOTIFY layoutChanged)
     Q_PROPERTY(QVariantList layoutSections READ layoutSections NOTIFY layoutChanged)
     Q_PROPERTY(bool previewActive READ previewActive NOTIFY layoutChanged)
+    Q_PROPERTY(bool uiPreviewActive READ uiPreviewActive NOTIFY layoutChanged)
     Q_PROPERTY(QVariantMap layoutPending READ layoutPending NOTIFY snapshotChanged)
     Q_PROPERTY(QVariantList notifications READ notifications NOTIFY snapshotChanged)
     Q_PROPERTY(QVariantMap content READ content NOTIFY snapshotChanged)
@@ -87,6 +88,13 @@ public:
     void applyLayoutPreview(const QJsonObject &layout);
     /// Drops the draft and returns to the persisted layout.
     void endLayoutPreview();
+    /// A look tried on the TV itself (the Themes page, first-run setup): shows
+    /// `ui` over the persisted layout without sending or storing anything. It
+    /// ends with endUiPreview(), with a coordinator preview, or by itself when
+    /// a snapshot arrives whose persisted ui equals it (the choice was applied).
+    Q_INVOKABLE void previewUi(const QVariantMap &ui);
+    Q_INVOKABLE void endUiPreview();
+    bool uiPreviewActive() const { return m_localPreview; }
     /// The persisted layout as JSON for `settings.update`.
     QJsonObject layoutJson() const { return m_layout; }
     /// The raw snapshot as last applied.
@@ -110,7 +118,8 @@ public:
     QVariantMap layout() const { return effectiveLayout().toVariantMap(); }
     QVariantMap ui() const { return effectiveLayout().value(QStringLiteral("ui")).toObject().toVariantMap(); }
     QVariantList layoutSections() const { return effectiveLayout().value(QStringLiteral("sections")).toArray().toVariantList(); }
-    bool previewActive() const { return m_previewActive; }
+    /// A phone's layout preview (not a look tried on the TV, uiPreviewActive).
+    bool previewActive() const { return m_previewActive && !m_localPreview; }
     QVariantMap layoutPending() const { return m_snapshot.value(QStringLiteral("layout_pending")).toObject().toVariantMap(); }
     QVariantList notifications() const { return m_snapshot.value(QStringLiteral("notifications")).toArray().toVariantList(); }
     QVariantMap content() const { return m_snapshot.value(QStringLiteral("content")).toObject().toVariantMap(); }
@@ -149,6 +158,7 @@ private:
     QJsonObject m_layout;
     QJsonObject m_previewLayout;
     bool m_previewActive = false;
+    bool m_localPreview = false;
     bool m_loaded = false;
     QString m_lastError;
     SectionsModel *m_sections = nullptr;

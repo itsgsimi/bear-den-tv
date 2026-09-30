@@ -1,5 +1,6 @@
-// One settings entry: label, optional description, value, and an affordance
-// showing whether OK opens a page (›) or Left/Right changes the value (‹ ›).
+// One settings entry: optional Bear Den icon (UiIcon), label, optional
+// description, value, and an affordance showing whether OK opens a page (›),
+// Left/Right changes the value (‹ ›), or it is only information (`info`).
 
 import QtQuick
 import BearDen
@@ -9,7 +10,8 @@ PixelBox {
     property string label
     property string description
     property string value
-    property string kind: "link"   // link | choice | toggle | danger
+    property string kind: "link"   // link | choice | toggle | danger | info
+    property string icon: ""       // a UiIcon name, drawn before the label
     property bool focused: false
     // Optional small marker before the value (e.g. "Auto" on Advanced playback).
     property string badge: ""
@@ -21,8 +23,15 @@ PixelBox {
     scale: focused ? 1.015 : 1
     Behavior on scale { NumberAnimation { duration: Theme.durationFast } }
 
+    UiIcon {
+        id: leadIcon
+        visible: root.icon.length > 0
+        name: root.icon
+        size: 64 * Theme.scale
+        anchors { left: parent.left; leftMargin: 24 * Theme.scale; verticalCenter: parent.verticalCenter }
+    }
     Column {
-        anchors { left: parent.left; leftMargin: 32 * Theme.scale; verticalCenter: parent.verticalCenter; right: badgePill.visible ? badgePill.left : valueText.left; rightMargin: 24 * Theme.scale }
+        anchors { left: leadIcon.visible ? leadIcon.right : parent.left; leftMargin: leadIcon.visible ? 20 * Theme.scale : 32 * Theme.scale; verticalCenter: parent.verticalCenter; right: badgePill.visible ? badgePill.left : valueText.left; rightMargin: 24 * Theme.scale }
         spacing: 4 * Theme.scale
         Text {
             text: root.label
@@ -65,6 +74,7 @@ PixelBox {
         anchors { right: parent.right; rightMargin: 32 * Theme.scale; verticalCenter: parent.verticalCenter }
         text: root.kind === "choice" ? "‹  " + root.value + "  ›"
               : root.kind === "toggle" ? (root.value === "on" ? qsTr("On") : qsTr("Off"))
+              : root.kind === "info" ? root.value
               : (root.value.length > 0 ? root.value + "   ›" : "›")
         color: root.kind === "toggle" && root.value === "on" ? Theme.success : (root.focused ? Theme.textPrimary : Theme.textSecondary)
         font.family: Theme.fontFamily

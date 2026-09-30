@@ -53,7 +53,7 @@ public:
     /// URL of an ornament for a theme: <theme>/<name>.png|svg, else the built-in; empty if none.
     /// Pixel looks for the PNG first, Classic for the SVG.
     Q_INVOKABLE QUrl ornament(const QString &themeId, const QString &name, const QString &artStyle = QStringLiteral("pixel")) const;
-    /// Re-reads every theme folder (Settings → Theme picks up newly added themes).
+    /// Re-reads every theme folder (the Themes page picks up newly added themes).
     Q_INVOKABLE void reload();
 
     /// Loads from explicit roots, in order (later roots override earlier ids). Tests use it.

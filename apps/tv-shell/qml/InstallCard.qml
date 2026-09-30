@@ -1,5 +1,6 @@
-// The install card: OK on a "Not installed" tile, a row of Settings → Add
-// apps, or turning a streaming site on while Chromium is missing opens it
+// The install card: OK on a "Not installed" tile, a card of Apps → Add apps
+// or of the first-run setup, or turning a streaming site on while its
+// browser is missing opens it
 // (docs/decisions/0011-per-user-flathub-installs.md). It shows the app's
 // name and Bear Den's own icon, the size Flathub reports (IPC
 // app.install_info, asked when the card opens), "From Flathub", and Install
@@ -8,7 +9,9 @@
 // (updated on state pushes, no animation of its own), Back hides the card
 // and the install carries on, Cancel install stops it. The shell auto-opens
 // the app when it is done (ShellRoot). With installs unavailable the card
-// says why (Flatpak missing) and offers only OK.
+// says why (Flatpak missing) and offers only OK. Before Install, it also
+// lists what is good to know about the app (state.applications[].notes: the
+// coordinator's honest caveats, e.g. the streaming sites' 720p).
 
 pragma ComponentBehavior: Bound
 import QtQuick
@@ -170,6 +173,34 @@ Rectangle {
                 font.family: Theme.fontFamily
                 font.pixelSize: 26 * Theme.fontUnit
                 lineHeight: 1.15
+            }
+            // Good to know, before the owner decides.
+            Column {
+                objectName: "installCardNotes"
+                width: parent.width
+                spacing: 6 * Theme.scale
+                visible: !root.running && root.instState !== "done" && (root.app.notes || []).length > 0
+                Text {
+                    text: qsTr("Good to know")
+                    color: Theme.accent
+                    font.family: Theme.fontFamily
+                    font.pixelSize: 20 * Theme.fontUnit
+                    font.weight: Font.Bold
+                    font.letterSpacing: 2 * Theme.scale
+                }
+                Repeater {
+                    model: root.app.notes || []
+                    Text {
+                        required property string modelData
+                        objectName: "installCardNote"
+                        width: parent.width
+                        wrapMode: Text.WordWrap
+                        text: "• " + modelData
+                        color: Theme.textPrimary
+                        font.family: Theme.fontFamily
+                        font.pixelSize: 22 * Theme.fontUnit
+                    }
+                }
             }
             // Progress: from the state pushes only.
             Column {

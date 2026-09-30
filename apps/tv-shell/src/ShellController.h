@@ -120,7 +120,7 @@ public:
     // Settings → Now playing on phones (remote.now_playing): whether paired
     // phones see what the app in front is playing.
     Q_INVOKABLE void setNowPlaying(bool enabled);
-    // Settings → Streaming sites (app.enable): turn one web app on or off.
+    // Apps → Streaming sites (app.enable): turn one web app on or off.
     Q_INVOKABLE void setAppEnabled(const QString &appId, bool enabled);
     // App installs from Flathub (contracts/ipc.md app.install*): the install
     // card asks for the size, Install starts it, Cancel stops it. Progress is
@@ -128,9 +128,9 @@ public:
     Q_INVOKABLE void installInfo(const QString &appId);
     Q_INVOKABLE void installApp(const QString &appId);
     Q_INVOKABLE void cancelInstall(const QString &appId);
-    // Settings → Keep apps up to date (apps.configure).
+    // Apps → Keep apps up to date (apps.configure).
     Q_INVOKABLE void setAutoUpdate(bool enabled);
-    // Settings → Streaming sites: the Browser tile's and the streaming
+    // Apps → Streaming sites: the Browser tile's and the streaming
     // sites' browsers (apps.browser; ids from Session.apps.browsers).
     Q_INVOKABLE void setBrowsers(const QString &browser, const QString &streamingBrowser);
     // Settings → TV control over HDMI (CEC) and its volume row
@@ -166,7 +166,7 @@ public:
     Q_INVOKABLE void plexChooseServer(const QString &serverId);
     Q_INVOKABLE void plexChooseLibraries(const QStringList &libraryIds);
     Q_INVOKABLE void plexSignOut();
-    // Settings → Badges (contracts/ipc.md achievements.*): turn counting on
+    // Themes → Den badges (contracts/ipc.md achievements.*): turn counting on
     // or off, reset every badge; achievementsCelebrated says Home showed the
     // celebration for these ids (state.achievements.celebrate);
     // achievementEvent reports a shell-only event ("parade").

@@ -1,5 +1,5 @@
 // An application's icon (Shell.appArt, docs/THEMES.md → App icons), in order:
-// the owner's brand folder; with Settings → App icons on "App's own"
+// the owner's brand folder; with Themes → App icons on "App's own"
 // (Theme.appIcons, the default) the icon its installed Flatpak exports when
 // that Flatpak is the app itself; Bear Den's own icon for the adapter (pixel
 // art drawn unsmoothed at a whole-number scale, or the Classic SVG);

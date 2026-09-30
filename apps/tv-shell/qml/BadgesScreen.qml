@@ -1,4 +1,4 @@
-// Settings → Badges: the shelf of Den badges (state.achievements,
+// Themes → Den badges: the shelf of Den badges (state.achievements,
 // contracts/http.md#den-badges-stateachievements). Earned badges show their
 // medal and the day they were earned; the rest a silhouette, a hint and how
 // far along they are. Below the shelf: turning counting on or off

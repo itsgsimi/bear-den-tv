@@ -22,6 +22,7 @@
 #include <QQmlComponent>
 #include <QQuickItem>
 #include <QQuickWindow>
+#include <QSet>
 #include <QTemporaryDir>
 #include <QtTest>
 
@@ -70,14 +71,62 @@ private:
             act(QStringLiteral("nav.up"));
         QCOMPARE(m_nav->sectionId(), QStringLiteral("header"));
     }
-    // In Settings: to the top, then down to the row `id` (no row counts, so
-    // a new row does not shift every test).
+    QObject *shellRoot() const { return m_window->findChild<QObject *>(QStringLiteral("shellRoot")); }
+    // The shell's own screen name (Nav.screen is the contract's name).
+    QString shellScreen() const { return shellRoot()->property("screen").toString(); }
+    // From Home: the top bar pill `pill` (home, apps, themes, pairing,
+    // settings), then OK.
+    void openFromHeader(const QString &pill)
+    {
+        goHome();
+        toHeader();
+        for (int i = 0; i < 6; ++i)
+            act(QStringLiteral("nav.left"));
+        for (int i = 0; i < 6 && m_nav->itemId() != pill; ++i)
+            act(QStringLiteral("nav.right"));
+        QCOMPARE(m_nav->itemId(), pill);
+        act(QStringLiteral("select"));
+    }
+    // Settings opens on its list of categories.
+    void openSettings()
+    {
+        openFromHeader(QStringLiteral("settings"));
+        QCOMPARE(shellScreen(), QStringLiteral("settings"));
+        QCOMPARE(m_nav->sectionId(), QStringLiteral("settings-categories"));
+    }
+    // The Settings category a row lives in ("" = none: it moved away).
+    QString categoryOf(const QString &rowId)
+    {
+        QObject *settings = m_window->findChild<QObject *>(QStringLiteral("settingsScreen"));
+        QVariant cat;
+        QMetaObject::invokeMethod(settings, "categoryOf", Q_RETURN_ARG(QVariant, cat), Q_ARG(QVariant, rowId));
+        return cat.toString();
+    }
+    // In Settings: to the category list (Back from a category), then down
+    // to `category` and OK.
+    void toSettingsCategory(const QString &category)
+    {
+        if (m_nav->sectionId() == QLatin1String("settings"))
+            act(QStringLiteral("back"));
+        QCOMPARE(m_nav->sectionId(), QStringLiteral("settings-categories"));
+        for (int i = 0; i < 10; ++i)
+            act(QStringLiteral("nav.up"));
+        for (int i = 0; i < 10 && m_nav->itemId() != category; ++i)
+            act(QStringLiteral("nav.down"));
+        QCOMPARE(m_nav->itemId(), category);
+        act(QStringLiteral("select"));
+        QCOMPARE(m_nav->sectionId(), QStringLiteral("settings"));
+    }
+    // In Settings: into the row's category, to its top, then down to the row
+    // `id` (no row counts, so a new row does not shift every test).
     void toSettingsRow(const QString &id)
     {
-        for (int i = 0; i < 50; ++i)
+        const QString category = categoryOf(id);
+        QVERIFY2(!category.isEmpty(), qPrintable(QStringLiteral("no Settings category holds %1").arg(id)));
+        toSettingsCategory(category);
+        for (int i = 0; i < 20; ++i)
             act(QStringLiteral("nav.up"));
-        QCOMPARE(m_nav->itemId(), QStringLiteral("remote"));
-        for (int i = 0; i < 50 && m_nav->itemId() != id; ++i)
+        for (int i = 0; i < 20 && m_nav->itemId() != id; ++i)
             act(QStringLiteral("nav.down"));
         QCOMPARE(m_nav->itemId(), id);
     }
@@ -86,6 +135,16 @@ private:
         toHeader();
         act(QStringLiteral("nav.down"));
         QCOMPARE(m_nav->sectionId(), QStringLiteral("favorites"));
+    }
+    // On Home's Your Apps rail: to its first tile, then right to `id`.
+    void toFavoriteTile(const QString &id)
+    {
+        toFavorites();
+        for (int i = 0; i < 8; ++i)
+            act(QStringLiteral("nav.left"));
+        for (int i = 0; i < 8 && m_nav->itemId() != id; ++i)
+            act(QStringLiteral("nav.right"));
+        QCOMPARE(m_nav->itemId(), id);
     }
 
     // Every visible settings row, and the focused row's ring, fits inside the
@@ -321,16 +380,42 @@ private slots:
         QCOMPARE(m_nav->screen(), QStringLiteral("home"));
     }
 
+    // The top bar reads Home · Apps · Themes · Pair phone · Settings; each
+    // pill opens its screen and Back returns Home. Settings opens on its
+    // categories; Back from a page returns to its row, from a category to
+    // that category, and from the categories Home.
     void headerPillsOpenScreensAndBackReturns()
     {
         goHome();
         toHeader();
-        act(QStringLiteral("nav.right"));
-        QCOMPARE(m_nav->itemId(), QStringLiteral("settings"));
-        act(QStringLiteral("select"));
+        for (int i = 0; i < 6; ++i)
+            act(QStringLiteral("nav.left"));
+        QStringList pills{m_nav->itemId()};
+        for (int i = 0; i < 6; ++i) {
+            act(QStringLiteral("nav.right"));
+            if (pills.last() != m_nav->itemId())
+                pills << m_nav->itemId();
+        }
+        QCOMPARE(pills, (QStringList{QStringLiteral("home"), QStringLiteral("apps"), QStringLiteral("themes"), QStringLiteral("pairing"), QStringLiteral("settings")}));
+        shot(QStringLiteral("header-settings-pill"));
+        for (const QString &pill : {QStringLiteral("apps"), QStringLiteral("themes"), QStringLiteral("pairing")}) {
+            openFromHeader(pill);
+            QCOMPARE(shellScreen(), pill);
+            act(QStringLiteral("back"));
+            if (shellScreen() != QLatin1String("home"))
+                act(QStringLiteral("back")); // the pairing screen's first Back leaves its kind row
+            QCOMPARE(shellScreen(), QStringLiteral("home"));
+        }
+
+        openSettings();
         QCOMPARE(m_nav->screen(), QStringLiteral("settings"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("phones"));
         shot(QStringLiteral("settings"));
         settingsRowsFitTheirList();
+        act(QStringLiteral("select"));
+        QCOMPARE(m_nav->sectionId(), QStringLiteral("settings"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("remote"));
+        shot(QStringLiteral("settings-phones"));
         act(QStringLiteral("nav.down"));
         act(QStringLiteral("nav.down"));
         QCOMPARE(m_nav->itemId(), QStringLiteral("devices"));
@@ -347,29 +432,32 @@ private slots:
         QCOMPARE(m_nav->itemId(), QStringLiteral("dev_a1")); // modal focus returns to its control
         act(QStringLiteral("back"));
         QCOMPARE(m_nav->screen(), QStringLiteral("settings"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("devices"));   // back on its row
+        act(QStringLiteral("back"));
+        QCOMPARE(m_nav->sectionId(), QStringLiteral("settings-categories"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("phones"));    // on the category it was in
+        act(QStringLiteral("nav.down"));
+        act(QStringLiteral("select"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("text"));
+        act(QStringLiteral("back"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("display"));
         act(QStringLiteral("back"));
         QCOMPARE(m_nav->screen(), QStringLiteral("home"));
+        // Opened again from Home: the categories, on the one last used.
+        openSettings();
+        QCOMPARE(m_nav->itemId(), QStringLiteral("display"));
+        goHome();
     }
 
     void secondaryScreensRender()
     {
-        goHome();
-        toHeader();
-        act(QStringLiteral("nav.right"));
-        act(QStringLiteral("nav.right"));
-        QCOMPARE(m_nav->itemId(), QStringLiteral("pairing"));
-        act(QStringLiteral("select"));
+        openFromHeader(QStringLiteral("pairing"));
         QCOMPARE(m_nav->screen(), QStringLiteral("pairing"));
         shot(QStringLiteral("pairing"));
         act(QStringLiteral("back"));
         act(QStringLiteral("back"));
         QCOMPARE(m_nav->screen(), QStringLiteral("home"));
-        toHeader();
-        act(QStringLiteral("nav.right"));
-        act(QStringLiteral("select"));
-        for (int i = 0; i < 30; ++i) // Settings remembers its row; walk to the top first
-            act(QStringLiteral("nav.up"));
-        QCOMPARE(m_nav->itemId(), QStringLiteral("remote"));
+        openSettings();
         toSettingsRow(QStringLiteral("diagnostics"));
         act(QStringLiteral("select"));
         QCOMPARE(m_nav->screen(), QStringLiteral("diagnostics"));
@@ -562,7 +650,7 @@ private slots:
         QVERIFY(session->applySnapshot(fixture()));
     }
 
-    // Settings → Badges: the shelf shows every badge in the catalogue order,
+    // Themes → Den badges: the shelf shows every badge in the catalogue order,
     // focus walks it and the two buttons; Counting sends achievements.configure,
     // Reset asks first and then sends achievements.reset; Back returns to the
     // Settings row.
@@ -576,12 +664,9 @@ private slots:
                     return *it;
             return QJsonObject{};
         };
-        goHome();
-        toHeader();
-        act(QStringLiteral("nav.right"));
-        act(QStringLiteral("select"));
-        QCOMPARE(m_nav->screen(), QStringLiteral("settings"));
-        for (int i = 0; i < 40 && m_nav->itemId() != QLatin1String("badges"); ++i)
+        openFromHeader(QStringLiteral("themes"));
+        QCOMPARE(shellScreen(), QStringLiteral("themes"));
+        for (int i = 0; i < 10 && m_nav->itemId() != QLatin1String("badges"); ++i)
             act(QStringLiteral("nav.down"));
         QCOMPARE(m_nav->itemId(), QStringLiteral("badges"));
         act(QStringLiteral("select"));
@@ -615,13 +700,12 @@ private slots:
         act(QStringLiteral("nav.up"));
         QCOMPARE(m_nav->itemId(), QStringLiteral("all-seasons")); // the second row's first badge
         act(QStringLiteral("back"));
-        QCOMPARE(m_nav->itemId(), QStringLiteral("badges"));
-        for (int i = 0; i < 30; ++i) // leave Settings at its first row for the tests after
-            act(QStringLiteral("nav.up"));
+        QCOMPARE(shellScreen(), QStringLiteral("themes"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("badges")); // back on its card
         goHome();
     }
 
-    // Settings → Streaming sites lists the web apps (entries with `enabled`),
+    // Apps → Streaming sites lists the web apps (entries with `enabled`),
     // OK sends app.enable with the opposite value, Back returns to the row;
     // on Home a turned-off site has no tile and an enabled one does.
     void streamingSitesScreenAndTiles()
@@ -681,18 +765,14 @@ private slots:
             act(QStringLiteral("nav.left"));
         shot(QStringLiteral("home-web-tiles"));
 
-        toHeader();
-        act(QStringLiteral("nav.right"));
-        act(QStringLiteral("select"));
-        QCOMPARE(m_nav->screen(), QStringLiteral("settings"));
-        for (int i = 0; i < 40 && m_nav->itemId() != QLatin1String("streaming"); ++i)
+        openFromHeader(QStringLiteral("apps"));
+        QCOMPARE(shellScreen(), QStringLiteral("apps"));
+        QCOMPARE(m_nav->screen(), QStringLiteral("settings")); // the contract's name for it
+        for (int i = 0; i < 10 && m_nav->sectionId() != QLatin1String("streaming"); ++i)
             act(QStringLiteral("nav.down"));
-        QCOMPARE(m_nav->itemId(), QStringLiteral("streaming"));
-        act(QStringLiteral("select"));
-        QCOMPARE(m_nav->screen(), QStringLiteral("settings"));
         QCOMPARE(m_nav->sectionId(), QStringLiteral("streaming"));
         QCOMPARE(m_nav->itemId(), QStringLiteral("netflix"));
-        shot(QStringLiteral("settings-streaming"));
+        shot(QStringLiteral("apps-streaming"));
         ipc->clearSent();
         act(QStringLiteral("select"));
         QCOMPARE(last().value(QStringLiteral("app_id")).toString(), QStringLiteral("netflix"));
@@ -704,9 +784,12 @@ private slots:
         QCOMPARE(last().value(QStringLiteral("app_id")).toString(), QStringLiteral("browser"));
         QCOMPARE(last().value(QStringLiteral("enabled")), QJsonValue(false));
         act(QStringLiteral("back"));
-        QCOMPARE(m_nav->itemId(), QStringLiteral("streaming"));
-        for (int i = 0; i < 40; ++i) // leave Settings at its first row for the tests after
-            act(QStringLiteral("nav.up"));
+        QCOMPARE(shellScreen(), QStringLiteral("home"));
+        // The old screen name lands on the Apps page's streaming sites.
+        QMetaObject::invokeMethod(shellRoot(), "open", Q_ARG(QVariant, QStringLiteral("streaming")));
+        QCOMPARE(shellScreen(), QStringLiteral("apps"));
+        QCOMPARE(m_nav->sectionId(), QStringLiteral("streaming"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("netflix"));
         goHome();
     }
 
@@ -729,9 +812,7 @@ private slots:
         const auto restore = qScopeGuard([session, this] { session->applySnapshot(fixture()); });
         QVERIFY2(session->applySnapshot(installSnapshot(QStringLiteral("available"))), qPrintable(session->lastError()));
         goHome();
-        toFavorites();
-        act(QStringLiteral("nav.left"));
-        act(QStringLiteral("nav.right"));
+        toFavoriteTile(QStringLiteral("youtube"));
         QCOMPARE(m_nav->itemId(), QStringLiteral("youtube"));
         ipc->clearSent();
         act(QStringLiteral("select"));
@@ -785,9 +866,7 @@ private slots:
         // Done after the owner moved to another tile: no surprise launch.
         QVERIFY(session->applySnapshot(installSnapshot(QStringLiteral("available"))));
         goHome();
-        toFavorites();
-        act(QStringLiteral("nav.left"));
-        act(QStringLiteral("nav.right"));
+        toFavoriteTile(QStringLiteral("youtube"));
         act(QStringLiteral("select"));
         act(QStringLiteral("select")); // Install
         QVERIFY(session->applySnapshot(installSnapshot(QStringLiteral("downloading"), 10)));
@@ -833,9 +912,7 @@ private slots:
         QVERIFY2(session->applySnapshot(snap), qPrintable(session->lastError()));
         ShellController::instance()->ipc()->clearSent();
         goHome();
-        toFavorites();
-        act(QStringLiteral("nav.left"));
-        act(QStringLiteral("nav.right"));
+        toFavoriteTile(QStringLiteral("youtube"));
         // The featured panel offers Install (never "How to install"); OK
         // opens the card, which says why it can't.
         QObject *action = m_window->findChild<QObject *>(QStringLiteral("heroAction"));
@@ -852,56 +929,53 @@ private slots:
         QVERIFY(lastSent(QStringLiteral("app.install_info")).isEmpty());
     }
 
-    // Settings → Add apps lists each missing Flatpak once (the web apps are
-    // one Chromium row) and opens the card; Keep apps up to date sends
-    // apps.configure; Streaming sites turns a site on and offers Chromium.
+    // The Apps page: Add apps shows each missing Flatpak once (the web apps
+    // are one browser card) and opens the install card; Keep apps up to
+    // date sends apps.configure; Streaming sites turns a site on and offers
+    // its browser. Home's Add apps tile lands on the Add apps cards.
     void addAppsAndStreamingSitesOfferInstalls()
     {
         SessionModel *session = SessionModel::instance();
         const auto restore = qScopeGuard([session, this] { session->applySnapshot(fixture()); });
         QVERIFY2(session->applySnapshot(installSnapshot(QStringLiteral("available"))), qPrintable(session->lastError()));
         IpcClient *ipc = ShellController::instance()->ipc();
-        goHome();
-        toHeader();
-        act(QStringLiteral("nav.right"));
-        act(QStringLiteral("select"));
-        QCOMPARE(m_nav->screen(), QStringLiteral("settings"));
-        for (int i = 0; i < 40 && m_nav->itemId() != QLatin1String("add-apps"); ++i)
-            act(QStringLiteral("nav.down"));
-        QCOMPARE(m_nav->itemId(), QStringLiteral("add-apps"));
+        openFromHeader(QStringLiteral("apps"));
+        QCOMPARE(shellScreen(), QStringLiteral("apps"));
+        QCOMPARE(m_nav->sectionId(), QStringLiteral("apps-installed"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("plex-htpc"));
         act(QStringLiteral("nav.down"));
-        QCOMPARE(m_nav->itemId(), QStringLiteral("auto-update"));
-        ipc->clearSent();
-        act(QStringLiteral("select"));
-        QCOMPARE(lastSent(QStringLiteral("apps.configure")).value(QStringLiteral("auto_update")), QJsonValue(false));
-        act(QStringLiteral("nav.up"));
-        act(QStringLiteral("select"));
         QCOMPARE(m_nav->sectionId(), QStringLiteral("add-apps"));
         QCOMPARE(m_nav->itemId(), QStringLiteral("youtube"));
-        QStringList rows{m_nav->itemId()};
+        QStringList cards{m_nav->itemId()};
         for (int i = 0; i < 4; ++i) {
-            act(QStringLiteral("nav.down"));
-            if (rows.last() != m_nav->itemId())
-                rows << m_nav->itemId();
+            act(QStringLiteral("nav.right"));
+            if (cards.last() != m_nav->itemId())
+                cards << m_nav->itemId();
         }
-        QCOMPARE(rows, (QStringList{QStringLiteral("youtube"), QStringLiteral("netflix")})); // hulu shares Chromium's row
-        shot(QStringLiteral("settings-add-apps"));
+        QCOMPARE(cards, (QStringList{QStringLiteral("youtube"), QStringLiteral("netflix")})); // hulu shares the browser's card
+        shot(QStringLiteral("apps-add"));
+        ipc->clearSent();
         act(QStringLiteral("select"));
         QCOMPARE(m_nav->screen(), QStringLiteral("dialog"));
         QCOMPARE(m_nav->itemId(), QStringLiteral("install-install"));
         QCOMPARE(lastSent(QStringLiteral("app.install_info")).value(QStringLiteral("app_id")).toString(), QStringLiteral("netflix"));
+        QVERIFY2(lastSent(QStringLiteral("app.install")).isEmpty(), "installed without the Install press");
         act(QStringLiteral("back"));
         QCOMPARE(m_nav->sectionId(), QStringLiteral("add-apps"));
-        act(QStringLiteral("back"));
-        QCOMPARE(m_nav->itemId(), QStringLiteral("add-apps"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("netflix"));
 
-        // Streaming sites: turning Netflix on while Chromium is missing.
-        for (int i = 0; i < 40 && m_nav->itemId() != QLatin1String("streaming"); ++i)
-            act(QStringLiteral("nav.up"));
+        // Keep apps up to date, at the bottom.
+        for (int i = 0; i < 10 && m_nav->itemId() != QLatin1String("auto-update"); ++i)
+            act(QStringLiteral("nav.down"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("auto-update"));
+        ipc->clearSent();
         act(QStringLiteral("select"));
-        QCOMPARE(m_nav->sectionId(), QStringLiteral("streaming"));
-        for (int i = 0; i < 4; ++i) // the screen remembers its row
+        QCOMPARE(lastSent(QStringLiteral("apps.configure")).value(QStringLiteral("auto_update")), QJsonValue(false));
+
+        // Streaming sites: turning Netflix on while its browser is missing.
+        for (int i = 0; i < 10 && !(m_nav->sectionId() == QLatin1String("streaming") && m_nav->itemId() == QLatin1String("netflix")); ++i)
             act(QStringLiteral("nav.up"));
+        QCOMPARE(m_nav->sectionId(), QStringLiteral("streaming"));
         QCOMPARE(m_nav->itemId(), QStringLiteral("netflix"));
         ipc->clearSent();
         act(QStringLiteral("select"));
@@ -909,15 +983,14 @@ private slots:
         QCOMPARE(m_nav->screen(), QStringLiteral("dialog"));
         QCOMPARE(m_nav->itemId(), QStringLiteral("install-install"));
         QCOMPARE(lastSent(QStringLiteral("app.install_info")).value(QStringLiteral("app_id")).toString(), QStringLiteral("netflix"));
-        shot(QStringLiteral("streaming-chromium-card"));
+        shot(QStringLiteral("streaming-browser-card"));
         act(QStringLiteral("back"));
         act(QStringLiteral("back"));
-        for (int i = 0; i < 40; ++i) // leave Settings at its first row for the tests after
-            act(QStringLiteral("nav.up"));
+        QCOMPARE(shellScreen(), QStringLiteral("home"));
         goHome();
     }
 
-    // Settings → Streaming sites: after the sites come the two browser rows
+    // Apps → Streaming sites: after the sites come the two browser rows
     // (the Browser tile's, the streaming sites'), from state.apps.browsers;
     // ◀ ▶ send apps.browser with both choices; a browser marked
     // streaming_unverified says "Unverified for streaming" on the streaming
@@ -964,16 +1037,10 @@ private slots:
         QCOMPARE(shell->flatpakIdFor(QStringLiteral("netflix")), QStringLiteral("org.chromium.Chromium"));
         QCOMPARE(shell->ownIconFlatpakIdFor(QStringLiteral("browser")), QStringLiteral("com.brave.Browser"));
         IpcClient *ipc = shell->ipc();
-        goHome();
-        toHeader();
-        act(QStringLiteral("nav.right"));
-        act(QStringLiteral("select"));
-        for (int i = 0; i < 40 && m_nav->itemId() != QLatin1String("streaming"); ++i)
+        openFromHeader(QStringLiteral("apps"));
+        for (int i = 0; i < 10 && m_nav->itemId() != QLatin1String("browser-streaming"); ++i)
             act(QStringLiteral("nav.down"));
-        act(QStringLiteral("select"));
         QCOMPARE(m_nav->sectionId(), QStringLiteral("streaming"));
-        for (int i = 0; i < 8; ++i)
-            act(QStringLiteral("nav.down"));
         QCOMPARE(m_nav->itemId(), QStringLiteral("browser-streaming"));
         act(QStringLiteral("nav.up"));
         QCOMPARE(m_nav->itemId(), QStringLiteral("browser-browser"));
@@ -1012,10 +1079,6 @@ private slots:
         apps.insert(QStringLiteral("browsers"), list);
         bad.insert(QStringLiteral("apps"), apps);
         QVERIFY(!session->applySnapshot(bad));
-
-        act(QStringLiteral("back"));
-        for (int i = 0; i < 40; ++i) // leave Settings at its first row for the tests after
-            act(QStringLiteral("nav.up"));
         goHome();
     }
 
@@ -1082,9 +1145,7 @@ private slots:
         QVERIFY2(!layer->property("visible").toBool(), "celebrated over an app");
         QVERIFY(celebrated().isEmpty());
 
-        toHeader();
-        act(QStringLiteral("nav.right"));
-        act(QStringLiteral("select")); // Settings
+        openSettings();
         withCelebrate(QStringLiteral("shell"));
         QTest::qWait(600);
         QVERIFY2(!layer->property("visible").toBool(), "celebrated over Settings");
@@ -1167,8 +1228,8 @@ private slots:
 
         goHome();
         toHeader();
-        act(QStringLiteral("nav.right"));
-        act(QStringLiteral("nav.right"));
+        for (int i = 0; i < 6 && m_nav->itemId() != QLatin1String("pairing"); ++i)
+            act(QStringLiteral("nav.right"));
         ipc->clearSent();
         act(QStringLiteral("select"));
         QCOMPARE(m_nav->screen(), QStringLiteral("pairing"));
@@ -1231,15 +1292,8 @@ private slots:
         snap.insert(QStringLiteral("devices"), devices);
         snap.insert(QStringLiteral("pairing"), fixture().value(QStringLiteral("pairing")));
         QVERIFY2(session->applySnapshot(snap), qPrintable(session->lastError()));
-        goHome();
-        toHeader();
-        act(QStringLiteral("nav.right"));
-        act(QStringLiteral("select"));
-        for (int i = 0; i < 30; ++i)
-            act(QStringLiteral("nav.up"));
-        act(QStringLiteral("nav.down"));
-        act(QStringLiteral("nav.down"));
-        QCOMPARE(m_nav->itemId(), QStringLiteral("devices"));
+        openSettings();
+        toSettingsRow(QStringLiteral("devices"));
         act(QStringLiteral("select"));
         QCOMPARE(m_nav->screen(), QStringLiteral("devices"));
         act(QStringLiteral("nav.down"));
@@ -1329,15 +1383,8 @@ private slots:
         const auto restore = qScopeGuard([&] { QVERIFY(session->applySnapshot(fixture())); goHome(); });
         withPlex(plexState(QStringLiteral("signed_out")));
 
-        goHome();
-        toHeader();
-        act(QStringLiteral("nav.right"));
-        act(QStringLiteral("select"));
-        QCOMPARE(m_nav->screen(), QStringLiteral("settings"));
-        for (int i = 0; i < 25; ++i)
-            act(QStringLiteral("nav.down"));
-        act(QStringLiteral("nav.up")); // the last row is Exit; Plex sits just above it
-        QCOMPARE(m_nav->itemId(), QStringLiteral("plex"));
+        openSettings();
+        toSettingsRow(QStringLiteral("plex"));
         act(QStringLiteral("select"));
         QCOMPARE(m_nav->screen(), QStringLiteral("settings")); // the contract's name for it
         QCOMPARE(m_nav->sectionId(), QStringLiteral("plex"));
@@ -1638,7 +1685,7 @@ private slots:
         QVERIFY(!lastSent(QStringLiteral("autostart.configure")).value(QStringLiteral("request_id")).toString().isEmpty());
     }
 
-    // Settings → App icons (layout.ui.app_icons): "App's own" by default;
+    // Themes → App icons (layout.ui.app_icons): "App's own" by default;
     // ◀ ▶ sends the layout with the other choice; a snapshot with bear_den
     // shows "Bear Den style" and Home's tiles switch to Bear Den's icons.
     void appIconsRowSwitchesTheChoice()
@@ -1650,7 +1697,7 @@ private slots:
             std::function<void(QQuickItem *)> find = [&](QQuickItem *item) {
                 if (!item->isVisible() || item->opacity() == 0)
                     return;
-                if (item->objectName() == QLatin1String("settingsRow") && item->property("focused").toBool())
+                if (item->objectName() == QLatin1String("themesRow") && item->property("focused").toBool())
                     value = item->property("value").toString();
                 for (QQuickItem *child : item->childItems())
                     find(child);
@@ -1658,12 +1705,11 @@ private slots:
             find(m_window->contentItem());
             return value;
         };
-        goHome();
-        toHeader();
-        act(QStringLiteral("nav.right"));
-        act(QStringLiteral("select"));
-        QCOMPARE(m_nav->screen(), QStringLiteral("settings"));
-        toSettingsRow(QStringLiteral("app-icons"));
+        openFromHeader(QStringLiteral("themes"));
+        QCOMPARE(m_nav->screen(), QStringLiteral("settings")); // the contract's name for it
+        for (int i = 0; i < 10 && m_nav->itemId() != QLatin1String("app-icons"); ++i)
+            act(QStringLiteral("nav.down"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("app-icons"));
         QCOMPARE(focusedValue(), QStringLiteral("App's own"));
         ipc->clearSent();
         act(QStringLiteral("nav.right"));
@@ -1678,7 +1724,7 @@ private slots:
         QVERIFY2(session->applySnapshot(snap), qPrintable(session->lastError()));
         QCoreApplication::processEvents();
         QCOMPARE(focusedValue(), QStringLiteral("Bear Den style"));
-        shot(QStringLiteral("settings-app-icons"));
+        shot(QStringLiteral("themes-app-icons"));
         ipc->clearSent();
         act(QStringLiteral("nav.left"));
         QCOMPARE(lastSent(QStringLiteral("settings.update")).value(QStringLiteral("layout")).toObject().value(QStringLiteral("ui")).toObject().value(QStringLiteral("app_icons")).toString(),
@@ -1714,16 +1760,8 @@ private slots:
             return QJsonObject{};
         };
 
-        goHome();
-        toHeader();
-        act(QStringLiteral("nav.right"));
-        act(QStringLiteral("select"));
-        QCOMPARE(m_nav->screen(), QStringLiteral("settings"));
-        for (int i = 0; i < 40; ++i) // to the top from wherever Settings kept focus
-            act(QStringLiteral("nav.up"));
-        for (int i = 0; i < 3; ++i) // remote, pairing, devices
-            act(QStringLiteral("nav.down"));
-        QCOMPARE(m_nav->itemId(), QStringLiteral("now-playing"));
+        openSettings();
+        toSettingsRow(QStringLiteral("now-playing"));
         QCOMPARE(focusedValue(), QStringLiteral("on")); // the demo fixture has no remote.now_playing: on
         shot(QStringLiteral("settings-now-playing"));
 
@@ -1786,11 +1824,7 @@ private slots:
         const QJsonObject noTimer{{QStringLiteral("sleep_at_ms"), QJsonValue::Null}, {QStringLiteral("warning"), false}, {QStringLiteral("display"), QStringLiteral("on")}};
 
         QVERIFY2(session->applySnapshot(withPower(noTimer, true)), qPrintable(session->lastError()));
-        goHome();
-        toHeader();
-        act(QStringLiteral("nav.right"));
-        act(QStringLiteral("select"));
-        QCOMPARE(m_nav->screen(), QStringLiteral("settings"));
+        openSettings();
         toSettingsRow(QStringLiteral("sleep"));
         QCOMPARE(focusedValue(), QStringLiteral("Off"));
 
@@ -1867,21 +1901,14 @@ private slots:
                                {QStringLiteral("volume_target"), QStringLiteral("pc")}, {QStringLiteral("tv_power"), QStringLiteral("unknown")}};
 
         QVERIFY2(session->applySnapshot(withCec(none)), qPrintable(session->lastError()));
-        goHome();
-        toHeader();
-        act(QStringLiteral("nav.right"));
-        act(QStringLiteral("select"));
-        QCOMPARE(m_nav->screen(), QStringLiteral("settings"));
-        for (int i = 0; i < 40 && m_nav->itemId() != QLatin1String("cec"); ++i)
-            act(QStringLiteral("nav.down"));
-        QCOMPARE(m_nav->itemId(), QStringLiteral("cec"));
+        openSettings();
+        toSettingsRow(QStringLiteral("cec"));
         QCOMPARE(focused("value"), QStringLiteral("off"));
         QCOMPARE(focused("description"), reason);
         shot(QStringLiteral("settings-cec-unavailable"));
-        // No adapter: no volume row; the next row is Plex.
+        // No adapter: no volume row (CEC is the last row of Power & TV here).
         act(QStringLiteral("nav.down"));
-        QCOMPARE(m_nav->itemId(), QStringLiteral("plex"));
-        act(QStringLiteral("nav.up"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("cec"));
         // Turning it on is stored anyway (it applies when an adapter appears).
         ipc->clearSent();
         act(QStringLiteral("select"));
@@ -1982,13 +2009,7 @@ private slots:
 
     void weatherScreenSearchesAndConfigures()
     {
-        goHome();
-        toHeader();
-        act(QStringLiteral("nav.right"));
-        act(QStringLiteral("select"));
-        QCOMPARE(m_nav->screen(), QStringLiteral("settings"));
-        for (int i = 0; i < 30; ++i)
-            act(QStringLiteral("nav.up"));
+        openSettings();
         toSettingsRow(QStringLiteral("weather"));
         act(QStringLiteral("select"));
         QCOMPARE(m_nav->screen(), QStringLiteral("settings")); // the contract's name for it
@@ -2112,13 +2133,7 @@ private slots:
     // row to Auto (value "").
     void advancedPlaybackSendsPlaybackSet()
     {
-        goHome();
-        toHeader();
-        act(QStringLiteral("nav.right"));
-        act(QStringLiteral("select"));
-        QCOMPARE(m_nav->screen(), QStringLiteral("settings"));
-        for (int i = 0; i < 30; ++i)
-            act(QStringLiteral("nav.up"));
+        openSettings();
         toSettingsRow(QStringLiteral("advanced-playback"));
         act(QStringLiteral("select"));
         QCOMPARE(m_nav->screen(), QStringLiteral("diagnostics")); // the contract's name for these screens
@@ -2159,6 +2174,453 @@ private slots:
         act(QStringLiteral("back"));
         QCOMPARE(m_nav->screen(), QStringLiteral("settings"));
         goHome();
+    }
+
+    // --- The redesign: categories, Themes, Apps, Add apps tile, first run ---
+
+    // A snapshot with everything a setting can depend on: installs (Add apps,
+    // streaming sites, the browser table), CEC on (its volume row), the
+    // autostart block and, when `completed` is set, state.onboarding.
+    QJsonObject fullSnapshot(int completed = -1, const QJsonObject &autostart = {{QStringLiteral("enabled"), false}, {QStringLiteral("available"), true}})
+    {
+        QJsonObject snap = installSnapshot(QStringLiteral("available"));
+        QJsonArray apps = snap.value(QStringLiteral("applications")).toArray();
+        QJsonObject browser = apps.last().toObject(); // hulu's shape, as the Browser tile (a web app, not a streaming site)
+        browser.insert(QStringLiteral("id"), QStringLiteral("browser"));
+        browser.insert(QStringLiteral("label"), QStringLiteral("Browser"));
+        browser.insert(QStringLiteral("adapter"), QStringLiteral("browser"));
+        apps.append(browser);
+        snap.insert(QStringLiteral("applications"), apps);
+        snap.insert(QStringLiteral("cec"), QJsonObject{{QStringLiteral("available"), true}, {QStringLiteral("enabled"), true},
+                                                      {QStringLiteral("volume_target"), QStringLiteral("pc")}, {QStringLiteral("tv_power"), QStringLiteral("on")}});
+        snap.insert(QStringLiteral("apps"), QJsonObject{
+            {QStringLiteral("auto_update"), true}, {QStringLiteral("browser"), QStringLiteral("chromium")}, {QStringLiteral("streaming_browser"), QStringLiteral("chromium")},
+            {QStringLiteral("browsers"), QJsonArray{
+                QJsonObject{{QStringLiteral("id"), QStringLiteral("chromium")}, {QStringLiteral("label"), QStringLiteral("Chromium")},
+                            {QStringLiteral("flatpak_id"), QStringLiteral("org.chromium.Chromium")}, {QStringLiteral("streaming_unverified"), false}},
+                QJsonObject{{QStringLiteral("id"), QStringLiteral("brave")}, {QStringLiteral("label"), QStringLiteral("Brave")},
+                            {QStringLiteral("flatpak_id"), QStringLiteral("com.brave.Browser")}, {QStringLiteral("streaming_unverified"), true}}}}});
+        if (!autostart.isEmpty())
+            snap.insert(QStringLiteral("autostart"), autostart);
+        if (completed >= 0)
+            snap.insert(QStringLiteral("onboarding"), QJsonObject{{QStringLiteral("completed"), completed == 1}});
+        return snap;
+    }
+    // The text of the visible help panel beside the focused entry.
+    QString visibleHelp()
+    {
+        QQuickItem *help = visibleItem(QStringLiteral("helpText"));
+        return help ? help->property("text").toString() : QString();
+    }
+
+    // Every row the old one-list Settings had is reachable exactly once:
+    // in a Settings category, on the Themes page or on the Apps page, and
+    // every one of them explains itself in the help beside it.
+    void everyFormerSettingIsReachableOnceWithHelp()
+    {
+        SessionModel *session = SessionModel::instance();
+        const auto restore = qScopeGuard([session, this] { session->applySnapshot(fixture()); goHome(); });
+        QVERIFY2(session->applySnapshot(fullSnapshot()), qPrintable(session->lastError()));
+        const QStringList former{
+            QStringLiteral("remote"), QStringLiteral("pairing"), QStringLiteral("devices"), QStringLiteral("now-playing"), QStringLiteral("text"),
+            QStringLiteral("density"), QStringLiteral("background"), QStringLiteral("style"), QStringLiteral("art"), QStringLiteral("app-icons"),
+            QStringLiteral("margin"), QStringLiteral("motion"), QStringLiteral("contrast"), QStringLiteral("hero"), QStringLiteral("clock"),
+            QStringLiteral("weather"), QStringLiteral("playback"), QStringLiteral("advanced-playback"), QStringLiteral("diagnostics"),
+            QStringLiteral("sleep"), QStringLiteral("screen-off"), QStringLiteral("badges"), QStringLiteral("streaming"), QStringLiteral("add-apps"),
+            QStringLiteral("auto-update"), QStringLiteral("cec"), QStringLiteral("cec-volume"), QStringLiteral("plex"), QStringLiteral("exit")};
+        QMap<QString, int> seen;
+        QStringList noHelp;
+        auto note = [&](const QString &id) {
+            if (visibleHelp().isEmpty())
+                noHelp << id;
+        };
+
+        // Settings: every category, every row, by D-pad only.
+        openSettings();
+        for (int i = 0; i < 10; ++i) // Settings remembers the category last used
+            act(QStringLiteral("nav.up"));
+        QStringList categories{m_nav->itemId()};
+        note(QStringLiteral("category:") + m_nav->itemId());
+        for (int i = 0; i < 10; ++i) {
+            act(QStringLiteral("nav.down"));
+            if (categories.last() != m_nav->itemId()) {
+                categories << m_nav->itemId();
+                note(QStringLiteral("category:") + m_nav->itemId());
+            }
+        }
+        QCOMPARE(categories, (QStringList{QStringLiteral("phones"), QStringLiteral("display"), QStringLiteral("home"),
+                                          QStringLiteral("playback"), QStringLiteral("power"), QStringLiteral("about")}));
+        for (const QString &category : categories) {
+            toSettingsCategory(category);
+            QStringList rows{m_nav->itemId()};
+            note(m_nav->itemId());
+            for (int i = 0; i < 10; ++i) {
+                act(QStringLiteral("nav.down"));
+                if (rows.last() != m_nav->itemId()) {
+                    rows << m_nav->itemId();
+                    note(m_nav->itemId());
+                }
+            }
+            for (const QString &r : rows)
+                seen[r]++;
+            if (category == QLatin1String("power")) {
+                QVERIFY2(rows.contains(QStringLiteral("autostart")), qPrintable(rows.join(u',')));
+                shot(QStringLiteral("settings-power"));
+            }
+            if (category == QLatin1String("about")) {
+                QCOMPARE(rows, (QStringList{QStringLiteral("version"), QStringLiteral("diagnostics"), QStringLiteral("setup-again"), QStringLiteral("exit")}));
+                shot(QStringLiteral("settings-about"));
+            }
+        }
+        // Themes: the theme strip, then its rows.
+        openFromHeader(QStringLiteral("themes"));
+        QVERIFY2(m_nav->itemId().startsWith(QStringLiteral("theme:")), qPrintable(m_nav->itemId()));
+        seen[QStringLiteral("background")]++;
+        note(QStringLiteral("background"));
+        QString last = m_nav->itemId();
+        for (int i = 0; i < 10; ++i) {
+            act(QStringLiteral("nav.down"));
+            if (last != m_nav->itemId()) {
+                last = m_nav->itemId();
+                seen[last]++;
+                note(last);
+            }
+        }
+        // Apps: installed, Add apps, the streaming sites and browsers, updates.
+        openFromHeader(QStringLiteral("apps"));
+        QString lastKey = m_nav->sectionId() + u'/' + m_nav->itemId();
+        QSet<QString> sections{m_nav->sectionId()};
+        note(lastKey);
+        for (int i = 0; i < 12; ++i) {
+            act(QStringLiteral("nav.down"));
+            const QString key = m_nav->sectionId() + u'/' + m_nav->itemId();
+            if (key == lastKey)
+                continue;
+            lastKey = key;
+            note(key);
+            if (m_nav->sectionId() == QLatin1String("add-apps") && !sections.contains(QStringLiteral("add-apps")))
+                seen[QStringLiteral("add-apps")]++;
+            if (m_nav->sectionId() == QLatin1String("streaming") && !sections.contains(QStringLiteral("streaming")))
+                seen[QStringLiteral("streaming")]++;
+            if (m_nav->itemId() == QLatin1String("auto-update"))
+                seen[QStringLiteral("auto-update")]++;
+            sections.insert(m_nav->sectionId());
+        }
+        for (const QString &id : former)
+            QVERIFY2(seen.value(id) == 1, qPrintable(QStringLiteral("%1 reached %2 times").arg(id).arg(seen.value(id))));
+        QVERIFY2(noHelp.isEmpty(), qPrintable(QStringLiteral("no help for: ") + noHelp.join(u',')));
+    }
+
+    // Home's Add apps tile: last on Your Apps while something can be added,
+    // named from the data (apps without a tile first), a simple featured
+    // panel, OK opens the Apps page at Add apps; gone when nothing is left.
+    void homeAddAppsTileOpensAddApps()
+    {
+        SessionModel *session = SessionModel::instance();
+        const auto restore = qScopeGuard([session, this] { session->applySnapshot(fixture()); goHome(); });
+        QVERIFY2(session->applySnapshot(installSnapshot(QStringLiteral("available"))), qPrintable(session->lastError()));
+        goHome();
+        toFavoriteTile(QStringLiteral("add-apps"));
+        act(QStringLiteral("nav.right")); // the rail's end: stays
+        QCOMPARE(m_nav->itemId(), QStringLiteral("add-apps"));
+        act(QStringLiteral("nav.left"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("youtube"));
+        act(QStringLiteral("nav.right"));
+        QQuickItem *line = visibleItem(QStringLiteral("addAppsTileLine"));
+        QVERIFY(line);
+        QCOMPARE(line->property("text").toString(), QStringLiteral("Netflix, Hulu and more"));
+        QObject *action = m_window->findChild<QObject *>(QStringLiteral("heroAction"));
+        QVERIFY(action);
+        QTRY_COMPARE(action->property("text").toString(), QStringLiteral("See apps to add"));
+        shot(QStringLiteral("home-add-apps-tile"));
+        act(QStringLiteral("select"));
+        QCOMPARE(shellScreen(), QStringLiteral("apps"));
+        QCOMPARE(m_nav->sectionId(), QStringLiteral("add-apps"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("youtube"));
+        act(QStringLiteral("back"));
+        QCOMPARE(shellScreen(), QStringLiteral("home"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("add-apps")); // focus memory keeps the tile
+
+        // Nothing left to add (installs unavailable): no tile, YouTube is last.
+        QVERIFY(session->applySnapshot(fixture()));
+        QCoreApplication::processEvents();
+        toFavoriteTile(QStringLiteral("youtube"));
+        act(QStringLiteral("nav.right"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("youtube"));
+        QVERIFY(!visibleItem(QStringLiteral("addAppsTile")));
+    }
+
+    // Themes: ◀ ▶ on the strip tries a theme on the whole TV without sending
+    // anything; Back or moving off the strip returns to the theme in use; OK
+    // sends it with its accent, and the preview ends once the coordinator's
+    // layout says the same.
+    void themesPreviewAppliesOnOkAndCancelsOnBack()
+    {
+        SessionModel *session = SessionModel::instance();
+        IpcClient *ipc = ShellController::instance()->ipc();
+        const auto restore = qScopeGuard([session, this] { session->endUiPreview(); session->applySnapshot(fixture()); goHome(); });
+        openFromHeader(QStringLiteral("themes"));
+        // The strip starts on the theme in use (the demo's alias, canonical).
+        QVERIFY(m_nav->itemId().startsWith(QStringLiteral("theme:")));
+        const QString inUse = m_nav->itemId().mid(6);
+        QCOMPARE(inUse, ThemeRegistry::instance()->canonical(session->ui().value(QStringLiteral("background")).toString()));
+        shot(QStringLiteral("themes"));
+        ipc->clearSent();
+        act(QStringLiteral("nav.right"));
+        const QString tried = m_nav->itemId().mid(6);
+        QVERIFY(tried != inUse);
+        QVERIFY(session->uiPreviewActive());
+        QCOMPARE(session->ui().value(QStringLiteral("background")).toString(), tried);
+        QVERIFY2(lastSent(QStringLiteral("settings.update")).isEmpty(), "a preview was sent");
+        QVERIFY(!session->previewActive()); // not a phone's preview
+        shot(QStringLiteral("themes-preview"));
+        act(QStringLiteral("back"));
+        QCOMPARE(shellScreen(), QStringLiteral("home"));
+        QVERIFY(!session->uiPreviewActive());
+        QCOMPARE(ThemeRegistry::instance()->canonical(session->ui().value(QStringLiteral("background")).toString()), inUse);
+
+        // Moving off the strip also returns to the theme in use.
+        openFromHeader(QStringLiteral("themes"));
+        act(QStringLiteral("nav.right"));
+        QVERIFY(session->uiPreviewActive());
+        act(QStringLiteral("nav.down"));
+        QVERIFY(!session->uiPreviewActive());
+        QCOMPARE(m_nav->itemId(), QStringLiteral("art"));
+        act(QStringLiteral("nav.up"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("theme:") + inUse);
+
+        // OK uses it.
+        act(QStringLiteral("nav.right"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("theme:") + tried);
+        act(QStringLiteral("select"));
+        const QJsonObject ui = lastSent(QStringLiteral("settings.update")).value(QStringLiteral("layout")).toObject().value(QStringLiteral("ui")).toObject();
+        QCOMPARE(ui.value(QStringLiteral("background")).toString(), tried);
+        QVERIFY(!ui.value(QStringLiteral("accent")).toString().isEmpty());
+        QVERIFY(session->uiPreviewActive()); // until the coordinator answers
+        QJsonObject snap = fixture();
+        QJsonObject layout = snap.value(QStringLiteral("layout")).toObject();
+        layout.insert(QStringLiteral("ui"), ui);
+        snap.insert(QStringLiteral("layout"), layout);
+        QVERIFY2(session->applySnapshot(snap), qPrintable(session->lastError()));
+        QVERIFY(!session->uiPreviewActive());
+        QCOMPARE(session->ui().value(QStringLiteral("background")).toString(), tried);
+        act(QStringLiteral("back")); // nothing to undo: the theme stays
+        QCOMPARE(session->ui().value(QStringLiteral("background")).toString(), tried);
+    }
+
+    // Settings → Power & TV → Start with this PC: a toggle through
+    // autostart.configure; when the coordinator says it can't, the row says
+    // why and OK sends nothing.
+    void autostartRowTogglesOrSaysWhy()
+    {
+        SessionModel *session = SessionModel::instance();
+        const auto restore = qScopeGuard([session, this] { session->applySnapshot(fixture()); goHome(); });
+        QVERIFY2(session->applySnapshot(fullSnapshot()), qPrintable(session->lastError()));
+        openSettings();
+        toSettingsRow(QStringLiteral("autostart"));
+        ShellController::instance()->ipc()->clearSent();
+        act(QStringLiteral("select"));
+        QCOMPARE(lastSent(QStringLiteral("autostart.configure")).value(QStringLiteral("enabled")), QJsonValue(true));
+        const QString reason = QStringLiteral("Bear Den's start script was not found, so it can't be set to start with this PC here.");
+        QVERIFY(session->applySnapshot(fullSnapshot(-1, {{QStringLiteral("enabled"), false}, {QStringLiteral("available"), false}, {QStringLiteral("reason"), reason}})));
+        QCoreApplication::processEvents();
+        QQuickItem *row = nullptr;
+        std::function<void(QQuickItem *)> find = [&](QQuickItem *item) {
+            if (!item->isVisible())
+                return;
+            if (item->objectName() == QLatin1String("settingsRow") && item->property("focused").toBool())
+                row = item;
+            for (QQuickItem *child : item->childItems())
+                find(child);
+        };
+        find(m_window->contentItem());
+        QVERIFY(row);
+        QCOMPARE(row->property("description").toString(), reason);
+        ShellController::instance()->ipc()->clearSent();
+        act(QStringLiteral("select"));
+        QVERIFY(lastSent(QStringLiteral("autostart.configure")).isEmpty());
+        // An older coordinator (no state.autostart): no row.
+        QVERIFY(session->applySnapshot(fullSnapshot(-1, {})));
+        QCoreApplication::processEvents();
+        act(QStringLiteral("back"));
+        toSettingsCategory(QStringLiteral("power"));
+        for (int i = 0; i < 10; ++i)
+            act(QStringLiteral("nav.down"));
+        QVERIFY(m_nav->itemId() != QLatin1String("autostart"));
+    }
+
+    // App notes (state.applications[].notes) show on the featured panel and
+    // on the install card before Install.
+    void appNotesShowOnHeroAndInstallCard()
+    {
+        SessionModel *session = SessionModel::instance();
+        const auto restore = qScopeGuard([session, this] { session->applySnapshot(fixture()); goHome(); });
+        QJsonObject snap = installSnapshot(QStringLiteral("available"));
+        QJsonArray apps = snap.value(QStringLiteral("applications")).toArray();
+        for (int i = 0; i < apps.size(); ++i) {
+            QJsonObject a = apps.at(i).toObject();
+            if (a.value(QStringLiteral("id")).toString() == QLatin1String("youtube")) {
+                a.insert(QStringLiteral("notes"), QJsonArray{QStringLiteral("DEMO note: an unofficial client.")});
+                apps.replace(i, a);
+            }
+        }
+        snap.insert(QStringLiteral("applications"), apps);
+        QVERIFY2(session->applySnapshot(snap), qPrintable(session->lastError()));
+        goHome();
+        toFavoriteTile(QStringLiteral("youtube"));
+        QObject *hero = m_window->findChild<QObject *>(QStringLiteral("heroNotes"));
+        QVERIFY(hero);
+        QTRY_VERIFY2(hero->property("text").toString().contains(QStringLiteral("DEMO note: an unofficial client.")), qPrintable(hero->property("text").toString()));
+        act(QStringLiteral("select"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("install-install"));
+        QQuickItem *note = visibleItem(QStringLiteral("installCardNote"));
+        QVERIFY(note);
+        QVERIFY(note->property("text").toString().contains(QStringLiteral("DEMO note")));
+        shot(QStringLiteral("install-card-notes"));
+        act(QStringLiteral("back"));
+        // Plex has none: no line.
+        act(QStringLiteral("nav.left"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("plex-htpc"));
+        QTRY_VERIFY(!hero->property("visible").toBool());
+    }
+
+    // First run: state.onboarding.completed false on the first snapshot that
+    // carries it opens the setup (true does not, and a later snapshot never
+    // reopens it); every step has Skip and Back; nothing is installed or
+    // enabled without an OK on it; Go Home sends onboarding.complete. Run
+    // setup again (Settings → About) brings it back; Skip setup goes to Done.
+    void onboardingOnFirstRunSkipAndComplete()
+    {
+        SessionModel *session = SessionModel::instance();
+        IpcClient *ipc = ShellController::instance()->ipc();
+        QObject *root = shellRoot();
+        const auto restore = qScopeGuard([session, root, this] { root->setProperty("onboardingChecked", true); session->applySnapshot(fixture()); goHome(); });
+        goHome();
+        // Completed: no setup.
+        root->setProperty("onboardingChecked", false);
+        QVERIFY2(session->applySnapshot(fullSnapshot(1)), qPrintable(session->lastError()));
+        QCoreApplication::processEvents();
+        QCOMPARE(shellScreen(), QStringLiteral("home"));
+        // Not completed, on the first snapshot that says so: the setup.
+        root->setProperty("onboardingChecked", false);
+        QVERIFY(session->applySnapshot(fullSnapshot(0)));
+        QCoreApplication::processEvents();
+        QCOMPARE(shellScreen(), QStringLiteral("onboarding"));
+        QCOMPARE(m_nav->screen(), QStringLiteral("setup")); // the contract's name for it
+        QCOMPARE(m_nav->sectionId(), QStringLiteral("onboarding-0"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("start"));
+        shot(QStringLiteral("onboarding-0-welcome"));
+        ipc->clearSent();
+
+        // 1 Your look: art style, then themes (tried on, not applied), Back returns.
+        act(QStringLiteral("select"));
+        QCOMPARE(m_nav->sectionId(), QStringLiteral("onboarding-1"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("pixel"));
+        act(QStringLiteral("nav.right"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("classic"));
+        QVERIFY(lastSent(QStringLiteral("settings.update")).isEmpty()); // moving is not choosing
+        act(QStringLiteral("nav.down"));
+        QVERIFY(m_nav->itemId().startsWith(QStringLiteral("theme:")));
+        act(QStringLiteral("nav.right"));
+        QVERIFY(session->uiPreviewActive());
+        shot(QStringLiteral("onboarding-1-look"));
+        act(QStringLiteral("back"));
+        QCOMPARE(m_nav->sectionId(), QStringLiteral("onboarding-0"));
+        QVERIFY(!session->uiPreviewActive());
+        QVERIFY(lastSent(QStringLiteral("settings.update")).isEmpty());
+        act(QStringLiteral("select"));
+        act(QStringLiteral("nav.down"));
+        act(QStringLiteral("nav.down"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("next"));
+        act(QStringLiteral("nav.right"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("skip"));
+        act(QStringLiteral("select"));
+
+        // 2 Your apps: one-press cards; OK opens the card (no install), the
+        // streaming sites card turns the sites on and offers their browser.
+        QCOMPARE(m_nav->sectionId(), QStringLiteral("onboarding-2"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("youtube"));
+        shot(QStringLiteral("onboarding-2-apps"));
+        act(QStringLiteral("select"));
+        QCOMPARE(m_nav->screen(), QStringLiteral("dialog"));
+        QVERIFY2(lastSent(QStringLiteral("app.install")).isEmpty(), "installed without the Install press");
+        act(QStringLiteral("back"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("youtube"));
+        act(QStringLiteral("nav.right"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("streaming"));
+        QVERIFY(lastSent(QStringLiteral("app.enable")).isEmpty());
+        act(QStringLiteral("select"));
+        QStringList enabled;
+        for (const QJsonObject &m : ipc->sentMessages())
+            if (m.value(QStringLiteral("type")).toString() == QLatin1String("app.enable") && m.value(QStringLiteral("enabled")).toBool())
+                enabled << m.value(QStringLiteral("app_id")).toString();
+        QCOMPARE(enabled, (QStringList{QStringLiteral("netflix"), QStringLiteral("hulu")}));
+        QCOMPARE(m_nav->screen(), QStringLiteral("dialog")); // the browser's install card
+        QVERIFY(lastSent(QStringLiteral("app.install")).isEmpty());
+        act(QStringLiteral("back"));
+        act(QStringLiteral("nav.down"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("next"));
+        act(QStringLiteral("select"));
+
+        // 3 Phone remote (on in the demo): Pair a phone opens pairing, Back returns.
+        QCOMPARE(m_nav->sectionId(), QStringLiteral("onboarding-3"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("pair"));
+        QQuickItem *consent = visibleItem(QStringLiteral("remoteConsent"));
+        QVERIFY(consent);
+        QVERIFY(consent->property("text").toString().contains(QStringLiteral("home network")));
+        shot(QStringLiteral("onboarding-3-remote"));
+        act(QStringLiteral("select"));
+        QCOMPARE(shellScreen(), QStringLiteral("pairing"));
+        for (int i = 0; i < 3 && shellScreen() != QLatin1String("onboarding"); ++i)
+            act(QStringLiteral("back"));
+        QCOMPARE(shellScreen(), QStringLiteral("onboarding"));
+        QCOMPARE(m_nav->sectionId(), QStringLiteral("onboarding-3"));
+        act(QStringLiteral("nav.down"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("next"));
+        act(QStringLiteral("select"));
+
+        // 4 Extras: the autostart toggle sends autostart.configure on OK only.
+        QCOMPARE(m_nav->sectionId(), QStringLiteral("onboarding-4"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("plex"));
+        for (int i = 0; i < 3 && m_nav->itemId() != QLatin1String("autostart"); ++i)
+            act(QStringLiteral("nav.down"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("autostart"));
+        QVERIFY(lastSent(QStringLiteral("autostart.configure")).isEmpty());
+        shot(QStringLiteral("onboarding-4-extras"));
+        act(QStringLiteral("select"));
+        QCOMPARE(lastSent(QStringLiteral("autostart.configure")).value(QStringLiteral("enabled")), QJsonValue(true));
+        act(QStringLiteral("nav.down"));
+        act(QStringLiteral("select")); // Next
+
+        // 5 Done: Go Home completes it.
+        QCOMPARE(m_nav->sectionId(), QStringLiteral("onboarding-5"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("finish"));
+        shot(QStringLiteral("onboarding-5-done"));
+        QVERIFY(lastSent(QStringLiteral("onboarding.complete")).isEmpty());
+        act(QStringLiteral("select"));
+        QVERIFY(!lastSent(QStringLiteral("onboarding.complete")).value(QStringLiteral("request_id")).toString().isEmpty());
+        QCOMPARE(shellScreen(), QStringLiteral("home"));
+        // A later snapshot still saying false does not reopen it.
+        QVERIFY(session->applySnapshot(fullSnapshot(0)));
+        QCoreApplication::processEvents();
+        QCOMPARE(shellScreen(), QStringLiteral("home"));
+
+        // Run setup again; Skip setup goes to Done, Back returns to the welcome,
+        // Back there leaves the setup (to Settings, where it was opened).
+        openSettings();
+        toSettingsRow(QStringLiteral("setup-again"));
+        act(QStringLiteral("select"));
+        QCOMPARE(shellScreen(), QStringLiteral("onboarding"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("start"));
+        act(QStringLiteral("nav.right"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("skip-all"));
+        act(QStringLiteral("select"));
+        QCOMPARE(m_nav->sectionId(), QStringLiteral("onboarding-5"));
+        act(QStringLiteral("back"));
+        QCOMPARE(m_nav->sectionId(), QStringLiteral("onboarding-0"));
+        act(QStringLiteral("back"));
+        QCOMPARE(shellScreen(), QStringLiteral("settings"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("setup-again"));
     }
 
     void uninstalledAppExplainsInsteadOfLaunching()
@@ -2913,7 +3375,22 @@ Item {
         act(QStringLiteral("nav.down"));
         QCOMPARE(m_nav->sectionId(), QStringLiteral("plex-continue"));
         shot(QStringLiteral("home-large-text"));
+        // The top bar's pills stay clear of the status on the right.
+        auto clearOfStatus = [this]() {
+            QQuickItem *pills = visibleItem(QStringLiteral("headerPills"));
+            QQuickItem *status = visibleItem(QStringLiteral("headerStatus"));
+            if (!pills || !status)
+                return false;
+            const QRectF p = pills->mapRectToScene(QRectF(0, 0, pills->width(), pills->height()));
+            const QRectF s = status->mapRectToScene(QRectF(0, 0, status->width(), status->height()));
+            return p.right() < s.left();
+        };
+        QVERIFY2(clearOfStatus(), "the pills run into the status");
+        QVERIFY(!visibleItem(QStringLiteral("headerBrandText"))); // the bear mark only
         QVERIFY(SessionModel::instance()->applySnapshot(fixture()));
+        QCoreApplication::processEvents();
+        QVERIFY2(clearOfStatus(), "the pills run into the status");
+        QVERIFY(visibleItem(QStringLiteral("headerBrandText"))); // room for the name at 100%
     }
 
     // The campfire scene picks the pieces its data declares for each

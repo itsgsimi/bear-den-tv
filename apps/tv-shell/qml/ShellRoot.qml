@@ -9,21 +9,28 @@
 // wakes or cancels first and its new state reaches the shell before the input.
 // An app the owner chose to install (InstallCard) opens by itself when its
 // install is done, if the owner is still on its card or its Home tile.
+// First run: when the first snapshot says state.onboarding.completed is
+// false, the setup (OnboardingScreen) opens over Home. The old screen names
+// `add-apps` and `streaming` open the Apps page at that section, and
+// `onboarding-<step>` opens the setup at a step (sandbox screenshots).
 
 import QtQuick
 import BearDen
 
 FocusScope {
     id: root
+    objectName: "shellRoot"
     focus: true
     property var stack: ["home"]
     readonly property string screen: stack[stack.length - 1]
     readonly property var screens: ({
         "home": home, "settings": settings, "remote-setup": remoteSetup,
         "pairing": pairing, "devices": devices, "diagnostics": diagnostics, "playback": playback,
-        "advanced-playback": advancedPlayback, "weather": weather, "plex": plex, "badges": badges, "streaming": streaming,
-        "add-apps": addApps
+        "advanced-playback": advancedPlayback, "weather": weather, "plex": plex, "badges": badges,
+        "apps": apps, "themes": themes, "onboarding": onboarding
     })
+    // Names that land on a section of another screen.
+    readonly property var aliases: ({ "add-apps": ["apps", "add-apps"], "streaming": ["apps", "streaming"] })
     readonly property var topDialog: confirmDialog.visible ? confirmDialog
                                    : messageDialog.visible ? messageDialog
                                    : installCard.visible ? installCard
@@ -32,9 +39,9 @@ FocusScope {
 
     function navScreenName() {
         if (topDialog) return "dialog"
-        if (screen === "remote-setup") return "setup"
+        if (screen === "remote-setup" || screen === "onboarding") return "setup"
         if (screen === "playback" || screen === "advanced-playback") return "diagnostics"   // the contract's screen names
-        if (screen === "weather" || screen === "plex" || screen === "badges" || screen === "streaming" || screen === "add-apps") return "settings"
+        if (screen === "weather" || screen === "plex" || screen === "badges" || screen === "apps" || screen === "themes") return "settings"
         return screen
     }
     function syncNav() { Nav.screen = navScreenName() }
@@ -49,11 +56,34 @@ FocusScope {
 
     function current() { return screens[screen] || home }
     function open(name) {
+        const alias = aliases[name]
+        if (alias) {
+            open(alias[0])
+            if (screen === alias[0]) current().focusSection(alias[1])
+            return
+        }
+        const step = /^onboarding-([0-9])$/.exec(name)
+        if (step) {
+            open("onboarding")
+            if (screen === "onboarding") onboarding.showStep(Math.min(Number(step[1]), onboarding.lastStep))
+            return
+        }
         if (!screens[name] || name === screen) return
         if (current().leave) current().leave()
         stack = stack.concat([name])
         syncNav()
+        // A fresh visit (not a return from a page it opened) starts at the top.
+        if (current().opened) current().opened()
         current().enter()
+    }
+    // First run: open the setup once, when the first snapshot that carries
+    // state.onboarding says it is not completed (an older coordinator sends
+    // none: no setup). Later snapshots never reopen it.
+    property bool onboardingChecked: false
+    function checkOnboarding() {
+        if (onboardingChecked || !Session.loaded || Session.onboarding === undefined || Session.onboarding.completed === undefined) return
+        onboardingChecked = true
+        if (Session.onboarding.completed === false && screen === "home" && !blocked) open("onboarding")
     }
     function pop() {
         if (stack.length <= 1) return false
@@ -201,13 +231,14 @@ FocusScope {
 
     Component.onCompleted: {
         syncNav()
-        if (Shell.startScreen !== "home" && screens[Shell.startScreen]) Qt.callLater(() => open(Shell.startScreen))
+        if (Shell.startScreen !== "home") Qt.callLater(() => open(Shell.startScreen))
     }
     property bool _wasLoaded: false
     Connections {
         target: Session
         function onSnapshotChanged() {
             if (Session.loaded && !root._wasLoaded) { root._wasLoaded = true; if (root.screen === "home") home.restoreFocus() }
+            root.checkOnboarding()
         }
     }
 
@@ -246,16 +277,40 @@ FocusScope {
             onOpenScreen: (name) => root.open(name)
             onConfirm: (title, body, label, accept) => confirmDialog.open({ title: title, body: body, confirmLabel: label, onAccept: accept })
         }
-        AddAppsScreen {
-            id: addApps
+        AppsScreen {
+            id: apps
             width: parent.width; height: parent.height
-            active: root.screen === "add-apps" && !root.topDialog
-            opacity: root.screen === "add-apps" ? 1 : 0
+            active: root.screen === "apps" && !root.topDialog
+            opacity: root.screen === "apps" ? 1 : 0
             visible: opacity > 0
-            y: root.screen === "add-apps" ? 0 : 24 * Theme.scale
+            y: root.screen === "apps" ? 0 : 24 * Theme.scale
             Behavior on opacity { NumberAnimation { duration: Theme.ms(220); easing.type: Easing.OutCubic } }
             Behavior on y { NumberAnimation { duration: Theme.ms(260); easing.type: Easing.OutCubic } }
             onOpenInstall: (appId) => installCard.openFor(appId)
+        }
+        ThemesScreen {
+            id: themes
+            width: parent.width; height: parent.height
+            active: root.screen === "themes" && !root.topDialog
+            opacity: root.screen === "themes" ? 1 : 0
+            visible: opacity > 0
+            y: root.screen === "themes" ? 0 : 24 * Theme.scale
+            Behavior on opacity { NumberAnimation { duration: Theme.ms(220); easing.type: Easing.OutCubic } }
+            Behavior on y { NumberAnimation { duration: Theme.ms(260); easing.type: Easing.OutCubic } }
+            onOpenScreen: (name) => root.open(name)
+        }
+        OnboardingScreen {
+            id: onboarding
+            width: parent.width; height: parent.height
+            active: root.screen === "onboarding" && !root.topDialog
+            opacity: root.screen === "onboarding" ? 1 : 0
+            visible: opacity > 0
+            y: root.screen === "onboarding" ? 0 : 24 * Theme.scale
+            Behavior on opacity { NumberAnimation { duration: Theme.ms(220); easing.type: Easing.OutCubic } }
+            Behavior on y { NumberAnimation { duration: Theme.ms(260); easing.type: Easing.OutCubic } }
+            onOpenScreen: (name) => root.open(name)
+            onOpenInstall: (appId) => installCard.openFor(appId)
+            onFinished: root.goHome()
         }
         RemoteSetupScreen {
             id: remoteSetup
@@ -334,17 +389,6 @@ FocusScope {
             Behavior on opacity { NumberAnimation { duration: Theme.ms(220); easing.type: Easing.OutCubic } }
             Behavior on y { NumberAnimation { duration: Theme.ms(260); easing.type: Easing.OutCubic } }
             onConfirm: (title, body, label, accept) => confirmDialog.open({ title: title, body: body, confirmLabel: label, onAccept: accept })
-        }
-        StreamingScreen {
-            id: streaming
-            width: parent.width; height: parent.height
-            active: root.screen === "streaming" && !root.topDialog
-            opacity: root.screen === "streaming" ? 1 : 0
-            visible: opacity > 0
-            y: root.screen === "streaming" ? 0 : 24 * Theme.scale
-            Behavior on opacity { NumberAnimation { duration: Theme.ms(220); easing.type: Easing.OutCubic } }
-            Behavior on y { NumberAnimation { duration: Theme.ms(260); easing.type: Easing.OutCubic } }
-            onOpenInstall: (appId) => installCard.openFor(appId)
         }
         BadgesScreen {
             id: badges

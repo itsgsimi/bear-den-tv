@@ -16,6 +16,10 @@
 // ornament's SVG).
 // Plain and Performance keep the plain panel; reduced motion shows everything
 // at once.
+// The "Add apps" tile (kind `add-apps`) gets a simple panel: "Install more
+// with one press", what could be added, and Bear Den's "+" icon on the right.
+// For an app, its notes (state.applications[].notes: honest caveats from the
+// coordinator) show as a "Good to know" line.
 
 import QtQuick
 import BearDen
@@ -25,6 +29,7 @@ PixelBox {
     property var item: ({})
     property string sectionTitle: ""
     readonly property bool isApp: item.kind === "app"
+    readonly property bool isAddApps: item.kind === "add-apps"
     readonly property var app: isApp && item.appId ? Session.application(item.appId) : ({})
     readonly property var art: isApp ? Shell.appArt(app.adapter || "", World.classic, Theme.appIcons) : ({ icon: "", logo: "", background: "" })
     readonly property string backdrop: isApp ? art.background : (item.artwork || "")
@@ -214,8 +219,15 @@ PixelBox {
             smooth: true
         }
     }
+    UiIcon {
+        objectName: "heroAddAppsIcon"
+        visible: root.isAddApps
+        name: "plus"
+        size: parent.height * 0.56
+        anchors { right: parent.right; verticalCenter: parent.verticalCenter; rightMargin: parent.height * 0.3 }
+    }
     BearHead {
-        visible: !root.isApp && !root.hasBackdrop && !World.performance
+        visible: !root.isApp && !root.isAddApps && !root.hasBackdrop && !World.performance
         anchors { right: parent.right; verticalCenter: parent.verticalCenter; rightMargin: 60 * Theme.scale }
         width: parent.height * 0.9
         kind: "dad"
@@ -262,7 +274,9 @@ PixelBox {
         }
         Text {
             width: parent.width
-            text: root.isApp ? Apps.about(root.app.adapter) : (root.item.subtitle || "")
+            text: root.isApp ? Apps.about(root.app.adapter)
+                  : root.isAddApps ? qsTr("Install more with one press: %1.").arg(root.item.subtitle || "")
+                  : (root.item.subtitle || "")
             visible: text.length > 0
             opacity: root.revealed >= 0.2 ? 1 : 0
             color: Theme.textSecondary
@@ -286,6 +300,21 @@ PixelBox {
             font.family: Theme.fontFamily
             font.pixelSize: 22 * Theme.fontUnit
             font.weight: Font.DemiBold
+        }
+        // Good to know: the app's honest caveats (state.applications[].notes).
+        Text {
+            objectName: "heroNotes"
+            width: parent.width
+            readonly property var notes: root.isApp ? (root.app.notes || []) : []
+            text: notes.length > 0 ? qsTr("Good to know: %1").arg(notes.join(" ")) : ""
+            visible: text.length > 0
+            opacity: root.revealed >= 0.35 ? 1 : 0
+            color: Theme.textSecondary
+            wrapMode: Text.WordWrap
+            maximumLineCount: 2
+            elide: Text.ElideRight
+            font.family: Theme.fontFamily
+            font.pixelSize: 20 * Theme.fontUnit
         }
         // App state, only when there is something to say (install details
         // and versions live in Settings → Diagnostics).
@@ -390,6 +419,7 @@ PixelBox {
                         text: root.isApp
                               ? (root.item.installed === false ? (root.item.installState === "preparing" || root.item.installState === "downloading" || root.item.installState === "installing" ? qsTr("Installing %1%").arg(root.item.installProgress) : qsTr("Install"))
                                  : (root.item.running ? qsTr("Switch to %1").arg(root.item.title) : qsTr("Open %1").arg(root.item.title)))
+                              : root.isAddApps ? qsTr("See apps to add")
                               : (root.item.kind === "setup" ? qsTr("Open Settings")
                                  // Only a verified exact-item handoff (open_action play_exact)
                                  // may promise the item; open_app just opens Plex HTPC.

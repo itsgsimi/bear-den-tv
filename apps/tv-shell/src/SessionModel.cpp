@@ -202,7 +202,7 @@ bool SessionModel::validateSnapshot(const QJsonObject &snapshot, QString *error)
                 *error = QStringLiteral("state.applications[].hidden must be a boolean");
             return false;
         }
-        // Optional: a web app the owner can turn on and off (Settings → Streaming sites).
+        // Optional: a web app the owner can turn on and off (Apps → Streaming sites).
         if (app.contains(QStringLiteral("enabled")) && !app.value(QStringLiteral("enabled")).isBool()) {
             if (error)
                 *error = QStringLiteral("state.applications[].enabled must be a boolean");
@@ -549,6 +549,13 @@ bool SessionModel::applySnapshot(const QJsonObject &snapshot)
         m_layout = snapshot.value(QStringLiteral("layout")).toObject();
     if (Theme::instance() && !m_previewActive)
         Theme::instance()->applyUi(m_layout.value(QStringLiteral("ui")).toObject().toVariantMap());
+    // A look tried on the TV and then applied: the coordinator's layout now
+    // says the same, so the preview has done its job.
+    if (m_localPreview && m_layout.value(QStringLiteral("ui")) == m_previewLayout.value(QStringLiteral("ui"))) {
+        m_localPreview = false;
+        m_previewActive = false;
+        m_previewLayout = {};
+    }
     rebuildSections();
     emit snapshotChanged();
     emit layoutChanged();
@@ -583,10 +590,28 @@ void SessionModel::applyLayoutPreview(const QJsonObject &layout)
     }
     m_previewLayout = layout;
     m_previewActive = true;
+    m_localPreview = false; // a phone's preview replaces a look tried on the TV
     if (Theme::instance())
         Theme::instance()->applyUi(layout.value(QStringLiteral("ui")).toObject().toVariantMap());
     rebuildSections();
     emit layoutChanged();
+}
+
+void SessionModel::previewUi(const QVariantMap &ui)
+{
+    QJsonObject layout = m_layout;
+    layout.insert(QStringLiteral("ui"), QJsonObject::fromVariantMap(ui));
+    applyLayoutPreview(layout);
+    m_localPreview = m_previewActive && m_previewLayout == layout;
+    emit layoutChanged();
+}
+
+void SessionModel::endUiPreview()
+{
+    if (!m_localPreview)
+        return;
+    m_localPreview = false;
+    endLayoutPreview();
 }
 
 void SessionModel::endLayoutPreview()
@@ -629,6 +654,24 @@ void SessionModel::rebuildSections()
         const QJsonObject s = v.toObject();
         contentBySection.insert(s.value(QStringLiteral("section_id")).toString(), s.value(QStringLiteral("items")).toArray());
     }
+    // The apps Bear Den could install now (state.applications[].install, not
+    // "none"), in the coordinator's order, those without a tile of their own
+    // first: the first apps rail ends with an "Add apps" tile naming the
+    // first two while there are any.
+    QStringList addable;
+    QStringList addableWithTile;
+    for (const QJsonValue &v : m_snapshot.value(QStringLiteral("applications")).toArray()) {
+        const QJsonObject app = v.toObject();
+        const QJsonObject install = app.value(QStringLiteral("install")).toObject();
+        if (app.value(QStringLiteral("installed")).toBool() || install.isEmpty() || install.value(QStringLiteral("state")).toString() == QLatin1String("none"))
+            continue;
+        const QString label = app.value(QStringLiteral("label")).toString();
+        QStringList &list = app.value(QStringLiteral("hidden")).toBool() ? addable : addableWithTile;
+        if (!label.isEmpty() && !list.contains(label))
+            list << label;
+    }
+    addable << addableWithTile;
+    bool addTilePlaced = false;
     Theme *theme = Theme::instance();
     QList<SectionsModel::Section> visible;
     for (const QJsonValue &v : effectiveLayout().value(QStringLiteral("sections")).toArray()) {
@@ -664,7 +707,7 @@ void SessionModel::rebuildSections()
                 else if (!item.installed && item.installState == QLatin1String("available"))
                     item.subtitle = QStringLiteral("Not installed — press OK to install");
                 else if (!item.installed)
-                    item.subtitle = QStringLiteral("Not installed — see Settings");
+                    item.subtitle = QStringLiteral("Not installed — see Apps");
                 else if (item.launchState == QLatin1String("launching"))
                     item.subtitle = QStringLiteral("Starting…");
                 else if (item.launchState == QLatin1String("failed") || item.launchState == QLatin1String("crashed"))
@@ -675,6 +718,18 @@ void SessionModel::rebuildSections()
                     item.subtitle = QStringLiteral("Ready");
                 item.tint = theme ? theme->tintFor(appId) : QColor(Qt::gray);
                 section.items.append(item);
+            }
+            if (!addTilePlaced && !addable.isEmpty()) {
+                addTilePlaced = true;
+                ItemsModel::Item add;
+                add.id = QStringLiteral("add-apps");
+                add.kind = QStringLiteral("add-apps");
+                add.title = QStringLiteral("Add apps");
+                add.subtitle = addable.size() == 1 ? addable.first()
+                             : addable.size() == 2 ? QStringLiteral("%1 and %2").arg(addable.at(0), addable.at(1))
+                                                   : QStringLiteral("%1, %2 and more").arg(addable.at(0), addable.at(1));
+                add.tint = theme ? theme->accent() : QColor(Qt::gray);
+                section.items.append(add);
             }
         } else {
             const QJsonArray items = contentBySection.value(section.id);

@@ -89,7 +89,7 @@ Item {
             }
             Text {
                 visible: root.devices.length === 0
-                text: qsTr("Pair a phone from Settings → Pair a phone.")
+                text: qsTr("Pair one with Pair phone in the top bar on Home.")
                 color: Theme.textSecondary
                 font.family: Theme.fontFamily
                 font.pixelSize: 28 * Theme.fontUnit

@@ -128,8 +128,10 @@ Item {
                 x: cell.push
                 Behavior on x { enabled: !Theme.reducedMotion; NumberAnimation { duration: 900; easing.type: Easing.OutCubic } }
             }
-            sourceComponent: model.kind === "app" ? appTile : (model.kind === "setup" ? setupCard : contentCard)
+            sourceComponent: model.kind === "app" ? appTile : model.kind === "add-apps" ? addAppsTile
+                           : (model.kind === "setup" ? setupCard : contentCard)
             Component { id: appTile; AppTile { item: cell.model; focused: cell.isFocused } }
+            Component { id: addAppsTile; AddAppsTile { item: cell.model; focused: cell.isFocused } }
             Component { id: contentCard; ContentCard { item: cell.model; focused: cell.isFocused } }
             Component { id: setupCard; SetupCard { item: cell.model; focused: cell.isFocused } }
         }

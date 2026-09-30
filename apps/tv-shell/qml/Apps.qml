@@ -73,7 +73,7 @@ QtObject {
     // (internal/applications/adapters, the browser table), shared by every
     // web app that uses it and installed once.
     function installName(adapter) { return browserLabel(adapter) }
-    // Why that shared install is needed (Settings → Add apps, the install card).
+    // Why that shared install is needed (Apps → Add apps, the install card).
     function installWhy(adapter) {
         switch (adapter) {
         case "netflix":
@@ -94,6 +94,17 @@ QtObject {
         case "hulu": return qsTr("Up to 720p")
         }
         return ""
+    }
+    // A streaming site (a web app playing films and shows in a browser, off
+    // until the owner turns it on): the first-run setup offers these as one
+    // "Streaming sites" card. The Browser tile is a web app but not one.
+    function isStreamingSite(adapter) {
+        switch (adapter) {
+        case "netflix":
+        case "disney-plus":
+        case "hulu": return true
+        }
+        return false
     }
     // Brand palette: `top`/`bottom` for the background, `glow` behind the icon.
     function brand(adapter) {

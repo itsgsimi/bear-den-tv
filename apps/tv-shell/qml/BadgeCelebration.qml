@@ -132,7 +132,7 @@ Item {
             }
             Text {
                 visible: root.showing.length > 1
-                text: qsTr("and %n more on the shelf in Settings → Badges", "", root.showing.length - 1)
+                text: qsTr("and %n more on the shelf in Themes → Den badges", "", root.showing.length - 1)
                 color: Theme.textSecondary
                 font.family: Theme.fontFamily
                 font.pixelSize: 22 * Theme.fontUnit

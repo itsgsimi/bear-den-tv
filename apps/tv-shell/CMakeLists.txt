@@ -32,7 +32,11 @@ set(BDTV_QML_FILES
   qml/ConnectingScreen.qml
   qml/LockedScreen.qml
   qml/InstallCard.qml
-  qml/AddAppsScreen.qml
+  qml/AppsScreen.qml
+  qml/ThemesScreen.qml
+  qml/ThemePicker.qml
+  qml/OnboardingScreen.qml
+  qml/AddAppsTile.qml
   qml/MessageDialog.qml
   qml/ConfirmDialog.qml
   qml/LaunchOverlay.qml
@@ -55,7 +59,9 @@ set(BDTV_QML_FILES
   qml/WeatherScreen.qml
   qml/PlexScreen.qml
   qml/BadgesScreen.qml
-  qml/StreamingScreen.qml
+  qml/Help.qml
+  qml/HelpPanel.qml
+  qml/UiIcon.qml
   qml/BadgeCelebration.qml
   qml/BadgeMedal.qml
   qml/Badges.qml
@@ -113,6 +119,7 @@ endforeach()
 set_source_files_properties(qml/Apps.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
 set_source_files_properties(qml/World.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
 set_source_files_properties(qml/Badges.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
+set_source_files_properties(qml/Help.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
 
 qt_add_library(beardenshell STATIC)
 qt_add_qml_module(beardenshell

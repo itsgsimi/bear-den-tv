@@ -1,5 +1,11 @@
-// Top bar: brand, navigation pills, status, local weather, clock. `focusIndex` >= 0 when the
-// D-pad is on the pills.
+// Top bar: brand, navigation pills (Home · Apps · Themes · Pair phone ·
+// Settings, Themes and Settings with a Bear Den icon: the palette and the
+// gear), status, local weather, clock. `focusIndex` >= 0 when the D-pad is on
+// the pills. Each pill is [screen, label, icon]. When large text leaves no
+// room (Settings → Display & accessibility → Text size), the brand shows only
+// the bear mark (`compact`), then the pills drop their icons (`tight`), then
+// their padding narrows (`crowded`), so the pills never run into the status
+// on the right.
 
 import QtQuick
 import BearDen
@@ -8,15 +14,25 @@ Item {
     id: root
     property string current: "home"
     property int focusIndex: -1
-    readonly property var pills: [["home", qsTr("Home")], ["settings", qsTr("Settings")], ["pairing", qsTr("Pair phone")]]
+    readonly property var pills: [["home", qsTr("Home"), ""], ["apps", qsTr("Apps"), ""], ["themes", qsTr("Themes"), "themes"],
+                                  ["pairing", qsTr("Pair phone"), ""], ["settings", qsTr("Settings"), "gear"]]
     implicitHeight: Math.max(88 * Theme.scale, brand.implicitHeight)
+    // Room for the pills between the bear mark and the status on the right.
+    readonly property real gap: 48 * Theme.scale
+    readonly property real pillsRoom: width - mark.width - status.width - 3 * gap
+    readonly property bool compact: pillsFull.width + brandText.implicitWidth + brand.spacing > pillsRoom
+    readonly property bool tight: pillsFull.width > pillsRoom
+    readonly property bool crowded: pillsPlain.width > pillsRoom
 
     Row {
         id: brand
         anchors.verticalCenter: parent.verticalCenter
         spacing: 16 * Theme.scale
-        BearMark { size: 64 * Theme.scale; anchors.verticalCenter: parent.verticalCenter }
+        BearMark { id: mark; size: 64 * Theme.scale; anchors.verticalCenter: parent.verticalCenter }
         Column {
+            id: brandText
+            objectName: "headerBrandText"
+            visible: !root.compact
             anchors.verticalCenter: parent.verticalCenter
             Text {
                 text: qsTr("Bear Den")
@@ -38,15 +54,39 @@ Item {
         }
     }
 
+    // The pills' natural width (with icons), measured off screen.
     Row {
-        anchors { left: brand.right; leftMargin: 72 * Theme.scale; verticalCenter: parent.verticalCenter }
-        spacing: 12 * Theme.scale
+        id: pillsFull
+        visible: false
+        spacing: 10 * Theme.scale
+        Repeater {
+            model: root.pills
+            NavPill { required property var modelData; text: modelData[1]; icon: modelData[2] }
+        }
+    }
+    Row {
+        id: pillsPlain
+        visible: false
+        spacing: 10 * Theme.scale
+        Repeater {
+            model: root.pills
+            NavPill { required property var modelData; text: modelData[1] }
+        }
+    }
+    Row {
+        id: pillsRow
+        objectName: "headerPills"
+        anchors { left: brand.right; leftMargin: root.crowded ? root.gap / 2 : root.gap; verticalCenter: parent.verticalCenter }
+        spacing: (root.crowded ? 4 : 10) * Theme.scale
         Repeater {
             model: root.pills
             NavPill {
                 required property var modelData
                 required property int index
+                objectName: "navPill-" + modelData[0]
                 text: modelData[1]
+                icon: root.tight ? "" : modelData[2]
+                padding: (root.crowded ? 22 : 48) * Theme.scale
                 current: root.current === modelData[0]
                 focused: root.focusIndex === index
             }
@@ -54,6 +94,8 @@ Item {
     }
 
     Row {
+        id: status
+        objectName: "headerStatus"
         anchors { right: parent.right; verticalCenter: parent.verticalCenter }
         spacing: 18 * Theme.scale
         DemoBadge { visible: Session.devMode; anchors.verticalCenter: parent.verticalCenter }

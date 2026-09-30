@@ -1,5 +1,5 @@
 // The active theme ("world"), as the rest of the shell sees it: a thin view of
-// the theme package chosen in Settings → Theme (layout.ui.background), resolved
+// the theme package chosen on the Themes page (layout.ui.background), resolved
 // by the Themes registry (src/ThemeRegistry.h; manifest spec
 // contracts/theme.schema.json; guide docs/THEMES.md).
 //
