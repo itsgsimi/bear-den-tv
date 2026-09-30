@@ -432,10 +432,13 @@ QString IpcClient::sendRemoteConfigure(bool enabled, const QString &transport, c
     return track(id, QStringLiteral("remote.configure"));
 }
 
-QString IpcClient::sendAppInstall(const QString &type, const QString &appId)
+QString IpcClient::sendAppInstall(const QString &type, const QString &appId, bool enable)
 {
     const QString id = newRequestId();
-    send(QJsonObject{{QStringLiteral("type"), type}, {QStringLiteral("request_id"), id}, {QStringLiteral("app_id"), appId}});
+    QJsonObject msg{{QStringLiteral("type"), type}, {QStringLiteral("request_id"), id}, {QStringLiteral("app_id"), appId}};
+    if (enable && type == QLatin1String("app.install"))
+        msg.insert(QStringLiteral("enable"), true);
+    send(msg);
     return track(id, type);
 }
 

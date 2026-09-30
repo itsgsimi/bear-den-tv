@@ -186,10 +186,10 @@ func (h *ShellHandler) Receive(cl *shellipc.Client, m shellipc.Message) {
 	case shellipc.AchievementsConfigure, shellipc.AchievementsReset, shellipc.AchievementsCelebrated, shellipc.AchievementsEvent:
 		h.receiveAchievements(cl, m, isShell)
 	case shellipc.AppInstall:
-		data, err := c.startInstall(msg.AppID)
+		data, err := c.startInstall(msg.AppID, msg.Enable)
 		h.reply(cl, msg.RequestID, err, data)
 	case shellipc.InstallRequest: // the older name of app.install
-		data, err := c.startInstall(msg.AppID)
+		data, err := c.startInstall(msg.AppID, false)
 		h.reply(cl, msg.RequestID, err, data)
 	case shellipc.AppInstallCancel:
 		h.reply(cl, msg.RequestID, c.cancelInstall(msg.AppID), nil)

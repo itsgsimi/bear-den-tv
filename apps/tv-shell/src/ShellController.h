@@ -126,7 +126,9 @@ public:
     // card asks for the size, Install starts it, Cancel stops it. Progress is
     // state.applications[].install; replies arrive as installReplied.
     Q_INVOKABLE void installInfo(const QString &appId);
-    Q_INVOKABLE void installApp(const QString &appId);
+    // enable: the owner pressed Install on this app's own card, so the
+    // coordinator turns it on once installed (IPC app.install "enable").
+    Q_INVOKABLE void installApp(const QString &appId, bool enable = false);
     Q_INVOKABLE void cancelInstall(const QString &appId);
     // Apps → Keep apps up to date (apps.configure).
     Q_INVOKABLE void setAutoUpdate(bool enabled);

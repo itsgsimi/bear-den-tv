@@ -21,10 +21,15 @@ const (
 // AppInstall starts installing the Flatpak of a registered application
 // (by its config id) for this user from Flathub. The reply comes once the
 // install has started; progress is in state.applications[].install.
+// Enable says the owner pressed Install on that app's own card (its tile or
+// its Streaming sites row, never a shared row of Settings → Add apps): the
+// app is turned on (config applications[].enabled) once the install is
+// done, before its tile lights up, so the shell can open it.
 type AppInstall struct {
 	Type      string `json:"type"`
 	RequestID string `json:"request_id"`
 	AppID     string `json:"app_id"`
+	Enable    bool   `json:"enable,omitempty"`
 }
 
 // Kind implements Message.

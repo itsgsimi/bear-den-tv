@@ -36,7 +36,9 @@ Item {
     property int line: 0
     property int installedIndex: 0
     property int addIndex: 0
-    signal openInstall(string appId)
+    // forApp: opened for that app itself (its Streaming sites row), not a
+    // shared browser card (InstallCard.forApp).
+    signal openInstall(string appId, bool forApp)
 
     // Installed apps with a tile on Home.
     readonly property var installed: Session.applications.filter(a => a.installed === true && a.hidden !== true)
@@ -199,13 +201,13 @@ Item {
             switch (c.kind) {
             case "strip":
                 if (c.id === "installed") Shell.launchApp(installed[installedIndex].id)
-                else openInstall(missing[addIndex].id)
+                else openInstall(missing[addIndex].id, false)
                 return true
             case "site": {
                 const on = c.app.enabled !== true
                 Shell.setAppEnabled(c.app.id, on)
                 // Its browser missing: the same install card as a Home tile.
-                if (on && c.app.installed === false) openInstall(c.app.id)
+                if (on && c.app.installed === false) openInstall(c.app.id, true)
                 return true
             }
             case "browser": cycle(c.which, 1); return true

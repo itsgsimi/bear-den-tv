@@ -203,9 +203,14 @@ FocusScope {
     }
 
     // The app whose Install the owner pressed: it opens by itself once
-    // installed, if the owner is still on its card or on its Home tile;
-    // otherwise its tile is simply ready. A failure or a cancel forgets it.
+    // installed, if the owner is still on its card or on its Home tile, and
+    // only that app (several apps may share one Flatpak: the streaming sites
+    // share their browser); an app that is turned off (a shared browser card
+    // of Add apps) is not opened. Otherwise its tile is simply ready. A
+    // failure or a cancel forgets it. lastAutoOpened names the last app
+    // opened this way.
     property string pendingOpen: ""
+    property string lastAutoOpened: ""
     property bool pendingStarted: false   // a snapshot showed the install running
     onPendingOpenChanged: pendingStarted = false
     function openWhenInstalled() {
@@ -222,7 +227,10 @@ FocusScope {
         const onCard = installCard.visible && installCard.appId === id
         const onTile = !topDialog && screen === "home" && home.focusedAppId() === id && !screensaver.active
         if (onCard) installCard.close()
-        if (onCard || onTile) Shell.launchApp(id)
+        if ((onCard || onTile) && app.enabled !== false) {
+            lastAutoOpened = id
+            Shell.launchApp(id)
+        }
     }
     Connections {
         target: Session
@@ -263,7 +271,7 @@ FocusScope {
             Behavior on opacity { NumberAnimation { duration: Theme.ms(220); easing.type: Easing.OutCubic } }
             Behavior on y { NumberAnimation { duration: Theme.ms(260); easing.type: Easing.OutCubic } }
             onOpenScreen: (name) => root.open(name)
-            onAppUnavailable: (app) => installCard.openFor(app.id)
+            onAppUnavailable: (app) => installCard.openFor(app.id, true)
             onMessage: (title, body) => messageDialog.open(title, body)
         }
         SettingsScreen {
@@ -286,7 +294,7 @@ FocusScope {
             y: root.screen === "apps" ? 0 : 24 * Theme.scale
             Behavior on opacity { NumberAnimation { duration: Theme.ms(220); easing.type: Easing.OutCubic } }
             Behavior on y { NumberAnimation { duration: Theme.ms(260); easing.type: Easing.OutCubic } }
-            onOpenInstall: (appId) => installCard.openFor(appId)
+            onOpenInstall: (appId, forApp) => installCard.openFor(appId, forApp)
         }
         ThemesScreen {
             id: themes
@@ -309,7 +317,7 @@ FocusScope {
             Behavior on opacity { NumberAnimation { duration: Theme.ms(220); easing.type: Easing.OutCubic } }
             Behavior on y { NumberAnimation { duration: Theme.ms(260); easing.type: Easing.OutCubic } }
             onOpenScreen: (name) => root.open(name)
-            onOpenInstall: (appId) => installCard.openFor(appId)
+            onOpenInstall: (appId, forApp) => installCard.openFor(appId, forApp)
             onFinished: root.goHome()
         }
         RemoteSetupScreen {

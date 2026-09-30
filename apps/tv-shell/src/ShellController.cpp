@@ -355,9 +355,9 @@ void ShellController::installInfo(const QString &appId)
     m_installRequests.insert(m_ipc->sendAppInstall(QStringLiteral("app.install_info"), appId), appId);
 }
 
-void ShellController::installApp(const QString &appId)
+void ShellController::installApp(const QString &appId, bool enable)
 {
-    m_installRequests.insert(m_ipc->sendAppInstall(QStringLiteral("app.install"), appId), appId);
+    m_installRequests.insert(m_ipc->sendAppInstall(QStringLiteral("app.install"), appId, enable), appId);
 }
 
 void ShellController::cancelInstall(const QString &appId)

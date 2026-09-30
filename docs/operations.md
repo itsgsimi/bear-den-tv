@@ -781,7 +781,12 @@ password, nothing system-wide.
   for Netflix, Disney+, Hulu") and Brave ("The Browser tile's browser");
   turning a streaming site on while Chrome is missing offers Chrome the
   same way. Back hides the card; the install
-  carries on and the tile shows its progress.
+  carries on and the tile shows its progress. Install on a streaming site's
+  own card (its Apps → Streaming sites row, a setup card) also turns that
+  site on, and only that one, when the install is done; the app whose card
+  you pressed opens by itself if you are still on its card or tile (never
+  the Browser tile for a site's card). The shared Google Chrome card of Add
+  apps installs Chrome and turns nothing on.
 - **From the owner's phone:** the Add apps section (owner phones only).
 - **From a terminal on the TV:** `bear-den-tv apps install moonlight` (asks the
   running Bear Den; `--here` installs without it), `bear-den-tv apps

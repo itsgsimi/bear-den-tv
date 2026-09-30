@@ -52,8 +52,14 @@ Rectangle {
 
     signal installRequested(string appId)
 
-    function openFor(id) {
+    // forApp: the card was opened from this app's own tile, card or
+    // Streaming sites row (not a shared browser card of Add apps), so its
+    // Install also turns this app on once installed (IPC app.install
+    // "enable"; the streaming sites share their browser's Flatpak).
+    property bool forApp: false
+    function openFor(id, own) {
         appId = id
+        forApp = own === true
         replyError = ""
         focusIndex = 0
         visible = true
@@ -78,7 +84,7 @@ Rectangle {
             const b = buttons[Math.min(focusIndex, buttons.length - 1)][0]
             if (b === "install") {
                 replyError = ""
-                Shell.installApp(appId)
+                Shell.installApp(appId, forApp)
                 installRequested(appId)
                 focusIndex = 0
             } else if (b === "cancel") {

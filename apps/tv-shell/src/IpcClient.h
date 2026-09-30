@@ -82,7 +82,8 @@ public:
     QString sendRemoteConfigure(bool enabled, const QString &transport, const QString &interface, int port, bool httpLayoutEditing);
     /// app.install | app.install_info | app.install_cancel (contracts/ipc.md)
     /// for one app; answered with result.
-    QString sendAppInstall(const QString &type, const QString &appId);
+    // enable (app.install only): turn the app on once installed.
+    QString sendAppInstall(const QString &type, const QString &appId, bool enable = false);
     /// apps.configure: Apps → Keep apps up to date.
     QString sendAppsConfigure(bool autoUpdate);
     /// apps.browser: Apps → Streaming sites, the Browser tile's and the

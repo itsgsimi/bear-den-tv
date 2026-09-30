@@ -38,7 +38,8 @@ Item {
     property int column: 0
     property var interfaces: []
     signal openScreen(string name)
-    signal openInstall(string appId)
+    // forApp: opened for that app itself (InstallCard.forApp).
+    signal openInstall(string appId, bool forApp)
     signal finished()
 
     readonly property var stepNames: [qsTr("Welcome"), qsTr("Your look"), qsTr("Your apps"), qsTr("Phone remote"), qsTr("Extras"), qsTr("Done")]
@@ -202,13 +203,13 @@ Item {
         case "themes": picker.apply(); return
         case "add": {
             const e = addable[Math.min(column, addable.length - 1)]
-            if (e.kind === "app") { openInstall(e.app.id); return }
+            if (e.kind === "app") { openInstall(e.app.id, true); return }
             // Streaming sites: the press turns them on; a missing browser
             // opens its install card (installed only on its Install press).
             for (const s of e.sites)
                 if (s.enabled !== true) Shell.setAppEnabled(s.id, true)
             const missing = e.sites.filter(s => s.installed === false)
-            if (missing.length > 0) openInstall(missing[0].id)
+            if (missing.length > 0) openInstall(missing[0].id, true)
             return
         }
         case "plex": openScreen("plex"); return

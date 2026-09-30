@@ -1,7 +1,9 @@
 // App installs in the coordinator: the owner-only actions app.install and
 // app.install_cancel, their IPC twins (app.install, app.install_info,
 // app.install_cancel, apps.configure), state.applications[].install and
-// state.apps, rediscovery once an install is done, and the daily update
+// state.apps, rediscovery once an install is done (turning on first the app
+// whose own card started it, when the shell said so: IPC app.install
+// "enable"), and the daily update
 // while the TV is idle (config apps.auto_update). The installer itself is
 // internal/applications/install. Spec: contracts/actions.md "App installs",
 // contracts/http.md "App installs", docs/decisions/0011-per-user-flathub-installs.md.
@@ -74,6 +76,9 @@ func (c *Coordinator) InstallChanged() {
 	c.mu.Unlock()
 	for _, fid := range ids {
 		go func(fid string) {
+			// Before the tile lights up, so the shell's open of it finds
+			// the app on.
+			c.enableAfterInstall(fid)
 			c.rediscover(context.Background(), fid)
 			c.mu.Lock()
 			delete(c.rediscovering, fid)
@@ -175,8 +180,12 @@ type installError struct {
 func (e *installError) Error() string { return e.msg }
 
 // startInstall is app.install from a phone or the shell: the Flatpak comes
-// from the app's adapter row, never from the sender.
-func (c *Coordinator) startInstall(appID string) (map[string]any, error) {
+// from the app's adapter row, never from the sender. enable (the shell's
+// install card opened from that app's own tile or row) turns that app, and
+// only that app, on once the install is done (enableAfterInstall); several
+// apps may share the Flatpak (the streaming sites share their browser), so
+// the press says which one the owner meant.
+func (c *Coordinator) startInstall(appID string, enable bool) (map[string]any, error) {
 	in := c.opts.Installer
 	if in == nil {
 		return nil, &installError{contract.CodeUnsupported, "App installs are not available in this session."}
@@ -216,7 +225,17 @@ func (c *Coordinator) startInstall(appID string) (map[string]any, error) {
 	case err != nil:
 		return nil, &installError{contract.CodeUnsupported, "Bear Den can't install " + app.Label + "."}
 	}
-	c.log.Info("session: installing from Flathub", "app", appID, "flatpak", fid)
+	c.mu.Lock()
+	if c.enableAfter == nil {
+		c.enableAfter = map[string]string{}
+	}
+	if enable {
+		c.enableAfter[fid] = appID
+	} else {
+		delete(c.enableAfter, fid)
+	}
+	c.mu.Unlock()
+	c.log.Info("session: installing from Flathub", "app", appID, "flatpak", fid, "turn_on_after", enable)
 	c.publish()
 	return map[string]any{"install_state": contract.InstallPreparing}, nil
 }
@@ -250,7 +269,7 @@ func (c *Coordinator) installResult(req contract.ActionRequest, detail map[strin
 // doInstall routes app.install (owner phones; the permission was checked).
 func (c *Coordinator) doInstall(req contract.ActionRequest) contract.ActionResult {
 	appID, _ := req.Args["app_id"].(string)
-	detail, err := c.startInstall(appID)
+	detail, err := c.startInstall(appID, false)
 	return c.installResult(req, detail, err)
 }
 
@@ -382,6 +401,28 @@ func (c *Coordinator) stopUpdateFor(why string) {
 	if in := c.opts.Installer; in != nil && in.CancelUpdate() {
 		c.log.Info("session: app update cancelled", "why", why)
 	}
+}
+
+// enableAfterInstall turns on the app whose own card started flatpakID's
+// install (startInstall's enable), through the normal config write, once;
+// an app already on, or no longer using that Flatpak, is left alone.
+func (c *Coordinator) enableAfterInstall(flatpakID string) {
+	c.mu.Lock()
+	appID := c.enableAfter[flatpakID]
+	delete(c.enableAfter, flatpakID)
+	c.mu.Unlock()
+	if appID == "" {
+		return
+	}
+	app, ok := c.opts.Config.Current().Application(appID)
+	if !ok || app.Launch.AppID != flatpakID || app.IsEnabled() || !c.isWebAdapter(app.Adapter) {
+		return
+	}
+	if err := c.setAppEnabled(context.Background(), appID, true); err != nil {
+		c.log.Warn("session: could not turn the app on after its install", "app", appID, "err", err)
+		return
+	}
+	c.log.Info("session: turned on after its install (the owner pressed Install on its card)", "app", appID, "flatpak", flatpakID)
 }
 
 // afterInstalled runs what a freshly installed Flatpak needs before its

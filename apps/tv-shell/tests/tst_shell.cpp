@@ -990,6 +990,81 @@ private slots:
         goHome();
     }
 
+    // Several apps share one Flatpak (the streaming sites share their
+    // browser): Install on Netflix's own row asks the coordinator to turn
+    // Netflix on once installed (app.install "enable"), and when it is done
+    // the shell opens Netflix and nothing else; Install on the shared
+    // browser card of Add apps asks nothing of the kind, and an app that is
+    // still off is not opened.
+    void installFromASitesRowOpensOnlyThatSite()
+    {
+        SessionModel *session = SessionModel::instance();
+        IpcClient *ipc = ShellController::instance()->ipc();
+        QObject *root = shellRoot();
+        const auto restore = qScopeGuard([session, this] { session->applySnapshot(fixture()); goHome(); });
+        // netflix and hulu: installed or not, on or off, their install state.
+        auto sites = [this](bool installed, bool netflixOn, const QString &state) {
+            QJsonObject snap = installSnapshot(QStringLiteral("none"));
+            QJsonArray apps = snap.value(QStringLiteral("applications")).toArray();
+            for (int i = 0; i < apps.size(); ++i) {
+                QJsonObject a = apps.at(i).toObject();
+                const QString id = a.value(QStringLiteral("id")).toString();
+                if (id != QLatin1String("netflix") && id != QLatin1String("hulu"))
+                    continue;
+                a.insert(QStringLiteral("installed"), installed);
+                a.insert(QStringLiteral("installation"), installed ? QStringLiteral("user") : QStringLiteral("none"));
+                a.insert(QStringLiteral("hidden"), !installed || !(id == QLatin1String("netflix") && netflixOn));
+                a.insert(QStringLiteral("enabled"), id == QLatin1String("netflix") && netflixOn);
+                a.insert(QStringLiteral("install"), QJsonObject{{QStringLiteral("state"), state}, {QStringLiteral("progress"), state == QLatin1String("done") ? 100 : 30},
+                                                                {QStringLiteral("phase"), QString()}});
+                apps.replace(i, a);
+            }
+            snap.insert(QStringLiteral("applications"), apps);
+            return snap;
+        };
+        // From Netflix's row in Apps → Streaming sites.
+        root->setProperty("lastAutoOpened", QString());
+        QVERIFY2(session->applySnapshot(sites(false, false, QStringLiteral("available"))), qPrintable(session->lastError()));
+        openFromHeader(QStringLiteral("apps"));
+        for (int i = 0; i < 12 && !(m_nav->sectionId() == QLatin1String("streaming") && m_nav->itemId() == QLatin1String("netflix")); ++i)
+            act(QStringLiteral("nav.down"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("netflix"));
+        ipc->clearSent();
+        act(QStringLiteral("select")); // on, and its browser's install card
+        QCOMPARE(m_nav->itemId(), QStringLiteral("install-install"));
+        act(QStringLiteral("select")); // Install
+        QJsonObject install = lastSent(QStringLiteral("app.install"));
+        QCOMPARE(install.value(QStringLiteral("app_id")).toString(), QStringLiteral("netflix"));
+        QCOMPARE(install.value(QStringLiteral("enable")), QJsonValue(true));
+        QVERIFY(session->applySnapshot(sites(false, true, QStringLiteral("downloading"))));
+        QVERIFY(session->applySnapshot(sites(true, true, QStringLiteral("done"))));
+        QCoreApplication::processEvents();
+        QCOMPARE(root->property("lastAutoOpened").toString(), QStringLiteral("netflix"));
+        act(QStringLiteral("back")); // the offline "cannot open" notice
+
+        // From the shared browser card of Apps → Add apps: no "enable", and
+        // Netflix, still off, does not open.
+        root->setProperty("lastAutoOpened", QString());
+        QVERIFY(session->applySnapshot(sites(false, false, QStringLiteral("available"))));
+        openFromHeader(QStringLiteral("apps"));
+        act(QStringLiteral("nav.down"));
+        QCOMPARE(m_nav->sectionId(), QStringLiteral("add-apps"));
+        for (int i = 0; i < 4 && m_nav->itemId() != QLatin1String("netflix"); ++i)
+            act(QStringLiteral("nav.right"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("netflix"));
+        ipc->clearSent();
+        act(QStringLiteral("select"));
+        act(QStringLiteral("select")); // Install
+        install = lastSent(QStringLiteral("app.install"));
+        QCOMPARE(install.value(QStringLiteral("app_id")).toString(), QStringLiteral("netflix"));
+        QVERIFY2(!install.contains(QStringLiteral("enable")), "a shared browser card turned a site on");
+        QVERIFY(session->applySnapshot(sites(false, false, QStringLiteral("downloading"))));
+        QVERIFY(session->applySnapshot(sites(true, false, QStringLiteral("done"))));
+        QCoreApplication::processEvents();
+        QCOMPARE(root->property("lastAutoOpened").toString(), QString());
+        QVERIFY2(m_nav->screen() != QLatin1String("dialog") || m_nav->itemId().startsWith(QLatin1String("install")), qPrintable(m_nav->itemId()));
+    }
+
     // Apps → Streaming sites: after the sites come the two browser rows
     // (the Browser tile's, the streaming sites'), from state.apps.browsers;
     // ◀ ▶ send apps.browser with both choices; a browser marked
