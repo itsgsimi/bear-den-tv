@@ -11,6 +11,10 @@
 #              (the .deb installs it as /usr/lib/bear-den-tv/start-session.sh)
 # In a checkout on the TV machine, e.g. `scripts/target.sh ssh scripts/start-session.sh`.
 # `bear-den-tv autostart enable` runs this with --watch at every desktop login.
+#
+# Detached: what it starts runs in a new session (setsid) with no controlling
+# terminal, stdin from /dev/null and stdout/stderr to the log, so closing the
+# terminal or ssh session, or job-control signals, never reach it.
 # Log: ${XDG_STATE_HOME:-~/.local/state}/bear-den-tv/session.log.
 set -euo pipefail
 here="$(readlink -f "$0")"
@@ -82,11 +86,33 @@ if [ "${1:-}" = "--watch" ]; then watch=1; shift; fi
 mkdir -p "$(dirname "$log")"
 # Keep the log bounded on small TV boxes: rotate at 5 MB, keep one old copy.
 if [ -f "$log" ] && [ "$(stat -c %s "$log")" -gt 5242880 ]; then mv -f "$log" "$log.1"; fi
+# detached PID: wait until PID has left this session (setsid(2) done). Until
+# then it is in this script's process group, and when this script is the
+# session leader of a terminal (ssh -t, a terminal window) and exits, the
+# kernel hangs that group up (SIGHUP) and the start is lost.
+detached() {
+  local i s
+  for ((i = 0; i < 100; i++)); do
+    s=$(cat "/proc/$1/stat" 2>/dev/null) || break
+    s=${s##*) }
+    set -- "$1" $s
+    [ "$5" = "$1" ] && return 0   # state ppid pgrp session: its own session
+    sleep 0.02
+  done
+  echo "not started: pid $1 did not become a session of its own (see $log)" >&2
+  return 1
+}
+
+# setsid: a new session with no controlling terminal (see the header).
 if [ "$watch" = 1 ]; then
   setsid bash "$here" __watch "$@" >>"$log" 2>&1 </dev/null &
-  echo "started with watchdog, pid $! (log: $log)"
+  pid=$!
+  detached "$pid" || exit 1
+  echo "started with watchdog, pid $pid (log: $log)"
 else
   session_env
   setsid "$bin" session --shell-binary "$shell" "$@" >>"$log" 2>&1 </dev/null &
-  echo "started pid $! (log: $log)"
+  pid=$!
+  detached "$pid" || exit 1
+  echo "started pid $pid (log: $log)"
 fi

@@ -144,6 +144,13 @@ From the .deb, the same commands are `bear-den-tv autostart|shortcut ...` and
   binary: `<repo>/scripts/start-session.sh` for `<repo>/build/bin/bear-den-tv`,
   `/usr/lib/bear-den-tv/start-session.sh` for `/usr/bin/bear-den-tv`.
 - **Log:** `${XDG_STATE_HOME:-~/.local/state}/bear-den-tv/session.log`, rotated at 5 MB (one old copy, `session.log.1`).
+- **Detached:** what `start-session.sh` starts runs in a session of its own
+  (`setsid`) with no controlling terminal, stdin from `/dev/null` and its
+  output in the log. The script waits until that is true before it returns,
+  so closing the terminal or the ssh connection right after it cannot hang
+  the start up, and a terminal's job-control signals (Ctrl+Z, background
+  reads and writes) never reach Bear Den
+  ([`tests/packaging/watchdog_test.go`](../tests/packaging/watchdog_test.go)).
 
 ## Packaging
 
