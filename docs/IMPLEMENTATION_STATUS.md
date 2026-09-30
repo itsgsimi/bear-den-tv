@@ -140,6 +140,8 @@ Overall: "the experience was very nice". Found:
 5. **"revision conflict: base 31, current 32" in Themes**: trying a theme saves, then OK saves again on the old revision. Rebase or retry on the current revision, and never show raw technical errors on the TV.
 6. **Plex linking**: the TV fell asleep (screensaver) while waiting; after the account was linked the screen sat on "Waiting for Plex…" with a blank white QR box and no code/address, then worked after a long time. Suppress the screensaver during active flows (Plex linking, pairing, installs), poll faster while linking, and show a fun waiting animation (a bear) instead of a blank QR.
 
+7. **A flash of the background in front of the foreground during the Chrome install** (seen once on the TV). Not yet known whether it was the desktop wallpaper showing through between Bear Den and Chrome's window, or Bear Den's own scene drawn over its cards for a moment; reproduce with an install that auto-opens the app.
+
 Also pending: the owner's picks from the UX audit (34 findings; the focused "Let's set up" button still has pale text), bear tips (paused; its art is on branch worktree-agent-a82d13fe35f54c446), and the unconfirmed cause of the 10-hour freeze (mitigated by the watchdog).
 
 
