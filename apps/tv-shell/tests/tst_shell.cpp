@@ -1858,6 +1858,8 @@ private slots:
     void themeCardFocusFitsInsideTheStrip()
     {
         openFromHeader(QStringLiteral("themes"));
+        for (int i = 0; i < 8; ++i)
+            act(QStringLiteral("nav.left")); // the first card, at the strip's left edge
         QQuickItem *frame = nullptr;
         std::function<void(QQuickItem *)> find = [&](QQuickItem *item) {
             if (frame || !item->isVisible())
@@ -1878,6 +1880,8 @@ private slots:
         const QRectF r = frame->mapRectToItem(strip, QRectF(0, 0, frame->width(), frame->height()));
         QVERIFY2(r.top() >= 0 && r.bottom() <= strip->height(),
                  qPrintable(QStringLiteral("focus frame %1..%2 outside strip 0..%3").arg(r.top()).arg(r.bottom()).arg(strip->height())));
+        QVERIFY2(r.left() >= 0 && r.right() <= strip->width(), // the first card, at the left edge
+                 qPrintable(QStringLiteral("focus frame x %1..%2 outside strip 0..%3").arg(r.left()).arg(r.right()).arg(strip->width())));
         goHome();
     }
 

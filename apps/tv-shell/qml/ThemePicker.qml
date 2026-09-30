@@ -26,7 +26,7 @@ ListView {
     function reset() {
         const i = ids.indexOf(applied)
         index = i >= 0 ? i : 0
-        positionViewAtIndex(index, ListView.Contain)
+        keepInView(index)
     }
     function previewFocused() {
         // The same base OK will send (a pending edit included), so the
@@ -38,6 +38,17 @@ ListView {
         ui.background = focusedId
         ui.accent = World.accentFor(focusedId)
         Session.previewUi(ui)
+    }
+    // Scroll so the focused card keeps a gap from both edges of the strip:
+    // ListView.Contain put the first card flush with the edge, where the
+    // strip's clip cut off the left of its focus frame (seen on the TV).
+    function keepInView(i) {
+        const item = itemAtIndex(i)
+        if (!item) { positionViewAtIndex(i, ListView.Contain); return }
+        const pad = 32 * Theme.scale
+        const left = item.x - contentX
+        if (left < pad) contentX = item.x - pad
+        else if (left + item.width > width - pad) contentX = item.x + item.width - width + pad
     }
     // ◀ ▶: move and try the theme on.
     function move(delta) {
@@ -72,9 +83,9 @@ ListView {
     model: Themes.list
     currentIndex: index
     highlightFollowsCurrentItem: false
-    onCurrentIndexChanged: positionViewAtIndex(currentIndex, ListView.Contain)
-    leftMargin: 24 * Theme.scale
-    rightMargin: 24 * Theme.scale
+    onCurrentIndexChanged: keepInView(currentIndex)
+    leftMargin: 32 * Theme.scale
+    rightMargin: 32 * Theme.scale
 
     delegate: Item {
         id: card
