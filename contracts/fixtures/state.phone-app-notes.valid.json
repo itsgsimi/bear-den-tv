@@ -1,0 +1,31 @@
+{
+  "protocol": 1, "context_epoch": 48, "generated_at_ms": 130345, "device_name": "Bear Den", "dev_mode": false, "config_revision": 3,
+  "session": {"locked": false, "display_session": "x11", "desktop_adapter": "x11-ewmh-xtest", "shell_connected": true, "shell_state": "running"},
+  "target": {"kind": "app", "app_id": "youtube", "label": "YouTube", "observed": true, "window_title": "YouTube"},
+  "capabilities": {
+    "nav.up": {"available": true, "backend": "xtest", "holdable": true},
+    "nav.down": {"available": true, "backend": "xtest", "holdable": true},
+    "nav.left": {"available": true, "backend": "xtest", "holdable": true},
+    "nav.right": {"available": true, "backend": "xtest", "holdable": true},
+    "select": {"available": true, "backend": "xtest"},
+    "back": {"available": true, "backend": "xtest"},
+    "home": {"available": true, "backend": "x11-activate"},
+    "app.launch": {"available": true, "backend": "flatpak"},
+    "media.pause": {"available": false, "reason": "VacuumTube pause has not been verified on this installation."},
+    "audio.volume_delta": {"available": true, "backend": "pulseaudio"},
+    "audio.mute": {"available": true, "backend": "pulseaudio"},
+    "text.submit": {"available": false, "reason": "Text entry into YouTube is not enabled."}
+  },
+  "shell": {"screen": "home", "focus": {"section_id": "favorites", "item_id": "youtube"}},
+  "applications": [
+    {"id": "plex-htpc", "notes": ["Sign in with your Plex account to watch your own Plex server's library.", "Now playing on your phone comes from your Plex server once this TV is signed in (Settings → Plex), and it is read-only.", "Home doesn't pause it: Plex HTPC offers no media controls Bear Den can check."], "label": "Plex", "adapter": "plex-htpc", "installed": true, "version": "1.70.0", "installation": "user", "running": false, "foreground": false, "launch_state": "idle", "last_error": null},
+    {"id": "youtube", "notes": ["VacuumTube is an unofficial YouTube TV client.", "Your phone shows what's playing and can play or pause it."], "label": "YouTube", "adapter": "vacuumtube", "installed": true, "version": "1.8.2", "installation": "user", "running": true, "foreground": true, "launch_state": "running", "last_error": null}
+  ],
+  "remote": {"enabled": true, "transport": "trusted-lan-http", "listening": true, "addresses": ["http://192.0.2.10:8090/"], "https": false, "http_layout_editing": false, "paired_device_count": 1,
+             "hold": {"active": false, "device_id": null, "action": null},
+             "limits": {"repeat_delay_ms": 350, "repeat_hz": 6, "hold_renew_ms": 200, "hold_expiry_ms": 600, "max_message_bytes": 16384}},
+  "me": {"device_id": "dev_01", "device_name": "Test phone", "permissions": ["controller"], "transport_secure": false},
+  "appearance": {"background": "forest", "theme": "den-dark", "accent": "#8DBF7F", "pixel": false, "art_style": "classic", "app_icons": "bear_den"},
+  "notifications": [],
+  "achievements": {"enabled": true, "earned": [{"id": "first-night-in", "day": "2026-09-02"}, {"id": "couch-explorer", "day": "2026-09-05"}, {"id": "style-switcher", "day": "2026-09-12"}, {"id": "parade-spotter", "day": "2026-09-27"}], "progress": [{"id": "first-night-in", "count": 1, "goal": 1}, {"id": "movie-night", "count": 4, "goal": 10}, {"id": "couch-explorer", "count": 3, "goal": 3}, {"id": "night-owl", "count": 2, "goal": 5}, {"id": "early-cub", "count": 0, "goal": 5}, {"id": "rainy-day", "count": 1, "goal": 3}, {"id": "snow-day", "count": 0, "goal": 1}, {"id": "thunder-buddy", "count": 0, "goal": 1}, {"id": "all-seasons", "count": 2, "goal": 4}, {"id": "style-switcher", "count": 2, "goal": 2}, {"id": "theme-tourist", "count": 3, "goal": 5}, {"id": "family-den", "count": 1, "goal": 2}, {"id": "good-host", "count": 0, "goal": 1}, {"id": "sleepy-bear", "count": 1, "goal": 5}, {"id": "parade-spotter", "count": 1, "goal": 1}, {"id": "loyal-den", "count": 12, "goal": 30}]}
+}

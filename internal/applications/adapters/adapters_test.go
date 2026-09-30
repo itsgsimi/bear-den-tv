@@ -4,6 +4,7 @@ package adapters
 
 import (
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -267,5 +268,43 @@ func TestWebAdapters(t *testing.T) {
 	}
 	if _, ok := WebOf(PlexHTPC()); ok {
 		t.Error("plex-htpc reported as a web adapter")
+	}
+}
+
+// Every adapter row has notes, and every note fits state.applications[].notes:
+// 1..160 characters, one plain sentence ending in a full stop, no URL; room
+// is left for a derived note (the unverified browser). An app Home leaves
+// running (HomePause none, or a key that is never sent) says so.
+func TestNotes(t *testing.T) {
+	for _, ad := range NewRegistry().All() {
+		notes := NotesOf(ad)
+		if len(notes) == 0 {
+			t.Errorf("%s: no notes", ad.Name())
+		}
+		if len(notes) > 5 {
+			t.Errorf("%s: %d notes leave no room for a derived one (6 at most)", ad.Name(), len(notes))
+		}
+		for _, n := range notes {
+			if len([]rune(n)) < 1 || len([]rune(n)) > 160 {
+				t.Errorf("%s: %d characters: %q", ad.Name(), len([]rune(n)), n)
+			}
+			if strings.Contains(n, "://") || strings.Contains(strings.ToLower(n), "www.") {
+				t.Errorf("%s: a URL in %q", ad.Name(), n)
+			}
+			if !strings.HasSuffix(n, ".") || strings.Contains(n, "\n") {
+				t.Errorf("%s: not one plain sentence: %q", ad.Name(), n)
+			}
+		}
+		if k := HomePauseOf(ad).Kind; k == "none" || k == "key" {
+			if !slices.ContainsFunc(notes, func(n string) bool { return strings.Contains(n, "Home") }) {
+				t.Errorf("%s: Home leaves it running (HomePause %s) but no note says so: %q", ad.Name(), k, notes)
+			}
+		}
+	}
+	// A copy: callers cannot change the table.
+	n := NotesOf(PlexHTPC())
+	n[0] = "changed"
+	if NotesOf(PlexHTPC())[0] == "changed" {
+		t.Fatal("NotesOf returned the table itself")
 	}
 }

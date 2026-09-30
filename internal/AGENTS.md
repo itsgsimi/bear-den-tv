@@ -141,6 +141,12 @@ An app is data in a few closed tables; no engine code branches on it.
    not the Flatpak id, and `home` (`HomePause`: none, mpris or a pause key; Home acts only on mpris, verified before and after, `session/homepause.go`). Mark the WM_CLASS UNVERIFIED
    until a live probe records it in [`tests/compatibility/`](../tests/compatibility/).
    Map only keys you can justify; `media.*` stays unmapped until verified.
+   Write its notes (`notes:` in the constructor, a list beside the others):
+   one to five short plain sentences the TV and phones show
+   (`state.applications[].notes`, [`contracts/http.md`](../contracts/http.md#app-notes-stateapplicationsnotes)):
+   what it needs, what the remote reaches, whether Home pauses it. Check
+   each fact against the code or docs, and say when Home leaves it running
+   (`TestNotes` checks that and the limits).
 2. [`applications/adapters/adapters_test.go`](applications/adapters/adapters_test.go):
    add the name to the list `Names()` must return.
 3. [`config/validate.go`](config/validate.go) `DefaultAdapters`: the same

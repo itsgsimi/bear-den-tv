@@ -51,6 +51,10 @@ Canonical messages consumed by contract tests in Go ([`tests/contract/fixtures_t
 | `state.onboarding-not-bool.invalid.json` | rejected: `onboarding.completed` must be a boolean |
 | `state.autostart-no-available.invalid.json` | rejected: `autostart` must say whether it is `available` |
 | `state.phone-autostart.invalid.json` | rejected: a phone view (with `me`) never carries `onboarding` or `autostart` |
+| `state.phone-app-notes.valid.json` | `state.schema.json` (phone view: Plex HTPC and YouTube with their `applications[].notes`) |
+| `state.app-notes-too-many.invalid.json` | rejected: `applications[].notes` holds at most 6 notes |
+| `state.app-note-url.invalid.json` | rejected: a note never carries a URL |
+| `state.app-note-too-long.invalid.json` | rejected: a note is at most 160 characters |
 | `state.shell-plex-linking.valid.json` | `state.schema.json` (shell view in Settings → Plex, a link code shown) |
 | `state.shell-plex-libraries.valid.json` | `state.schema.json` (shell view choosing DEMO libraries) |
 | `state.plex-bad-status.invalid.json` | rejected: `plex.status` must be one of the six sign-in states |

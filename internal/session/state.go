@@ -10,6 +10,7 @@ import (
 	"fmt"
 
 	"bear-den-tv/internal/applications/adapters"
+	"bear-den-tv/internal/config"
 	"bear-den-tv/internal/contract"
 	"bear-den-tv/internal/platform"
 	"bear-den-tv/internal/remote"
@@ -67,7 +68,7 @@ func (c *Coordinator) buildStateFor(view viewKind, v *remote.Viewer) contract.St
 		Target:        c.target,
 		Capabilities:  c.capabilitiesLocked(),
 		Shell:         c.shellFocus,
-		Applications:  c.appStatesLocked(cfg.Applications),
+		Applications:  c.appStatesLocked(cfg),
 		Remote:        c.remote,
 		Notifications: append([]contract.Notification{}, c.notifications...),
 		LayoutPending: pending,
@@ -209,9 +210,9 @@ func displaySession(s string) string {
 	return "unknown"
 }
 
-func (c *Coordinator) appStatesLocked(apps []configApp) []contract.AppState {
-	out := make([]contract.AppState, 0, len(apps))
-	for _, a := range apps {
+func (c *Coordinator) appStatesLocked(cfg config.Config) []contract.AppState {
+	out := make([]contract.AppState, 0, len(cfg.Applications))
+	for _, a := range cfg.Applications {
 		rt := c.appLocked(a.ID)
 		st := contract.AppState{
 			ID: a.ID, Label: a.Label, Adapter: a.Adapter,
@@ -236,9 +237,30 @@ func (c *Coordinator) appStatesLocked(apps []configApp) []contract.AppState {
 			st.Hidden = st.Hidden || !on
 		}
 		st.Install = c.installForLocked(a, rt) // install.go; owner and shell views only
+		st.Notes = c.appNotes(cfg, a.Adapter)
 		out = append(out, st)
 	}
 	return out
+}
+
+// appNotes is state.applications[].notes: the adapter table's notes, then
+// notes from live data. Today that is one: a streaming site whose chosen
+// browser is marked StreamingUnverified says so.
+func (c *Coordinator) appNotes(cfg config.Config, adapter string) []string {
+	ad, ok := c.opts.Adapters.ForName(adapter)
+	if !ok {
+		return nil
+	}
+	notes := adapters.NotesOf(ad)
+	if spec, web := adapters.WebOf(ad); web && spec.IsStreaming() {
+		if b, ok := adapters.BrowserNamed(cfg.WebBrowserFor(spec)); ok && b.StreamingUnverified {
+			notes = append(notes, fmt.Sprintf("Streaming in %s is unverified: the sites may not play.", b.Label))
+		}
+	}
+	if len(notes) > contract.MaxAppNotes {
+		notes = notes[:contract.MaxAppNotes]
+	}
+	return notes
 }
 
 func (c *Coordinator) anyAppRunningLocked() bool {

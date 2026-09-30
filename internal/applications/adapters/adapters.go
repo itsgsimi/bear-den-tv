@@ -5,7 +5,9 @@
 // web apps may run in (Browsers: Chromium, Brave). Per app: the only Flatpak id it may
 // launch, the closed list of launch arguments, window matching by WM_CLASS
 // (X11) or app_id (Wayland), the action → logical-key map, the MPRIS match, how Home may pause
-// it (HomePause) and the pause verification flag. Everything here
+// it (HomePause), the notes the TV and phones show about it (Notes: short
+// plain sentences, state.applications[].notes) and the pause verification
+// flag. Everything here
 // is unverified against the target until the live probe records evidence in
 // tests/compatibility/; PauseVerified stays false until then.
 package adapters
@@ -127,7 +129,78 @@ type app struct {
 	keys      map[string]platform.Key
 	media     string // MPRIS match when it is not the Flatpak id
 	home      HomePause
+	notes     []string
 }
+
+// Notes returns what the TV and phones say about this app
+// (state.applications[].notes): short plain sentences, true for every box
+// and account, never marketing. The coordinator may add notes from live data
+// (internal/session/state.go, appNotesLocked).
+func (a *app) Notes() []string { return append([]string(nil), a.notes...) }
+
+// NotesOf returns ad's notes, or none for an adapter without any.
+func NotesOf(ad applications.Adapter) []string {
+	if n, ok := ad.(interface{ Notes() []string }); ok {
+		return n.Notes()
+	}
+	return nil
+}
+
+// The notes, one list per adapter. Each fact is checked against the code
+// or docs named beside it; keep them true when behaviour changes.
+var (
+	// No MPRIS player (seen on a TV 2026-09-29), so Home's verified pause
+	// finds nothing (session/homepause.go); Now playing is read from the
+	// owner's Plex server after Settings → Plex (session/plexplaying.go).
+	plexNotes = []string{
+		"Sign in with your Plex account to watch your own Plex server's library.",
+		"Now playing on your phone comes from your Plex server once this TV is signed in (Settings → Plex), and it is read-only.",
+		"Home doesn't pause it: Plex HTPC offers no media controls Bear Den can check.",
+	}
+	// Its own MPRIS player (session/nowplaying.go, homepause.go).
+	vacuumTubeNotes = []string{
+		"VacuumTube is an unofficial YouTube TV client.",
+		"Your phone shows what's playing and can play or pause it.",
+	}
+	// HomePause none; keys reach the streaming host (Moonlight below);
+	// Sunshine or Apollo on the gaming PC (docs/APP_PERFORMANCE.md).
+	moonlightNotes = []string{
+		"Streams games from your gaming PC, which needs Sunshine or Apollo running.",
+		"A controller works best: while a game streams, the remote's arrows go to your gaming PC.",
+		"Home doesn't pause the stream.",
+	}
+	// spotifyKeys: up, down and OK only; HomePause none; the device-list
+	// hint (apps/tv-shell/qml/Apps.qml).
+	spotifyNotes = []string{
+		"Easiest to play from the Spotify app on your phone: pick this TV as the speaker.",
+		"The remote's arrows reach only part of it: up, down and OK in lists.",
+		"Music keeps playing when you go Home.",
+	}
+	jellyfinNotes = []string{
+		"Needs your own Jellyfin server.",
+	}
+	// HomePause key p is a toggle, never sent (session/homepause.go).
+	retroArchNotes = []string{
+		"Bring your own games: RetroArch comes with none.",
+		"A controller works best.",
+		"Home doesn't pause it: its pause key is a toggle Bear Den can't check.",
+	}
+	// About 720p in a Linux browser, Hulu possibly lower (ADR 0010,
+	// docs/APP_PERFORMANCE.md); the phone's touchpad (pointer.*).
+	streamingNotes = []string{
+		"Plays in a browser, where these sites stop at about 720p on Linux.",
+		"The site expects a mouse: use your phone's touchpad for anything the arrows can't reach.",
+		"Sign in with your own account.",
+	}
+	huluNotes = []string{
+		"Plays in a browser, where Hulu stops at about 720p on Linux and may go lower.",
+		"The site expects a mouse: use your phone's touchpad for anything the arrows can't reach.",
+		"Sign in with your own account.",
+	}
+	browserNotes = []string{
+		"For a keyboard, a mouse or your phone's touchpad.",
+	}
+)
 
 // Name implements applications.Adapter.
 func (a *app) Name() string { return a.name }
@@ -234,7 +307,7 @@ func merged(maps ...map[string]platform.Key) map[string]platform.Key {
 // reads it from the owner's Plex server instead (session/plexplaying.go).
 func PlexHTPC() applications.Adapter {
 	return &app{name: PlexHTPCName, flatpakID: PlexHTPCFlatpakID, fragments: plexClassFragments, keys: merged(navKeys, plexMediaKeys),
-		home: HomePause{Kind: "mpris", Why: "A film should wait while you are Home: MPRIS Pause."}}
+		home: HomePause{Kind: "mpris", Why: "A film should wait while you are Home: MPRIS Pause."}, notes: plexNotes}
 }
 
 // VacuumTube returns the VacuumTube adapter: documented fullscreen flags
@@ -245,7 +318,7 @@ func PlexHTPC() applications.Adapter {
 // (platform.MediaMatch), not by MediaMatch's name.
 func VacuumTube() applications.Adapter {
 	return &app{name: VacuumTubeName, flatpakID: VacuumTubeFlatpakID, args: []string{"--fullscreen", "--no-window-decorations"}, fragments: vacuumTubeClassFragments, keys: merged(navKeys),
-		home: HomePause{Kind: "mpris", Why: "A video should wait while you are Home: MPRIS Pause."}}
+		home: HomePause{Kind: "mpris", Why: "A video should wait while you are Home: MPRIS Pause."}, notes: vacuumTubeNotes}
 }
 
 // Moonlight returns the Moonlight adapter: no launch arguments, navigation
@@ -255,7 +328,7 @@ func VacuumTube() applications.Adapter {
 // No MPRIS: media.* stays unmapped.
 func Moonlight() applications.Adapter {
 	return &app{name: MoonlightName, flatpakID: MoonlightFlatpakID, fragments: moonlightClassFragments, keys: merged(navKeys),
-		home: HomePause{Kind: "none", Why: "The game runs on the streaming PC and keys would reach that host, so Home leaves it alone."}}
+		home: HomePause{Kind: "none", Why: "The game runs on the streaming PC and keys would reach that host, so Home leaves it alone."}, notes: moonlightNotes}
 }
 
 // Spotify returns the Spotify adapter (optional app): no launch arguments,
@@ -264,7 +337,7 @@ func Moonlight() applications.Adapter {
 // Flatpak id (UNVERIFIED on the target). Home leaves music playing.
 func Spotify() applications.Adapter {
 	return &app{name: SpotifyName, flatpakID: SpotifyFlatpakID, fragments: spotifyClassFragments, keys: merged(spotifyKeys), media: "spotify",
-		home: HomePause{Kind: "none", Why: "Music keeps playing while you are Home."}}
+		home: HomePause{Kind: "none", Why: "Music keeps playing while you are Home."}, notes: spotifyNotes}
 }
 
 // Jellyfin returns the Jellyfin Desktop adapter (optional app): starts in its
@@ -274,7 +347,7 @@ func Spotify() applications.Adapter {
 // unmapped until verified. Its MPRIS DesktopEntry is the Flatpak id.
 func Jellyfin() applications.Adapter {
 	return &app{name: JellyfinName, flatpakID: JellyfinFlatpakID, args: []string{"--fullscreen", "--tv"}, fragments: jellyfinClassFragments, keys: merged(navKeys),
-		home: HomePause{Kind: "mpris", Why: "A film should wait while you are Home: MPRIS Pause."}}
+		home: HomePause{Kind: "mpris", Why: "A film should wait while you are Home: MPRIS Pause."}, notes: jellyfinNotes}
 }
 
 // RetroArch returns the RetroArch adapter (optional app): full screen
@@ -282,7 +355,7 @@ func Jellyfin() applications.Adapter {
 // Home's pause is the documented pause key p (input_pause_toggle), a toggle.
 func RetroArch() applications.Adapter {
 	return &app{name: RetroArchName, flatpakID: RetroArchFlatpakID, args: []string{"--fullscreen"}, fragments: retroArchClassFragments, keys: merged(retroArchKeys),
-		home: HomePause{Kind: "key", Key: platform.KeyLetterP, Toggle: true, Why: "A game should wait while you are Home: RetroArch's pause key (p, input_pause_toggle)."}}
+		home: HomePause{Kind: "key", Key: platform.KeyLetterP, Toggle: true, Why: "A game should wait while you are Home: RetroArch's pause key (p, input_pause_toggle)."}, notes: retroArchNotes}
 }
 
 // Web adapter names (config adapter, contracts/config.md rule 11).
@@ -356,7 +429,7 @@ func OwnFlatpakIcon(ad applications.Adapter) bool {
 	return true
 }
 
-func newWeb(name, mode, hints string) applications.Adapter {
+func newWeb(name, mode, hints string, notes []string) applications.Adapter {
 	class := WebClassPrefix + name
 	return &webApp{
 		app: app{name: name, flatpakID: ChromiumFlatpakID, fragments: []string{strings.ToLower(class)}, keys: map[string]platform.Key{},
@@ -365,7 +438,8 @@ func newWeb(name, mode, hints string) applications.Adapter {
 			// never matches the bare "chromium" bus name, which
 			// Electron apps such as VacuumTube use too.
 			media: ChromiumFlatpakID,
-			home:  HomePause{Kind: "page", Why: "A film should wait while you are Home: the site's own pause key, only when the page reports a playing video."}},
+			home:  HomePause{Kind: "page", Why: "A film should wait while you are Home: the site's own pause key, only when the page reports a playing video."},
+			notes: notes},
 		web: WebSpec{Mode: mode, Hints: hints, Class: class},
 	}
 }
@@ -507,17 +581,21 @@ func (r *Registry) InstallableFlatpakIDs() []string {
 
 // Netflix returns the Netflix web adapter (Chromium app window, hints
 // netflix.json). Plays at up to 720p in a Linux browser.
-func Netflix() applications.Adapter { return newWeb(NetflixName, WebModeApp, "netflix") }
+func Netflix() applications.Adapter {
+	return newWeb(NetflixName, WebModeApp, "netflix", streamingNotes)
+}
 
 // DisneyPlus returns the Disney+ web adapter.
-func DisneyPlus() applications.Adapter { return newWeb(DisneyPlusName, WebModeApp, "disney-plus") }
+func DisneyPlus() applications.Adapter {
+	return newWeb(DisneyPlusName, WebModeApp, "disney-plus", streamingNotes)
+}
 
 // Hulu returns the Hulu web adapter.
-func Hulu() applications.Adapter { return newWeb(HuluName, WebModeApp, "hulu") }
+func Hulu() applications.Adapter { return newWeb(HuluName, WebModeApp, "hulu", huluNotes) }
 
 // Browser returns the Browser adapter: ordinary Chromium in its own
 // profile, for keyboard and mouse, with the navigation script too.
-func Browser() applications.Adapter { return newWeb(BrowserName, WebModeBrowser, "") }
+func Browser() applications.Adapter { return newWeb(BrowserName, WebModeBrowser, "", browserNotes) }
 
 // Registry resolves config adapter names to adapters.
 type Registry struct {

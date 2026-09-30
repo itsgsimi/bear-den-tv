@@ -20,15 +20,6 @@ import (
 	"bear-den-tv/internal/shellipc"
 )
 
-// sendSetup sends one setup message from the shell and waits for its reply.
-func (h *harness) sendSetup(m shellipc.Message, id string) shellipc.Result {
-	h.t.Helper()
-	if err := h.shell.Send(m); err != nil {
-		h.t.Fatal(err)
-	}
-	return h.shellResult(id)
-}
-
 // noSetupForPhones checks that phones and anonymous viewers never get
 // onboarding or autostart.
 func (h *harness) noSetupForPhones() {
@@ -51,7 +42,7 @@ func TestOnboardingCompletePersists(t *testing.T) {
 		t.Fatalf("a fresh box is not set up: %+v", st.Onboarding)
 	}
 	rev := h.c.opts.Config.Revision()
-	if r := h.sendSetup(shellipc.OnboardingComplete{Type: shellipc.TypeOnboardingComplete, RequestID: "ob-1"}, "ob-1"); !r.OK || r.Error != "" {
+	if r := h.shellSend(shellipc.OnboardingComplete{Type: shellipc.TypeOnboardingComplete, RequestID: "ob-1"}, "ob-1"); !r.OK || r.Error != "" {
 		t.Fatalf("onboarding.complete refused: %+v", r)
 	}
 	if got := h.c.opts.Config.Revision(); got != rev+1 {
@@ -75,7 +66,7 @@ func TestOnboardingCompletePersists(t *testing.T) {
 	if _, err := contract.MarshalAndValidateState(st); err != nil {
 		t.Fatalf("shell state is invalid: %v", err)
 	}
-	if r := h.sendSetup(shellipc.OnboardingComplete{Type: shellipc.TypeOnboardingComplete, RequestID: "ob-2"}, "ob-2"); !r.OK {
+	if r := h.shellSend(shellipc.OnboardingComplete{Type: shellipc.TypeOnboardingComplete, RequestID: "ob-2"}, "ob-2"); !r.OK {
 		t.Fatalf("a second onboarding.complete refused: %+v", r)
 	}
 	h.noSetupForPhones()
@@ -84,7 +75,7 @@ func TestOnboardingCompletePersists(t *testing.T) {
 // A box whose owner already turned the phone remote on counts as set up.
 func TestRemoteConfigureCompletesOnboarding(t *testing.T) {
 	h := newHarness(t)
-	if r := h.sendSetup(shellipc.RemoteConfigure{Type: shellipc.TypeRemoteConfigure, RequestID: "rc-1", Enabled: true, LANConsent: true, Transport: "trusted-lan-http", Interface: "eth0"}, "rc-1"); !r.OK {
+	if r := h.shellSend(shellipc.RemoteConfigure{Type: shellipc.TypeRemoteConfigure, RequestID: "rc-1", Enabled: true, LANConsent: true, Transport: "trusted-lan-http", Interface: "eth0"}, "rc-1"); !r.OK {
 		t.Fatalf("remote.configure refused: %+v", r)
 	}
 	if !h.c.opts.Config.Current().Onboarding.Completed {
@@ -104,7 +95,7 @@ func TestAutostartConfigureWritesAndRemovesTheEntry(t *testing.T) {
 	if a := h.c.buildState(viewShell).Autostart; a == nil || a.Enabled || !a.Available || a.Reason != "" {
 		t.Fatalf("before: %+v", a)
 	}
-	if r := h.sendSetup(shellipc.AutostartConfigure{Type: shellipc.TypeAutostartConfigure, RequestID: "as-1", Enabled: true}, "as-1"); !r.OK {
+	if r := h.shellSend(shellipc.AutostartConfigure{Type: shellipc.TypeAutostartConfigure, RequestID: "as-1", Enabled: true}, "as-1"); !r.OK {
 		t.Fatalf("autostart on refused: %+v", r)
 	}
 	raw, err := os.ReadFile(entry)
@@ -123,7 +114,7 @@ func TestAutostartConfigureWritesAndRemovesTheEntry(t *testing.T) {
 	}
 	h.noSetupForPhones()
 
-	if r := h.sendSetup(shellipc.AutostartConfigure{Type: shellipc.TypeAutostartConfigure, RequestID: "as-2"}, "as-2"); !r.OK {
+	if r := h.shellSend(shellipc.AutostartConfigure{Type: shellipc.TypeAutostartConfigure, RequestID: "as-2"}, "as-2"); !r.OK {
 		t.Fatalf("autostart off refused: %+v", r)
 	}
 	if _, err := os.Stat(entry); !errors.Is(err, os.ErrNotExist) {
@@ -132,7 +123,7 @@ func TestAutostartConfigureWritesAndRemovesTheEntry(t *testing.T) {
 	if a := h.c.buildState(viewShell).Autostart; a.Enabled {
 		t.Fatalf("after off: %+v", a)
 	}
-	if r := h.sendSetup(shellipc.AutostartConfigure{Type: shellipc.TypeAutostartConfigure, RequestID: "as-3"}, "as-3"); !r.OK {
+	if r := h.shellSend(shellipc.AutostartConfigure{Type: shellipc.TypeAutostartConfigure, RequestID: "as-3"}, "as-3"); !r.OK {
 		t.Fatalf("off with nothing there refused: %+v", r)
 	}
 }
@@ -146,7 +137,7 @@ func TestAutostartWithoutStartScriptFailsClosed(t *testing.T) {
 			return "", errors.New("start script not found for " + home + "/bin/bear-den-tv")
 		}}
 	})
-	r := h.sendSetup(shellipc.AutostartConfigure{Type: shellipc.TypeAutostartConfigure, RequestID: "as-1", Enabled: true}, "as-1")
+	r := h.shellSend(shellipc.AutostartConfigure{Type: shellipc.TypeAutostartConfigure, RequestID: "as-1", Enabled: true}, "as-1")
 	if r.OK || r.Error != reasonAutostartScript {
 		t.Fatalf("want ok false with %q, got %+v", reasonAutostartScript, r)
 	}
@@ -164,11 +155,11 @@ func TestAutostartWithoutStartScriptFailsClosed(t *testing.T) {
 
 func TestAutostartUnavailableWithoutSupport(t *testing.T) {
 	h := newHarness(t)
-	r := h.sendSetup(shellipc.AutostartConfigure{Type: shellipc.TypeAutostartConfigure, RequestID: "as-1", Enabled: true}, "as-1")
+	r := h.shellSend(shellipc.AutostartConfigure{Type: shellipc.TypeAutostartConfigure, RequestID: "as-1", Enabled: true}, "as-1")
 	if r.OK || r.Error != reasonAutostartSession {
 		t.Fatalf("want ok false with %q, got %+v", reasonAutostartSession, r)
 	}
-	if r := h.sendSetup(shellipc.AutostartConfigure{Type: shellipc.TypeAutostartConfigure, RequestID: "as-2"}, "as-2"); r.OK {
+	if r := h.shellSend(shellipc.AutostartConfigure{Type: shellipc.TypeAutostartConfigure, RequestID: "as-2"}, "as-2"); r.OK {
 		t.Fatalf("off accepted without support: %+v", r)
 	}
 	if a := h.c.buildState(viewShell).Autostart; a == nil || a.Available || a.Enabled || a.Reason != reasonAutostartSession {

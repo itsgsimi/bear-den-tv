@@ -362,7 +362,17 @@ type AppState struct {
 	// Install is the app's Flatpak install from Flathub; shell and owner
 	// phones only (state.schema.json#/$defs/install).
 	Install *Install `json:"install,omitempty"`
+	// Notes are short plain sentences about the app for the shell and
+	// phones (the adapter table's, plus any the coordinator derives):
+	// at most MaxAppNotes, each 1..MaxAppNoteLen characters, no URLs.
+	Notes []string `json:"notes,omitempty"`
 }
+
+// Limits of state.applications[].notes.
+const (
+	MaxAppNotes   = 6
+	MaxAppNoteLen = 160
+)
 
 // Install states (state.schema.json#/$defs/install).
 const (

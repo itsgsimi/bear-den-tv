@@ -81,7 +81,13 @@
           "last_error": {"type": ["string", "null"]},
           "hidden": {"type": "boolean", "description": "true when the app is optional (config hide_when_missing) and its Flatpak is not installed (or not yet discovered): the shell and phones show no tile for it. Absent means false. Also true for an app the owner turned off (enabled false)."},
           "enabled": {"type": "boolean", "description": "Present only for apps the owner can turn on and off on the TV (web adapters: Settings -> Streaming sites, IPC app.enable); false means turned off, and then hidden is true. Absent for every other app."},
-          "install": {"$ref": "#/$defs/install"}
+          "install": {"$ref": "#/$defs/install"},
+          "notes": {
+            "type": "array",
+            "maxItems": 6,
+            "description": "What the owner should know about this app, as short plain sentences (caveats, what it needs, what the remote reaches), for the shell and every phone. The adapter table's notes (internal/applications/adapters, Notes) plus notes the coordinator derives from live data, such as an unverified streaming browser. Absent when there are none; older coordinators never send it.",
+            "items": {"type": "string", "minLength": 1, "maxLength": 160, "not": {"pattern": "://|[Ww][Ww][Ww]\\."}, "description": "One sentence; never a URL."}
+          }
         },
         "required": ["id", "label", "adapter", "installed", "version", "installation", "running", "foreground", "launch_state", "last_error"],
         "additionalProperties": false

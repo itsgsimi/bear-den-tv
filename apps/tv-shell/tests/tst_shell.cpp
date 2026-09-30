@@ -1588,6 +1588,39 @@ private slots:
         QVERIFY(session->autostart().isEmpty());
     }
 
+    // state.applications[].notes: accepted as an array of strings and passed
+    // through Session.application(id); anything else rejects the snapshot.
+    void appNotesAcceptedAndChecked()
+    {
+        SessionModel *session = SessionModel::instance();
+        const int epoch = session->contextEpoch();
+        QJsonObject snap = fixture();
+        snap.insert(QStringLiteral("context_epoch"), epoch + 1000);
+        QJsonArray apps = snap.value(QStringLiteral("applications")).toArray();
+        QJsonObject first = apps.at(0).toObject();
+        const QString id = first.value(QStringLiteral("id")).toString();
+        first.insert(QStringLiteral("notes"), QJsonArray{QStringLiteral("A controller works best."), QStringLiteral("Home doesn't pause the stream.")});
+        apps.replace(0, first);
+        snap.insert(QStringLiteral("applications"), apps);
+        QVERIFY2(session->applySnapshot(snap), qPrintable(session->lastError()));
+        QCOMPARE(session->application(id).value(QStringLiteral("notes")).toStringList(),
+                 QStringList({QStringLiteral("A controller works best."), QStringLiteral("Home doesn't pause the stream.")}));
+
+        snap.insert(QStringLiteral("context_epoch"), epoch + 1100);
+        for (const QJsonValue &bad : {QJsonValue(QStringLiteral("A controller works best.")), QJsonValue(QJsonArray{QStringLiteral("ok"), 3}), QJsonValue(QJsonObject{})}) {
+            QJsonObject broken = first;
+            broken.insert(QStringLiteral("notes"), bad);
+            QJsonArray brokenApps = apps;
+            brokenApps.replace(0, broken);
+            QJsonObject brokenSnap = snap;
+            brokenSnap.insert(QStringLiteral("applications"), brokenApps);
+            QVERIFY(!session->applySnapshot(brokenSnap));
+            QVERIFY2(session->lastError().contains(QStringLiteral("notes")), qPrintable(session->lastError()));
+        }
+        QCOMPARE(session->contextEpoch(), epoch + 1000); // the previous state stays
+        QVERIFY(session->applySnapshot(fixture()));
+    }
+
     // Shell.completeOnboarding and Shell.setAutostart send the IPC messages
     // (recorded offline).
     void setupRequestsAreSent()

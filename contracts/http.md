@@ -82,6 +82,10 @@ and after an install).
 
 An application whose config has `hide_when_missing: true` ([`config.md`](config.md#optional-apps-optional-field)) carries `hidden: true` while its Flatpak is not installed or not yet discovered. Phones and the shell draw no tile for a hidden app; it stays in the list so layout editors still see it. Absent means `false`.
 
+## App notes (`state.applications[].notes`)
+
+Every application may carry `notes`: 0..6 short plain sentences (each 1..160 characters, never a URL) saying what the owner should know about it: what it needs (a Plex or Jellyfin server, Sunshine on the gaming PC), what the remote reaches, whether Home pauses it, and the streaming sites' picture limit in a Linux browser. The shell and every phone get the same notes; absent means none (and older coordinators never send them). The source is the adapter table (`Notes` in [`internal/applications/adapters`](../internal/applications/adapters/adapters.go)); the coordinator adds notes from live data after them. Today that is one: while the streaming sites run in a browser marked `streaming_unverified` (`state.apps.browsers`), Netflix, Disney+ and Hulu add "Streaming in Brave is unverified: the sites may not play.". Notes are facts for this box and any account, never marketing; the phone and the TV show them as they are.
+
 ## App installs (`state.applications[].install`)
 
 The shell and **owner** phones get `install` on every application and `state.apps` (`{"auto_update": true|false, "browser", "streaming_browser", "browsers": [{"id", "label", "flatpak_id", "streaming_unverified"}]}`: config `apps.auto_update`, the web apps' browsers, and the browser table; the last three are absent from older coordinators). Family (`controller`) phones, layout editors, guest passes and anonymous viewers never do (the schema rejects it), so they draw no install controls. Apps that share a Flatpak share one install: the web apps show their browser's (Chromium's by default).

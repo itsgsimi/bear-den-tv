@@ -208,6 +208,18 @@ bool SessionModel::validateSnapshot(const QJsonObject &snapshot, QString *error)
                 *error = QStringLiteral("state.applications[].enabled must be a boolean");
             return false;
         }
+        // Optional: what the owner should know about the app, as short sentences.
+        if (app.contains(QStringLiteral("notes"))) {
+            const QJsonValue notes = app.value(QStringLiteral("notes"));
+            bool ok = notes.isArray();
+            for (const QJsonValue &n : notes.toArray())
+                ok = ok && n.isString();
+            if (!ok) {
+                if (error)
+                    *error = QStringLiteral("state.applications[].notes must be an array of strings");
+                return false;
+            }
+        }
         // Optional: the app's install from Flathub (state.schema.json#/$defs/install).
         if (app.contains(QStringLiteral("install"))) {
             const QString where = QStringLiteral("state.applications[].install");

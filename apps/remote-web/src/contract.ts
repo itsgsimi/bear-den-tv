@@ -236,6 +236,8 @@ export interface Application {
   enabled?: boolean;
   /** The app's install from Flathub: owner phones only (state.schema.json#/$defs/install). */
   install?: Install;
+  /** What the owner should know about the app: 0..6 short plain sentences (1..160 characters, no URLs). */
+  notes?: string[];
 }
 
 export type InstallState = 'none' | 'available' | 'preparing' | 'downloading' | 'installing' | 'failed' | 'done';
