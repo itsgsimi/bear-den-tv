@@ -1,5 +1,5 @@
 // The web apps' browser (owner decision, docs/decisions/0013-brave-as-a-browser-choice.md):
-// IPC apps.browser (TV Settings → Streaming sites) stores config
+// IPC apps.browser (TV Apps → Streaming sites) stores config
 // apps.browser (the Browser tile) and apps.streaming_browser (the streaming
 // sites), each a browser from the adapter table (adapters.Browsers), and in
 // the same config write moves every web app's launch.app_id to its

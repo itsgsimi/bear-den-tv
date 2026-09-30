@@ -105,8 +105,8 @@ coordinator run `flatpak install --user --noninteractive -y flathub <id>`
 for that app's Flatpak id from the adapter table (Chromium for the web
 apps): per user, no root, from Flathub only. The card and the tile show the
 progress from state pushes; when it is done the app opens if you are still
-on its card or tile. Settings → Add apps lists everything missing, and
-Settings → Keep apps up to date updates this user's installs once a day
+on its card or tile. Apps → Add apps lists everything missing, and
+Apps → Keep apps up to date updates this user's installs once a day
 while nothing is on screen. After Chromium, each enabled streaming site's
 profile runs once, headless, so Chromium fetches Widevine. Details:
 [ADR 0011](decisions/0011-per-user-flathub-installs.md),
@@ -229,7 +229,7 @@ the posters. Selecting a card opens Plex HTPC. Code: `internal/plexlink`,
 ## Den badges
 
 A few local counters (apps opened, days Home was shown, rainy days, guest
-passes, ...) earn playful badges, shown in TV Settings → Badges and on
+passes, ...) earn playful badges, shown in TV Themes → Den badges and on
 controller phones. Only ids, counts and days are stored, in `state.db`;
 counting can be turned off and reset
 ([ADR 0009](decisions/0009-den-badges-local-counters.md)).
@@ -238,7 +238,7 @@ counting can be turned off and reset
 
 Each tile shows, in order: the owner's brand folder icon, then (by default)
 the icon the installed Flatpak exports when that Flatpak is the app itself,
-then Bear Den's own drawing, then a monogram. Settings → App icons → Bear
+then Bear Den's own drawing, then a monogram. Themes → App icons → Bear
 Den style skips the app's own. Phones get the same icon as a sanitised PNG
 from the coordinator ([ADR 0012](decisions/0012-app-icons-apps-own-by-default.md)).
 

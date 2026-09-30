@@ -14,13 +14,13 @@ arguments, how to find its window, and which key each action becomes.
 **App icons (setting).** Which icon an app's tile shows: *App's own* (the
 default: the icon the installed Flatpak exports, when that Flatpak is the app
 itself) or *Bear Den style* (Bear Den's own drawing). The owner's brand folder
-wins either way. TV Settings → App icons, the phone's Layout; layout
+wins either way. TV Themes → App icons, the phone's Layout; layout
 `ui.app_icons`. [ADR 0012](decisions/0012-app-icons-apps-own-by-default.md),
 [`THEMES.md` → App icons](THEMES.md#app-icons).
 
 **Art style.** *Pixel* (the default: everything on one pixel grid) or
 *Classic* (smooth drawings and pictures), independent of the theme and the
-style. TV Settings → Art style; layout `ui.art_style`.
+style. TV Themes → Art style; layout `ui.art_style`.
 [ADR 0005](decisions/0005-pixel-art.md), [ADR 0006](decisions/0006-classic-art-style.md).
 
 **Badges.** See *Den badges*.
@@ -81,7 +81,7 @@ always labelled DEMO ([`internal/providers/fixtures/`](../internal/providers/fix
 [`DemoBadge.qml`](../apps/tv-shell/qml/DemoBadge.qml)).
 
 **Den badges.** Playful badges ("Movie Night", "Night Owl", ...) earned from
-a few local counters on the TV: TV Settings → Badges, the phone's Badges tab.
+a few local counters on the TV: TV Themes → Den badges, the phone's Badges tab.
 Only ids, counts and days are kept, never what was watched
 ([ADR 0009](decisions/0009-den-badges-local-counters.md),
 [`internal/achievements`](../internal/achievements/achievements.go)).
@@ -142,7 +142,7 @@ for a web app, nothing for the others. `HomePause` in
 [`internal/session/homepause.go`](../internal/session/homepause.go).
 
 **Install card.** The TV dialog that opens from a "Not installed" tile,
-Settings → Add apps, or a streaming site turned on without Chromium: the
+Apps → Add apps, or a streaming site turned on without Chromium: the
 app, its download and disk size, Install / Not now, then progress. It says
 why when installs are unavailable (for example no Flatpak).
 [`InstallCard.qml`](../apps/tv-shell/qml/InstallCard.qml),
@@ -181,7 +181,7 @@ interface and consent to LAN exposure. Nothing listens on the LAN before this.
 
 **Optional app.** An app Bear Den supports but does not expect: Spotify,
 Jellyfin Desktop and RetroArch. Its tile appears only once its Flatpak is
-installed (`hide_when_missing`), and Settings → Add apps offers it.
+installed (`hide_when_missing`), and Apps → Add apps offers it.
 [`internal/applications/adapters`](../internal/applications/adapters/adapters.go).
 
 **Ornament.** A small decoration image (a daisy, a snowflake, an ember) that a
@@ -253,7 +253,7 @@ press wakes the display. Phone Remote → Sleep, TV Settings → Sleep timer.
 [`operations.md`](operations.md#sleep-timer-and-screen-off).
 
 **Streaming sites.** Netflix, Disney+ and Hulu as web apps, off by default
-and turned on per site in TV Settings → Streaming sites. They play at up to
+and turned on per site in TV Apps → Streaming sites. They play at up to
 about 720p in a Linux browser. See *Web app*.
 
 **Target.** Two meanings. (1) In the state: what the coordinator believes is
@@ -291,7 +291,7 @@ the clock and, if chosen, rain or snow in the Home scene. Phones never see it.
 **Web app.** A website Bear Den runs as an app (Netflix, Disney+, Hulu, the
 Browser tile): Flathub Chromium with its own profile, driven over the
 DevTools pipe with the navigation script (web-nav). The three streaming sites
-are off until the owner turns them on (Settings → Streaming sites).
+are off until the owner turns them on (Apps → Streaming sites).
 [`internal/applications/web`](../internal/applications/web/web.go),
 [ADR 0010](decisions/0010-web-apps-over-cdp-pipe.md).
 

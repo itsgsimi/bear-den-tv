@@ -51,7 +51,7 @@ func cmdThemes(args []string) error {
 			return fmt.Errorf("%s is not a valid theme (%d problem(s))", dir, len(errs))
 		}
 		fmt.Printf("%s: valid theme %q (%s)\n", dir, t.ID, t.Name)
-		fmt.Println("Preview it: BDTV_THEMES_DIR=" + filepath.Dir(dir) + " and pick it in Settings → Theme, or see docs/THEMES.md → Preview.")
+		fmt.Println("Preview it: BDTV_THEMES_DIR=" + filepath.Dir(dir) + " and pick it on the TV's Themes page, or see docs/THEMES.md → Preview.")
 		return nil
 	}
 	return errors.New("usage: bear-den-tv themes list | themes validate <dir> | themes path")

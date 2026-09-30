@@ -229,7 +229,7 @@ func (c *Coordinator) appStatesLocked(cfg config.Config) []contract.AppState {
 		st.Running = st.Foreground || rt.launchState == "running" || rt.instance != nil
 		// An optional app has no tile until discovery has seen it installed.
 		st.Hidden = a.HideWhenMissing && !st.Installed
-		// A web app the owner can turn on and off (Settings → Streaming
+		// A web app the owner can turn on and off (Apps → Streaming
 		// sites) says so; turned off, it has no tile.
 		if c.isWebAdapter(a.Adapter) {
 			on := a.IsEnabled()

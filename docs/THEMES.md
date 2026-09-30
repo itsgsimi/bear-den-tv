@@ -16,7 +16,7 @@ no rebuild.
 By default Bear Den is **pixel art** everywhere: the worlds, the bears, the
 ornaments, the decorations and the boxes on screen are all drawn on one grid
 of art pixels (see [Pixel art](#pixel-art)). Text and the apps' own icons stay
-smooth. The **Classic** art style (Settings → Art style) draws the same things
+smooth. The **Classic** art style (Themes → Art style) draws the same things
 smooth instead (see [Classic art](#classic-art)).
 
 - Manifest spec: [`contracts/theme.schema.json`](../contracts/theme.schema.json)
@@ -43,13 +43,13 @@ More terms: [`docs/GLOSSARY.md`](GLOSSARY.md).
 | `themes/<id>/` in the repository | Built-in themes: `den`, `forest`, `midnight`, `campfire`, `winter`. They are compiled into the TV shell (`:/themes/<id>/`) and embedded in the coordinator (`bdtv.Themes`). A change here needs a rebuild and a deploy. |
 | `~/.local/share/bear-den-tv/themes/<id>/` on the TV (`$XDG_DATA_HOME/bear-den-tv/themes`; `$BDTV_THEMES_DIR` overrides) | Your themes. The TV shell picks them up when Settings opens, phones within 10 s. No rebuild, no restart. A theme with a built-in's id overrides the built-in. `bear-den-tv themes path` prints this folder. |
 
-**Settings → Style → Plain** (`layout.ui.theme: "plain-dark"`) keeps any
+**Themes → Style → Plain** (`layout.ui.theme: "plain-dark"`) keeps any
 theme's wallpaper and colours and turns every decoration off. **Performance**
 (`"performance"`) goes further: no bears at all (visits, scenes, the launch
 cub, the screensaver bear; the logo stays) and nothing animates, on the TV or
 the phone. It is Plain with reduced motion forced on.
 
-**Settings → Art style** (`layout.ui.art_style`) is separate from Style:
+**Themes → Art style** (`layout.ui.art_style`) is separate from Style:
 **Pixel** (the default; everything is pixel art on one grid, see
 [Pixel art](#pixel-art)) or **Classic** (smooth vector art and pictures). In
 Classic a theme shows its `classic` wallpaper and phone backdrop, and every
@@ -188,7 +188,7 @@ Done when:
 - the sandbox screenshots show your accent on the focus ring, your
   decoration around the focused tile and your particles, and you looked at
   them;
-- Settings → Theme on the TV offers it.
+- The Themes page on the TV offers it.
 
 A minimal manifest is valid and simply has no decorations:
 
@@ -225,7 +225,7 @@ Unknown keys are rejected, so typos show up in `themes validate`.
 |---|---|---|---|
 | `schema` | `1` | required | Manifest format version. |
 | `id` | `^[a-z][a-z0-9-]{1,31}$` | required | Must equal the folder name; stored in `layout.ui.background`. |
-| `name` | string ≤ 32 | required | Shown in Settings → Theme and on phones. |
+| `name` | string ≤ 32 | required | Shown on the Themes page and on phones. |
 | `description` | string ≤ 200 | "" | For people browsing themes. |
 | `aliases` | ids | [] | Older values that mean this theme. |
 | `accent` | `#RRGGBB` | required | Focus ring, buttons, highlights (TV and phone). Applied when the theme is picked. |
@@ -564,7 +564,7 @@ pixel art on one grid; [Classic art](#classic-art) is the smooth twin.
 
 ## Classic art
 
-**Settings → Art style → Classic** (`layout.ui.art_style: "classic"`) swaps
+**Themes → Art style → Classic** (`layout.ui.art_style: "classic"`) swaps
 every piece of pixel art for a smooth one, with the same content and motion
 ([ADR 0006](decisions/0006-classic-art-style.md)):
 
@@ -889,7 +889,7 @@ is a streaming site, or its Flatpak exports none).
   (`pixel/app-<adapter>.png`, `app-<adapter>.svg`); the remote's app tiles use
   them (`AppArt` in `icons.tsx`) whenever the coordinator has no icon of the
   app's own for them.
-- **App's own or Bear Den style** (Settings → App icons, the phone's Layout;
+- **App's own or Bear Den style** (Themes → App icons, the phone's Layout;
   layout `ui.app_icons`, owner decision: the app's own by default;
   [ADR 0012](decisions/0012-app-icons-apps-own-by-default.md)).
 - **Order**, everywhere an app is shown (TV tiles, the featured panel and

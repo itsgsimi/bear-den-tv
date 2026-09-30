@@ -240,7 +240,7 @@ func (c *Coordinator) pauseWebForHome(ctx context.Context, target contract.Targe
 	return map[string]any{"paused": paused}
 }
 
-// setAppEnabled is IPC app.enable (TV Settings → Streaming sites): turns a
+// setAppEnabled is IPC app.enable (TV Apps → Streaming sites): turns a
 // web app on or off in config.json. Anything but a web app fails closed.
 func (c *Coordinator) setAppEnabled(_ context.Context, appID string, enabled bool) error {
 	app, ok := c.opts.Config.Current().Application(appID)

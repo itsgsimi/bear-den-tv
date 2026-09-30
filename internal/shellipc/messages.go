@@ -355,7 +355,7 @@ type RemoteNowPlaying struct {
 // Kind implements Message.
 func (RemoteNowPlaying) Kind() string { return TypeRemoteNowPlaying }
 
-// AppEnable turns one web app on or off (TV Settings → Streaming sites);
+// AppEnable turns one web app on or off (TV Apps → Streaming sites);
 // stored as config applications[].enabled. Only web adapters can be turned
 // off; anything else fails closed. Answered with Result.
 type AppEnable struct {

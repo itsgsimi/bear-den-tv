@@ -17,16 +17,16 @@ is in **Settings**; from a terminal on the TV the same commands are
 | Turn on the phone remote | Settings → Phone remote | `bear-den-tv remote enable --interface IF --accept-lan-exposure` | [Phone remote](#phone-remote) |
 | Pair a phone, or give a guest pass | Settings → Pair a phone | `bear-den-tv pair [--guest tonight\|24h\|7d]` | [Phone remote](#phone-remote), [Guest passes](#guest-passes) |
 | Remove a phone | Settings → Paired phones | `bear-den-tv devices revoke <id\|*>` | [Phone remote](#phone-remote) |
-| Install, update or remove apps | a "Not installed" tile, Settings → Add apps, Keep apps up to date | `bear-den-tv apps install <app-id>`, `flatpak uninstall --user <id>` | [App installs](#app-installs) |
-| Turn on Netflix, Disney+ or Hulu | Settings → Streaming sites | — | [Streaming sites and the Browser](#streaming-sites-and-the-browser) |
+| Install, update or remove apps | a "Not installed" tile, Apps → Add apps, Keep apps up to date | `bear-den-tv apps install <app-id>`, `flatpak uninstall --user <id>` | [App installs](#app-installs) |
+| Turn on Netflix, Disney+ or Hulu | Apps → Streaming sites | — | [Streaming sites and the Browser](#streaming-sites-and-the-browser) |
 | Sign the TV in to Plex | Settings → Plex | `bear-den-tv plex sign-in` | [Plex](#plex) |
 | Playback settings per app | Settings → Playback, Advanced playback | `bear-den-tv apps detect [--apply]` | [App playback settings](#app-playback-settings) |
 | Sleep timer, screen off | Settings → Sleep timer, Turn the screen off | — (the phone's Sleep section) | [Sleep timer and screen off](#sleep-timer-and-screen-off) |
 | TV power and volume over HDMI-CEC | Settings → TV control over HDMI (CEC) | — | [TV control over HDMI-CEC](#tv-control-over-hdmi-cec) |
 | Now playing on phones | Settings → Now playing on phones | — | [Phone remote](#phone-remote) |
-| Den badges | Settings → Badges | `bear-den-tv badges status\|on\|off\|reset` | [Den badges](#den-badges) |
+| Den badges | Themes → Den badges | `bear-den-tv badges status\|on\|off\|reset` | [Den badges](#den-badges) |
 | Local weather | Settings → Weather | `bear-den-tv weather ...` | [Local weather](#local-weather) |
-| Theme, style, art style, app icons | Settings → Theme, Style, Art style, App icons | `bear-den-tv themes list` | [Themes](#themes), [App icons](#app-icons) |
+| Theme, style, art style, app icons | Themes (top bar): Theme, Style, Art style, App icons | `bear-den-tv themes list` | [Themes](#themes), [App icons](#app-icons) |
 | Run on Wayland | — | `bear-den-tv doctor --probe` | [Wayland](#wayland) |
 | See what's wrong | Settings → Diagnostics | `bear-den-tv doctor` | [Diagnostics](#diagnostics) |
 
@@ -110,7 +110,7 @@ that started with Plex, YouTube and Moonlight: Spotify, Jellyfin,
 RetroArch, Netflix, Disney+, Hulu and the Browser), exactly as a fresh
 install has them: the optional apps and the Browser show no tile until
 they are installed, and the streaming sites stay off until you turn them on
-in Settings → Streaming sites. Their ids go at the end of your "Your Apps"
+in Apps → Streaming sites. Their ids go at the end of your "Your Apps"
 section (the section with id `favorites`), if you still have one. The
 change is written like any other (a new revision, a copy in
 `config.history/`, the last-known-good file) and logged as `config: added
@@ -413,7 +413,7 @@ on phones. [`docs/THEMES.md`](THEMES.md) is the theme designer's guide.
 
 ## App icons
 
-**Settings → App icons** (or App icons in the phone's Layout editor) chooses
+**Themes → App icons** (or App icons in the phone's Layout editor) chooses
 what each tile shows: **App's own** (the default) is the icon the installed
 Flatpak exports; **Bear Den style** is Bear Den's own drawing. An app that is
 not installed, and the streaming sites (they run in Chromium), show Bear
@@ -639,7 +639,7 @@ like. Everything stays in `state.db` on the TV and only ids, counts and days
 are kept, never titles or times ([`docs/security.md`](security.md#den-badges)).
 Controller phones can look at the shelf; guests cannot.
 
-On the TV: **Settings → Badges** shows the shelf (earned medals with the day,
+On the TV: **Themes → Den badges** shows the shelf (earned medals with the day,
 the rest as silhouettes with a hint and progress). **Counting** turns counting
 off or on; **Reset badges** asks, then deletes everything. A badge earned
 while an app is in front is celebrated the next time Home appears.
@@ -665,12 +665,12 @@ ordinary Chromium for keyboard and mouse. Design:
 verified: [`IMPLEMENTATION_STATUS.md`](IMPLEMENTATION_STATUS.md).
 
 1. **Chromium from Flathub:** turning a site on while Chromium is missing
-   opens the install card for it (or Settings → Add apps → Chromium; one
+   opens the install card for it (or Apps → Add apps → Chromium; one
    press, per user, see [App installs](#app-installs)). By hand:
    `flatpak install --user flathub org.chromium.Chromium`. Until it is
    installed the four tiles stay hidden. Bear Den uses only this Chromium,
    never Google Chrome.
-2. **Turn a site on:** TV Settings → Streaming sites, OK on Netflix, Disney+
+2. **Turn a site on:** TV Apps → Streaming sites, OK on Netflix, Disney+
    or Hulu (they are off by default; the Browser is on). The tile appears on
    Home with "Up to 720p" until it is first opened. Turning a site off hides
    its tile; its profile and sign-in stay.
@@ -742,7 +742,7 @@ press ([ADR 0011](decisions/0011-per-user-flathub-installs.md)): no sudo, no
 password, nothing system-wide.
 
 - **On the TV:** OK on a "Not installed" tile opens the install card (size,
-  "From Flathub", Install / Not now). Settings → Add apps lists every app
+  "From Flathub", Install / Not now). Apps → Add apps lists every app
   Bear Den knows that is not installed, including Chromium ("Browser for
   Netflix, Disney+, Hulu"); turning a streaming site on while Chromium is
   missing offers Chromium the same way. Back hides the card; the install
@@ -760,7 +760,7 @@ password, nothing system-wide.
   https://dl.flathub.org/repo/flathub.flatpakrepo`, `flatpak remote-info
   --user flathub <id>`, `flatpak install --user --noninteractive -y flathub
   <id>`, `flatpak info --user <id>`.
-- **Updates:** Settings → Keep apps up to date (on by default): once a day,
+- **Updates:** Apps → Keep apps up to date (on by default): once a day,
   while Bear Den is in front with no app running, `flatpak update --user
   --noninteractive -y` for the apps this user installed. Opening an app stops
   it. Apps installed system-wide are updated by the system.

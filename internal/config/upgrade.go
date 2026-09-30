@@ -1,6 +1,6 @@
 // The config upgrade: a config.json written by an older version keeps its
 // own applications list, so apps added in later versions (the optional
-// apps, the web apps) would never appear, not even in Settings → Add apps.
+// apps, the web apps) would never appear, not even in Apps → Add apps.
 // When the coordinator starts it calls Store.UpgradeApps: every application
 // of the built-in defaults (contracts/fixtures/config.default.valid.json)
 // whose id and adapter the config does not have yet is appended exactly as

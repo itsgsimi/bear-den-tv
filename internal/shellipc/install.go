@@ -1,5 +1,5 @@
 // App install messages (contracts/ipc.md, app.install*, apps.configure,
-// apps.browser): the TV's install card and Settings → Add apps start, size
+// apps.browser): the TV's install card and Apps → Add apps start, size
 // and cancel a per-user Flathub install of one registered app, Settings →
 // Keep apps up to date stores config apps.auto_update, and Settings →
 // Streaming sites stores the web apps' browsers (config apps.browser and

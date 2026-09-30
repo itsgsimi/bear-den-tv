@@ -1,4 +1,4 @@
-// Den badge messages (contracts/ipc.md, achievements.*): TV Settings → Badges
+// Den badge messages (contracts/ipc.md, achievements.*): TV Themes → Den badges
 // turns counting on or off and resets it (answered with Result); the shell
 // reports celebrations it showed and events only it sees (no reply, shell
 // clients only).

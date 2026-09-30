@@ -186,8 +186,8 @@ The full, current commands are in [`docs/operations.md`](docs/operations.md).
 A theme is a package: a `theme.json` plus art, no code. Five ship built in
 (Den, Forest, Campfire, Winter, Midnight). Your own go in
 `~/.local/share/bear-den-tv/themes/` and appear without a rebuild. The bears
-are the cast of the default style; **Settings → Style → Plain** turns them off.
-**Settings → Art style** switches between Pixel and Classic, and **Settings →
+are the cast of the default style; **Themes → Style → Plain** turns them off.
+**Themes → Art style** switches between Pixel and Classic, and **Settings →
 App icons** between each app's own icon and Bear Den's drawings.
 Start with [`docs/THEMES.md`](docs/THEMES.md).
 

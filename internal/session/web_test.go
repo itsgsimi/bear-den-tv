@@ -1,4 +1,4 @@
-// Tests for web apps in the coordinator (web.go): Settings → Streaming sites
+// Tests for web apps in the coordinator (web.go): Apps → Streaming sites
 // (IPC app.enable) and the hidden/enabled state, launching through the web
 // manager, nav/media/text routed to the page, the touchpad's pointer actions
 // (web adapters only, verified foreground, never guests, rate limits), and
@@ -183,7 +183,7 @@ func webHarness(t *testing.T, configure ...func(*Options)) (*harness, *fakeWeb, 
 	return h, fw, ld
 }
 
-// enable turns a web app on through the TV's IPC, as Settings → Streaming
+// enable turns a web app on through the TV's IPC, as Apps → Streaming
 // sites does, and returns the reply.
 func enable(h *harness, appID string, on bool) shellipc.Result {
 	h.t.Helper()

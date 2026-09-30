@@ -207,7 +207,7 @@ type Application struct {
 	// (state.applications[].hidden) instead of "Not installed".
 	HideWhenMissing bool `json:"hide_when_missing,omitempty"`
 	// Enabled: nil = on. false means the owner turned the app off (TV
-	// Settings → Streaming sites); it has no tile. Web adapters only.
+	// Apps → Streaming sites); it has no tile. Web adapters only.
 	Enabled *bool `json:"enabled,omitempty"`
 	// Web is the page a web adapter opens (config.md rule 11); nil for
 	// Flatpak apps, and for the browser it means Bear Den's blank page.

@@ -357,7 +357,7 @@ type AppState struct {
 	// installed; the shell and phones draw no tile for it.
 	Hidden bool `json:"hidden,omitempty"`
 	// Enabled is present only for apps the owner can turn on and off on the
-	// TV (web adapters, Settings → Streaming sites); false means turned off.
+	// TV (web adapters, Apps → Streaming sites); false means turned off.
 	Enabled *bool `json:"enabled,omitempty"`
 	// Install is the app's Flatpak install from Flathub; shell and owner
 	// phones only (state.schema.json#/$defs/install).

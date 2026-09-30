@@ -288,7 +288,7 @@ func (c *Coordinator) installInfo(ctx context.Context, appID string) (map[string
 	return map[string]any{"size_bytes": st.SizeBytes, "disk_bytes": st.DiskBytes}, nil
 }
 
-// configureApps is IPC apps.configure (Settings → Keep apps up to date).
+// configureApps is IPC apps.configure (Apps → Keep apps up to date).
 func (c *Coordinator) configureApps(autoUpdate bool) error {
 	if _, err := c.opts.Config.Update(func(cfg *config.Config) error {
 		apps := config.Apps{}

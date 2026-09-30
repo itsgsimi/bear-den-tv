@@ -62,7 +62,7 @@ as `state.appearance.app_icons` and fetch the icon from
 ## Web apps (optional fields)
 
 - `applications[].web` (`{"url"}`) for the web adapters (rule 11). Owner-edited on the TV; phones never send page addresses. The built-in defaults open `https://www.netflix.com/`, `https://www.disneyplus.com/`, `https://www.hulu.com/` and, for the browser, nothing (`about:blank`).
-- `applications[].enabled` (boolean, absent = `true`): `false` means the owner turned the app off; the coordinator marks it `hidden` and refuses to launch it. Written by the trusted local `app.enable` ([`ipc.md`](ipc.md): TV Settings → Streaming sites). The defaults ship Netflix, Disney+ and Hulu with `enabled: false` and all four web apps with `hide_when_missing: true` (no tiles while Chromium is not installed).
+- `applications[].enabled` (boolean, absent = `true`): `false` means the owner turned the app off; the coordinator marks it `hidden` and refuses to launch it. Written by the trusted local `app.enable` ([`ipc.md`](ipc.md): TV Apps → Streaming sites). The defaults ship Netflix, Disney+ and Hulu with `enabled: false` and all four web apps with `hide_when_missing: true` (no tiles while Chromium is not installed).
 - Each web app runs with its own Chromium profile in `$XDG_DATA_HOME/bear-den-tv/web/<app-id>` (sign-ins live there, never in this file).
 - Additive: `schema_version` stays 1.
 
@@ -83,14 +83,14 @@ as `state.appearance.app_icons` and fetch the icon from
 ## Den badges (optional field)
 
 - `achievements` (object, absent = on): `{"enabled": true|false}`. The built-in default file writes `{"enabled": true}`. While `true` the coordinator keeps local counters and awards Den badges (`state.achievements`, [`http.md`](http.md#den-badges-stateachievements)); `false` counts nothing at all. Badges already earned stay until they are reset (IPC `achievements.reset`).
-- Written by the trusted local `achievements.configure` (`ipc.md`: TV Settings → Badges, or `bear-den-tv badges on|off`). The counters themselves live in the state database, never in `config.json` ([`docs/security.md`](../docs/security.md#den-badges)).
+- Written by the trusted local `achievements.configure` (`ipc.md`: TV Themes → Den badges, or `bear-den-tv badges on|off`). The counters themselves live in the state database, never in `config.json` ([`docs/security.md`](../docs/security.md#den-badges)).
 - Additive: `schema_version` stays 1.
 
 ## App installs (optional field)
 
 - `apps` (object, absent = `{"auto_update": true}`): `{"auto_update": true|false, "browser"?: "chromium"|"brave", "streaming_browser"?: "chromium"|"brave"}`. The built-in default file writes `true`. While `true` the coordinator updates the apps it can install (the adapter table's Flatpak ids) that are installed **for this user**, with `flatpak update --user --noninteractive -y <ids>`, at most once a day, only while nothing is playing, no app is running and Bear Den is in front (its screensaver may be on); an app starting cancels the update. Apps installed system-wide are never touched ("Updated by your system").
-- Written by the trusted local `apps.configure` (`ipc.md`: TV Settings → Keep apps up to date).
-- `browser` and `streaming_browser` (optional, absent = `chromium`; the built-in default file writes `chromium` for both): the browser the Browser tile and the streaming sites run in ([ADR 0013](../docs/decisions/0013-brave-as-a-browser-choice.md)); rule 3 ties each web row's `launch.app_id` to it. `brave` for the streaming sites is unverified (the TV says so). Written by the trusted local `apps.browser` (`ipc.md`: TV Settings → Streaming sites), which moves the rows in the same write; `apps.configure` keeps them.
+- Written by the trusted local `apps.configure` (`ipc.md`: TV Apps → Keep apps up to date).
+- `browser` and `streaming_browser` (optional, absent = `chromium`; the built-in default file writes `chromium` for both): the browser the Browser tile and the streaming sites run in ([ADR 0013](../docs/decisions/0013-brave-as-a-browser-choice.md)); rule 3 ties each web row's `launch.app_id` to it. `brave` for the streaming sites is unverified (the TV says so). Written by the trusted local `apps.browser` (`ipc.md`: TV Apps → Streaming sites), which moves the rows in the same write; `apps.configure` keeps them.
 - Additive: `schema_version` stays 1.
 
 ## Now playing on phones (optional field)

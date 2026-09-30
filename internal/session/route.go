@@ -415,7 +415,7 @@ func (c *Coordinator) doLaunch(ctx context.Context, s sender, req contract.Actio
 		return c.fail(req, contract.CodeUnsupported, app.Label+" cannot be launched on this installation.")
 	}
 	if !app.IsEnabled() {
-		return c.fail(req, contract.CodeUnsupported, app.Label+" is turned off. Turn it on in Settings → Streaming sites.")
+		return c.fail(req, contract.CodeUnsupported, app.Label+" is turned off. Turn it on in Apps → Streaming sites.")
 	}
 	isApp := func(t contract.Target) bool { return t.Kind == "app" && strOr(t.AppID) == appID }
 	c.stopUpdateFor("an app is starting") // never update during an app session
