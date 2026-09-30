@@ -108,7 +108,7 @@
       "adapter": "netflix",
       "launch": {
         "kind": "flatpak",
-        "app_id": "org.chromium.Chromium",
+        "app_id": "com.google.Chrome",
         "args": []
       },
       "home_policy": "pause-if-supported",
@@ -125,7 +125,7 @@
       "adapter": "disney-plus",
       "launch": {
         "kind": "flatpak",
-        "app_id": "org.chromium.Chromium",
+        "app_id": "com.google.Chrome",
         "args": []
       },
       "home_policy": "pause-if-supported",
@@ -142,7 +142,7 @@
       "adapter": "hulu",
       "launch": {
         "kind": "flatpak",
-        "app_id": "org.chromium.Chromium",
+        "app_id": "com.google.Chrome",
         "args": []
       },
       "home_policy": "pause-if-supported",
@@ -159,7 +159,7 @@
       "adapter": "browser",
       "launch": {
         "kind": "flatpak",
-        "app_id": "org.chromium.Chromium",
+        "app_id": "com.brave.Browser",
         "args": []
       },
       "home_policy": "pause-if-supported",
@@ -244,11 +244,6 @@
   "achievements": {
     "enabled": true
   },
-  "apps": {
-    "auto_update": true,
-    "browser": "chromium",
-    "streaming_browser": "chromium"
-  },
   "tips": {
     "enabled": true,
     "done": [
@@ -257,5 +252,10 @@
     ],
     "not_now_streak": 1,
     "last_day": "2026-09-28"
+  },
+  "apps": {
+    "auto_update": true,
+    "browser": "brave",
+    "streaming_browser": "chrome"
   }
 }
