@@ -550,6 +550,12 @@ var browsers = []BrowserInfo{
 			"translate.enabled":              false,
 			"profile.exit_type":              "Normal",
 			"profile.exited_cleanly":         true,
+			// Dark, and the browser's own theme instead of the desktop's GTK
+			// one (a Flatpak cannot see the TV's dark GTK theme and fell back
+			// to a light one): Chromium's browser.theme.color_scheme2 (2 =
+			// dark) and extensions.theme.system_theme (0 = the browser's own).
+			"browser.theme.color_scheme2":   float64(2),
+			"extensions.theme.system_theme": float64(0),
 		},
 	},
 	{
@@ -593,6 +599,8 @@ var browsers = []BrowserInfo{
 			// Chromium's own browser colour scheme (0 system, 1 light, 2 dark),
 			// so the toolbar and address bar are dark too.
 			"browser.theme.color_scheme2": float64(2),
+			// The browser's own theme, not the desktop's GTK one (see Chrome).
+			"extensions.theme.system_theme": float64(0),
 		},
 	},
 }

@@ -80,6 +80,7 @@ func TestLaunchArgvExact(t *testing.T) {
 		"--no-first-run",
 		"--no-default-browser-check",
 		"--class=BearDenWeb-netflix",
+		"--force-dark-mode",
 		"--start-fullscreen",
 		"--app=https://www.netflix.com/",
 	}
@@ -96,7 +97,7 @@ func TestLaunchArgvExact(t *testing.T) {
 	hulu, _ := FlatpakArgv("/d", chrome, BrowserArgs(spec(t, "hulu"), huluProfile, "https://www.hulu.com/"))
 	wantH := []string{"flatpak", "run", "--filesystem=/d/bear-den-tv/web-chrome", "com.google.Chrome",
 		"--user-data-dir=/d/bear-den-tv/web-chrome/hulu", "--remote-debugging-pipe", "--no-first-run", "--no-default-browser-check",
-		"--class=BearDenWeb-hulu", "--start-fullscreen", "--app=https://www.hulu.com/"}
+		"--class=BearDenWeb-hulu", "--force-dark-mode", "--start-fullscreen", "--app=https://www.hulu.com/"}
 	if !reflect.DeepEqual(hulu, wantH) {
 		t.Fatalf("hulu argv\n got %q\nwant %q", hulu, wantH)
 	}
@@ -107,6 +108,7 @@ func TestLaunchArgvExact(t *testing.T) {
 		"--no-first-run",
 		"--no-default-browser-check",
 		"--class=BearDenWeb-browser",
+		"--force-dark-mode",
 		"--start-maximized",
 		"about:blank",
 	}
@@ -267,6 +269,7 @@ func TestBraveArgvExact(t *testing.T) {
 		"--no-first-run",
 		"--no-default-browser-check",
 		"--class=BearDenWeb-browser",
+		"--force-dark-mode",
 		"--start-maximized",
 		"about:blank",
 	}
@@ -282,6 +285,7 @@ func TestBraveArgvExact(t *testing.T) {
 		"--no-first-run",
 		"--no-default-browser-check",
 		"--class=BearDenWeb-netflix",
+		"--force-dark-mode",
 		"--start-fullscreen",
 		"--app=https://www.netflix.com/",
 	}

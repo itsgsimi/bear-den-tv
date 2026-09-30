@@ -143,8 +143,10 @@ func StartURL(app config.Application) (string, error) {
 // --no-default-browser-check itself): its own profile, the DevTools pipe
 // (never a port), no first-run questions, the adapter's window class (its
 // own WM_CLASS, so each streaming site is its own window even though they
-// share one Chrome install), and either a full-screen app window on the
-// page or the ordinary browser, maximized, on the start page. The page
+// share one Chrome install), dark whatever the desktop says (the TV's Xfce
+// desktop never signals "prefer dark" and the Flatpaks cannot see its dark
+// GTK theme, so the browsers came up light), and either a full-screen app
+// window on the page or the ordinary browser, maximized, on the start page. The page
 // address is last and, for app mode, glued to --app= so it can never read
 // as a flag.
 func BrowserArgs(spec adapters.WebSpec, profile, url string) []string {
@@ -154,6 +156,7 @@ func BrowserArgs(spec adapters.WebSpec, profile, url string) []string {
 		"--no-first-run",
 		"--no-default-browser-check",
 		"--class=" + spec.Class,
+		"--force-dark-mode", // dark browser UI; pages see prefers-color-scheme: dark
 	}
 	if spec.Mode == adapters.WebModeApp {
 		return append(args, "--start-fullscreen", "--app="+url)

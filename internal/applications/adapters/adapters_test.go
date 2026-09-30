@@ -362,3 +362,17 @@ func TestBrowserTable(t *testing.T) {
 		}
 	}
 }
+
+// Every browser Bear Den runs is dark whatever the desktop says: on the TV
+// the desktop never signalled "prefer dark" and the Flatpaks could not see
+// its dark GTK theme, so the browsers came up light.
+func TestEveryBrowserProfileIsDark(t *testing.T) {
+	for _, b := range Browsers() {
+		if b.Preferences["browser.theme.color_scheme2"] != float64(2) {
+			t.Errorf("%s: browser.theme.color_scheme2 = %v, want 2 (dark)", b.Name, b.Preferences["browser.theme.color_scheme2"])
+		}
+		if b.Preferences["extensions.theme.system_theme"] != float64(0) {
+			t.Errorf("%s: extensions.theme.system_theme = %v, want 0 (the browser's own theme, not GTK)", b.Name, b.Preferences["extensions.theme.system_theme"])
+		}
+	}
+}
