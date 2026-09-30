@@ -409,7 +409,7 @@
     "notes": [
      {
       "level": "warn",
-      "text": "No hardware decoding for YouTube on this box (its runtime has no driver for this GPU): 4K and HDR are unavailable."
+      "text": "YouTube can't use this TV's graphics chip for video, so it plays up to 1080p, without 4K or HDR."
      }
     ],
     "status": "tuned",

@@ -2870,6 +2870,27 @@ private slots:
     // Settings → Advanced playback lists each app's settings from state.playback;
     // Left/Right sends playback.set with the next offered option, OK returns the
     // row to Auto (value "").
+    // UX-22: Playback leads each app with a plain outcome; the codecs, this
+    // box's hardware and the settings changed come with OK (details).
+    void playbackLeadsWithAnOutcome()
+    {
+        openSettings();
+        toSettingsRow(QStringLiteral("playback"));
+        act(QStringLiteral("select"));
+        QCOMPARE(shellScreen(), QStringLiteral("playback"));
+        QQuickItem *outcome = visibleItem(QStringLiteral("playbackOutcome"));
+        QVERIFY(outcome);
+        QCOMPARE(outcome->property("text").toString(), QStringLiteral("Plays smoothly: the graphics chip does the video work."));
+        QVERIFY(!visibleItem(QStringLiteral("playbackHardware")));
+        QVERIFY(!visibleItem(QStringLiteral("playbackBox")));
+        act(QStringLiteral("select"));
+        QVERIFY(visibleItem(QStringLiteral("playbackHardware")));
+        QVERIFY(visibleItem(QStringLiteral("playbackBox")));
+        act(QStringLiteral("back"));
+        act(QStringLiteral("back"));
+        goHome();
+    }
+
     void advancedPlaybackSendsPlaybackSet()
     {
         openSettings();
@@ -2890,8 +2911,10 @@ private slots:
             return QJsonObject{};
         };
         ipc->clearSent();
+        QVERIFY(!visibleItem(QStringLiteral("backToAuto"))); // codec is Auto
         act(QStringLiteral("nav.down"));
         QCOMPARE(m_nav->itemId(), QStringLiteral("moonlight.fps"));
+        QVERIFY2(visibleItem(QStringLiteral("backToAuto")), "a row chosen by hand does not show how to go back to Auto");
         act(QStringLiteral("nav.right")); // 60 fps (chosen by hand) → 120 fps
         QJsonObject m = lastPlaybackSet();
         QCOMPARE(m.value(QStringLiteral("adapter")).toString(), QStringLiteral("moonlight"));

@@ -1,5 +1,7 @@
-// Read-only status for troubleshooting: coordinator connection, desktop
-// session, current target, phone remote, applications, and capability reasons.
+// Read-only status for troubleshooting: Bear Den's helper (the
+// coordinator), the desktop, what is in front, the phone remote, the apps
+// and why each remote control is or is not available. Labels in plain
+// words (UX-22); raw codes stay in the values.
 
 import QtQuick
 import BearDen
@@ -22,20 +24,20 @@ Item {
     readonly property var r: Session.remote
     readonly property var groups: [
         { title: qsTr("Bear Den"), rows: [
-            [qsTr("Coordinator"), Shell.connected ? qsTr("Connected") : (Shell.offline ? qsTr("Offline preview") : qsTr("Not connected (%1)").arg(Shell.connectionState))],
-            [qsTr("Shell version"), Shell.version],
-            [qsTr("Context epoch"), String(Session.contextEpoch)],
-            [qsTr("Config revision"), String(Session.configRevision)],
+            [qsTr("Bear Den's helper"), Shell.connected ? qsTr("Connected") : (Shell.offline ? qsTr("Offline preview") : qsTr("Not connected (%1)").arg(Shell.connectionState))],
+            [qsTr("TV screen version"), Shell.version],
+            [qsTr("Updates received"), String(Session.contextEpoch)],
+            [qsTr("Settings saved"), String(Session.configRevision)],
             [qsTr("Development mode"), Session.devMode ? qsTr("Yes (DEMO data)") : qsTr("No")]] },
         { title: qsTr("Desktop"), rows: [
-            [qsTr("Session"), (s.display_session || "?") + " · " + (s.desktop_adapter || "?")],
+            [qsTr("Desktop"), (s.display_session || "?").toUpperCase() + " (" + (s.desktop_adapter || "?") + ")"],
             [qsTr("Locked"), s.locked ? qsTr("Yes") : qsTr("No")],
-            [qsTr("Shell state"), s.shell_state || "?"],
+            [qsTr("TV screen"), s.shell_state || "?"],
             [qsTr("In front"), (t.label || "?") + " (" + (t.kind || "?") + (t.observed ? qsTr(", verified") : qsTr(", not verified")) + ")"]] },
         { title: qsTr("Phone remote"), rows: [
             [qsTr("Enabled"), r.enabled ? qsTr("Yes") : qsTr("No")],
             [qsTr("Listening"), r.listening ? (r.addresses || []).join("  ") : qsTr("No")],
-            [qsTr("Transport"), r.transport || "?"],
+            [qsTr("Connection"), r.transport === "https" ? qsTr("Encrypted") : r.transport === "trusted-lan-http" ? qsTr("Home network, not encrypted") : (r.transport || "?")],
             [qsTr("Paired phones"), String(r.paired_device_count || 0)]] },
         { title: qsTr("Applications"), rows: Session.applications.map(a => [a.label,
             (a.installed ? qsTr("Installed") + (a.version ? " " + a.version : "") + " (" + a.installation + ")" : qsTr("Not installed")) + " · " + a.launch_state

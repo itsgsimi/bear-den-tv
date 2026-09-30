@@ -1,7 +1,8 @@
 // Settings → Advanced playback: every setting Bear Den tunes for an app,
 // adjustable by hand among the options this box can handle
 // (state.playback.apps[].settings; internal/applications/tuning). Left/Right
-// picks an option (playback.set), OK returns the row to Auto. The coordinator
+// picks an option (playback.set), OK returns the row to Auto; a row chosen by
+// hand shows that as a visible "OK Back to Auto" under it (UX-22). The coordinator
 // stores the choice in config.json and applies it when the app is closed.
 
 import QtQuick
@@ -81,7 +82,9 @@ Item {
         anchors.fill: parent
         title: qsTr("Advanced playback")
         subtitle: root.ready ? qsTr("Only the choices this TV can handle are offered") : qsTr("Checking what this TV can play…")
-        hints: [["▲ ▼", qsTr("Move")], ["◀ ▶", qsTr("Change")], ["OK", qsTr("Back to Auto")], ["Back", qsTr("Back")]]
+        hints: root.focused && root.focused.setting.overridden
+               ? [["▲ ▼", qsTr("Move")], ["◀ ▶", qsTr("Change")], ["OK", qsTr("Back to Auto")], ["Back", qsTr("Back")]]
+               : [["▲ ▼", qsTr("Move")], ["◀ ▶", qsTr("Change")], ["Back", qsTr("Back")]]
 
         Text {
             visible: root.ready && root.choices.length === 0
@@ -153,6 +156,28 @@ Item {
                     description: focused && entry.option && entry.option.note ? entry.option.note
                                : entry.s.overridden ? qsTr("Chosen by hand · Auto: %1").arg(root.labelOf(entry.s, entry.s.auto))
                                : qsTr("Chosen by Bear Den for this TV")
+                }
+                // Chosen by hand: how to go back, visible on the row itself.
+                Row {
+                    objectName: "backToAuto"
+                    visible: entry.s.overridden && entry.index === list.currentIndex
+                    x: 20 * Theme.scale
+                    spacing: 12 * Theme.scale
+                    PixelBox {
+                        implicitWidth: okKey.implicitWidth + 20 * Theme.scale
+                        implicitHeight: 34 * Theme.scale
+                        radius: 8 * Theme.scale
+                        color: Theme.surfaceRaised
+                        borderColor: Theme.surfaceBorder
+                        Text { id: okKey; anchors.centerIn: parent; text: qsTr("OK"); color: Theme.textPrimary; font.family: Theme.fontFamily; font.pixelSize: 18 * Theme.fontUnit; font.weight: Font.Bold }
+                    }
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: qsTr("Back to Auto (%1)").arg(root.labelOf(entry.s, entry.s.auto))
+                        color: Theme.textPrimary
+                        font.family: Theme.fontFamily
+                        font.pixelSize: 21 * Theme.fontUnit
+                    }
                 }
             }
         }

@@ -379,12 +379,12 @@ func Expectations(adapter string, caps Caps, host Host, disp Display) ([]string,
 			}
 			expect = append(expect, fmt.Sprintf("Up to 1080p in H.264, decoded on %s.", where))
 			if len(caps.Decoders) == 0 {
-				notes = append(notes, Note{"warn", "No hardware decoding for YouTube on this box (its runtime has no driver for this GPU): 4K and HDR are unavailable."})
+				notes = append(notes, Note{"warn", "YouTube can't use this TV's graphics chip for video, so it plays up to 1080p, without 4K or HDR."})
 			} else if uhd {
 				notes = append(notes, Note{"info", "YouTube's 4K needs VP9 or AV1 hardware decoding, which this box lacks, so YouTube stops at 1080p."})
 			}
 			if host.Entry() && !caps.Has(H264) {
-				notes = append(notes, Note{"warn", "1080p at 60 fps keeps an entry-level CPU busy; if a video stutters, pick 1080p30 or 720p in YouTube's quality menu."})
+				notes = append(notes, Note{"warn", "1080p at 60 frames a second keeps this TV's processor busy; if a video stutters, pick 1080p30 or 720p in YouTube's quality menu."})
 			}
 		default:
 			expect = append(expect, "Hardware decoding could not be checked; YouTube is limited to H.264 to stay safe.")
@@ -408,7 +408,7 @@ func Expectations(adapter string, caps Caps, host Host, disp Display) ([]string,
 			if host.High() {
 				notes = append(notes, Note{"info", "HEVC (x265) files decode on the CPU here: fine at 1080p; if 4K HDR stutters, play it below Original quality so the Plex server converts it."})
 			} else {
-				notes = append(notes, Note{"warn", "HEVC (x265) and 4K HDR files are not hardware-decoded here: play them below Original quality so the Plex server converts them, or make H.264 Optimized Versions."})
+				notes = append(notes, Note{"warn", "Some files (HEVC or x265, and 4K HDR) are too heavy for this TV: play them below Original quality so your Plex server converts them, or make H.264 Optimized Versions in Plex."})
 			}
 		}
 		if !caps.Has(AV1) && !caps.Has(VP9) && caps.Has(HEVC) {
