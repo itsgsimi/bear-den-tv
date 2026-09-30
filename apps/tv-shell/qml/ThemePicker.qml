@@ -29,7 +29,9 @@ ListView {
         positionViewAtIndex(index, ListView.Contain)
     }
     function previewFocused() {
-        const persisted = (Session.layoutForEdit() || {}).ui
+        // The same base OK will send (a pending edit included), so the
+        // preview ends when the coordinator publishes it.
+        const persisted = (Shell.layoutForEdit() || {}).ui
         if (!persisted) return
         if (focusedId === applied) { Session.endUiPreview(); return }
         const ui = JSON.parse(JSON.stringify(persisted))
@@ -48,7 +50,7 @@ ListView {
     // OK: use the focused theme (the preview ends when the coordinator's
     // layout says the same).
     function apply() {
-        const layout = JSON.parse(JSON.stringify(Session.layoutForEdit()))
+        const layout = JSON.parse(JSON.stringify(Shell.layoutForEdit()))
         if (!layout.ui) return
         layout.ui.background = focusedId
         layout.ui.accent = World.accentFor(focusedId)

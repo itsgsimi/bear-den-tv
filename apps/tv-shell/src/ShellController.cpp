@@ -81,7 +81,7 @@ ShellController::ShellController(QObject *parent) : QObject(parent)
     connect(m_ipc, &IpcClient::replyReceived, this, &ShellController::onReply);
     connect(m_ipc, &IpcClient::settingsResultReceived, this, [this](const QString &, bool ok, int, const QString &error) {
         if (!ok)
-            emit requestFailed(tr("Settings"), error);
+            layoutUpdateFailed(error);
     });
     connect(m_ipc, &IpcClient::requestTimedOut, this, [this](const QString &requestId, const QString &type) {
         if (requestId == m_launchRequestId)
@@ -97,6 +97,10 @@ ShellController::ShellController(QObject *parent) : QObject(parent)
         if (type.startsWith(QLatin1String("app.install"))) {
             // Flathub can be slow: the card says so instead of a dialog.
             emit installReplied(type, m_installRequests.take(requestId), false, tr("Flathub did not answer in time."), {});
+            return;
+        }
+        if (type == QLatin1String("settings.update")) {
+            layoutUpdateFailed(tr("Bear Den did not answer in time."));
             return;
         }
         emit requestFailed(tr("Request"), tr("Bear Den did not answer in time."));
@@ -262,6 +266,10 @@ void ShellController::onReply(const QString &requestId, const QString &type, con
     if (payload.value(QStringLiteral("ok")).toBool(true))
         return;
     const QString error = payload.value(QStringLiteral("error")).toString();
+    if (type == QLatin1String("settings.update")) {
+        layoutUpdateFailed(error);
+        return;
+    }
     if (type == QLatin1String("pair.issue"))
         emit requestFailed(tr("Pairing"), error);
     else if (type == QLatin1String("remote.configure"))
@@ -296,7 +304,47 @@ void ShellController::updateLayout(const QVariantMap &layout)
     SessionModel *session = SessionModel::instance();
     if (!session)
         return;
-    m_ipc->sendSettingsUpdate(session->configRevision(), QJsonObject::fromVariantMap(layout));
+    if (!m_watchingSnapshots) {
+        // Forget the pending layout as soon as a snapshot carries its revision.
+        connect(session, &SessionModel::snapshotChanged, this, [this, session] {
+            if (m_pendingRevision && session->configRevision() >= m_pendingRevision) {
+                m_pendingLayout.clear();
+                m_pendingRevision = 0;
+            }
+        });
+        m_watchingSnapshots = true;
+    }
+    const int current = session->configRevision();
+    if (m_pendingRevision && current >= m_pendingRevision) {
+        m_pendingLayout.clear(); // the snapshot has caught up
+        m_pendingRevision = 0;
+    }
+    // Chain on the revision the previous, unanswered update will create:
+    // sending both on the snapshot's revision made the second one a
+    // "revision conflict" (seen on the TV when trying themes quickly).
+    const int base = m_pendingRevision ? m_pendingRevision : current;
+    m_pendingLayout = layout;
+    m_pendingRevision = base + 1;
+    m_ipc->sendSettingsUpdate(base, QJsonObject::fromVariantMap(layout));
+}
+
+QVariantMap ShellController::layoutForEdit() const
+{
+    SessionModel *session = SessionModel::instance();
+    if (m_pendingRevision && session && session->configRevision() < m_pendingRevision)
+        return m_pendingLayout;
+    return session ? session->layoutForEdit() : QVariantMap{};
+}
+
+void ShellController::layoutUpdateFailed(const QString &error)
+{
+    m_pendingLayout.clear();
+    m_pendingRevision = 0;
+    // Never show the coordinator's wording for a conflict on the TV.
+    const QString plain = error.contains(QLatin1String("revision conflict"))
+        ? tr("These settings changed somewhere else at the same moment. Please try again.")
+        : error;
+    emit requestFailed(tr("Settings"), plain);
 }
 
 void ShellController::weatherSearch(const QString &query)

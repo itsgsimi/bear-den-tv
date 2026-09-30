@@ -114,6 +114,12 @@ public:
     Q_INVOKABLE void revokeDevice(const QString &deviceId);
     Q_INVOKABLE void configureRemote(bool enabled, const QString &interfaceName);
     Q_INVOKABLE void updateLayout(const QVariantMap &layout);
+    /// The layout to edit from: the last one sent while the coordinator has
+    /// not yet published it, else the persisted one. Quick successive edits
+    /// (a theme, then Art style) build on each other instead of each starting
+    /// from the old snapshot, and each is sent on the revision the previous
+    /// one will create (the coordinator applies the TV's updates in order).
+    Q_INVOKABLE QVariantMap layoutForEdit() const;
     // Settings → Advanced playback: choose one app's setting by hand
     // (playback.set); value "" returns it to automatic.
     Q_INVOKABLE void setPlayback(const QString &adapter, const QString &setting, const QString &value);
@@ -253,5 +259,9 @@ private:
     bool m_weatherSearching = false;
     QString m_weatherError;
     QHash<QString, QString> m_installRequests; // request id → app id
+    QVariantMap m_pendingLayout;  // last layout sent, until a snapshot carries it
+    int m_pendingRevision = 0;    // the revision that layout will have; 0 = none pending
+    bool m_watchingSnapshots = false;
+    void layoutUpdateFailed(const QString &error);
     mutable QHash<QString, QPair<qint64, QVariantMap>> m_artCache;
 };

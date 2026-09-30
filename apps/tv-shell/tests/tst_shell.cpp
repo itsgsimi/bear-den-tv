@@ -25,6 +25,7 @@
 #include <QSet>
 #include <QTemporaryDir>
 #include <QtTest>
+#include <QSignalSpy>
 
 #include <cmath>
 #include <functional>
@@ -1799,6 +1800,59 @@ private slots:
     // Themes → App icons (layout.ui.app_icons): "App's own" by default;
     // ◀ ▶ sends the layout with the other choice; a snapshot with bear_den
     // shows "Bear Den style" and Home's tiles switch to Bear Den's icons.
+    // Two quick edits on Themes (seen on the TV: a theme, then another row)
+    // must chain: the second is sent on the revision the first will create and
+    // keeps the first change; a failed update resets and says it plainly.
+    void quickLayoutEditsChainRevisions()
+    {
+        SessionModel *session = SessionModel::instance();
+        IpcClient *ipc = ShellController::instance()->ipc();
+        QVERIFY(session->applySnapshot(fixture()));
+        openFromHeader(QStringLiteral("themes"));
+        for (int i = 0; i < 10 && m_nav->itemId() != QLatin1String("art"); ++i)
+            act(QStringLiteral("nav.down"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("art"));
+        ipc->clearSent();
+        act(QStringLiteral("nav.right")); // Pixel → Classic
+        for (int i = 0; i < 10 && m_nav->itemId() != QLatin1String("app-icons"); ++i)
+            act(QStringLiteral("nav.down"));
+        act(QStringLiteral("nav.right")); // App's own → Bear Den style, before any snapshot
+        QList<QJsonObject> updates;
+        for (const QJsonObject &m : ipc->sentMessages())
+            if (m.value(QStringLiteral("type")).toString() == QLatin1String("settings.update"))
+                updates.append(m);
+        QCOMPARE(updates.size(), 2);
+        const int base = session->configRevision();
+        QCOMPARE(updates.at(0).value(QStringLiteral("base_revision")).toInt(), base);
+        QCOMPARE(updates.at(1).value(QStringLiteral("base_revision")).toInt(), base + 1);
+        const QJsonObject ui = updates.at(1).value(QStringLiteral("layout")).toObject().value(QStringLiteral("ui")).toObject();
+        QCOMPARE(ui.value(QStringLiteral("art_style")).toString(), QStringLiteral("classic")); // the first edit kept
+        QCOMPARE(ui.value(QStringLiteral("app_icons")).toString(), QStringLiteral("bear_den"));
+
+        // A failure (a real conflict) resets: the next edit starts from the persisted layout and revision.
+        QSignalSpy failed(ShellController::instance(), &ShellController::requestFailed);
+        emit ipc->settingsResultReceived(updates.at(1).value(QStringLiteral("request_id")).toString(), false, 0,
+                                         QStringLiteral("revision conflict: base 31, current 32"));
+        QCOMPARE(failed.size(), 1);
+        QVERIFY2(!failed.at(0).at(1).toString().contains(QLatin1String("revision")), "a raw conflict reached the TV");
+        act(QStringLiteral("select")); // OK on the plain-words dialog
+        ipc->clearSent();
+        act(QStringLiteral("nav.left"));
+        QCOMPARE(lastSent(QStringLiteral("settings.update")).value(QStringLiteral("base_revision")).toInt(), base);
+        // The coordinator publishes that edit: the pending copy is dropped, so a
+        // later edit starts from the persisted layout again.
+        QJsonObject confirmed = fixture();
+        confirmed.insert(QStringLiteral("config_revision"), base + 1);
+        QVERIFY2(session->applySnapshot(confirmed), qPrintable(session->lastError()));
+        QVERIFY(session->applySnapshot(fixture()));
+        ipc->clearSent();
+        act(QStringLiteral("nav.left"));
+        QCOMPARE(lastSent(QStringLiteral("settings.update")).value(QStringLiteral("base_revision")).toInt(), base);
+        QVERIFY(session->applySnapshot(confirmed));
+        QVERIFY(session->applySnapshot(fixture()));
+        goHome();
+    }
+
     void appIconsRowSwitchesTheChoice()
     {
         SessionModel *session = SessionModel::instance();

@@ -181,7 +181,7 @@ Item {
         return true
     }
     function editUi(mutate) {
-        const layout = JSON.parse(JSON.stringify(Session.layoutForEdit()))
+        const layout = JSON.parse(JSON.stringify(Shell.layoutForEdit()))
         if (!layout.ui) return
         mutate(layout.ui)
         Shell.updateLayout(layout)
