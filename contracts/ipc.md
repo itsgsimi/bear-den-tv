@@ -14,6 +14,8 @@ The development override `BDTV_SHELL_SOCKET=/path` exists for development only: 
 
 `client` is `shell` or `cli`. A `cli` client (the `bear-den-tv` command run by the same user) is a trusted local peer: it receives `state` and may send `pair.issue`, `pair.cancel`, `devices.revoke`, `devices.grant`, `remote.configure`, `remote.now_playing`, `app.enable`, `app.install`, `app.install_info`, `app.install_cancel`, `apps.configure`, `apps.browser`, `settings.update`, `playback.set`, `weather.search`, `weather.configure`, `cec.configure`, `achievements.configure`, `achievements.reset` and the `plex.*` messages, but never `focus`/`input_result`. Only one `shell` client is accepted at a time; a second `shell` hello is rejected with `reason: "shell_already_connected"`.
 
+A `cli` hello may add `"quiet": true` (optional, default false; ignored from a `shell`): the coordinator then logs that connection's connect and disconnect at debug level only. The watchdog's liveness check (`bear-den-tv doctor --ping`, every 30 s) uses it: the handshake (welcome, then the state snapshot) and one `ping` → `pong` within its timeout prove the coordinator answers ([`docs/operations.md` → The watchdog](../docs/operations.md#the-watchdog)).
+
 `hello` with a different `protocol` ⇒ `{"type":"reject","reason":"unsupported_protocol","supported":[1]}` and close. The shell does not fall back.
 
 ## Coordinator → shell
@@ -35,7 +37,7 @@ The development override `BDTV_SHELL_SOCKET=/path` exists for development only: 
 
 | `type` | Payload | Notes |
 |---|---|---|
-| `hello` | see above | First message. |
+| `hello` | see above (`quiet` optional, `cli` only) | First message. |
 | `focus` | `{"screen","section_id","item_id","scroll_x","text_field"}` | Sent on every focus change and after restoring focus; the coordinator stores it as focus memory (by stable ids). Optional `text_field` (boolean, default false) is true while a text field in the shell has keyboard focus: only then, with the shell in front and connected, is `text.submit` available (backend `shell`); otherwise it is unavailable with "No text field is focused.". An accepted `text.submit` reaches the shell as `input`. |
 | `input_result` | `{"request_id","outcome":"observed"|"failed","code","detail"}` | Terminal reply to `input`/`home`. |
 | `confirm_result` | `{"confirm_id","accepted":true|false}` | User pressed Keep (true) or Revert/Back/timeout (false). |

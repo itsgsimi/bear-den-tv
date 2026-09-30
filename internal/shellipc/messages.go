@@ -78,6 +78,10 @@ type Hello struct {
 	Client   string `json:"client"`
 	Version  string `json:"version"`
 	PID      int    `json:"pid"`
+	// Quiet (optional, cli clients): the coordinator logs this connection
+	// only at debug level. The watchdog's liveness ping (CheckAlive) sets it so
+	// a check every 30 s does not fill session.log.
+	Quiet bool `json:"quiet,omitempty"`
 }
 
 // Kind implements Message.

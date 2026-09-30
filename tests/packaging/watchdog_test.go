@@ -1,6 +1,7 @@
 // Shell-level tests of scripts/start-session.sh as it runs on the TV
-// (docs/operations.md → Starting, stopping, autostart): it detaches what it
-// starts from the terminal.
+// (docs/operations.md → The watchdog): it detaches what it starts from the
+// terminal, and its watchdog restarts a coordinator that is stopped (state
+// T), unresponsive, or deaf to SIGTERM.
 //
 // The coordinator is a fake: this test binary, copied into an installed
 // layout as <prefix>/bin/bear-den-tv (TestMain runs fakeCoordinator when
@@ -288,7 +289,6 @@ func (r *rig) heartbeatAfter(t0 time.Time, within time.Duration) bool {
 // stdin from /dev/null and output in the log; they survive the terminal
 // hanging up, and the terminal's job-control signals cannot stop them.
 func TestStartSessionDetachesFromTheTerminal(t *testing.T) {
-	t.Parallel()
 	r := newRig(t)
 	out := r.runOnTerminal("--watch")
 	var probeTTY int
@@ -335,7 +335,8 @@ func TestStartSessionDetachesFromTheTerminal(t *testing.T) {
 		t.Fatal("the watchdog or coordinator did not survive the terminal hanging up")
 	}
 	// Job-control signals are discarded for its (orphaned) process group:
-	// the coordinator keeps beating after each.
+	// the coordinator keeps beating after each. (The real coordinator also
+	// ignores them itself: cmd/bear-den-tv/daemon.go.)
 	for _, sig := range []syscall.Signal{syscall.SIGTSTP, syscall.SIGTTIN, syscall.SIGTTOU} {
 		t0 := time.Now()
 		if err := syscall.Kill(coord, sig); err != nil {
@@ -351,3 +352,61 @@ func TestStartSessionDetachesFromTheTerminal(t *testing.T) {
 	}
 }
 
+// The incident: the coordinator in state T (SIGSTOP). The watchdog sees the
+// state, continues and terminates it, and starts a fresh one.
+func TestWatchdogRestartsAStoppedCoordinator(t *testing.T) {
+	r := newRig(t)
+	if out, err := r.run("--watch"); err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	first := r.waitStarts(1, 15*time.Second)[0]
+	stopped := time.Now()
+	if err := syscall.Kill(first, syscall.SIGSTOP); err != nil {
+		t.Fatal(err)
+	}
+	second := r.waitStarts(2, 20*time.Second)[1]
+	t.Logf("recovered in %s (check interval 1 s)", time.Since(stopped).Round(100*time.Millisecond))
+	if running(first) {
+		t.Fatalf("the stopped coordinator %d still runs next to %d", first, second)
+	}
+	if !r.heartbeatAfter(time.Now(), 5*time.Second) {
+		t.Fatal("the new coordinator does not run")
+	}
+	for _, want := range []string{
+		fmt.Sprintf("coordinator pid %d is stopped (state T in /proc/%d/stat); sending SIGCONT and SIGTERM", first, first),
+		fmt.Sprintf("coordinator pid %d ended after SIGTERM", first),
+		fmt.Sprintf("started coordinator pid %d", second),
+	} {
+		r.waitLog(want, 5*time.Second)
+	}
+}
+
+// A coordinator that runs but no longer answers (a deadlock) is restarted
+// after BDTV_WATCH_FAILURES failed pings in a row; one that ignores SIGTERM
+// is killed after the grace period.
+func TestWatchdogRestartsAnUnresponsiveCoordinator(t *testing.T) {
+	r := newRig(t)
+	r.touch("ignore-term")
+	if out, err := r.run("--watch"); err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	first := r.waitStarts(1, 15*time.Second)[0]
+	if !r.heartbeatAfter(time.Now(), 5*time.Second) {
+		t.Fatal("no heartbeat")
+	}
+	r.touch("hang")
+	second := r.waitStarts(2, 30*time.Second)[1]
+	_ = os.Remove(filepath.Join(r.fake, "hang"))
+	if running(first) {
+		t.Fatalf("the unresponsive coordinator %d still runs", first)
+	}
+	for _, want := range []string{
+		fmt.Sprintf("coordinator pid %d did not answer a ping (1 of 2)", first),
+		fmt.Sprintf("coordinator pid %d did not answer 2 pings in a row; sending SIGCONT and SIGTERM", first),
+		fmt.Sprintf("coordinator pid %d still running 2s after SIGTERM; sending SIGKILL", first),
+		fmt.Sprintf("coordinator pid %d killed", first),
+		fmt.Sprintf("started coordinator pid %d", second),
+	} {
+		r.waitLog(want, 5*time.Second)
+	}
+}

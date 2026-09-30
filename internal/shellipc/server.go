@@ -257,6 +257,7 @@ func (s *Server) serve(conn *net.UnixConn) {
 		return
 	}
 	c.kind = hello.Client
+	c.quiet = hello.Quiet && hello.Client == ClientCLI
 	c.pid = hello.PID
 	c.version = hello.Version
 	c.id = randomSessionID()
@@ -307,7 +308,7 @@ func (s *Server) serve(conn *net.UnixConn) {
 			break
 		}
 	}
-	s.opts.Logger.Info("shellipc: client connected", "client", c.kind, "pid", c.pid, "version", c.version)
+	s.opts.Logger.Log(context.Background(), c.logLevel(), "shellipc: client connected", "client", c.kind, "pid", c.pid, "version", c.version)
 	s.wg.Add(1)
 	go c.dispatch()
 	s.opts.Handler.Connected(c)
@@ -336,7 +337,7 @@ func (s *Server) dropClient(c *Client, err error) {
 		if err != nil && !errors.Is(err, io.EOF) && !errors.Is(err, net.ErrClosed) {
 			s.opts.Logger.Warn("shellipc: client disconnected", "client", c.kind, "error", err.Error())
 		} else {
-			s.opts.Logger.Info("shellipc: client disconnected", "client", c.kind)
+			s.opts.Logger.Log(context.Background(), c.logLevel(), "shellipc: client disconnected", "client", c.kind)
 		}
 		s.opts.Handler.Disconnected(c, err)
 	})
@@ -415,6 +416,7 @@ type Client struct {
 	id      string
 	pid     int
 	version string
+	quiet   bool // a cli hello with quiet: connect/disconnect logged at debug
 
 	// ready (the handshake is written) and missed (a broadcast came during
 	// the handshake) are guarded by server.mu.
@@ -429,6 +431,14 @@ type Client struct {
 	inbox     chan Message
 	done      chan struct{}
 	closeOnce sync.Once
+}
+
+// logLevel is the level of this client's connect and disconnect lines.
+func (c *Client) logLevel() slog.Level {
+	if c.quiet {
+		return slog.LevelDebug
+	}
+	return slog.LevelInfo
 }
 
 // Kind is "shell" or "cli".

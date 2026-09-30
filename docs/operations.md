@@ -154,6 +154,49 @@ From the .deb, the same commands are `bear-den-tv autostart|shortcut ...` and
   `bear-den-tv session` also ignores SIGTSTP, SIGTTIN and SIGTTOU itself
   ([`daemon.go`](../cmd/bear-den-tv/daemon.go)).
 
+### The watchdog
+
+`start-session.sh --watch` (what autostart, the desktop icon and the deploy
+script run) keeps the coordinator running **and answering**. Every 30 s it
+checks the coordinator:
+
+1. **Stopped?** State `T` in `/proc/<pid>/stat` (someone sent SIGSTOP): it
+   is restarted at once.
+2. **Answering?** `bear-den-tv doctor --ping` must get the coordinator's
+   handshake and a `pong` on the shell socket within 5 s (`ok: the
+   coordinator answered in N ms`; a stuck coordinator never builds its
+   state snapshot). After 3 failed pings in a row it is restarted.
+
+A restart is SIGCONT (a stopped process holds every other signal until it
+runs again), SIGTERM, and SIGKILL if it is still there 10 s later; then a
+fresh start. The watchdog restarts even while something is playing: a
+frozen coordinator serves nothing, not even the phone's pause. A coordinator
+that exits with an error is restarted after 1 s, doubling up to 30 s while
+it keeps failing within a minute; a clean exit (stop, logout) ends the watch.
+
+Every step is a line in `session.log`, prefixed `watchdog:`:
+
+```text
+2026-09-29T08:03:10+02:00 watchdog: started coordinator pid 4242
+2026-09-29T08:05:40+02:00 watchdog: coordinator pid 4242 is stopped (state T in /proc/4242/stat); sending SIGCONT and SIGTERM
+2026-09-29T08:05:40+02:00 watchdog: coordinator pid 4242 ended after SIGTERM
+2026-09-29T08:05:40+02:00 watchdog: restarting in 1s
+2026-09-29T08:05:41+02:00 watchdog: started coordinator pid 4301
+```
+
+Other lines: `did not answer a ping (1 of 3): <why>`, `answers again after N
+failed ping(s)`, `did not answer 3 pings in a row; sending SIGCONT and
+SIGTERM`, `still running 10s after SIGTERM; sending SIGKILL`, `killed`,
+`exited with <status>`, `exited cleanly; watch ends`. The watchdog needs
+bash 5.1 or newer (Ubuntu 22.04 and Mint 21 have it) and says so in the log
+otherwise. The ping connects quietly (`hello` with `quiet: true`,
+[`ipc.md`](../contracts/ipc.md#handshake)), so the checks add nothing else
+to the log. Tests shorten the timings with `BDTV_WATCH_INTERVAL`,
+`BDTV_WATCH_FAILURES`, `BDTV_WATCH_GRACE` and `BDTV_WATCH_PING_TIMEOUT`
+(seconds); leave them unset on the TV. The behaviour is
+tested with a fake coordinator in
+[`tests/packaging/watchdog_test.go`](../tests/packaging/watchdog_test.go).
+
 ## Packaging
 
 `make package` builds `build/dist/bear-den-tv_<version>_amd64.deb` for Ubuntu
@@ -273,6 +316,7 @@ and decorations match the TV; smoothness and absolute CPU are judged on the TV.
 
 ```sh
 build/bin/bear-den-tv doctor          # JSON: coordinator state, what's in front, capabilities, config
+build/bin/bear-den-tv doctor --ping   # exit 0 if the running coordinator answers within 5 s, else why not (see The watchdog)
 scripts/measure-target.sh 20          # (workstation) CPU % and RSS of the Bear Den processes on the TV
 make perf                             # (workstation) sandbox: frames and CPU per phase of Home, offscreen on 2 cores; fails over budget
 ```

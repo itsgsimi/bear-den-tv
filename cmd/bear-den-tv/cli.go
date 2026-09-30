@@ -1,5 +1,6 @@
 // Admin CLI commands that talk to the running coordinator over the shell
-// socket: doctor, pair, devices, remote (CLI guide internal/AGENTS.md; spec
+// socket: doctor (and doctor --ping, the watchdog's liveness check), pair,
+// devices, remote (CLI guide internal/AGENTS.md; spec
 // contracts/ipc.md).
 
 package main
@@ -10,6 +11,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"time"
@@ -61,16 +63,38 @@ func cmdDoctor(args []string) error {
 	fs := flag.NewFlagSet("doctor", flag.ExitOnError)
 	probe := fs.Bool("probe", false, "also probe the desktop session (display, D-Bus, audio, Flatpak)")
 	shellBin := fs.String("shell-binary", "", "shell binary to look for")
+	ping := fs.Bool("ping", false, "only check that the running coordinator answers on its socket (exit 0) or say why not (exit 1)")
+	timeout := fs.Duration("timeout", 5*time.Second, "with --ping: how long to wait for the answer")
 	sock := socketFlag(fs)
 	_ = fs.Parse(args)
 	paths := doctor.DefaultPaths()
 	if *sock != "" {
 		paths.Socket = *sock
 	}
+	if *ping {
+		return pingCoordinator(paths.Socket, *timeout, os.Stdout)
+	}
 	rep := doctor.Report(context.Background(), doctor.Options{Paths: paths, Version: Version, ShellBinary: *shellBin, Probe: *probe})
 	enc := json.NewEncoder(os.Stdout)
 	enc.SetIndent("", "  ")
 	return enc.Encode(rep)
+}
+
+// pingCoordinator is `doctor --ping`, the watchdog's liveness check
+// (scripts/start-session.sh): shellipc.CheckAlive within timeout. A coordinator
+// that is stopped, deadlocked or gone fails with the socket and the reason.
+func pingCoordinator(socket string, timeout time.Duration, out io.Writer) error {
+	if timeout <= 0 {
+		return fmt.Errorf("--timeout must be positive, got %s", timeout)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	start := time.Now()
+	if err := shellipc.CheckAlive(ctx, socket, Version); err != nil {
+		return fmt.Errorf("the coordinator at %s did not answer within %s: %w", socket, timeout, err)
+	}
+	fmt.Fprintf(out, "ok: the coordinator answered in %d ms\n", time.Since(start).Milliseconds())
+	return nil
 }
 
 func cmdPair(args []string) error {
