@@ -452,6 +452,22 @@ export function createStore(initial: AppState = initialState()): Store {
   };
 }
 
+/**
+ * Subscribes listener and hands it the current state at once. A view renders
+ * from getState() and subscribes in an effect, which Preact runs after
+ * paint: a change dispatched in between (the TV's info answering quickly)
+ * was lost, and the phone stayed on "Looking for the TV…" until the next
+ * change (a flaky browser test).
+ * @param store The store.
+ * @param listener Called now with the current state, then on every change.
+ * @returns Unsubscribe.
+ */
+export function subscribeNow(store: Store, listener: (state: AppState) => void): () => void {
+  const off = store.subscribe(listener);
+  listener(store.getState());
+  return off;
+}
+
 // Selectors.
 
 /**

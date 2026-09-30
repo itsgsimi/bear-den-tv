@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import type { JSX } from 'preact';
 import type { App } from '../app.ts';
 import { passEndLabel, t } from '../i18n.ts';
-import { type AppState, type Tab, guestEndsAt, visibleTabs } from '../state.ts';
+import { type AppState, type Tab, guestEndsAt, subscribeNow, visibleTabs } from '../state.ts';
 import { Art, artStyleOf, Icon, type IconName } from '../icons.tsx';
 import type { ArtStyle } from '../contract.ts';
 import { PairView } from './pair.tsx';
@@ -28,7 +28,7 @@ const BURST = ['sparkle', 'heart', 'sparkle', 'heart', 'sparkle', 'heart', 'spar
  */
 export function Root({ app }: { app: App }): JSX.Element {
   const [state, setState] = useState<AppState>(app.store.getState());
-  useEffect(() => app.store.subscribe(setState), [app]);
+  useEffect(() => subscribeNow(app.store, setState), [app]);
   const celebrating = useCelebration(state);
 
   let screen: JSX.Element;

@@ -13,6 +13,7 @@ import {
   latestResultFor,
   layoutsEqual,
   reduce,
+  subscribeNow,
   visibleApps,
   visibleTabs,
 } from '../../src/state.ts';
@@ -210,6 +211,19 @@ describe('createStore', () => {
     off();
     store.dispatch({ type: 'tab_selected', tab: 'remote' });
     expect(seen).toEqual(['about']);
+  });
+
+  it('subscribeNow hands over a change made between the first render and the subscription', () => {
+    // The phone once stayed on "Looking for the TV…": Root rendered from
+    // getState(), the TV's info arrived, and only then did Root's effect subscribe.
+    const store = createStore(initialState());
+    const rendered = store.getState();
+    expect(rendered.screen).toBe('loading');
+    store.dispatch({ type: 'info_loaded', info: { protocol: 1, device_name: 'TV', transport: 'trusted-lan-http', https: false, pairing_required: true } });
+    const seen: AppState[] = [];
+    subscribeNow(store, (s) => seen.push(s));
+    expect(seen.at(-1)).toBe(store.getState());
+    expect(seen.at(-1)).not.toBe(rendered);
   });
 });
 
