@@ -192,8 +192,9 @@ select.text-input { appearance: auto; }
 .toggle { display: flex; align-items: center; gap: 0.6rem; min-height: var(--tap); }
 .toggle input { width: 22px; height: 22px; accent-color: var(--accent); }
 /* SettingHelp (views/help.tsx): the one-line help under a setting the TV also has. */
-.setting-help { margin: -0.2rem 0 0.35rem; line-height: 1.35; }
-.toggle + .setting-help { margin-top: -0.5rem; padding-left: calc(22px + 0.6rem); }
+.setting-help { margin: 0.4rem 0; line-height: 1.35; }
+.appearance > .setting-help { margin: -0.2rem 0 0.35rem; }
+.appearance > .toggle + .setting-help { margin-top: -0.5rem; padding-left: calc(22px + 0.6rem); }
 input[type='range'] { width: 100%; accent-color: var(--accent); min-height: 32px; }
 
 /* Buttons. The ::after layer is the sage press ripple (keyed on data-press). */
@@ -620,6 +621,7 @@ input[type='range'] { width: 100%; accent-color: var(--accent); min-height: 32px
 .plus-fallback::after { width: 6px; height: 24px; }
 .add-apps-tile { border-style: dashed; }
 .add-apps-tile .app-status { text-align: center; }
+#add-apps-heading { scroll-margin-top: 6rem; }
 #add-apps-heading:focus { outline: none; }
 #add-apps-heading:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
 .run-dot { position: absolute; right: -2px; top: -2px; width: 8px; height: 8px; border-radius: var(--r-round, 0); background: var(--sage); }
