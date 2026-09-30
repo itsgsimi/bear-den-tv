@@ -837,6 +837,19 @@ password, nothing system-wide.
   Bear Den never runs the system package manager; install it once yourself:
   `sudo apt install flatpak` (Debian, Ubuntu), then restart Bear Den.
 
+**Removing an app.** Apps → Remove apps on the TV (or Remove apps on the
+owner's phone) removes an app Bear Den can install, for this user only:
+`flatpak uninstall --user --noninteractive -y <id>`, plus `--delete-data`
+when you choose "Remove and delete its data" (its sign-ins and settings in
+`~/.var/app/<id>`). It asks first (Cancel is focused), says how much it
+frees (the app itself; the shared runtime stays, so a first removal frees
+less than the install took: `flatpak uninstall --user --unused` frees the
+rest, which Bear Den never runs for you) and which apps it turns off
+(removing Google Chrome turns off Netflix, Disney+ and Hulu). An app
+installed for everyone on the PC is left to the PC's own software tool.
+The log says `session: removed from this TV` or `session: remove failed`
+with the reason.
+
 **Tried in a container, not on the TV.** In `ubuntu:24.04` with `apt install
 flatpak dbus dbus-user-session`, as an unprivileged user,
 `bear-den-tv apps install moonlight --here` installed Moonlight and its KDE

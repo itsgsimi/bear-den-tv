@@ -1,4 +1,5 @@
-// Package install installs the adapter table's apps from Flathub for the
+// Package install installs (and, on the owner's Remove, uninstalls) the
+// adapter table's apps from Flathub for the
 // TV's user, without root (docs/decisions/0011-per-user-flathub-installs.md,
 // contracts/http.md "App installs"). Everything it runs is a fixed argv of
 // the flatpak CLI with --user: the one remote (flathub, its URL a constant
@@ -6,8 +7,11 @@
 // Flatpak's own signature checks untouched. One install runs at a time; its
 // progress (state, phase, percent) is read from flatpak's output and from
 // how much the disk under the user Flatpak directory has filled. Nothing
-// here decides *whether* to install: the coordinator calls Start only after
-// an owner press (internal/session/install.go).
+// here decides *whether* to install or remove: the coordinator calls Start
+// and Uninstall only after an owner press (internal/session/install.go).
+// Uninstall is `flatpak uninstall --user --noninteractive -y
+// [--delete-data] <id>`: never --system, never --unused (shared runtimes
+// stay).
 package install
 
 import (
@@ -58,6 +62,9 @@ const (
 	ReasonNotFound  = "Flathub doesn't have this app for this box."
 	ReasonCancelled = "Install cancelled"
 	ReasonUnchecked = "Flatpak finished, but the app isn't there."
+	// Removal (Uninstall).
+	ReasonNotHere   = "It isn't installed for this TV's user, so there is nothing to remove here."
+	ReasonStillHere = "Flatpak finished, but the app is still there."
 )
 
 // Errors from Start and Cancel.
@@ -155,6 +162,7 @@ type Installer struct {
 	active string             // flatpak id installing, "" when idle
 	cancel context.CancelFunc // cancels the active install or update
 	update bool               // the active job is an update
+	remove bool               // the active job is a removal
 }
 
 // New builds an installer.
@@ -266,6 +274,13 @@ func (i *Installer) Busy() bool {
 	i.mu.Lock()
 	defer i.mu.Unlock()
 	return i.cancel != nil
+}
+
+// Removing reports whether the running job is a removal.
+func (i *Installer) Removing() bool {
+	i.mu.Lock()
+	defer i.mu.Unlock()
+	return i.cancel != nil && i.remove
 }
 
 // Updating reports whether the running job is an update.
@@ -417,21 +432,8 @@ func ParseRemoteInfo(out []byte) RemoteInfo {
 
 // sizePattern is GLib's g_format_size: a decimal number, a (no-break)
 // space — printed as "?" in a C locale — and an SI unit.
-var sizePattern = regexp.MustCompile(`^([0-9]+(?:\.[0-9]+)?)[^0-9A-Za-z]*(bytes?|kB|MB|GB|TB|PB)$`)
-
 // ParseSize turns "7.7 MB" (SI, as flatpak prints it) into bytes.
-func ParseSize(s string) (int64, bool) {
-	m := sizePattern.FindStringSubmatch(strings.TrimSpace(s))
-	if m == nil {
-		return 0, false
-	}
-	v, err := strconv.ParseFloat(m[1], 64)
-	if err != nil {
-		return 0, false
-	}
-	mult := map[string]float64{"byte": 1, "bytes": 1, "kB": 1e3, "MB": 1e6, "GB": 1e9, "TB": 1e12, "PB": 1e15}[m[2]]
-	return int64(v * mult), true
-}
+func ParseSize(s string) (int64, bool) { return flatpak.ParseSize(s) }
 
 func (i *Installer) remoteInfo(ctx context.Context, ref string) (RemoteInfo, error) {
 	res, err := i.output(ctx, "flatpak", "remote-info", "--user", Remote, ref)
@@ -495,7 +497,7 @@ func (i *Installer) Start(id string) error {
 func (i *Installer) Cancel(id string) error {
 	i.mu.Lock()
 	defer i.mu.Unlock()
-	if i.cancel == nil || i.update || i.active != id {
+	if i.cancel == nil || i.update || i.remove || i.active != id {
 		return ErrNotRunning
 	}
 	i.cancel()
@@ -518,8 +520,66 @@ func (i *Installer) finish() {
 	if i.cancel != nil {
 		i.cancel()
 	}
-	i.active, i.cancel, i.update = "", nil, false
+	i.active, i.cancel, i.update, i.remove = "", nil, false, false
 	i.mu.Unlock()
+}
+
+// Uninstall removes id for this user and blocks until flatpak is done (or
+// ctx ends): `flatpak uninstall --user --noninteractive -y [--delete-data]
+// <id>`. deleteData also deletes the app's own data (~/.var/app/<id>).
+// Status is removing while it runs; afterwards it is cleared (the app can
+// be installed again), or on failure carries the owner's words in Message.
+// One job at a time: ErrBusy while an install, update or removal runs.
+func (i *Installer) Uninstall(ctx context.Context, id string, deleteData bool) error {
+	if err := i.check(id); err != nil {
+		return err
+	}
+	i.mu.Lock()
+	if i.cancel != nil {
+		i.mu.Unlock()
+		return ErrBusy
+	}
+	ctx, cancel := context.WithCancel(ctx)
+	i.active, i.cancel, i.update, i.remove = id, cancel, false, true
+	i.mu.Unlock()
+	defer i.finish()
+	i.set(id, func(s *Status) { *s = Status{State: contract.InstallRemoving} })
+	argv := []string{"flatpak", "uninstall", "--user", "--noninteractive", "-y"}
+	if deleteData {
+		argv = append(argv, "--delete-data")
+	}
+	argv = append(argv, id)
+	res, err := i.output(ctx, argv...)
+	var failed *Failure
+	switch {
+	case err != nil:
+		failed = &Failure{Reason: "Flatpak could not be run.", Detail: err.Error()}
+	case res.ExitCode != 0:
+		failed = &Failure{Reason: ExplainRemove(string(res.Stderr)), Detail: lastLine(string(res.Stderr))}
+	case i.Installed(ctx, id):
+		failed = &Failure{Reason: ReasonStillHere}
+	}
+	if failed != nil {
+		i.set(id, func(s *Status) { *s = Status{Message: truncate(failed.Reason, 200)} })
+		return failed
+	}
+	i.mu.Lock()
+	delete(i.status, id)
+	i.mu.Unlock()
+	i.changed()
+	return nil
+}
+
+// ExplainRemove turns `flatpak uninstall`'s error output into the owner's
+// words (testdata/uninstall-missing.stderr: "No installed refs found").
+func ExplainRemove(stderr string) string {
+	if containsAny(strings.ToLower(stderr), "no installed refs found", "not installed") {
+		return ReasonNotHere
+	}
+	if l := lastLine(stderr); l != "" {
+		return truncate("Flatpak said: "+l, 200)
+	}
+	return "Flatpak stopped without saying why."
 }
 
 func (i *Installer) fail(id string, err error, cancelled bool) {

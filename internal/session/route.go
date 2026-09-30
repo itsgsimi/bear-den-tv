@@ -125,12 +125,15 @@ func (c *Coordinator) route(ctx context.Context, s sender, req contract.ActionRe
 		return c.doTVPower(ctx, req)
 	case contract.ActionPointerMove, contract.ActionPointerClick, contract.ActionPointerScroll:
 		return c.doPointer(ctx, s, req, target)
-	case contract.ActionAppInstall, contract.ActionAppInstallCancel:
+	case contract.ActionAppInstall, contract.ActionAppInstallCancel, contract.ActionAppUninstall:
 		if cp, _ := c.capability(req.Action); !cp.Available {
 			return c.fail(req, contract.CodeUnsupported, cp.Reason)
 		}
-		if req.Action == contract.ActionAppInstall {
+		switch req.Action {
+		case contract.ActionAppInstall:
 			return c.doInstall(req)
+		case contract.ActionAppUninstall:
+			return c.doUninstall(req)
 		}
 		return c.doInstallCancel(req)
 	case contract.ActionShellRestart:

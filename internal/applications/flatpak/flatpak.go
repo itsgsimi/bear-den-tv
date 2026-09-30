@@ -91,6 +91,10 @@ type InfoFields struct {
 	Origin       string `json:"origin"`
 	Installation string `json:"installation"`
 	Runtime      string `json:"runtime"`
+	// Installed is the app's own size as printed ("18.6 MB"); InstalledBytes
+	// is it in bytes (0 when absent or unreadable).
+	Installed      string `json:"installed"`
+	InstalledBytes int64  `json:"installed_bytes"`
 }
 
 // ParseInfo reads the "Key: Value" block of `flatpak info` output.
@@ -115,9 +119,29 @@ func ParseInfo(out []byte) InfoFields {
 			f.Installation = value
 		case "Runtime":
 			f.Runtime = value
+		case "Installed":
+			f.Installed = value
+			f.InstalledBytes, _ = ParseSize(value)
 		}
 	}
 	return f
+}
+
+var sizePattern = regexp.MustCompile(`^([0-9]+(?:\.[0-9]+)?)[^0-9A-Za-z]*(bytes?|kB|MB|GB|TB|PB)$`)
+
+// ParseSize turns a size as flatpak prints it ("7.7 MB", SI units, with a
+// no-break space in `flatpak info`) into bytes.
+func ParseSize(s string) (int64, bool) {
+	m := sizePattern.FindStringSubmatch(strings.TrimSpace(s))
+	if m == nil {
+		return 0, false
+	}
+	v, err := strconv.ParseFloat(m[1], 64)
+	if err != nil {
+		return 0, false
+	}
+	mult := map[string]float64{"byte": 1, "bytes": 1, "kB": 1e3, "MB": 1e6, "GB": 1e9, "TB": 1e12, "PB": 1e15}[m[2]]
+	return int64(v * mult), true
 }
 
 // ParsePS reads `flatpak ps --columns=instance,pid,application` output in
@@ -227,7 +251,7 @@ func (l *Launcher) Discover(ctx context.Context, flatpakID string) (applications
 			if f.Installation != "" {
 				scope = f.Installation
 			}
-			return applications.Installation{Installed: true, Version: f.Version, Scope: scope}, nil
+			return applications.Installation{Installed: true, Version: f.Version, Scope: scope, SizeBytes: f.InstalledBytes}, nil
 		}
 		lastErr = strings.TrimSpace(string(res.Stderr))
 		if !strings.Contains(lastErr, "not installed") {

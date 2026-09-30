@@ -193,6 +193,13 @@ func (h *ShellHandler) Receive(cl *shellipc.Client, m shellipc.Message) {
 		h.reply(cl, msg.RequestID, err, data)
 	case shellipc.AppInstallCancel:
 		h.reply(cl, msg.RequestID, c.cancelInstall(msg.AppID), nil)
+	case shellipc.AppUninstall:
+		// Waiting out an idle update may take seconds: answer from a
+		// goroutine so the read loop keeps serving pings.
+		go func() {
+			data, err := c.startUninstall(msg.AppID, msg.DeleteData)
+			h.reply(cl, msg.RequestID, err, data)
+		}()
 	case shellipc.AppInstallInfo:
 		// Flathub may take seconds: answer from a goroutine so the read
 		// loop keeps serving pings.

@@ -32,6 +32,7 @@ set(BDTV_QML_FILES
   qml/ConnectingScreen.qml
   qml/LockedScreen.qml
   qml/InstallCard.qml
+  qml/RemoveCard.qml
   qml/AppsScreen.qml
   qml/ThemesScreen.qml
   qml/ThemePicker.qml

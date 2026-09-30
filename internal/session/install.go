@@ -1,11 +1,16 @@
-// App installs in the coordinator: the owner-only actions app.install and
-// app.install_cancel, their IPC twins (app.install, app.install_info,
-// app.install_cancel, apps.configure), state.applications[].install and
+// App installs in the coordinator: the owner-only actions app.install,
+// app.install_cancel and app.uninstall, their IPC twins (app.install,
+// app.install_info, app.install_cancel, app.uninstall, apps.configure),
+// state.applications[].install and
 // state.apps, rediscovery once an install is done (turning on first the app
 // whose own card started it, when the shell said so: IPC app.install
 // "enable"), and the daily update
 // while the TV is idle (config apps.auto_update). The installer itself is
-// internal/applications/install. Spec: contracts/actions.md "App installs",
+// internal/applications/install. Removal (the owner's confirmed Remove)
+// runs `flatpak uninstall --user` for the app's adapter's Flatpak only,
+// refuses system-wide installs and running apps with plain words, logs how
+// it ended and discovers the app again so its tile hides.
+// Spec: contracts/actions.md "App installs" and "App removal",
 // contracts/http.md "App installs", docs/decisions/0011-per-user-flathub-installs.md.
 
 package session
@@ -34,6 +39,8 @@ type AppInstaller interface {
 	Updating() bool
 	Update(ctx context.Context, flatpakIDs []string) error
 	CancelUpdate() bool
+	Removing() bool
+	Uninstall(ctx context.Context, flatpakID string, deleteData bool) error
 }
 
 // Defaults for the idle update (Options.UpdateCheck, UpdateEvery).
@@ -157,15 +164,25 @@ func (c *Coordinator) installForLocked(a configApp, rt *appRuntime) *contract.In
 	}
 	out.DRM = c.drmForLocked(a, rt.install.Installed)
 	switch st.State {
-	case contract.InstallPreparing, contract.InstallDownloading, contract.InstallInstalling, contract.InstallFailed, contract.InstallDone:
+	case contract.InstallPreparing, contract.InstallDownloading, contract.InstallInstalling, contract.InstallFailed, contract.InstallDone, contract.InstallRemoving:
 		out.State, out.Phase, out.Progress, out.Message = st.State, st.Phase, st.Progress, st.Message
+		if rt.install.Installed && rt.install.SizeBytes > 0 {
+			v := rt.install.SizeBytes
+			out.InstalledBytes = &v
+		}
 		return out
 	}
 	ok, why := in.Available()
 	switch {
 	case rt.install.Installed:
+		if rt.install.SizeBytes > 0 {
+			v := rt.install.SizeBytes
+			out.InstalledBytes = &v
+		}
 		if rt.install.Scope == "system" {
 			out.Message = reasonSystem
+		} else if st.Message != "" {
+			out.Message = st.Message // why the last Remove did not work
 		}
 	case !rt.discovered:
 		// Not known yet: nothing to offer until discovery has answered.
@@ -179,21 +196,25 @@ func (c *Coordinator) installForLocked(a configApp, rt *appRuntime) *contract.In
 	return out
 }
 
-// installCapsLocked fills app.install and app.install_cancel. c.mu is held.
+// installCapsLocked fills app.install, app.install_cancel and
+// app.uninstall. c.mu is held.
 func (c *Coordinator) installCapsLocked(caps map[string]contract.Capability) {
 	in := c.opts.Installer
 	if in == nil {
 		caps[contract.ActionAppInstall] = unavailable("App installs are not available in this session.")
 		caps[contract.ActionAppInstallCancel] = caps[contract.ActionAppInstall]
+		caps[contract.ActionAppUninstall] = unavailable("Removing apps is not available in this session.")
 		return
 	}
 	if ok, why := in.Available(); !ok {
 		caps[contract.ActionAppInstall] = unavailable(why)
 		caps[contract.ActionAppInstallCancel] = unavailable(why)
+		caps[contract.ActionAppUninstall] = unavailable(why)
 		return
 	}
 	caps[contract.ActionAppInstall] = available(backendInstall)
-	if in.Busy() && !in.Updating() {
+	caps[contract.ActionAppUninstall] = available(backendInstall)
+	if in.Busy() && !in.Updating() && !in.Removing() {
 		caps[contract.ActionAppInstallCancel] = available(backendInstall)
 	} else {
 		caps[contract.ActionAppInstallCancel] = unavailable("Nothing is installing.")
@@ -309,6 +330,83 @@ func (c *Coordinator) doInstallCancel(req contract.ActionRequest) contract.Actio
 		return c.installResult(req, nil, err)
 	}
 	return c.result(req, contract.OutcomeDelivered, map[string]any{"app_id": appID})
+}
+
+// startUninstall is app.uninstall from an owner phone or the shell (the
+// TV's confirmed Remove): the Flatpak comes from the app's adapter row,
+// never from the sender, and is removed for this user only. It returns
+// once the removal has started; install.state is "removing" meanwhile.
+func (c *Coordinator) startUninstall(appID string, deleteData bool) (map[string]any, error) {
+	in := c.opts.Installer
+	if in == nil {
+		return nil, &installError{contract.CodeUnsupported, "Removing apps is not available in this session."}
+	}
+	if ok, why := in.Available(); !ok {
+		return nil, &installError{contract.CodeUnsupported, why}
+	}
+	app, ok := c.opts.Config.Current().Application(appID)
+	if !ok {
+		return nil, &installError{contract.CodeInvalid, "That application is not registered."}
+	}
+	fid := app.Launch.AppID
+	ad, known := c.opts.Adapters.ForName(app.Adapter)
+	if !known || !adapters.RunsIn(ad, fid) || !in.Allowed(fid) {
+		return nil, &installError{contract.CodeUnsupported, "Bear Den can't remove " + app.Label + "."}
+	}
+	c.mu.Lock()
+	inst := c.appLocked(appID).install
+	var running []string
+	for _, a := range c.opts.Config.Current().Applications {
+		if a.Launch.AppID != fid {
+			continue
+		}
+		rt := c.appLocked(a.ID)
+		if rt.instance != nil || rt.launchState == "running" || rt.launchState == "launching" || (c.opts.Web != nil && c.opts.Web.Running(a.ID)) {
+			running = append(running, a.Label)
+		}
+	}
+	c.mu.Unlock()
+	switch {
+	case !inst.Installed:
+		return nil, &installError{contract.CodeUnsupported, app.Label + " is not installed."}
+	case inst.Scope == "system":
+		return nil, &installError{contract.CodeUnsupported, app.Label + " is installed for everyone on this PC, so it can only be removed with the PC's own software tool."}
+	case len(running) > 0:
+		return nil, &installError{contract.CodeBusy, "Close " + running[0] + " first."}
+	}
+	// The owner's press wins over the idle update, as for installs.
+	if in.Updating() && in.CancelUpdate() {
+		deadline := c.clock.Now().Add(8 * time.Second)
+		for in.Busy() && c.clock.Now().Before(deadline) {
+			time.Sleep(50 * time.Millisecond)
+		}
+	}
+	if in.Busy() {
+		return nil, &installError{contract.CodeBusy, "Another app is installing or being removed. Wait for it to finish."}
+	}
+	c.log.Info("session: removing from this TV", "app", appID, "flatpak", fid, "delete_data", deleteData)
+	go func() {
+		err := in.Uninstall(context.Background(), fid, deleteData)
+		var f *install.Failure
+		switch {
+		case errors.As(err, &f):
+			c.log.Warn("session: remove failed", "app", appID, "flatpak", fid, "reason", f.Reason, "detail", f.Detail)
+		case err != nil:
+			c.log.Warn("session: remove failed", "app", appID, "flatpak", fid, "reason", err.Error())
+		default:
+			c.log.Info("session: removed from this TV", "app", appID, "flatpak", fid, "data_deleted", deleteData)
+		}
+		c.rediscover(context.Background(), fid)
+	}()
+	return map[string]any{"app_id": appID, "removing": true}, nil
+}
+
+// doUninstall routes app.uninstall (owner phones; the permission was checked).
+func (c *Coordinator) doUninstall(req contract.ActionRequest) contract.ActionResult {
+	appID, _ := req.Args["app_id"].(string)
+	deleteData, _ := req.Args["delete_data"].(bool)
+	detail, err := c.startUninstall(appID, deleteData)
+	return c.installResult(req, detail, err)
 }
 
 // installInfo is IPC app.install_info: how big the app's install is.

@@ -35,6 +35,10 @@ type fakeInstaller struct {
 	updates   [][]string
 	updating  chan struct{} // closed by CancelUpdate
 	onChange  func()
+	// Removals (uninstall_test.go).
+	removals    []removal
+	failRemove  string
+	onUninstall func(id string)
 }
 
 func newFakeInstaller() *fakeInstaller {

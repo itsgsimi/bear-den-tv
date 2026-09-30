@@ -99,6 +99,10 @@ ShellController::ShellController(QObject *parent) : QObject(parent)
             emit installReplied(type, m_installRequests.take(requestId), false, tr("Flathub did not answer in time."), {});
             return;
         }
+        if (type == QLatin1String("app.uninstall")) {
+            emit installReplied(type, m_installRequests.take(requestId), false, tr("Bear Den did not answer in time."), {});
+            return;
+        }
         if (type == QLatin1String("settings.update")) {
             layoutUpdateFailed(tr("Bear Den did not answer in time."));
             return;
@@ -243,9 +247,9 @@ void ShellController::onReply(const QString &requestId, const QString &type, con
             emit requestFailed(tr("Weather"), error);
         return;
     }
-    if (type.startsWith(QLatin1String("app.install"))) {
-        // The install card shows the answer itself (and the progress is in
-        // state.applications[].install).
+    if (type.startsWith(QLatin1String("app.install")) || type == QLatin1String("app.uninstall")) {
+        // The install and remove cards show the answer themselves (and the
+        // progress is in state.applications[].install).
         const QString appId = m_installRequests.take(requestId);
         emit installReplied(type, appId, payload.value(QStringLiteral("ok")).toBool(), payload.value(QStringLiteral("error")).toString(),
                             payload.value(QStringLiteral("data")).toObject().toVariantMap());
@@ -412,6 +416,11 @@ void ShellController::installApp(const QString &appId, bool enable)
 void ShellController::cancelInstall(const QString &appId)
 {
     m_installRequests.insert(m_ipc->sendAppInstall(QStringLiteral("app.install_cancel"), appId), appId);
+}
+
+void ShellController::uninstallApp(const QString &appId, bool deleteData)
+{
+    m_installRequests.insert(m_ipc->sendAppUninstall(appId, deleteData), appId);
 }
 
 void ShellController::setAutoUpdate(bool enabled)

@@ -15,6 +15,9 @@ type Installation struct {
 	Installed bool
 	Version   string // empty when unknown
 	Scope     string // user | system | none | unknown
+	// SizeBytes is what the app itself takes on disk (flatpak info's
+	// "Installed"); 0 when unknown.
+	SizeBytes int64
 }
 
 // Instance is a running application instance as tracked by the launcher.

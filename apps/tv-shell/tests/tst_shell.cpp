@@ -1066,6 +1066,119 @@ private slots:
         QVERIFY2(m_nav->screen() != QLatin1String("dialog") || m_nav->itemId().startsWith(QLatin1String("install")), qPrintable(m_nav->itemId()));
     }
 
+    // TV item 9 (2026-09-29): Apps → Remove apps, one card per Flatpak;
+    // the remove card has Cancel focused, says what it frees and what else
+    // it turns off (Netflix runs in Google Chrome), sends app.uninstall only
+    // on Remove (with delete_data on "Remove and delete its data"), shows
+    // "Removing…" and closes once the app is gone; a system-wide install is
+    // refused plainly with OK only.
+    void removeCardConfirmsAndRemoves()
+    {
+        SessionModel *session = SessionModel::instance();
+        IpcClient *ipc = ShellController::instance()->ipc();
+        const auto restore = qScopeGuard([session, this] { session->applySnapshot(fixture()); goHome(); });
+        auto snapshot = [this](const QString &youtubeState, bool youtubeInstalled) {
+            QJsonObject snap = installSnapshot(QStringLiteral("none"), 0, true);
+            QJsonArray apps = snap.value(QStringLiteral("applications")).toArray();
+            for (int i = 0; i < apps.size(); ++i) {
+                QJsonObject a = apps.at(i).toObject();
+                const QString id = a.value(QStringLiteral("id")).toString();
+                if (id == QLatin1String("plex-htpc"))
+                    a.insert(QStringLiteral("installation"), QStringLiteral("system"));
+                if (id == QLatin1String("youtube")) {
+                    a.insert(QStringLiteral("installed"), youtubeInstalled);
+                    a.insert(QStringLiteral("installation"), youtubeInstalled ? QStringLiteral("user") : QStringLiteral("none"));
+                    a.insert(QStringLiteral("install"), QJsonObject{{QStringLiteral("state"), youtubeState}, {QStringLiteral("progress"), 0},
+                                                                    {QStringLiteral("phase"), QString()}, {QStringLiteral("installed_bytes"), 142300000}});
+                }
+                if (id == QLatin1String("netflix") || id == QLatin1String("hulu")) {
+                    a.insert(QStringLiteral("installed"), true);
+                    a.insert(QStringLiteral("installation"), QStringLiteral("user"));
+                    a.insert(QStringLiteral("enabled"), id == QLatin1String("netflix"));
+                    a.insert(QStringLiteral("hidden"), id != QLatin1String("netflix"));
+                    a.insert(QStringLiteral("install"), QJsonObject{{QStringLiteral("state"), QStringLiteral("none")}, {QStringLiteral("progress"), 0}, {QStringLiteral("phase"), QString()}});
+                }
+                apps.replace(i, a);
+            }
+            snap.insert(QStringLiteral("applications"), apps);
+            QJsonObject caps = snap.value(QStringLiteral("capabilities")).toObject();
+            caps.insert(QStringLiteral("app.uninstall"), QJsonObject{{QStringLiteral("available"), true}, {QStringLiteral("backend"), QStringLiteral("flathub")}});
+            snap.insert(QStringLiteral("capabilities"), caps);
+            auto browser = [](const QString &id, const QString &label, const QString &flatpak) {
+                return QJsonObject{{QStringLiteral("id"), id}, {QStringLiteral("label"), label}, {QStringLiteral("flatpak_id"), flatpak}, {QStringLiteral("streaming_unverified"), false}};
+            };
+            snap.insert(QStringLiteral("apps"), QJsonObject{{QStringLiteral("auto_update"), true}, {QStringLiteral("browser"), QStringLiteral("brave")}, {QStringLiteral("streaming_browser"), QStringLiteral("chrome")},
+                                                            {QStringLiteral("browsers"), QJsonArray{browser(QStringLiteral("chrome"), QStringLiteral("Google Chrome"), QStringLiteral("com.google.Chrome")),
+                                                                                                    browser(QStringLiteral("brave"), QStringLiteral("Brave"), QStringLiteral("com.brave.Browser"))}}});
+            return snap;
+        };
+        QVERIFY2(session->applySnapshot(snapshot(QStringLiteral("none"), true)), qPrintable(session->lastError()));
+        QQuickItem *card = m_window->findChild<QQuickItem *>(QStringLiteral("removeCard"));
+        QVERIFY(card);
+        auto body = [this]() { QQuickItem *b = m_window->findChild<QQuickItem *>(QStringLiteral("removeCardBody")); return b ? b->property("text").toString() : QString(); };
+        auto title = [this]() { QQuickItem *b = m_window->findChild<QQuickItem *>(QStringLiteral("removeCardTitle")); return b ? b->property("text").toString() : QString(); };
+        openFromHeader(QStringLiteral("apps"));
+        for (int i = 0; i < 12 && m_nav->sectionId() != QLatin1String("remove-apps"); ++i)
+            act(QStringLiteral("nav.down"));
+        QCOMPARE(m_nav->sectionId(), QStringLiteral("remove-apps"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("plex-htpc"));
+        shot(QStringLiteral("apps-remove"));
+
+        // System-wide: refused plainly, OK only, nothing sent.
+        ipc->clearSent();
+        act(QStringLiteral("select"));
+        QVERIFY(card->isVisible());
+        QCOMPARE(title(), QStringLiteral("Plex can't be removed here"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("remove-close"));
+        act(QStringLiteral("nav.right"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("remove-close"));
+        act(QStringLiteral("select"));
+        QVERIFY(!card->isVisible());
+
+        // YouTube: Cancel is focused and sends nothing.
+        act(QStringLiteral("nav.right"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("youtube"));
+        act(QStringLiteral("select"));
+        QCOMPARE(title(), QStringLiteral("Remove YouTube?"));
+        QVERIFY2(body().contains(QStringLiteral("Frees about 142 MB")), qPrintable(body()));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("remove-close"));
+        shot(QStringLiteral("remove-card"));
+        act(QStringLiteral("select"));
+        QVERIFY(!card->isVisible());
+        QVERIFY(lastSent(QStringLiteral("app.uninstall")).isEmpty());
+
+        // Remove and delete its data.
+        act(QStringLiteral("select"));
+        act(QStringLiteral("nav.right"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("remove-remove"));
+        act(QStringLiteral("nav.right"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("remove-remove-data"));
+        act(QStringLiteral("select"));
+        const QJsonObject sent = lastSent(QStringLiteral("app.uninstall"));
+        QCOMPARE(sent.value(QStringLiteral("app_id")).toString(), QStringLiteral("youtube"));
+        QCOMPARE(sent.value(QStringLiteral("delete_data")), QJsonValue(true));
+        QVERIFY(session->applySnapshot(snapshot(QStringLiteral("removing"), true)));
+        QCoreApplication::processEvents();
+        QCOMPARE(title(), QStringLiteral("Removing YouTube…"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("remove-hide"));
+        QVERIFY(session->applySnapshot(snapshot(QStringLiteral("available"), false)));
+        QCoreApplication::processEvents();
+        QVERIFY2(!card->isVisible(), "the card stayed after the app was removed");
+
+        // Google Chrome: Netflix (on) uses it and goes off with it; Hulu is off already.
+        for (int i = 0; i < 12 && m_nav->sectionId() != QLatin1String("remove-apps"); ++i)
+            act(QStringLiteral("nav.down"));
+        for (int i = 0; i < 4 && m_nav->itemId() != QLatin1String("netflix"); ++i)
+            act(QStringLiteral("nav.right"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("netflix"));
+        act(QStringLiteral("select"));
+        QCOMPARE(title(), QStringLiteral("Remove Google Chrome?"));
+        QVERIFY2(body().contains(QStringLiteral("Netflix uses Google Chrome, so removing it turns Netflix off.")), qPrintable(body()));
+        shot(QStringLiteral("remove-card-chrome"));
+        act(QStringLiteral("back"));
+        QVERIFY(!card->isVisible());
+    }
+
     // TV item 7 (2026-09-29): the launch overlay used to hide the moment the
     // coordinator saw the app in front, before the app's window had drawn,
     // so Bear Den's bright page and scene flashed between "Opening…" and

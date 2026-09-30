@@ -44,7 +44,7 @@ func (l *Launcher) Discover(_ context.Context, id string) (applications.Installa
 	if l.isMissing(id) {
 		return applications.Installation{Scope: "none"}, nil
 	}
-	return applications.Installation{Installed: true, Version: "dev", Scope: "user"}, nil
+	return applications.Installation{Installed: true, Version: "dev", Scope: "user", SizeBytes: 142_300_000}, nil
 }
 
 // Launch implements applications.Launcher.

@@ -50,6 +50,7 @@ QtObject {
         // Apps page
         "installed": qsTr("The apps on this TV. Open one from Home."),
         "add-apps": qsTr("Installs apps Bear Den knows from Flathub, for this user only. Nothing installs until you press Install."),
+        "remove-apps": qsTr("Removes an app from this TV, for this user only. OK shows what it frees and what else it turns off; nothing is removed until you press Remove."),
         "streaming": qsTr("Netflix, Disney+ and Hulu in a browser. Off: no tile on Home."),
         "browser-browser": qsTr("Which browser the Browser tile opens in."),
         "browser-streaming": qsTr("Which browser the streaming sites open in. They need its Widevine module to play."),

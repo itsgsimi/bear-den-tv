@@ -24,5 +24,16 @@ machine itself.
 | `install-already.stderr` | the same install once it is installed | exit 0 |
 | `update-uptodate.stdout` | `flatpak update --user --noninteractive -y com.moonlight_stream.Moonlight` | exit 0, nothing to do |
 
+Removal, captured 2026-09-29 the same way (Flatpak 1.14.6, `ubuntu:24.04`,
+unprivileged user, a system D-Bus), after installing Moonlight again:
+
+| File | Command | Notes |
+|---|---|---|
+| `info-user-moonlight.stdout` | `flatpak info --user com.moonlight_stream.Moonlight` | exit 0; `Installed: 18.6 MB` (a no-break space before `MB`) |
+| `uninstall-moonlight.stdout`, `.stderr` | `flatpak uninstall --user --noninteractive -y com.moonlight_stream.Moonlight` | exit 0; stderr is only container `bwrap` noise. The app's data in `~/.var/app/<id>` stays; the user installation went from 2.54 GB to 2.51 GB (the runtime stays) |
+| `uninstall-missing.stderr` | the same once it is removed | exit 1, `error: No installed refs found for ‘<id>’` (the same for `--system` and an id installed nowhere) |
+| `uninstall-delete-data.stdout` | the same with `--delete-data`, after reinstalling | exit 0; `~/.var/app/<id>` is gone afterwards |
+| `uninstall-unused.stdout` | `flatpak uninstall --user --noninteractive -y --unused` | exit 0: the KDE runtime and GL/codec extensions (the installation went to 3 kB). Bear Den never runs this |
+
 The container recipe and the installer's own run through `bear-den-tv apps
 install --here` are in [`docs/operations.md`](../../../../docs/operations.md#app-installs).

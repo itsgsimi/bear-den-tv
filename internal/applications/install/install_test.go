@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"bear-den-tv/internal/applications/adapters"
+	"bear-den-tv/internal/applications/flatpak"
 	"bear-den-tv/internal/contract"
 )
 
@@ -575,5 +576,86 @@ func TestUpdateArgvAndCancel(t *testing.T) {
 	p.exit(nil, "")
 	if err := <-errc; err != nil {
 		t.Fatalf("up-to-date update = %v", err)
+	}
+}
+
+// Removal (Uninstall) with flatpak's real output: exactly `flatpak
+// uninstall --user --noninteractive -y [--delete-data] <id>`, never
+// --system or --unused; "removing" while it runs, cleared afterwards; the
+// owner's words when flatpak refuses or the app is still there; one job at
+// a time; the adapter table's ids only.
+func TestUninstallRunsTheFixedArgvForThisUserOnly(t *testing.T) {
+	f := newFakeRunner()
+	in := newInstaller(t, f, &disk{free: 50e9})
+	var states []string
+	in.onChange = func() { states = append(states, in.Status(moonlight).State) }
+	f.answer("flatpak uninstall --user --noninteractive -y "+moonlight, Result{Stdout: testdata(t, "uninstall-moonlight.stdout"), Stderr: testdata(t, "uninstall-moonlight.stderr")})
+	f.answer("flatpak uninstall --user --noninteractive -y --delete-data "+moonlight, Result{Stdout: testdata(t, "uninstall-delete-data.stdout")})
+	if err := in.Uninstall(context.Background(), moonlight, false); err != nil {
+		t.Fatalf("Uninstall = %v", err)
+	}
+	if err := in.Uninstall(context.Background(), moonlight, true); err != nil {
+		t.Fatalf("Uninstall with data = %v", err)
+	}
+	want := "[[flatpak uninstall --user --noninteractive -y com.moonlight_stream.Moonlight] [flatpak info --user com.moonlight_stream.Moonlight]" +
+		" [flatpak uninstall --user --noninteractive -y --delete-data com.moonlight_stream.Moonlight] [flatpak info --user com.moonlight_stream.Moonlight]]"
+	if fmt.Sprint(f.all()) != want {
+		t.Fatalf("argv %q", f.all())
+	}
+	checkArgvs(t, f.all())
+	for _, argv := range f.all() {
+		if strings.Contains(strings.Join(argv, " "), "--unused") {
+			t.Fatalf("ran %q", argv)
+		}
+	}
+	if fmt.Sprint(states) != "[removing  removing ]" {
+		t.Fatalf("states %q", states)
+	}
+	if in.Busy() || in.Removing() || in.Status(moonlight) != (Status{}) {
+		t.Fatalf("after: busy %v removing %v status %+v", in.Busy(), in.Removing(), in.Status(moonlight))
+	}
+	// Only the adapter table's ids.
+	if err := in.Uninstall(context.Background(), "org.example.Other", false); !errors.Is(err, ErrNotAllowed) {
+		t.Fatalf("other id = %v", err)
+	}
+}
+
+func TestUninstallFailuresInPlainWords(t *testing.T) {
+	f := newFakeRunner()
+	in := newInstaller(t, f, &disk{free: 50e9})
+	// Not installed for this user (the real error).
+	f.answer("flatpak uninstall --user --noninteractive -y "+moonlight, Result{ExitCode: 1, Stderr: testdata(t, "uninstall-missing.stderr")})
+	var fail *Failure
+	if err := in.Uninstall(context.Background(), moonlight, false); !errors.As(err, &fail) || fail.Reason != ReasonNotHere {
+		t.Fatalf("missing = %v", err)
+	}
+	if st := in.Status(moonlight); st.State != "" || st.Message != ReasonNotHere {
+		t.Fatalf("status %+v", st)
+	}
+	// flatpak said yes, but the app is still there.
+	f.answer("flatpak uninstall --user --noninteractive -y "+moonlight, Result{Stdout: testdata(t, "uninstall-moonlight.stdout")})
+	f.answer("flatpak info --user "+moonlight, Result{Stdout: testdata(t, "info-user-moonlight.stdout")})
+	if err := in.Uninstall(context.Background(), moonlight, false); !errors.As(err, &fail) || fail.Reason != ReasonStillHere {
+		t.Fatalf("still there = %v", err)
+	}
+	// One job at a time: not during an install.
+	realAnswers(t, f)
+	if err := in.Start(adapters.ChromeFlatpakID); err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, "installing", in.Busy)
+	if err := in.Uninstall(context.Background(), moonlight, false); !errors.Is(err, ErrBusy) {
+		t.Fatalf("during an install = %v", err)
+	}
+	if err := in.Cancel(adapters.ChromeFlatpakID); err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, "idle", func() bool { return !in.Busy() })
+}
+
+func TestInstalledSizeFromRealInfo(t *testing.T) {
+	f := flatpak.ParseInfo(testdata(t, "info-user-moonlight.stdout"))
+	if f.Installation != "user" || f.InstalledBytes != 18_600_000 {
+		t.Fatalf("info %+v", f)
 	}
 }

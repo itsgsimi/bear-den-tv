@@ -442,6 +442,16 @@ QString IpcClient::sendAppInstall(const QString &type, const QString &appId, boo
     return track(id, type);
 }
 
+QString IpcClient::sendAppUninstall(const QString &appId, bool deleteData)
+{
+    const QString id = newRequestId();
+    QJsonObject msg{{QStringLiteral("type"), QStringLiteral("app.uninstall")}, {QStringLiteral("request_id"), id}, {QStringLiteral("app_id"), appId}};
+    if (deleteData)
+        msg.insert(QStringLiteral("delete_data"), true);
+    send(msg);
+    return track(id, QStringLiteral("app.uninstall"));
+}
+
 QString IpcClient::sendAppsConfigure(bool autoUpdate)
 {
     const QString id = newRequestId();

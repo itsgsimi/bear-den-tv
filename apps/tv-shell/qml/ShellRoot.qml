@@ -34,6 +34,7 @@ FocusScope {
     readonly property var topDialog: confirmDialog.visible ? confirmDialog
                                    : messageDialog.visible ? messageDialog
                                    : installCard.visible ? installCard
+                                   : removeCard.visible ? removeCard
                                    : null
     readonly property bool blocked: !Session.loaded || Session.locked
 
@@ -100,6 +101,7 @@ FocusScope {
         confirmDialog.finish(false)
         messageDialog.visible = false
         installCard.visible = false
+        removeCard.visible = false
         launchOverlay.dismissed = true
         if (current().leave) current().leave()
         stack = ["home"]
@@ -299,6 +301,7 @@ FocusScope {
             Behavior on opacity { NumberAnimation { duration: Theme.ms(220); easing.type: Easing.OutCubic } }
             Behavior on y { NumberAnimation { duration: Theme.ms(260); easing.type: Easing.OutCubic } }
             onOpenInstall: (appId, forApp) => installCard.openFor(appId, forApp)
+            onOpenRemove: (appId) => removeCard.openFor(appId)
         }
         ThemesScreen {
             id: themes
@@ -447,6 +450,11 @@ FocusScope {
         id: installCard
         anchors.fill: parent
         onInstallRequested: (appId) => root.pendingOpen = appId
+    }
+    RemoveCard {
+        id: removeCard
+        anchors.fill: parent
+        onRemoved: (name) => toast.show("info", qsTr("%1 was removed").arg(name))
     }
     MessageDialog { id: messageDialog; anchors.fill: parent }
     ConfirmDialog { id: confirmDialog; anchors.fill: parent }

@@ -17,13 +17,20 @@
 //                    browser with streaming_unverified says so; the help
 //                    panel shows the focused browser's notes). ADR 0013,
 //                    ADR 0014.
+//   Remove apps      one card per installed Flatpak (the web apps: their
+//                    browser), while app.uninstall is listed; OK opens the
+//                    remove card (RemoveCard.qml: Cancel focused, the size it
+//                    frees, what it turns off, Remove / Remove and delete its
+//                    data). A system-wide install says it can't be removed
+//                    here. TV test 2026-09-29 item 9.
 //   Updates          Keep apps up to date (Shell.setAutoUpdate → IPC
 //                    apps.configure).
 // Beside the list, the focused entry's help (Help.qml) and, for an app, its
 // notes (state.applications[].notes). Everything comes from the snapshot,
 // never from display names. `focusSection("add-apps" | "streaming")` is how
 // Home's Add apps tile and the old screen names land on a section.
-// Reports focus as sections `apps-installed`, `add-apps`, `streaming`, `apps`.
+// Reports focus as sections `apps-installed`, `add-apps`, `streaming`,
+// `remove-apps`, `apps`.
 
 pragma ComponentBehavior: Bound
 import QtQuick
@@ -36,9 +43,11 @@ Item {
     property int line: 0
     property int installedIndex: 0
     property int addIndex: 0
+    property int removeIndex: 0
     // forApp: opened for that app itself (its Streaming sites row), not a
     // shared browser card (InstallCard.forApp).
     signal openInstall(string appId, bool forApp)
+    signal openRemove(string appId)
 
     // Installed apps with a tile on Home.
     readonly property var installed: Session.applications.filter(a => a.installed === true && a.hidden !== true)
@@ -49,6 +58,21 @@ Item {
         const seen = {}
         for (const a of Session.applications) {
             if (a.installed === true || a.install === undefined) continue
+            const key = Shell.flatpakIdFor(a.adapter) || a.id
+            if (seen[key]) continue
+            seen[key] = true
+            out.push(a)
+        }
+        return out
+    }
+    // Installed apps Bear Den could remove, one entry per Flatpak id (first
+    // app wins), while the coordinator lists app.uninstall.
+    readonly property var removable: {
+        const out = []
+        if (Session.capabilities["app.uninstall"] === undefined) return out
+        const seen = {}
+        for (const a of Session.applications) {
+            if (a.installed !== true || a.install === undefined) continue
             const key = Shell.flatpakIdFor(a.adapter) || a.id
             if (seen[key]) continue
             seen[key] = true
@@ -81,6 +105,7 @@ Item {
         if (missing.length > 0) out.push({ kind: "strip", id: "add" })
         for (const s of sites) out.push({ kind: "site", id: s.id, app: s })
         for (const c of choices) out.push({ kind: "browser", id: "browser-" + c, which: c })
+        if (removable.length > 0) out.push({ kind: "strip", id: "remove" })
         if (hasApps) out.push({ kind: "toggle", id: "auto-update" })
         return out
     }
@@ -92,11 +117,12 @@ Item {
     }
 
     // Opened from Home's top bar: from the top.
-    function opened() { line = 0; installedIndex = 0; addIndex = 0 }
+    function opened() { line = 0; installedIndex = 0; addIndex = 0; removeIndex = 0 }
     function enter() {
         line = Math.max(0, Math.min(line, lines.length - 1))
         installedIndex = Math.max(0, Math.min(installedIndex, installed.length - 1))
         addIndex = Math.max(0, Math.min(addIndex, missing.length - 1))
+        removeIndex = Math.max(0, Math.min(removeIndex, removable.length - 1))
         report()
     }
     // Land on a section: "add-apps" (Home's Add apps tile), "streaming".
@@ -111,8 +137,8 @@ Item {
         const c = current
         switch (c.kind) {
         case "strip": {
-            const a = c.id === "installed" ? installed[installedIndex] : missing[addIndex]
-            Nav.reportFocus(c.id === "installed" ? "apps-installed" : "add-apps", a ? a.id : "none", 0)
+            const a = stripApp(c.id)
+            Nav.reportFocus(c.id === "installed" ? "apps-installed" : c.id === "remove" ? "remove-apps" : "add-apps", a ? a.id : "none", 0)
             return
         }
         case "site": case "browser": Nav.reportFocus("streaming", c.id, 0); return
@@ -126,6 +152,19 @@ Item {
     }
     onLinesChanged: if (active && line >= lines.length) moveLine(0)
     onMissingChanged: if (active && addIndex >= missing.length) { addIndex = Math.max(0, missing.length - 1); report() }
+    onRemovableChanged: if (active && removeIndex >= removable.length) { removeIndex = Math.max(0, removable.length - 1); report() }
+    function stripApp(id) {
+        return id === "installed" ? installed[installedIndex] : id === "remove" ? removable[removeIndex] : missing[addIndex]
+    }
+    function removeValue(app) {
+        if (app.installation === "system") return qsTr("Installed for everyone")
+        if (app.install.state === "removing") return qsTr("Removing…")
+        if ((app.install.installed_bytes || 0) > 0) {
+            const b = app.install.installed_bytes
+            return qsTr("Remove · %1").arg(b >= 1e9 ? qsTr("%1 GB").arg((b / 1e9).toFixed(1)) : qsTr("%1 MB").arg(Math.max(1, Math.round(b / 1e6))))
+        }
+        return qsTr("Remove")
+    }
 
     function installLabel(app) { return Apps.installName(app.adapter) || app.label }
     function installDescribe(app) {
@@ -192,6 +231,7 @@ Item {
         case "nav.right": {
             const d = action === "nav.left" ? -1 : 1
             if (c.kind === "strip" && c.id === "installed") installedIndex = Math.max(0, Math.min(installed.length - 1, installedIndex + d))
+            else if (c.kind === "strip" && c.id === "remove") removeIndex = Math.max(0, Math.min(removable.length - 1, removeIndex + d))
             else if (c.kind === "strip") addIndex = Math.max(0, Math.min(missing.length - 1, addIndex + d))
             else if (c.kind === "browser") cycle(c.which, d)
             report()
@@ -201,6 +241,7 @@ Item {
             switch (c.kind) {
             case "strip":
                 if (c.id === "installed") Shell.launchApp(installed[installedIndex].id)
+                else if (c.id === "remove") openRemove(removable[removeIndex].id)
                 else openInstall(missing[addIndex].id, false)
                 return true
             case "site": {
@@ -219,9 +260,9 @@ Item {
     }
 
     // What the panel beside the list says about the focused entry.
-    readonly property var focusedApp: current.kind === "strip" ? (current.id === "installed" ? installed[installedIndex] : missing[addIndex])
+    readonly property var focusedApp: current.kind === "strip" ? stripApp(current.id)
                                     : current.kind === "site" ? current.app : null
-    readonly property string helpId: current.kind === "strip" ? (current.id === "installed" ? "installed" : "add-apps")
+    readonly property string helpId: current.kind === "strip" ? (current.id === "installed" ? "installed" : current.id === "remove" ? "remove-apps" : "add-apps")
                                    : current.kind === "site" ? "streaming" : current.id
 
     ScreenFrame {
@@ -348,6 +389,24 @@ Item {
                     }
                 }
 
+                SectionHeading { text: qsTr("Remove apps"); visible: root.removable.length > 0 }
+                CardStrip {
+                    visible: root.removable.length > 0
+                    model: root.removable
+                    active: root.current.kind === "strip" && root.current.id === "remove"
+                    index: root.removeIndex
+                    onFocusedItemChanged: if (focusedItem) view.focusedItem = focusedItem
+                    delegate: AppCard {
+                        required property var modelData
+                        required property int index
+                        objectName: "removeAppsCard"
+                        app: modelData
+                        label: root.installLabel(modelData)
+                        line: root.removeValue(modelData)
+                        focused: ListView.view !== null && ListView.view.active && index === root.removeIndex
+                    }
+                }
+
                 SectionHeading { text: qsTr("Updates"); visible: root.hasApps }
                 SettingsRow {
                     id: updateRow
@@ -367,11 +426,12 @@ Item {
         HelpPanel {
             objectName: "appsHelp"
             anchors { left: view.right; leftMargin: 28 * Theme.scale; right: parent.right; rightMargin: 12 * Theme.scale; top: parent.top; topMargin: 16 * Theme.scale }
-            title: root.focusedApp ? (root.current.id === "add" ? root.installLabel(root.focusedApp) : root.focusedApp.label)
+            title: root.focusedApp ? (root.current.id === "add" || root.current.id === "remove" ? root.installLabel(root.focusedApp) : root.focusedApp.label)
                  : root.current.kind === "browser" ? root.choiceRow(root.current.which).label
                  : root.current.id === "auto-update" ? qsTr("Keep apps up to date") : ""
             help: root.current.id === "add" && root.focusedApp ? root.installDescribe(root.focusedApp) + ". " + Help.text("add-apps")
                 : root.focusedApp && root.current.id === "installed" ? Apps.about(root.focusedApp.adapter)
+                : root.focusedApp && root.current.id === "remove" ? Help.text("remove-apps")
                 : Help.text(root.helpId)
             // An app's notes, or on a browser row that browser's (who makes
             // it, what it shares, its limits: state.apps.browsers[].notes).

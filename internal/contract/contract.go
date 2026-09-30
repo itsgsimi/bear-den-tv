@@ -417,7 +417,7 @@ type Install struct {
 	// Remove frees; installed apps only.
 	InstalledBytes *int64 `json:"installed_bytes,omitempty"`
 	Message        string `json:"message,omitempty"`
-	DRM       string `json:"drm,omitempty"`
+	DRM            string `json:"drm,omitempty"`
 }
 
 // AppsState is state.schema.json#/properties/apps (shell and owner phones).

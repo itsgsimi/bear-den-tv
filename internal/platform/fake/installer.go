@@ -1,7 +1,8 @@
 // Installer: a pretend Flathub for `bear-den-tv dev --dev-installs`. Some
 // apps start missing on the fake launcher; an install walks through
 // preparing, downloading (runtime, then app) and installing on a timer,
-// with DEMO sizes, then marks the app installed. Nothing touches the
+// with DEMO sizes, then marks the app installed; a removal marks it
+// missing again after one step. Nothing touches the
 // network or flatpak. The real one is internal/applications/install.
 
 package fake
@@ -165,5 +166,42 @@ func (f *Installer) Updating() bool { return false }
 // Update pretends there is nothing to update.
 func (f *Installer) Update(context.Context, []string) error { return nil }
 func (f *Installer) CancelUpdate() bool                     { return false }
+
+// Removing reports whether a pretend removal runs.
+func (f *Installer) Removing() bool {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for _, st := range f.status {
+		if st.State == contract.InstallRemoving {
+			return true
+		}
+	}
+	return false
+}
+
+// Uninstall pretends to remove id: removing for one Step, then missing again.
+func (f *Installer) Uninstall(ctx context.Context, id string, _ bool) error {
+	f.mu.Lock()
+	if f.cancel != nil {
+		f.mu.Unlock()
+		return install.ErrBusy
+	}
+	ctx, cancel := context.WithCancel(ctx)
+	f.cancel = cancel
+	f.mu.Unlock()
+	defer func() {
+		f.mu.Lock()
+		f.cancel = nil
+		f.mu.Unlock()
+	}()
+	f.set(id, func(s *install.Status) { *s = install.Status{State: contract.InstallRemoving} })
+	select {
+	case <-ctx.Done():
+	case <-time.After(f.Step):
+	}
+	f.Launcher.SetMissing(id)
+	f.set(id, func(s *install.Status) { *s = install.Status{} })
+	return nil
+}
 
 var _ applications.Launcher = (*Launcher)(nil)

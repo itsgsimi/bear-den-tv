@@ -247,6 +247,23 @@ export const t = {
     tileLabel: (sub: string): string => `Add apps: ${sub}`,
   },
 
+  // Remove apps (views/remove.tsx): owner phones only.
+  remove: {
+    heading: 'Remove apps',
+    note: 'Removes an app from the TV, for its user only. Nothing is removed until you confirm.',
+    remove: 'Remove',
+    removeData: 'Remove and delete its data',
+    cancel: 'Cancel',
+    removing: 'Removing…',
+    system: "Installed for everyone on this PC, so only the PC's own software tool can remove it.",
+    frees: (size: string): string => `Frees about ${size} on the TV`,
+    alsoOff: (labels: readonly string[], name: string): string =>
+      labels.length === 1
+        ? `${labels[0]} uses ${name}, so removing it turns ${labels[0]} off.`
+        : `${labels.slice(0, -1).join(', ')} and ${labels[labels.length - 1]} use ${name}, so removing it turns them off.`,
+    ask: (name: string): string => `Remove ${name} from the TV? Its sign-ins and settings stay unless you also delete its data.`,
+  },
+
   // TV over HDMI-CEC (views/tv.tsx).
   tv: {
     heading: 'TV',

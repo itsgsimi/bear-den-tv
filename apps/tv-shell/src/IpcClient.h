@@ -84,6 +84,8 @@ public:
     /// for one app; answered with result.
     // enable (app.install only): turn the app on once installed.
     QString sendAppInstall(const QString &type, const QString &appId, bool enable = false);
+    /// app.uninstall: the owner's confirmed Remove (delete_data only when true).
+    QString sendAppUninstall(const QString &appId, bool deleteData);
     /// apps.configure: Apps → Keep apps up to date.
     QString sendAppsConfigure(bool autoUpdate);
     /// apps.browser: Apps → Streaming sites, the Browser tile's and the

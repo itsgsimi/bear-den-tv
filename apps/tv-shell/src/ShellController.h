@@ -136,6 +136,10 @@ public:
     // coordinator turns it on once installed (IPC app.install "enable").
     Q_INVOKABLE void installApp(const QString &appId, bool enable = false);
     Q_INVOKABLE void cancelInstall(const QString &appId);
+    // Apps → Remove apps, confirmed on the RemoveCard (IPC app.uninstall):
+    // removes the app's Flatpak for this user; deleteData also deletes its
+    // data. The reply arrives as installReplied (type "app.uninstall").
+    Q_INVOKABLE void uninstallApp(const QString &appId, bool deleteData);
     // Apps → Keep apps up to date (apps.configure).
     Q_INVOKABLE void setAutoUpdate(bool enabled);
     // Apps → Streaming sites: the Browser tile's and the streaming
