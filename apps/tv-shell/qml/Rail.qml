@@ -88,6 +88,17 @@ Item {
         opacity: root.active ? 1 : 0.45
         Behavior on opacity { NumberAnimation { duration: Theme.duration } }
     }
+    // A soft dark backing, so the heading reads over any scene (UX-04:
+    // Winter's snow hid "Continue Watching"); barely visible on dark ones.
+    Rectangle {
+        objectName: "railHeadingBacking"
+        x: heading.x - 12 * Theme.scale
+        y: heading.y - 2 * Theme.scale
+        width: heading.implicitWidth + 24 * Theme.scale
+        height: heading.implicitHeight + 4 * Theme.scale
+        radius: World.classic ? height / 2 : 0
+        color: Theme.alpha(Theme.bgBottom, 0.55)
+    }
     Text {
         id: heading
         text: root.title

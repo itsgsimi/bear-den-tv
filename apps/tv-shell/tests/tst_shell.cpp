@@ -1066,6 +1066,40 @@ private slots:
         QVERIFY2(m_nav->screen() != QLatin1String("dialog") || m_nav->itemId().startsWith(QLatin1String("install")), qPrintable(m_nav->itemId()));
     }
 
+    // UX-04: on Winter's white snow, rail headings, a not-installed tile and
+    // Diagnostics' rows vanished. Every rail heading has a dark backing, a
+    // dimmed tile sits on an opaque base, and Diagnostics draws its rows on
+    // a surface panel (for every theme: nothing branches on a theme id).
+    void textOverTheSceneHasABacking()
+    {
+        goHome();
+        QList<QQuickItem *> bases, backings;
+        std::function<void(QQuickItem *)> find = [&](QQuickItem *item) {
+            if (!item->isVisible())
+                return;
+            if (item->objectName() == QLatin1String("tileBase"))
+                bases << item;
+            if (item->objectName() == QLatin1String("railHeadingBacking"))
+                backings << item;
+            for (QQuickItem *child : item->childItems())
+                find(child);
+        };
+        find(m_window->contentItem());
+        QCOMPARE(bases.size(), 1); // YouTube, not installed in the demo
+        QCOMPARE(bases.first()->property("color").value<QColor>().alpha(), 255);
+        QVERIFY(backings.size() >= 2);
+        for (QQuickItem *b : backings)
+            QVERIFY(b->property("color").value<QColor>().alphaF() >= 0.5);
+        openSettings();
+        toSettingsRow(QStringLiteral("diagnostics"));
+        act(QStringLiteral("select"));
+        QCOMPARE(shellScreen(), QStringLiteral("diagnostics"));
+        QQuickItem *panel = visibleItem(QStringLiteral("screenPanel"));
+        QVERIFY2(panel, "Diagnostics has no panel behind its rows");
+        QCOMPARE(panel->property("color").value<QColor>(), Theme::instance()->surface());
+        goHome();
+    }
+
     // UX-05: nothing could make a phone the owner. On Paired phones ◀ ▶
     // choose Make owner (Remote only for an owner); OK asks first with
     // Cancel focused, then sends devices.grant with owner and layout

@@ -1,5 +1,7 @@
 // Common frame for secondary screens: brand, title, subtitle, content, and
-// key hints, all inside the safe margins applied by ShellRoot.
+// key hints, all inside the safe margins applied by ShellRoot. `panel` puts
+// a surface behind content that is plain text (Diagnostics), so it reads
+// over bright scenes (UX-04: Winter's snow).
 
 import QtQuick
 import BearDen
@@ -9,6 +11,7 @@ Item {
     property string title
     property string subtitle
     property var hints: [["▲ ▼", qsTr("Move")], ["OK", qsTr("Select")], ["Back", qsTr("Back")]]
+    property bool panel: false
     default property alias content: body.data
 
     Row {
@@ -42,6 +45,15 @@ Item {
         opacity: 0.8
     }
 
+    PixelBox {
+        objectName: "screenPanel"
+        visible: root.panel
+        anchors { fill: body; margins: -20 * Theme.scale; topMargin: -6 * Theme.scale }
+        radius: 18 * Theme.scale
+        color: Theme.surface
+        borderColor: Theme.surfaceBorder
+        borderWidth: 1
+    }
     Item {
         id: body
         anchors { top: top.bottom; topMargin: 44 * Theme.scale; left: parent.left; right: parent.right; bottom: hintsRow.top; bottomMargin: 28 * Theme.scale }

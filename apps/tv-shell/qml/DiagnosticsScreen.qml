@@ -48,6 +48,7 @@ Item {
     ScreenFrame {
         anchors.fill: parent
         title: qsTr("Diagnostics")
+        panel: true
         subtitle: qsTr("For troubleshooting; no private titles or addresses leave this TV")
         hints: [["▲ ▼", qsTr("Scroll")], ["Back", qsTr("Back")]]
 

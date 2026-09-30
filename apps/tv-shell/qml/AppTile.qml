@@ -79,6 +79,17 @@ Item {
         }
     }
 
+    // A not-installed tile is dimmed over an opaque base, so a bright scene
+    // (Winter's snow) never shows through it (UX-04).
+    PixelBox {
+        objectName: "tileBase"
+        anchors.fill: parent
+        scale: tile.scale
+        visible: tile.opacity < 1
+        radius: Theme.radius
+        color: Theme.surfaceRaised
+        borderColor: "transparent"
+    }
     Item {
         id: tile
         anchors.fill: parent
