@@ -116,7 +116,8 @@ export interface App {
 export function createApp(env: ApiEnvironment, page: PageEnvironment, win: WindowEnvironment, options: AppOptions = {}): App {
   const now = options.now ?? (() => Date.now());
   const api = new ApiClient(env);
-  const store = createStore(initialState(readStoredName(win)));
+  // UX-02: the name field starts filled (the browser's family), never empty.
+  const store = createStore(initialState(readStoredName(win) || defaultDeviceName(win.navigator.userAgent)));
   let toastSeq = 0;
   let toastTimer: unknown = null;
   let pruneTimer: unknown = null;

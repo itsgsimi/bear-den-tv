@@ -1,7 +1,9 @@
 // Pair screen: six-digit code entry plus device name, or the automatic redemption
 // state while a QR fragment invitation is claimed. Contract: the code field only
-// accepts digits, the submit is disabled until six digits and a name exist, and
-// server failures (401/410/429/network) render the i18n message for their code.
+// accepts digits; Connect waits only for six digits and says so under the
+// button (pairBlocker) — the name is prefilled from the browser
+// (defaultDeviceName) and an empty one falls back to it (UX-02); server
+// failures (401/410/429/network) render the i18n message for their code.
 import { useState } from 'preact/hooks';
 import type { JSX } from 'preact';
 import type { App } from '../app.ts';
@@ -10,22 +12,29 @@ import type { AppState } from '../state.ts';
 import { Art, artStyleOf } from '../icons.tsx';
 import { Vines } from '../vines.tsx';
 
+/**
+ * @param code The digits typed so far.
+ * @param busy A claim is in flight.
+ * @returns Why Connect cannot be pressed yet, in plain words, or null.
+ */
+export function pairBlocker(code: string, busy: boolean): string | null {
+  if (busy) return null;
+  return code.length === 6 ? null : t.pair.needSixDigits;
+}
+
 export function PairView({ app, state }: { app: App; state: AppState }): JSX.Element {
   const [code, setCode] = useState('');
   const [localError, setLocalError] = useState<string | null>(null);
   const tvName = state.info?.device_name || t.productName;
   const secure = state.info?.https ?? false;
   const name = state.pair.device_name;
-  const canSubmit = code.length === 6 && name.trim().length > 0 && !state.pair.busy;
+  const blocker = pairBlocker(code, state.pair.busy);
+  const canSubmit = blocker === null && !state.pair.busy;
 
   const submit = (ev: Event) => {
     ev.preventDefault();
     if (code.length !== 6) {
       setLocalError(t.pair.needSixDigits);
-      return;
-    }
-    if (name.trim().length === 0) {
-      setLocalError(t.pair.needName);
       return;
     }
     setLocalError(null);
@@ -116,9 +125,14 @@ export function PairView({ app, state }: { app: App; state: AppState }): JSX.Ele
               {localError ?? state.pair.error?.message}
             </p>
           ) : null}
-          <button type="submit" class="btn btn-primary btn-block" disabled={!canSubmit}>
+          <button type="submit" class="btn btn-primary btn-block" disabled={!canSubmit} aria-describedby={blocker ? 'pair-blocker' : undefined}>
             {state.pair.busy ? t.pair.connecting : t.pair.connect}
           </button>
+          {blocker && !localError ? (
+            <p id="pair-blocker" class="muted small pair-blocker" data-testid="pair-blocker">
+              {blocker}
+            </p>
+          ) : null}
         </form>
         {!secure ? <p class="pair-transport muted">{t.pair.httpNotice}</p> : null}
       </div>
