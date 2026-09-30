@@ -70,6 +70,9 @@ Canonical messages consumed by contract tests in Go ([`tests/contract/fixtures_t
 | `state.achievements-title.invalid.json` | rejected: an earned badge carries only `id` and `day` (no `title` or anything else) |
 | `state.guest-achievements.invalid.json` | rejected: a guest pass never gets `achievements` |
 | `state.locked-achievements.invalid.json` | rejected: a locked session never carries `achievements` |
+| `state.phone-audio.valid.json` | a controller phone with `audio` (the PC's real mute state and volume) |
+| `state.shell-audio.invalid.json` | rejected: `audio` is for phones only, never the shell |
+| `state.locked-audio.invalid.json` | rejected: a locked session never carries `audio` |
 | `state.phone-celebrate.invalid.json` | rejected: `achievements.celebrate` is for the shell only (a phone view has `me`) |
 | `state.phone-owner-installs.valid.json` | `state.schema.json` (owner phone: one app downloading a runtime, one available with its size, a system install, the streaming sites' browser done with playback support pending, `apps.auto_update`) |
 | `state.phone-owner-browsers.valid.json` | `state.schema.json` (owner phone: `apps.browser` brave, `apps.streaming_browser` chrome, and the two browsers with Brave marked `streaming_unverified` and Chrome's `notes`) |

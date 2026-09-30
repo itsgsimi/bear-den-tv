@@ -106,6 +106,10 @@ An installed app carries `installed_bytes` when known: how much the app itself t
 - **Progress** comes from flatpak's own output (one line per runtime or app it starts) and from how much the disk under `~/.local/share/flatpak` has filled against Flathub's sizes: `flatpak install --noninteractive` prints no percentages. It never goes backwards and reaches 100 only when the install is verified.
 - **Streaming sites** (`netflix`, `disney-plus`, `hulu`) carry `drm` once their browser is installed: `ready` when it can play protected video (Google Chrome: its bundled Widevine is in the installed Flatpak; Brave: the site's profile holds Widevine), `preparing` while Bear Den's quiet first run in Brave fetches it, `pending` otherwise ("Still setting up playback support").
 
+## The PC's sound (`state.audio`)
+
+Phones (controller and guest passes) get `state.audio` `{"muted", "volume_percent"?}`: the PC's default sink as the TV reads it (`pactl get-sink-mute` and `get-sink-volume @DEFAULT_SINK@`, fixed argv), so a phone's Mute button shows the real state, whoever changed it. It is read when the PC audio capability is probed (every 15 s) and right after every `audio.*` action. Omitted for the shell and anonymous viewers, while locked, while the volume buttons change the TV over HDMI-CEC (`cec.volume_target` `tv`), and when the sound cannot be read.
+
 ## Now playing (`state.now_playing`)
 
 While an app that exposes an MPRIS player is in front, or plays behind Home, phones with the `controller` permission (or a [guest pass](#guest-passes)) get `state.now_playing`: the app id, `foreground`, the title, an optional subtitle (artist or album), `status` (`playing`, `paused`, `stopped`), optional `length_ms` and `position_ms`, `position_at` and `rate`. This is a deliberate exception to "phones never see external window titles" (`target.window_title` stays redacted): the owner shows what is playing to the devices they paired for control, and can turn it off.

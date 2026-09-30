@@ -647,6 +647,13 @@ type ThemeSummary struct {
 // State is contracts/state.schema.json. Optional pointer fields are omitted
 // when the viewer may not see them; Devices is a pointer so an owner/shell
 // view can carry an explicit empty list while other viewers omit the key.
+// AudioState is state.schema.json#/properties/audio: the PC's default sink
+// as pactl reports it (phones only).
+type AudioState struct {
+	Muted         bool `json:"muted"`
+	VolumePercent *int `json:"volume_percent,omitempty"`
+}
+
 type State struct {
 	Protocol       int                   `json:"protocol"`
 	ContextEpoch   int64                 `json:"context_epoch"`
@@ -672,10 +679,12 @@ type State struct {
 	Weather        *Weather              `json:"weather,omitempty"`
 	NowPlaying     *NowPlaying           `json:"now_playing,omitempty"`
 	Power          *Power                `json:"power,omitempty"`
-	CEC            *CEC                  `json:"cec,omitempty"`
-	Plex           *Plex                 `json:"plex,omitempty"`
-	Achievements   *Achievements         `json:"achievements,omitempty"`
-	Apps           *AppsState            `json:"apps,omitempty"`
+	// Audio is the PC's sound for phones (never the shell, never locked).
+	Audio        *AudioState   `json:"audio,omitempty"`
+	CEC          *CEC          `json:"cec,omitempty"`
+	Plex         *Plex         `json:"plex,omitempty"`
+	Achievements *Achievements `json:"achievements,omitempty"`
+	Apps         *AppsState    `json:"apps,omitempty"`
 	// Onboarding and Autostart are for the shell view only (setup.go).
 	Onboarding *Onboarding `json:"onboarding,omitempty"`
 	Autostart  *Autostart  `json:"autostart,omitempty"`

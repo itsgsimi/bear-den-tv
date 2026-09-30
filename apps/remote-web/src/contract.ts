@@ -409,6 +409,12 @@ export interface Layout {
 }
 
 /** state.schema.json. Optional members are omitted for viewers that may not see them. */
+/** state.audio: the PC's sound, as pactl reports it. */
+export interface AudioState {
+  muted: boolean;
+  volume_percent?: number;
+}
+
 export interface StateSnapshot {
   protocol: typeof PROTOCOL;
   context_epoch: number;
@@ -440,6 +446,8 @@ export interface StateSnapshot {
   /** Den badges: controller phones only; never guests, never while locked. */
   achievements?: Achievements;
   /** TV control over HDMI-CEC; absent for anonymous viewers and from older coordinators. */
+  /** Phones only, never while locked: the PC's real mute state and volume (the Mute button follows it). */
+  audio?: AudioState;
   cec?: Cec;
   /** App install settings: owner phones only. */
   apps?: AppsSettings;

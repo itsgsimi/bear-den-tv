@@ -401,6 +401,16 @@
       "required": ["enabled", "available"],
       "additionalProperties": false
     },
+    "audio": {
+      "type": "object",
+      "description": "The PC's sound as the TV's audio system reports it (pactl on the default sink), so a phone's Mute button shows the real state. Phones only (never the shell or anonymous viewers), never while locked, only while the volume buttons change the PC (not the TV over HDMI-CEC) and the PC's sound can be read. Absent from older coordinators.",
+      "properties": {
+        "muted": {"type": "boolean"},
+        "volume_percent": {"type": "integer", "minimum": 0, "maximum": 300, "description": "The default sink's volume, as pactl reports it (the first channel). Absent when it could not be read."}
+      },
+      "required": ["muted"],
+      "additionalProperties": false
+    },
     "cec": {
       "type": "object",
       "description": "TV control over HDMI-CEC (contracts/http.md \"TV control over HDMI-CEC\"; config cec). Sent to the shell and to every authenticated phone, also while locked; never to anonymous viewers. Absent from older coordinators.",
@@ -457,6 +467,8 @@
   "required": ["protocol", "context_epoch", "generated_at_ms", "device_name", "dev_mode", "config_revision", "session", "target", "capabilities", "shell", "applications", "remote", "notifications"],
   "allOf": [
     {"description": "A guest pass never sees badges.", "if": {"properties": {"me": {"properties": {"permissions": {"contains": {"const": "guest"}}}, "required": ["permissions"]}}, "required": ["me"]}, "then": {"not": {"required": ["achievements"]}}},
+    {"description": "The PC's sound is for phones only.", "if": {"not": {"required": ["me"]}}, "then": {"not": {"required": ["audio"]}}},
+    {"description": "A locked session hides the PC's sound.", "if": {"properties": {"session": {"properties": {"locked": {"const": true}}, "required": ["locked"]}}, "required": ["session"]}, "then": {"not": {"required": ["audio"]}}},
     {"description": "A locked session hides badges.", "if": {"properties": {"session": {"properties": {"locked": {"const": true}}, "required": ["locked"]}}, "required": ["session"]}, "then": {"not": {"required": ["achievements"]}}},
     {"description": "celebrate is for the shell only.", "if": {"required": ["me"]}, "then": {"properties": {"achievements": {"not": {"required": ["celebrate"]}}}}},
     {"description": "Only owner phones (and the shell) see installs: a phone without owner, a guest pass included, gets no applications[].install and no apps.",
