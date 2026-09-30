@@ -2,13 +2,15 @@
 // owner's phone (never a family phone or a guest pass) while app.install is
 // listed; one row per Flatpak (the web apps share Chromium's); progress and
 // Cancel while an install runs; Install and Cancel send app.install and
-// app.install_cancel to the shell target.
+// app.install_cancel to the shell target. The "+ Add apps" tile: same
+// audience, only with something left to add, a subline built from the
+// missing apps, and a tap that scrolls to the section and focuses its heading.
 import { describe, expect, it } from 'vitest';
 import type { VNode } from 'preact';
 import { createApp, type PageEnvironment, type WindowEnvironment } from '../../src/app.ts';
 import type { ApiEnvironment, SocketLike } from '../../src/api.ts';
 import type { ActionResult, Application, Install, Permission, StateSnapshot } from '../../src/contract.ts';
-import { AddAppsPanel, AddAppsSection, installEntries, mayInstall } from '../../src/views/install.tsx';
+import { AddAppsPanel, AddAppsSection, AddAppsTile, addAppsSubline, addAppsTileShown, installEntries, mayInstall, type Revealable } from '../../src/views/install.tsx';
 import { notInstalledReason, tileStatusText } from '../../src/views/remote.tsx';
 import { INSTALL_READY_MS, readyAfter, tileStatus, type AppState } from '../../src/state.ts';
 import type { App } from '../../src/app.ts';
@@ -110,6 +112,61 @@ describe('Add apps', () => {
     const tree = walk(off);
     expect(text(off)).toContain("Flatpak isn't installed on this box");
     expect(byTestId(tree, 'install-button-moonlight')?.props.disabled).toBe(true);
+  });
+});
+
+describe('Add apps tile', () => {
+  function tile(state: AppState) {
+    const calls: string[] = [];
+    const heading: Revealable = {
+      scrollIntoView: (o) => void calls.push(`scroll:${JSON.stringify(o)}`),
+      focus: (o) => void calls.push(`focus:${JSON.stringify(o)}`),
+    };
+    const vnode = AddAppsTile({ state, heading: { current: heading } });
+    return { vnode, tree: walk(vnode), calls };
+  }
+  const listing = (perms: Permission[], apps: Application[], capabilities: Record<string, unknown> = { 'app.install': { available: true } }): AppState =>
+    ({ snapshot: { ...snapshot(perms, apps), capabilities }, session: null }) as unknown as AppState;
+
+  it('is shown to the owner with something to add, and to no one else', () => {
+    expect(addAppsTileShown(stateFor(['owner']))).toBe(true);
+    expect(byTestId(tile(stateFor(['owner'])).tree, 'add-apps-tile')).toBeDefined();
+    for (const perms of [['guest'], ['controller'], ['controller', 'layout_editor']] as Permission[][]) {
+      expect(addAppsTileShown(stateFor(perms))).toBe(false);
+      expect(tile(stateFor(perms)).vnode).toBeNull();
+    }
+  });
+
+  it('is not shown when nothing is left to add, or app.install is not listed', () => {
+    expect(tile(stateFor(['owner'], APPS.slice(0, 1))).vnode).toBeNull();
+    expect(tile(listing(['owner'], APPS, {})).vnode).toBeNull();
+    // Listed but unavailable still shows it: the section says why.
+    expect(tile(listing(['owner'], APPS, { 'app.install': { available: false, reason: 'no flatpak' } })).vnode).not.toBeNull();
+  });
+
+  it('names what is missing, from the data', () => {
+    const three = [app('spotify', 'spotify', false, idle()), app('netflix', 'netflix', false, idle()), app('moonlight', 'moonlight', false, idle())];
+    expect(addAppsSubline(installEntries(snapshot(['owner'], three)))).toBe('Spotify, Netflix and more');
+    expect(addAppsSubline(installEntries(snapshot(['owner'], three.slice(0, 2))))).toBe('Spotify and Netflix');
+    expect(addAppsSubline(installEntries(snapshot(['owner'], [app('jellyfin', 'jellyfin', false, idle())])))).toBe('Jellyfin');
+    expect(addAppsSubline([])).toBe('');
+    // The web apps share one Chromium row: counted once, named by the app.
+    expect(addAppsSubline(installEntries(snapshot(['owner'], APPS)))).toBe('Moonlight and Netflix');
+    expect(text(byTestId(tile(listing(['owner'], three)).tree, 'add-apps-tile-sub'))).toBe('Spotify, Netflix and more');
+  });
+
+  it('scrolls to the section and focuses its heading when tapped', () => {
+    const { tree, calls } = tile(stateFor(['owner']));
+    (byTestId(tree, 'add-apps-tile')?.props.onClick as () => void)();
+    expect(calls).toEqual(['scroll:{"block":"start"}', 'focus:{"preventScroll":true}']);
+  });
+
+  it('gives the section heading a focus target', () => {
+    const ref = { current: null };
+    const section = AddAppsSection({ entries: installEntries(snapshot(['owner'], APPS)), available: true, reason: null, art: 'pixel', onInstall: () => undefined, onCancel: () => undefined, headingRef: ref });
+    const heading = walk(section).find((v) => v.props.id === 'add-apps-heading');
+    expect(heading?.props.tabIndex).toBe(-1);
+    expect(heading?.ref).toBe(ref);
   });
 });
 

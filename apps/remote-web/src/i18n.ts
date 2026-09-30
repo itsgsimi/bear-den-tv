@@ -236,6 +236,10 @@ export const t = {
     failed: 'The install stopped.',
     chromium: 'Chromium',
     chromiumWhy: 'Browser for Netflix, Disney+, Hulu',
+    // The "+ Add apps" tile in the Apps grid (install.tsx AddAppsTile).
+    tile: 'Add apps',
+    tileSub: (labels: readonly string[], more: boolean): string => (more ? `${labels.join(', ')} and more` : labels.join(' and ')),
+    tileLabel: (sub: string): string => `Add apps: ${sub}`,
   },
 
   // TV over HDMI-CEC (views/tv.tsx).

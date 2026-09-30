@@ -3,7 +3,7 @@
 // official logo; docs/THEMES.md → App icons), and the illustrations (`Art`) in both art
 // styles (docs/decisions/0006-classic-art-style.md): Pixel draws same-origin
 // PNGs from static/art/pixel at whole-number scales, Classic the smooth SVGs
-// from static/art. Contract: every icon is decorative (`aria-hidden`); the
+// from static/art, and the Add apps tile's "+" (`PlusArt`). Contract: every icon is decorative (`aria-hidden`); the
 // owning button carries the accessible label. Icon paths use `currentColor` so
 // the theme controls their colour.
 import type { JSX } from 'preact';
@@ -147,9 +147,37 @@ export function Art({
   return <img class={`art ${cls ?? ''}`} src={`art/pixel/${px.file}.png`} width={px.w * n} height={px.h * n} alt="" aria-hidden="true" draggable={false} />;
 }
 
+/** The pixel grid of Bear Den's app icons (and the Add apps tile's "+"). */
+const APP_ICON_GRID = 32;
+
+/**
+ * The "+" of the Add apps tile: `art/pixel/icon-plus.png` (Pixel) or
+ * `art/icon-plus.svg` (Classic), shown only once it has loaded (`data-art`
+ * set by its load/error handlers, like AppArt's own icon); until then, or
+ * when the file is missing, a "+" drawn in CSS (`.plus-fallback`).
+ */
+export function PlusArt({ art = 'pixel' }: { art?: ArtStyle }): JSX.Element {
+  const src = art === 'classic' ? 'art/icon-plus.svg' : 'art/pixel/icon-plus.png';
+  return (
+    <span class="plus-art" key={src} data-art="pending">
+      <span class="plus-fallback" aria-hidden="true" />
+      <img
+        class={`art plus-img ${art === 'classic' ? 'art-classic' : ''}`}
+        src={src}
+        width={APP_ICON_GRID}
+        height={APP_ICON_GRID}
+        alt=""
+        aria-hidden="true"
+        draggable={false}
+        onLoad={(ev) => ev.currentTarget.parentElement?.setAttribute('data-art', 'ok')}
+        onError={(ev) => ev.currentTarget.parentElement?.setAttribute('data-art', 'none')}
+      />
+    </span>
+  );
+}
+
 /** Adapters with Bear Den's own icon (tools/pixelart and tools/classicart appicons.py). */
 export const APP_ICONS: readonly string[] = ['plex-htpc', 'vacuumtube', 'moonlight', 'spotify', 'jellyfin', 'retroarch', 'netflix', 'disney-plus', 'hulu', 'browser'];
-const APP_ICON_GRID = 32;
 
 /**
  * Where the TV serves an app's own icon (contracts/http.md#app-icons), for an

@@ -11,8 +11,9 @@
 // A guest pass sees only what it may use (`mayUse`): no Close app, no restart,
 // no sleep timer or screen off. With a web app in front the Touchpad
 // (touchpad.tsx) appears under the D-pad. The owner's phone also gets Add
-// apps (install.tsx) under the app shortcuts.
-import { useEffect, useState } from 'preact/hooks';
+// apps (install.tsx) under the app shortcuts, and a "+ Add apps" tile at the
+// end of the Apps grid that scrolls to it (AddAppsTile).
+import { useEffect, useRef, useState } from 'preact/hooks';
 import type { ComponentChildren, JSX } from 'preact';
 import type { App } from '../app.ts';
 import type { ActionArgs, ActionName, Application, NavAction } from '../contract.ts';
@@ -23,7 +24,7 @@ import { NowPlayingPanel, nowPlayingOf } from './nowplaying.tsx';
 import { SleepPanel } from './sleep.tsx';
 import { TvPanel, volumeHeading } from './tv.tsx';
 import { TouchpadPanel } from './touchpad.tsx';
-import { AddAppsPanel, mayInstall } from './install.tsx';
+import { AddAppsPanel, AddAppsTile, mayInstall } from './install.tsx';
 import { type AppState, type PendingAction, type TileStatus, capabilityFor, closableApp, isSecureTransport, mayUse, permissionsOf, tileStatus, visibleApps } from '../state.ts';
 
 const TEXT_MAX = 256;
@@ -50,6 +51,7 @@ function listed(state: AppState, action: ActionName): boolean {
 
 export function RemoteView({ app, state }: { app: App; state: AppState }): JSX.Element {
   const snapshot = state.snapshot;
+  const addAppsHeading = useRef<HTMLHeadingElement>(null);
   const reasons = new Set<string>();
   const note = (g: Gate): Gate => {
     if (g.reason) reasons.add(g.reason);
@@ -101,6 +103,7 @@ export function RemoteView({ app, state }: { app: App; state: AppState }): JSX.E
             {visibleApps(snapshot).map((application) => (
               <AppButton key={application.id} app={app} state={state} application={application} />
             ))}
+            <AddAppsTile state={state} heading={addAppsHeading} />
           </div>
           {!mayInstall(state) && visibleApps(snapshot).some((a) => !a.installed) ? (
             <p class="muted small" data-testid="owner-installs">{t.remote.ownerInstalls}</p>
@@ -108,7 +111,7 @@ export function RemoteView({ app, state }: { app: App; state: AppState }): JSX.E
         </div>
       ) : null}
 
-      <AddAppsPanel app={app} state={state} />
+      <AddAppsPanel app={app} state={state} headingRef={addAppsHeading} />
 
       {listed(state, 'media.play') || listed(state, 'media.pause') || listed(state, 'media.seek_relative') || nowPlayingOf(snapshot) ? (
         <div class="group" aria-labelledby="playback-heading">
