@@ -19,9 +19,10 @@ Bear Den TV turns a small Linux box into a TV that you drive with your phone.
   wraps, embeds or patches them. A missing app installs from Flathub with one
   press by the owner, per user and without root.
 - **Streaming sites.** Netflix, Disney+ and Hulu (off until you turn them on)
-  and a Browser tile run full screen in Chromium from Flathub, driven by the
-  remote (Brave from Flathub is a choice in Settings; for the streaming sites
-  it is marked unverified). A Linux browser caps them at about 720p.
+  run full screen in Google Chrome from Flathub, each as its own app, and a
+  Browser tile in Brave from Flathub, all driven by the remote (either
+  browser can be swapped in Settings; streaming in Brave is marked
+  unverified). A Linux browser caps them at about 720p.
 - **Plex rows on Home.** Sign the TV in to Plex once and Home shows Continue
   Watching and Recently Added from your own server.
 - **Optional extras.** Turn the TV on and off over HDMI-CEC (needs a CEC
@@ -72,8 +73,9 @@ the TV):
 - The optional apps (Spotify, Jellyfin Desktop, RetroArch), the app's own
   icons by default with Bear Den's as a choice, and one-press installs from
   Flathub with daily updates (tried in a container against real Flathub).
-- Netflix, Disney+, Hulu and the Browser in Chromium with the phone's
-  touchpad (against local test pages only, never a real streaming site).
+- Netflix, Disney+, Hulu in Google Chrome and the Browser in Brave, with the
+  phone's touchpad (against local test pages in Playwright's Chromium only,
+  never a real streaming site).
 - TV control over HDMI-CEC (against a fake TV only).
 - A Wayland profile (headless sway in a container only).
 - The installable `.deb` (install/remove smoke tests in clean Ubuntu 22.04
@@ -86,8 +88,9 @@ the TV):
 
 - Checking the Plex rows against a real Plex account and server; opening the
   exact item in Plex HTPC (selecting a card opens Plex HTPC only).
-- Playing a real streaming site: whether Widevine works in Flathub Chromium on
-  the box, and the per-site navigation hints, are unverified.
+- Playing a real streaming site in Google Chrome on the box (Hulu refused to
+  play in Flathub Chromium on the TV, which is why Bear Den moved to Chrome),
+  and the per-site navigation hints, are unverified.
 - HDMI-CEC with a real adapter and TV.
 - A published release: no release has been cut, and the package has not been
   installed on the TV.
@@ -103,7 +106,7 @@ the TV):
 |---|---|
 | **TV box** | Linux with an **X11** desktop session (the reference box runs Linux Mint 21.3 Xfce). Wayland works in part: on sway and other wlroots compositors apps launch and Home works but remote keys do not reach apps; on GNOME and KDE the phone drives the home screen only ([ADR 0007](docs/decisions/0007-wayland-profile.md)). Wayland has been tested in a container, never on a real TV. |
 | **Hardware floor** | A Celeron 2955U: 2 cores at 1.4 GHz, Haswell GT1 graphics, 7.6 GiB RAM, driving 1080p at 120 Hz. Faster boxes get more, from measured capability ([`docs/APP_PERFORMANCE.md`](docs/APP_PERFORMANCE.md)). |
-| **Apps** | Flatpak (the owner installs it once with the system's package manager; Bear Den never does). Then any of Plex HTPC, VacuumTube and Moonlight (a missing one shows "Not installed" and installs on one press), optionally Spotify, Jellyfin Desktop and RetroArch (hidden until installed), and Chromium from Flathub for Netflix, Disney+, Hulu and the Browser tile. App installs go to the TV user's own Flatpak folder from Flathub, no root. |
+| **Apps** | Flatpak (the owner installs it once with the system's package manager; Bear Den never does). Then any of Plex HTPC, VacuumTube and Moonlight (a missing one shows "Not installed" and installs on one press), optionally Spotify, Jellyfin Desktop and RetroArch (hidden until installed), and Google Chrome (Netflix, Disney+, Hulu) and Brave (the Browser tile) from Flathub. App installs go to the TV user's own Flatpak folder from Flathub, no root. |
 | **Plex rows** (optional) | A Plex account and server, and a desktop keyring (Secret Service, for example gnome-keyring) for the TV's sign-in. |
 | **HDMI-CEC** (optional) | A CEC device (`/dev/cec*`), usually a USB CEC adapter; most mini PCs have none ([`docs/operations.md`](docs/operations.md#tv-control-over-hdmi-cec)). |
 | **Phone** | Any modern phone browser on the same network. No app to install. |
@@ -198,7 +201,7 @@ Start with [`docs/THEMES.md`](docs/THEMES.md).
 | **Coordinator** (Go) | `cmd/`, `internal/` | the session: which app is in front, launching and closing apps, routing input, pairing and permissions, configuration, the LAN service, playback tuning | [`internal/AGENTS.md`](internal/AGENTS.md) |
 | **TV shell** (Qt 6.8 QML/C++) | `apps/tv-shell/` | everything on the TV between apps: focus, screens, themes, bears | [`apps/tv-shell/AGENTS.md`](apps/tv-shell/AGENTS.md) |
 | **Phone remote** (TypeScript, Preact) | `apps/remote-web/` | the phone UI, served by (and embedded in) the coordinator | [`apps/remote-web/AGENTS.md`](apps/remote-web/AGENTS.md) |
-| **Web apps' navigation script** (TypeScript) | `apps/web-nav/` | D-pad control of websites in Chromium, injected by the coordinator | [`apps/web-nav/AGENTS.md`](apps/web-nav/AGENTS.md) |
+| **Web apps' navigation script** (TypeScript) | `apps/web-nav/` | D-pad control of websites in the web apps' browser, injected by the coordinator | [`apps/web-nav/AGENTS.md`](apps/web-nav/AGENTS.md) |
 | **Contracts** | `contracts/` | JSON Schemas, specs and fixtures, validated in all three languages | [`contracts/AGENTS.md`](contracts/AGENTS.md) |
 | **Themes** | `themes/` | theme packages (manifest + art, no code) | [`themes/AGENTS.md`](themes/AGENTS.md) |
 | **Art tools** | `tools/pixelart/`, `tools/classicart/` | generate every bundled picture (worlds, bears, app icons, badges) | [`tools/pixelart/README.md`](tools/pixelart/README.md), [`tools/classicart/README.md`](tools/classicart/README.md) |
@@ -228,6 +231,6 @@ Contributions from people and AI coding agents are welcome. Read
 ## License
 
 MIT. See [`LICENSE`](LICENSE). Plex, YouTube, VacuumTube, Moonlight, Spotify,
-Jellyfin, RetroArch, Netflix, Disney+, Hulu and Chromium are independent
+Jellyfin, RetroArch, Netflix, Disney+, Hulu, Google Chrome and Brave are independent
 projects and trademarks of their owners; Bear Den TV only launches them and
 bundles none of their logos.

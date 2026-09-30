@@ -16,7 +16,7 @@ It has three processes that talk through shared contracts:
 | **Coordinator** (Go) | `cmd/`, `internal/` | the session: which app is in front, launching/closing apps, routing input, pairing and permissions, configuration, the LAN service, playback tuning | [`internal/AGENTS.md`](internal/AGENTS.md) |
 | **TV shell** (Qt 6.8 QML/C++) | `apps/tv-shell/` | everything on the TV between apps: focus graph, screens, themes, bears | [`apps/tv-shell/AGENTS.md`](apps/tv-shell/AGENTS.md) |
 | **Phone remote** (TypeScript, Preact) | `apps/remote-web/` | the phone UI, served by (and embedded in) the coordinator | [`apps/remote-web/AGENTS.md`](apps/remote-web/AGENTS.md) |
-| **Web apps' navigation script** (TypeScript) | `apps/web-nav/` | D-pad control of websites (Netflix, Disney+, Hulu, the Browser tile): injected into Chromium pages by the coordinator over the DevTools pipe | [`apps/web-nav/AGENTS.md`](apps/web-nav/AGENTS.md) |
+| **Web apps' navigation script** (TypeScript) | `apps/web-nav/` | D-pad control of websites (Netflix, Disney+, Hulu, the Browser tile): injected into the web apps' pages (Google Chrome, Brave) by the coordinator over the DevTools pipe | [`apps/web-nav/AGENTS.md`](apps/web-nav/AGENTS.md) |
 | **Contracts** | `contracts/` | JSON Schemas + specs + fixtures, validated in all three languages | [`contracts/AGENTS.md`](contracts/AGENTS.md) |
 | **Themes** | `themes/` | theme packages (manifest + art, no code) | [`themes/AGENTS.md`](themes/AGENTS.md) |
 
@@ -35,11 +35,12 @@ appear only when installed). A missing one installs per user from Flathub
 on one press by the owner, without root
 ([ADR 0011](docs/decisions/0011-per-user-flathub-installs.md)). Bear Den launches them, brings them to the front, tunes their settings and returns
 Home. It never wraps, embeds or patches them. Netflix, Disney+, Hulu and a
-Browser tile are web apps: Flathub Chromium (or Brave, the owner's choice),
-one profile each, driven over the DevTools pipe with Bear Den's navigation
-script ([ADR 0010](docs/decisions/0010-web-apps-over-cdp-pipe.md),
-[ADR 0013](docs/decisions/0013-brave-as-a-browser-choice.md)); the streaming
-sites are off until the owner turns them on.
+Browser tile are web apps: Google Chrome from Flathub for the streaming
+sites and Brave from Flathub for the Browser tile (the owner may swap
+either), one profile and window class each, driven over the DevTools pipe
+with Bear Den's navigation script ([ADR 0010](docs/decisions/0010-web-apps-over-cdp-pipe.md),
+[ADR 0014](docs/decisions/0014-google-chrome-for-streaming-brave-for-browser.md));
+the streaming sites are off until the owner turns them on.
 
 ## Read first
 
@@ -183,7 +184,7 @@ make test                                            # Go (race) + phone remote 
 make test-go                                         # only Go (race); also test-web, test-webnav, test-shell
 make lint                                            # gofmt/vet, eslint/tsc, qmllint
 make dev DEV_ARGS=--dev-fixtures                     # coordinator + shell locally, fake desktop, DEMO rows and weather
-                                                     # also --dev-plex-fake (Plex sign-in), --dev-installs (pretend Flathub), --dev-browser PATH (real Chromium)
+                                                     # also --dev-plex-fake (Plex sign-in), --dev-installs (pretend Flathub), --dev-browser PATH (a real Chromium-engine binary)
 scripts/sandbox.sh shot --screen settings --theme forest   # prototype without the TV: one screenshot
 make shots                                           # every theme × main screens in build/shots/gallery
 make perf                                            # frames and CPU per phase of Home (a guide, not a gate on taste)
@@ -205,7 +206,7 @@ Live-display checks need an active graphical session on the TV
 | A new decoration style, particle kind or corner scene | [`docs/THEMES.md` → Extending the engine](docs/THEMES.md), [`apps/tv-shell/AGENTS.md`](apps/tv-shell/AGENTS.md) |
 | Support another app | [`internal/AGENTS.md` → Add an app](internal/AGENTS.md#add-an-app), then [`apps/tv-shell/AGENTS.md` → App tiles and branding](apps/tv-shell/AGENTS.md#app-tiles-and-branding) and [`docs/APP_PERFORMANCE.md` → Adding an app](docs/APP_PERFORMANCE.md#adding-an-app) |
 | An optional app (tile only once installed) | the same, with `"hide_when_missing": true` in its default row ([`internal/AGENTS.md` → Add an app](internal/AGENTS.md#add-an-app), step 4) |
-| A web app (a website in Chromium) | [`internal/AGENTS.md` → Add an app](internal/AGENTS.md#add-an-app) (the web app paragraph), a hints file ([`apps/web-nav/AGENTS.md`](apps/web-nav/AGENTS.md)), config rule 11 ([`contracts/config.md`](contracts/config.md)), [ADR 0010](docs/decisions/0010-web-apps-over-cdp-pipe.md) |
+| A web app (a website in Google Chrome or Brave) | [`internal/AGENTS.md` → Add an app](internal/AGENTS.md#add-an-app) (the web app paragraph), a hints file ([`apps/web-nav/AGENTS.md`](apps/web-nav/AGENTS.md)), config rule 11 ([`contracts/config.md`](contracts/config.md)), [ADR 0010](docs/decisions/0010-web-apps-over-cdp-pipe.md) |
 | An app's icon or featured-panel room | [`docs/THEMES.md` → App icons](docs/THEMES.md#app-icons), [`tools/pixelart`](tools/pixelart/README.md), [`tools/classicart`](tools/classicart/README.md) |
 | A Den badge | [`docs/THEMES.md` → Den badges](docs/THEMES.md#den-badges), [ADR 0009](docs/decisions/0009-den-badges-local-counters.md) |
 | A new screen on the TV | [`apps/tv-shell/AGENTS.md` → Add a screen](apps/tv-shell/AGENTS.md#add-a-screen) |

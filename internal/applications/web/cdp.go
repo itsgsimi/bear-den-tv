@@ -1,7 +1,7 @@
-// A minimal Chrome DevTools Protocol client over Chromium's
+// A minimal Chrome DevTools Protocol client over the browser's
 // --remote-debugging-pipe: JSON messages separated by NUL bytes, requests
 // with ids, flat sessions (sessionId) and events. The pipe is two anonymous
-// fds only the coordinator and its Chromium child hold, so nothing listens
+// fds only the coordinator and its browser child hold, so nothing listens
 // anywhere and no other process can speak on it
 // (docs/decisions/0010-web-apps-over-cdp-pipe.md).
 
@@ -18,10 +18,10 @@ import (
 	"sync/atomic"
 )
 
-// MaxMessage bounds one message from Chromium; a larger one closes the pipe.
+// MaxMessage bounds one message from the browser; a larger one closes the pipe.
 const MaxMessage = 8 << 20
 
-// ErrClosed is returned once the pipe is gone (Chromium exited).
+// ErrClosed is returned once the pipe is gone (the browser exited).
 var ErrClosed = errors.New("web: devtools pipe closed")
 
 // CDPError is a protocol error reply.
@@ -68,7 +68,7 @@ type Conn struct {
 	err     error
 }
 
-// NewConn wraps the pipe ends (r: Chromium's fd 4, w: its fd 3) and starts
+// NewConn wraps the pipe ends (r: the browser's fd 4, w: its fd 3) and starts
 // reading. onEvent may be nil.
 func NewConn(r io.Reader, w io.Writer, onEvent func(Event)) *Conn {
 	c := &Conn{w: w, r: bufio.NewReaderSize(r, 64<<10), pending: map[int64]chan reply{}, onEvent: onEvent, closed: make(chan struct{})}

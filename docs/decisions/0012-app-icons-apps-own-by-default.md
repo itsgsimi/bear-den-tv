@@ -25,6 +25,9 @@ drawings as a choice.
   icon; the Browser tile is Chromium and may. This is data (a table of the
   adapters whose Flatpak only hosts them, `adapters.OwnFlatpakIcon` in Go and
   `ownIconFlatpakIdFor` in the shell), not a branch on a name.
+  *Update 2026-09-29:* the streaming sites now run in Google Chrome and the
+  Browser tile in Brave ([ADR 0014](0014-google-chrome-for-streaming-brave-for-browser.md));
+  the rule is the same.
 - **Nothing third-party is committed.** The exported icons are read from the
   owner's own disk at run time. Committed screenshots use Bear Den style or
   fixtures without real exports.

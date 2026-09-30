@@ -424,10 +424,11 @@ type AppsState struct {
 
 // BrowserOption is state.schema.json#/properties/apps/properties/browsers/items.
 type BrowserOption struct {
-	ID                  string `json:"id"`
-	Label               string `json:"label"`
-	FlatpakID           string `json:"flatpak_id"`
-	StreamingUnverified bool   `json:"streaming_unverified"`
+	ID                  string   `json:"id"`
+	Label               string   `json:"label"`
+	FlatpakID           string   `json:"flatpak_id"`
+	StreamingUnverified bool     `json:"streaming_unverified"`
+	Notes               []string `json:"notes,omitempty"`
 }
 
 // HoldState is state.schema.json#/properties/remote/properties/hold.

@@ -1,9 +1,9 @@
 // A pretend web app manager for `bear-den-tv dev` (session.WebApps): opening
 // a web app maps a window with the adapter's class on the fake desktop, and
 // its page reports a DEMO status (no video, no text field), so the phone's
-// touchpad and the web capabilities can be seen without Chromium. With
+// touchpad and the web capabilities can be seen without a browser. With
 // `dev --dev-browser PATH` the real manager (internal/applications/web) runs
-// a real Chromium instead.
+// a real Chromium-engine browser binary instead.
 
 package fake
 

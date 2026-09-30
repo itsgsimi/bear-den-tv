@@ -30,7 +30,7 @@ var forbiddenKeys = map[string]bool{"token": true, "x_plex_token": true, "passwo
 type AdapterSpec struct {
 	FlatpakID    string
 	ApprovedArgs []string
-	// Web marks a web adapter (Chromium opens a page; rule 11); nil for a
+	// Web marks a web adapter (a browser opens a page; rule 11); nil for a
 	// Flatpak app, which may not carry a web block.
 	Web *WebRule
 }
@@ -44,20 +44,23 @@ type WebRule struct {
 	URLRequired bool
 }
 
-// ChromiumFlatpakID is the default browser of web adapters (Flathub's
-// Chromium; docs/decisions/0010-web-apps-over-cdp-pipe.md). Defined once, in
-// the adapter table, beside the other browsers (adapters.Browsers); rule 3
-// takes a web row's Flatpak id from config apps instead (launchFlatpakID).
-const ChromiumFlatpakID = adapters.ChromiumFlatpakID
+// The web adapters' default browsers (the adapter table's; rule 3 takes a
+// web row's Flatpak id from config apps instead, launchFlatpakID): Google
+// Chrome for the streaming sites, Brave for the Browser tile
+// (docs/decisions/0014-google-chrome-for-streaming-brave-for-browser.md).
+const (
+	streamingFlatpakID = adapters.ChromeFlatpakID
+	tileFlatpakID      = adapters.BraveFlatpakID
+)
 
 // DefaultAdapters lists the adapters shipped with this build.
 var DefaultAdapters = map[string]AdapterSpec{
-	// Web adapters (rule 11): Chromium from Flathub, no launch arguments
-	// from config; the coordinator builds Chromium's argv itself.
-	"netflix":     {FlatpakID: ChromiumFlatpakID, Web: &WebRule{Hosts: []string{"netflix.com"}, URLRequired: true}},
-	"disney-plus": {FlatpakID: ChromiumFlatpakID, Web: &WebRule{Hosts: []string{"disneyplus.com"}, URLRequired: true}},
-	"hulu":        {FlatpakID: ChromiumFlatpakID, Web: &WebRule{Hosts: []string{"hulu.com"}, URLRequired: true}},
-	"browser":     {FlatpakID: ChromiumFlatpakID, Web: &WebRule{}},
+	// Web adapters (rule 11): a browser from Flathub, no launch arguments
+	// from config; the coordinator builds the browser's argv itself.
+	"netflix":     {FlatpakID: streamingFlatpakID, Web: &WebRule{Hosts: []string{"netflix.com"}, URLRequired: true}},
+	"disney-plus": {FlatpakID: streamingFlatpakID, Web: &WebRule{Hosts: []string{"disneyplus.com"}, URLRequired: true}},
+	"hulu":        {FlatpakID: streamingFlatpakID, Web: &WebRule{Hosts: []string{"hulu.com"}, URLRequired: true}},
+	"browser":     {FlatpakID: tileFlatpakID, Web: &WebRule{}},
 	"plex-htpc":   {FlatpakID: "tv.plex.PlexHTPC"},
 	"vacuumtube":  {FlatpakID: "rocks.shy.VacuumTube", ApprovedArgs: []string{"--fullscreen", "--no-window-decorations"}},
 	"moonlight":   {FlatpakID: "com.moonlight_stream.Moonlight"},
@@ -143,8 +146,25 @@ var ErrSchemaVersion = errors.New("unsupported schema_version")
 
 // Parse checks a raw document structurally, scans it for leaked credential
 // keys, and decodes it. Host-independent semantic rules are applied too; host
-// rules (4, 5) are applied by Validate.
+// rules (4, 5) are applied by Validate. A document of the retired Chromium
+// era is moved to today's browsers first (upgrade.go).
 func Parse(raw []byte, rules Rules) (Config, error) {
+	c, _, err := parseUpgrading(raw, rules)
+	return c, err
+}
+
+// parseUpgrading is Parse, also returning which rows moved off the retired
+// browser (upgradeRetiredBrowser).
+func parseUpgrading(raw []byte, rules Rules) (Config, []string, error) {
+	raw, moved := upgradeRetiredBrowser(raw)
+	c, err := parse(raw, rules)
+	if err != nil {
+		return Config{}, nil, err
+	}
+	return c, moved, nil
+}
+
+func parse(raw []byte, rules Rules) (Config, error) {
 	var head struct {
 		SchemaVersion *json.Number `json:"schema_version"`
 	}

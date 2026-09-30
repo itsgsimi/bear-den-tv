@@ -88,6 +88,10 @@ installs are left to the system.
 
 ## Web apps and Chromium
 
+*Update 2026-09-29:* since [ADR 0014](0014-google-chrome-for-streaming-brave-for-browser.md)
+the web apps install Google Chrome (streaming) or Brave (the Browser tile)
+the same way; Chrome bundles Widevine, so the step below runs for Brave only.
+
 Turning a streaming site on (Settings → Streaming sites) while Chromium is
 missing opens the same install card for Chromium ("Browser for Netflix,
 Disney+, Hulu"). After Chromium is installed, the Widevine step of

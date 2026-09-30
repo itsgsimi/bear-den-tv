@@ -1,7 +1,8 @@
 // Tests for a browser's own settings in Bear Den's profiles (prefs.go):
 // Brave's rows land in its profile's Local State and Default/Preferences
-// as nested keys beside what is already there; Chromium's profile gets no
-// file at all; and a profile, profile root or prefs file that is a
+// as nested keys beside what is already there; Google Chrome's rows land
+// in its own profile only, with the empty WidevineCdm file that keeps it on
+// its bundled CDM; and a profile, profile root or prefs file that is a
 // symbolic link (for example into a personal browser's folder) is refused
 // with nothing written through it.
 
@@ -75,13 +76,90 @@ func TestSeedPrefsWritesBraveRowsIntoItsOwnProfile(t *testing.T) {
 	if st, _ := os.Stat(filepath.Join(profile, "Local State")); st.Mode().Perm() != 0o600 {
 		t.Fatalf("Local State mode %v", st.Mode())
 	}
-	// Chromium's profiles get nothing written.
-	cp, err := SeedPrefs(data, browser(t, "chromium"), "netflix")
-	if err != nil {
+}
+
+// Google Chrome: no first-run, default-browser, sign-in-to-Chrome, password,
+// autofill or translate prompts and a clean exit, written into Bear Den's
+// Chrome profile for that app only (never Brave's, never another app's,
+// never Chrome's own default profile under ~/.var/app), nothing in Local
+// State, and an empty WidevineCdm file (a symbolic link there is refused,
+// a folder left alone).
+func TestSeedPrefsWritesChromeRowsIntoItsOwnProfile(t *testing.T) {
+	data := t.TempDir()
+	chrome := browser(t, "chrome")
+	for k, want := range map[string]any{
+		"browser.check_default_browser":  false,
+		"signin.allowed":                 false,
+		"credentials_enable_service":     false,
+		"credentials_enable_autosignin":  false,
+		"translate.enabled":              false,
+		"browser.has_seen_welcome_page":  true,
+		"profile.exit_type":              "Normal",
+		"autofill.credit_card_enabled":   false,
+		"signin.allowed_on_next_startup": false,
+	} {
+		if chrome.Preferences[k] != want {
+			t.Errorf("chrome pref %s = %v, want %v", k, chrome.Preferences[k], want)
+		}
+	}
+	profile, err := SeedPrefs(data, chrome, "netflix")
+	if err != nil || profile != filepath.Join(data, "bear-den-tv", "web-chrome", "netflix") {
+		t.Fatalf("SeedPrefs = %q, %v", profile, err)
+	}
+	prefs := readJSON(t, filepath.Join(profile, "Default", "Preferences"))
+	for k, v := range chrome.Preferences {
+		if got := at(prefs, splitDots(k)...); got != v {
+			t.Errorf("%s = %v, want %v", k, got, v)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(profile, "Local State")); !os.IsNotExist(err) {
+		t.Errorf("Chrome's Local State was written: %v", err)
+	}
+	wv, err := os.Lstat(filepath.Join(profile, WidevineFile))
+	if err != nil || !wv.Mode().IsRegular() || wv.Size() != 0 || wv.Mode().Perm() != 0o600 {
+		t.Fatalf("WidevineCdm %v %v", wv, err)
+	}
+	// Nothing anywhere else: one profile folder under web-chrome, nothing
+	// under web-brave, and no Chrome folder outside bear-den-tv.
+	entries, _ := os.ReadDir(filepath.Join(data, "bear-den-tv"))
+	if len(entries) != 1 || entries[0].Name() != "web-chrome" {
+		t.Fatalf("bear-den-tv holds %v", entries)
+	}
+	if apps, _ := os.ReadDir(filepath.Join(data, "bear-den-tv", "web-chrome")); len(apps) != 1 {
+		t.Fatalf("web-chrome holds %v", apps)
+	}
+	if top, _ := os.ReadDir(data); len(top) != 1 {
+		t.Fatalf("data home holds %v", top)
+	}
+	// Again: kept as it is.
+	if _, err := SeedPrefs(data, chrome, "netflix"); err != nil {
 		t.Fatal(err)
 	}
-	if entries, _ := os.ReadDir(cp); len(entries) != 0 {
-		t.Fatalf("Chromium's profile got files: %v", entries)
+	// A CDM folder fetched before is left alone.
+	hulu, _ := ProfileDir(data, chrome, "hulu")
+	if err := os.MkdirAll(filepath.Join(hulu, WidevineFile, "4.10.3050.0"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := SeedPrefs(data, chrome, "hulu"); err != nil {
+		t.Fatal(err)
+	}
+	if fi, err := os.Stat(filepath.Join(hulu, WidevineFile, "4.10.3050.0")); err != nil || !fi.IsDir() {
+		t.Fatalf("the fetched CDM folder was touched: %v", err)
+	}
+	// A symbolic link at WidevineCdm is refused.
+	disney, _ := ProfileDir(data, chrome, "disney-plus")
+	if err := os.MkdirAll(disney, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	elsewhere := t.TempDir()
+	if err := os.Symlink(elsewhere, filepath.Join(disney, WidevineFile)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := SeedPrefs(data, chrome, "disney-plus"); err == nil {
+		t.Fatal("a symbolic link at WidevineCdm was accepted")
+	}
+	if left, _ := os.ReadDir(elsewhere); len(left) != 0 {
+		t.Fatalf("written through the link: %v", left)
 	}
 }
 

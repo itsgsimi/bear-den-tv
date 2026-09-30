@@ -51,10 +51,10 @@ func TestBraveNoteOnlyWhileBraveStreams(t *testing.T) {
 	hasBrave := func(id string) bool { return slices.Contains(appState(h.c.buildState(viewShell), id).Notes, braveNote) }
 	for _, id := range []string{"netflix", "disney-plus", "hulu", "browser", "plex-htpc"} {
 		if hasBrave(id) {
-			t.Fatalf("%s carries the Brave note with Chromium chosen", id)
+			t.Fatalf("%s carries the Brave note with Chrome chosen", id)
 		}
 	}
-	if r := setBrowsers(h, "chromium", "brave"); !r.OK {
+	if r := setBrowsers(h, "chrome", "brave"); !r.OK {
 		t.Fatal(r.Error)
 	}
 	for _, id := range []string{"netflix", "disney-plus", "hulu"} {
@@ -71,12 +71,12 @@ func TestBraveNoteOnlyWhileBraveStreams(t *testing.T) {
 		t.Error("phones do not get the Brave note")
 	}
 	// The Browser tile in Brave is not streaming: no note anywhere.
-	if r := setBrowsers(h, "brave", "chromium"); !r.OK {
+	if r := setBrowsers(h, "brave", "chrome"); !r.OK {
 		t.Fatal(r.Error)
 	}
 	for _, id := range []string{"netflix", "disney-plus", "hulu", "browser"} {
 		if hasBrave(id) {
-			t.Errorf("%s keeps the Brave note after the streaming sites moved back to Chromium", id)
+			t.Errorf("%s keeps the Brave note after the streaming sites moved back to Chrome", id)
 		}
 	}
 }

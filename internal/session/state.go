@@ -101,7 +101,7 @@ func (c *Coordinator) buildStateFor(view viewKind, v *remote.Viewer) contract.St
 	}
 	apps := &contract.AppsState{AutoUpdate: cfg.AutoUpdate(), Browser: cfg.BrowserName(), StreamingBrowser: cfg.StreamingBrowserName()}
 	for _, b := range adapters.Browsers() {
-		apps.Browsers = append(apps.Browsers, contract.BrowserOption{ID: b.Name, Label: b.Label, FlatpakID: b.FlatpakID, StreamingUnverified: b.StreamingUnverified})
+		apps.Browsers = append(apps.Browsers, contract.BrowserOption{ID: b.Name, Label: b.Label, FlatpakID: b.FlatpakID, StreamingUnverified: b.StreamingUnverified, Notes: append([]string(nil), b.Notes...)})
 	}
 	switch view {
 	case viewShell:

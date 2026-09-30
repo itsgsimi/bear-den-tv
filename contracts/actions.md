@@ -70,7 +70,7 @@ Optional, off unless an HDMI-CEC adapter is present and the owner turned on `cec
 
 ## Web apps
 
-The web adapters (`netflix`, `disney-plus`, `hulu`, `browser`; [`config.md`](config.md) rule 11) run in Flathub Chromium, driven over the DevTools pipe ([ADR 0010](../docs/decisions/0010-web-apps-over-cdp-pipe.md)). With one in front:
+The web adapters (`netflix`, `disney-plus`, `hulu`, `browser`; [`config.md`](config.md) rule 11) run in a browser from Flathub (Google Chrome for the streaming sites and Brave for the Browser tile by default), each its own app, driven over the DevTools pipe ([ADR 0010](../docs/decisions/0010-web-apps-over-cdp-pipe.md), [ADR 0014](../docs/decisions/0014-google-chrome-for-streaming-brave-for-browser.md)). With one in front:
 
 | Action | What happens | Outcome |
 |---|---|---|
@@ -88,7 +88,7 @@ Rules: input is sent only after the web app's own window is re-read as the activ
 
 Bear Den can install the apps it knows (the rows of the adapter table) from Flathub, for the TV's user, without root ([ADR 0011](../docs/decisions/0011-per-user-flathub-installs.md)). One owner press is the consent: nothing installs on its own.
 
-- **What is installed.** `app_id` names a config application; the Flatpak is that application's adapter's Flatpak id (for the web apps `org.chromium.Chromium`, shared by all four). Nothing else can be named: no refs, remotes, branches or URLs cross the network. Only the per-user `flathub` remote with the URL compiled into the binary is used, only `x86_64`, with Flatpak's own signature checks.
+- **What is installed.** `app_id` names a config application; the Flatpak is that application's adapter's Flatpak id (for a web app its browser's, `launch.app_id`: `com.google.Chrome` shared by the streaming sites, `com.brave.Browser` for the Browser tile, by default). Nothing else can be named: no refs, remotes, branches or URLs cross the network. Only the per-user `flathub` remote with the URL compiled into the binary is used, only `x86_64`, with Flatpak's own signature checks.
 - **What is not touched.** An app installed system-wide counts as installed and is never changed; `observed` with `detail.already_installed`.
 - **Capability.** `app.install` and `app.install_cancel` are unavailable with the reason when the session has no installer or Flatpak is missing ("Flatpak isn't installed on this box"), and while locked.
 - **Refusals.** An unknown app (`failed/unsupported`), another install already running (`failed/busy`), an app already installing (`delivered`, `detail.already_running`). Cancel with nothing running is `failed/unsupported`.

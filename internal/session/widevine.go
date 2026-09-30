@@ -1,12 +1,14 @@
-// Playback support for the streaming sites: once their browser (Chromium,
-// or Brave by the owner's choice, config apps.streaming_browser) is
+// Playback support for the streaming sites: once their browser (Google
+// Chrome, or Brave by the owner's choice, config apps.streaming_browser) is
 // installed, when a streaming site is turned on, and when the streaming
-// sites move to another browser, the coordinator runs each enabled site's
-// profile once, headless, so the browser's component updater fetches
-// Widevine into it (web.Widevine), and reports
+// sites move to another browser, the coordinator checks each enabled site
+// and, where the browser does not bundle the CDM (Brave; Chrome does, so
+// it is ready once installed), runs the site's profile once, headless, so
+// the browser's component updater fetches Widevine into it (web.Widevine),
+// and reports
 // state.applications[].install.drm: ready, preparing or pending ("Still
 // setting up playback support"). Opening the site stops its quiet run
-// (Chromium allows one process per profile; the real run fetches the CDM
+// (a browser allows one process per profile; the real run fetches the CDM
 // too). Spec: contracts/http.md "App installs", ADR 0010 and ADR 0011.
 
 package session

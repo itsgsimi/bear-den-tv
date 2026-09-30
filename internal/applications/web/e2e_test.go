@@ -142,7 +142,7 @@ func TestE2EChromiumDrivenByNamedActions(t *testing.T) {
 		default:
 		}
 	})
-	app := config.Application{ID: "browser", Label: "Browser", Adapter: "browser", Launch: config.Launch{Kind: "flatpak", AppID: "org.chromium.Chromium"}, Web: &config.Web{URL: "https://fixtures.test/grid.html"}}
+	app := config.Application{ID: "browser", Label: "Browser", Adapter: "browser", Launch: config.Launch{Kind: "flatpak", AppID: "com.brave.Browser"}, Web: &config.Web{URL: "https://fixtures.test/grid.html"}}
 	ad, _ := adapters.ForName("browser")
 	spec, _ := adapters.WebOf(ad)
 	inst, err := m.Launch(ctx, app, spec)
@@ -153,7 +153,7 @@ func TestE2EChromiumDrivenByNamedActions(t *testing.T) {
 	if inst.PID <= 0 || !m.Running("browser") {
 		t.Fatalf("instance %+v running %v", inst, m.Running("browser"))
 	}
-	if fi, err := os.Stat(filepath.Join(data, "bear-den-tv", "web", "browser")); err != nil || fi.Mode().Perm() != 0o700 {
+	if fi, err := os.Stat(filepath.Join(data, "bear-den-tv", "web-brave", "browser")); err != nil || fi.Mode().Perm() != 0o700 {
 		t.Fatalf("profile dir: %v %v", fi, err)
 	}
 	e := &e2e{t: t, m: m, appID: "browser", ctx: ctx}

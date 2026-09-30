@@ -244,13 +244,14 @@
   "apps": {
     "auto_update": true,
     "browser": "brave",
-    "streaming_browser": "chromium",
+    "streaming_browser": "chrome",
     "browsers": [
       {
-        "id": "chromium",
-        "label": "Chromium",
-        "flatpak_id": "org.chromium.Chromium",
-        "streaming_unverified": false
+        "id": "chrome",
+        "label": "Google Chrome",
+        "flatpak_id": "com.google.Chrome",
+        "streaming_unverified": false,
+        "notes": ["Google Chrome, made by Google: it shares usage data with Google.", "Streaming sites play at up to 720p on Linux.", "A community-packaged Flatpak of Google's official Chrome."]
       },
       {
         "id": "brave",

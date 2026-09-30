@@ -52,7 +52,8 @@ type Apps struct {
 	// the TV is idle (internal/applications/install).
 	AutoUpdate bool `json:"auto_update"`
 	// Browser is the Browser tile's browser and StreamingBrowser the
-	// streaming sites' (adapters.Browsers names; "" = chromium). Rule 3
+	// streaming sites' (adapters.Browsers names; "" = brave for the tile,
+	// chrome for the streaming sites). Rule 3
 	// ties each web row's launch.app_id to it.
 	Browser          string `json:"browser,omitempty"`
 	StreamingBrowser string `json:"streaming_browser,omitempty"`
@@ -64,19 +65,19 @@ func (c Config) AutoUpdate() bool {
 }
 
 // BrowserName is config apps.browser, the Browser tile's browser
-// (adapters.DefaultBrowser when absent).
+// (adapters.DefaultTileBrowser, brave, when absent).
 func (c Config) BrowserName() string {
 	if c.Apps == nil || c.Apps.Browser == "" {
-		return adapters.DefaultBrowser
+		return adapters.DefaultTileBrowser
 	}
 	return c.Apps.Browser
 }
 
 // StreamingBrowserName is config apps.streaming_browser, the streaming
-// sites' browser (adapters.DefaultBrowser when absent).
+// sites' browser (adapters.DefaultStreamingBrowser, chrome, when absent).
 func (c Config) StreamingBrowserName() string {
 	if c.Apps == nil || c.Apps.StreamingBrowser == "" {
-		return adapters.DefaultBrowser
+		return adapters.DefaultStreamingBrowser
 	}
 	return c.Apps.StreamingBrowser
 }

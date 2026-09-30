@@ -165,7 +165,7 @@ func (l *scopedLauncher) setScope(id, scope string) {
 }
 
 // installHarness: Plex system-wide, YouTube for the user, Moonlight and
-// Chromium (the web apps) missing.
+// the web apps' browsers (Google Chrome, Brave) missing.
 func installHarness(t *testing.T, configure ...func(*Options)) (*harness, *fakeInstaller, *scopedLauncher) {
 	fi := newFakeInstaller()
 	var sl *scopedLauncher
@@ -189,7 +189,8 @@ func TestOwnerInstallsTheAdaptersFlatpakOnly(t *testing.T) {
 	expectOutcome(t, res, contract.OutcomeDelivered, contract.CodeOK)
 	// A second press while it runs is not a second install.
 	expectOutcome(t, h.submit(h.owner, h.req(contract.ActionAppInstall, map[string]any{"app_id": "moonlight"})), contract.OutcomeDelivered, contract.CodeOK)
-	// A web app installs Chromium, the one browser web apps use; one at a time.
+	// A web app installs its browser (Chrome for the streaming sites); one
+	// install at a time.
 	fi.set(adapters.MoonlightFlatpakID, install.Status{State: contract.InstallDownloading, Phase: contract.PhaseRuntime, Progress: 42})
 	expectOutcome(t, h.submit(h.owner, h.req(contract.ActionAppInstall, map[string]any{"app_id": "netflix"})), contract.OutcomeFailed, contract.CodeBusy)
 	// Installed apps (for the user or system-wide) are left alone.
@@ -206,7 +207,7 @@ func TestOwnerInstallsTheAdaptersFlatpakOnly(t *testing.T) {
 	expectOutcome(t, h.submit(h.owner, h.req(contract.ActionAppInstall, map[string]any{"app_id": "browser"})), contract.OutcomeDelivered, contract.CodeOK)
 
 	starts, cancels, _ := fi.calls()
-	if fmt.Sprint(starts) != fmt.Sprint([]string{adapters.MoonlightFlatpakID, adapters.ChromiumFlatpakID}) || fmt.Sprint(cancels) != fmt.Sprint([]string{adapters.MoonlightFlatpakID}) {
+	if fmt.Sprint(starts) != fmt.Sprint([]string{adapters.MoonlightFlatpakID, adapters.BraveFlatpakID}) || fmt.Sprint(cancels) != fmt.Sprint([]string{adapters.MoonlightFlatpakID}) {
 		t.Fatalf("starts %v cancels %v", starts, cancels)
 	}
 }
@@ -308,12 +309,12 @@ func TestInstallIPC(t *testing.T) {
 		t.Fatalf("app.install_info reply %+v", r)
 	}
 	if in := appState(h.c.buildState(viewShell), "hulu").Install; in.SizeBytes == nil || *in.SizeBytes != 417_600_000 {
-		t.Fatalf("hulu (also Chromium) install %+v", in)
+		t.Fatalf("hulu (also Chrome) install %+v", in)
 	}
 	if r := h.shellSend(shellipc.InstallRequest{Type: shellipc.TypeInstallRequest, RequestID: "s2", AppID: "netflix"}, "s2"); !r.OK {
 		t.Fatalf("applications.install_request refused: %+v", r)
 	}
-	fi.set(adapters.ChromiumFlatpakID, install.Status{State: contract.InstallDownloading, Phase: contract.PhaseRuntime})
+	fi.set(adapters.ChromeFlatpakID, install.Status{State: contract.InstallDownloading, Phase: contract.PhaseRuntime})
 	if r := h.shellSend(shellipc.AppInstallCancel{Type: shellipc.TypeAppInstallCancel, RequestID: "s3", AppID: "netflix"}, "s3"); !r.OK {
 		t.Fatalf("app.install_cancel refused: %+v", r)
 	}

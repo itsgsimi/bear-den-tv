@@ -358,8 +358,8 @@
       "description": "App installs from Flathub (contracts/http.md \"App installs\"; config apps). Shell and owner phones only; absent from older coordinators.",
       "properties": {
         "auto_update": {"type": "boolean", "description": "config apps.auto_update (absent = true): Bear Den updates the apps it installed for this user while the TV is idle."},
-        "browser": {"type": "string", "pattern": "^[a-z][a-z0-9-]{0,31}$", "description": "config apps.browser: the Browser tile's browser, a browsers[].id. Absent from older coordinators (then chromium)."},
-        "streaming_browser": {"type": "string", "pattern": "^[a-z][a-z0-9-]{0,31}$", "description": "config apps.streaming_browser: the streaming sites' browser, a browsers[].id. Absent from older coordinators (then chromium)."},
+        "browser": {"type": "string", "pattern": "^[a-z][a-z0-9-]{0,31}$", "description": "config apps.browser: the Browser tile's browser, a browsers[].id. Absent from older coordinators."},
+        "streaming_browser": {"type": "string", "pattern": "^[a-z][a-z0-9-]{0,31}$", "description": "config apps.streaming_browser: the streaming sites' browser, a browsers[].id. Absent from older coordinators."},
         "browsers": {
           "type": "array",
           "description": "The browsers web apps may run in (the adapter table's, in the order the TV offers them). Absent from older coordinators.",
@@ -369,7 +369,8 @@
               "id": {"type": "string", "pattern": "^[a-z][a-z0-9-]{0,31}$"},
               "label": {"type": "string"},
               "flatpak_id": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_-]*(\\.[A-Za-z0-9_-]+)+$"},
-              "streaming_unverified": {"type": "boolean", "description": "true: nothing shows the streaming sites' Widevine works in this browser's Flatpak; the TV says \"unverified for streaming\" beside it."}
+              "streaming_unverified": {"type": "boolean", "description": "true: nothing shows the streaming sites' Widevine works in this browser's Flatpak; the TV says \"unverified for streaming\" beside it."},
+              "notes": {"type": "array", "maxItems": 8, "items": {"type": "string", "minLength": 1, "maxLength": 200}, "description": "Plain words the TV shows beside the choice (who makes it, what it shares, its limits). Optional; absent from older coordinators."}
             },
             "required": ["id", "label", "flatpak_id", "streaming_unverified"],
             "additionalProperties": false
@@ -465,7 +466,7 @@
   "$defs": {
     "install": {
       "type": "object",
-      "description": "The app's Flatpak install from Flathub, per user (contracts/http.md \"App installs\"). Apps that share a Flatpak (the web apps all use Chromium) share one install. Shell and owner phones only.",
+      "description": "The app's Flatpak install from Flathub, per user (contracts/http.md \"App installs\"). Apps that share a Flatpak (the streaming sites all use Google Chrome by default) share one install. Shell and owner phones only.",
       "properties": {
         "state": {"enum": ["none", "available", "preparing", "downloading", "installing", "failed", "done"], "description": "none: nothing to install (installed, or installs are unavailable: message says why); available: not installed and Install would work; preparing: adding Flathub, reading sizes, checking free space; downloading: flatpak is fetching and deploying (phase says what); installing: flatpak finished, Bear Den is checking the result; failed: message says why; done: installed by this session."},
         "progress": {"type": "integer", "minimum": 0, "maximum": 100},
@@ -473,7 +474,7 @@
         "size_bytes": {"type": "integer", "minimum": 0, "description": "About how much to download: the app and any runtime it needs that is not installed yet, from Flathub's metadata. Absent until known."},
         "disk_bytes": {"type": "integer", "minimum": 0, "description": "About how much disk the app and missing runtime take once installed. Absent until known."},
         "message": {"type": "string", "maxLength": 200, "description": "Plain words for the owner: why it failed, why installs are unavailable, or \"Updated by your system\" for a system-wide install."},
-        "drm": {"enum": ["ready", "preparing", "pending"], "description": "Streaming web apps only, once Chromium is installed: ready when the app's profile has Widevine (WidevineCdm/*/manifest.json), preparing while Bear Den's first quiet run fetches it, pending when it is not there yet (\"Still setting up playback support\")."}
+        "drm": {"enum": ["ready", "preparing", "pending"], "description": "Streaming web apps only, once their browser is installed: ready when the browser can play protected video for the app (Google Chrome: the Widevine CDM bundled in the installed Flatpak; Brave: the app's profile has WidevineCdm/*/manifest.json), preparing while Bear Den's first quiet run fetches it, pending when it is not there yet (\"Still setting up playback support\")."}
       },
       "required": ["state", "progress", "phase"],
       "additionalProperties": false

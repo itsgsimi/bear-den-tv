@@ -148,8 +148,8 @@ func TestPlayerOfAnotherFlatpakGivesNoMediaControls(t *testing.T) {
 func TestWebAppNowPlayingOnlyFromItsOwnBrowser(t *testing.T) {
 	media := fake.NewMedia()
 	h, fw, _ := webHarness(t, func(o *Options) { o.Media = media })
-	// Chromium's Flatpak id alone (shared by every web app) must never do.
-	media.Add(adapters.ChromiumFlatpakID, fake.NewPlayer(clock.Real{}, platform.MediaInfo{Status: "Playing", Title: "DEMO Other Tab"}))
+	// Chrome's Flatpak id alone (shared by every streaming site) must never do.
+	media.Add(adapters.ChromeFlatpakID, fake.NewPlayer(clock.Real{}, platform.MediaInfo{Status: "Playing", Title: "DEMO Other Tab"}))
 	if r := enable(h, "netflix", true); !r.OK {
 		t.Fatal(r.Error)
 	}

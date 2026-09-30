@@ -227,7 +227,7 @@ private:
 
     // App installs (InstallCard.qml, AddAppsScreen.qml; ADR 0011): the demo
     // snapshot with YouTube missing but installable, Netflix and Hulu (both
-    // Chromium) missing, and installs available.
+    // in Google Chrome) missing, and installs available.
     QJsonObject installSnapshot(const QString &youtubeState, int progress = 0, bool youtubeInstalled = false)
     {
         QJsonObject snap = fixture();
@@ -1013,8 +1013,10 @@ private slots:
             snap.insert(QStringLiteral("apps"), QJsonObject{
                 {QStringLiteral("auto_update"), true}, {QStringLiteral("browser"), browser}, {QStringLiteral("streaming_browser"), streaming},
                 {QStringLiteral("browsers"), QJsonArray{
-                    QJsonObject{{QStringLiteral("id"), QStringLiteral("chromium")}, {QStringLiteral("label"), QStringLiteral("Chromium")},
-                                {QStringLiteral("flatpak_id"), QStringLiteral("org.chromium.Chromium")}, {QStringLiteral("streaming_unverified"), false}},
+                    QJsonObject{{QStringLiteral("id"), QStringLiteral("chrome")}, {QStringLiteral("label"), QStringLiteral("Google Chrome")},
+                                {QStringLiteral("flatpak_id"), QStringLiteral("com.google.Chrome")}, {QStringLiteral("streaming_unverified"), false},
+                                {QStringLiteral("notes"), QJsonArray{QStringLiteral("Google Chrome, made by Google: it shares usage data with Google."),
+                                                                      QStringLiteral("Streaming sites play at up to 720p on Linux.")}}},
                     QJsonObject{{QStringLiteral("id"), QStringLiteral("brave")}, {QStringLiteral("label"), QStringLiteral("Brave")},
                                 {QStringLiteral("flatpak_id"), QStringLiteral("com.brave.Browser")}, {QStringLiteral("streaming_unverified"), true}}}}});
             return snap;
@@ -1032,9 +1034,9 @@ private slots:
             find(m_window->contentItem());
             return out;
         };
-        QVERIFY2(session->applySnapshot(withBrowsers(QStringLiteral("brave"), QStringLiteral("chromium"))), qPrintable(session->lastError()));
+        QVERIFY2(session->applySnapshot(withBrowsers(QStringLiteral("brave"), QStringLiteral("chrome"))), qPrintable(session->lastError()));
         QCOMPARE(shell->flatpakIdFor(QStringLiteral("browser")), QStringLiteral("com.brave.Browser"));
-        QCOMPARE(shell->flatpakIdFor(QStringLiteral("netflix")), QStringLiteral("org.chromium.Chromium"));
+        QCOMPARE(shell->flatpakIdFor(QStringLiteral("netflix")), QStringLiteral("com.google.Chrome"));
         QCOMPARE(shell->ownIconFlatpakIdFor(QStringLiteral("browser")), QStringLiteral("com.brave.Browser"));
         IpcClient *ipc = shell->ipc();
         openFromHeader(QStringLiteral("apps"));
@@ -1047,14 +1049,31 @@ private slots:
         QStringList rows = rowTexts();
         QCOMPARE(rows.size(), 2);
         QVERIFY2(rows.at(0).startsWith(QStringLiteral("Browser tile uses=Brave|")), qPrintable(rows.join(u'\n')));
-        QVERIFY2(rows.at(1).startsWith(QStringLiteral("Streaming sites use=Chromium|")) && !rows.join(u' ').contains(QStringLiteral("Unverified")), qPrintable(rows.join(u'\n')));
+        QVERIFY2(rows.at(1).startsWith(QStringLiteral("Streaming sites use=Google Chrome|")) && !rows.join(u' ').contains(QStringLiteral("Unverified")), qPrintable(rows.join(u'\n')));
         shot(QStringLiteral("settings-streaming-browser-brave"));
         ipc->clearSent();
-        act(QStringLiteral("nav.right")); // Brave → Chromium (the table wraps)
+        act(QStringLiteral("nav.right")); // Brave → Google Chrome (the table wraps)
         QJsonObject sent = lastSent(QStringLiteral("apps.browser"));
-        QCOMPARE(sent.value(QStringLiteral("browser")).toString(), QStringLiteral("chromium"));
-        QCOMPARE(sent.value(QStringLiteral("streaming_browser")).toString(), QStringLiteral("chromium"));
+        QCOMPARE(sent.value(QStringLiteral("browser")).toString(), QStringLiteral("chrome"));
+        QCOMPARE(sent.value(QStringLiteral("streaming_browser")).toString(), QStringLiteral("chrome"));
         act(QStringLiteral("nav.down"));
+        // The focused browser's notes, from the table, in the help panel.
+        auto helpNotes = [this]() {
+            QStringList out;
+            std::function<void(QQuickItem *)> find = [&](QQuickItem *item) {
+                if (!item->isVisible())
+                    return;
+                if (item->objectName() == QLatin1String("appsHelp"))
+                    out = item->property("notes").toStringList();
+                for (QQuickItem *child : item->childItems())
+                    find(child);
+            };
+            find(m_window->contentItem());
+            return out.join(u'|');
+        };
+        QTRY_VERIFY2(helpNotes() == QStringLiteral("Google Chrome, made by Google: it shares usage data with Google.|Streaming sites play at up to 720p on Linux."),
+                     qPrintable(helpNotes()));
+        shot(QStringLiteral("apps-streaming-browser-chrome-notes"));
         ipc->clearSent();
         act(QStringLiteral("nav.left"));
         sent = lastSent(QStringLiteral("apps.browser"));
@@ -2194,10 +2213,10 @@ private slots:
         snap.insert(QStringLiteral("cec"), QJsonObject{{QStringLiteral("available"), true}, {QStringLiteral("enabled"), true},
                                                       {QStringLiteral("volume_target"), QStringLiteral("pc")}, {QStringLiteral("tv_power"), QStringLiteral("on")}});
         snap.insert(QStringLiteral("apps"), QJsonObject{
-            {QStringLiteral("auto_update"), true}, {QStringLiteral("browser"), QStringLiteral("chromium")}, {QStringLiteral("streaming_browser"), QStringLiteral("chromium")},
+            {QStringLiteral("auto_update"), true}, {QStringLiteral("browser"), QStringLiteral("brave")}, {QStringLiteral("streaming_browser"), QStringLiteral("chrome")},
             {QStringLiteral("browsers"), QJsonArray{
-                QJsonObject{{QStringLiteral("id"), QStringLiteral("chromium")}, {QStringLiteral("label"), QStringLiteral("Chromium")},
-                            {QStringLiteral("flatpak_id"), QStringLiteral("org.chromium.Chromium")}, {QStringLiteral("streaming_unverified"), false}},
+                QJsonObject{{QStringLiteral("id"), QStringLiteral("chrome")}, {QStringLiteral("label"), QStringLiteral("Google Chrome")},
+                            {QStringLiteral("flatpak_id"), QStringLiteral("com.google.Chrome")}, {QStringLiteral("streaming_unverified"), false}},
                 QJsonObject{{QStringLiteral("id"), QStringLiteral("brave")}, {QStringLiteral("label"), QStringLiteral("Brave")},
                             {QStringLiteral("flatpak_id"), QStringLiteral("com.brave.Browser")}, {QStringLiteral("streaming_unverified"), true}}}}});
         if (!autostart.isEmpty())
@@ -2741,7 +2760,7 @@ private slots:
     // icon in both art styles, and Shell.appArt picks the owner's brand folder
     // first; then, with the choice "app" (layout ui.app_icons, the default),
     // the installed Flatpak's exported icon when that Flatpak is the app
-    // itself (never Chromium's for a streaming site); then Bear Den's icon;
+    // itself (never its browser's for a streaming site); then Bear Den's icon;
     // then nothing (a monogram).
     void appArtResolutionOrder()
     {
@@ -2777,7 +2796,8 @@ private slots:
         const QString exported = home.filePath(QStringLiteral(".local/share/flatpak/exports/share/icons/hicolor/128x128/apps"));
         QVERIFY(QDir().mkpath(exported));
         QImage(8, 8, QImage::Format_ARGB32).save(exported + QStringLiteral("/tv.plex.PlexHTPC.png"));
-        QImage(8, 8, QImage::Format_ARGB32).save(exported + QStringLiteral("/org.chromium.Chromium.png"));
+        QImage(8, 8, QImage::Format_ARGB32).save(exported + QStringLiteral("/com.brave.Browser.png"));
+        QImage(8, 8, QImage::Format_ARGB32).save(exported + QStringLiteral("/com.google.Chrome.png"));
         shell->forgetArt();
         for (bool classic : {false, true}) {
             art = shell->appArt(QStringLiteral("plex-htpc"), classic, bear);
@@ -2789,7 +2809,7 @@ private slots:
         QCOMPARE(art.value(QStringLiteral("iconSource")).toString(), QStringLiteral("bundled"));
         art = shell->appArt(QStringLiteral("plex-htpc"), true, ours);
         QCOMPARE(art.value(QStringLiteral("icon")).toString(), QStringLiteral("qrc:/qt/qml/BearDen/assets/classic/app-plex-htpc.svg"));
-        // Streaming sites never take Chromium's icon; the Browser tile does.
+        // Streaming sites never take Chrome's icon; the Browser tile takes Brave's.
         for (const char *site : {"netflix", "disney-plus", "hulu"}) {
             QVERIFY(shell->ownIconFlatpakIdFor(QString::fromLatin1(site)).isEmpty());
             QCOMPARE(shell->appArt(QString::fromLatin1(site), false, bear).value(QStringLiteral("iconSource")).toString(), QStringLiteral("bundled"));
@@ -2817,7 +2837,7 @@ private slots:
                       QUrl(QStringLiteral("qrc:/test/IconInstalled.qml")));
             std::unique_ptr<QObject> icon(c.create());
             QVERIFY2(icon, qPrintable(c.errorString()));
-            QVERIFY(icon->property("source").toString().endsWith(QStringLiteral("/org.chromium.Chromium.png")));
+            QVERIFY(icon->property("source").toString().endsWith(QStringLiteral("/com.brave.Browser.png")));
             icon->setProperty("installed", false);
             QVERIFY(icon->property("source").toString().endsWith(QStringLiteral("/pixel/app-browser.png")));
         }

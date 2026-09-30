@@ -475,7 +475,9 @@ QString ShellController::flatpakIdFor(const QString &adapter) const
     };
     // Web apps run in the browser the owner chose (config apps.browser for
     // the Browser tile, apps.streaming_browser for the streaming sites;
-    // internal/applications/web), Flathub Chromium by default.
+    // internal/applications/web); without a table in the snapshot, the
+    // defaults of adapters.DefaultBrowserFor: Google Chrome for the
+    // streaming sites, Brave for the Browser tile.
     static const QHash<QString, QString> webSetting{
         {QStringLiteral("netflix"), QStringLiteral("streaming_browser")},
         {QStringLiteral("disney-plus"), QStringLiteral("streaming_browser")},
@@ -494,7 +496,7 @@ QString ShellController::flatpakIdFor(const QString &adapter) const
                 return browser.value(QStringLiteral("flatpak_id")).toString();
         }
     }
-    return QStringLiteral("org.chromium.Chromium");
+    return *setting == QStringLiteral("browser") ? QStringLiteral("com.brave.Browser") : QStringLiteral("com.google.Chrome");
 }
 
 QString ShellController::ownIconFlatpakIdFor(const QString &adapter) const

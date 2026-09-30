@@ -263,8 +263,9 @@ func (c *Coordinator) setAppEnabled(_ context.Context, appID string, enabled boo
 	}
 	c.publish()
 	if enabled && c.isStreaming(app) {
-		// Chromium already installed: fetch Widevine for this site now
-		// (widevine.go); with Chromium missing the install card follows.
+		// Its browser already installed: make sure of Widevine for this
+		// site now (widevine.go; nothing to fetch for Chrome, which bundles
+		// it); with the browser missing the install card follows.
 		c.prepareEnabledStreaming(app.Launch.AppID)
 	}
 	return nil

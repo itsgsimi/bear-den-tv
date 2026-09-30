@@ -14,7 +14,7 @@
 #                   onboarding-0 … onboarding-5 for one setup step); the old
 #                   names streaming and add-apps open the Apps page there
 #   --installs      apps to add: YouTube and Spotify installable, the
-#                   streaming sites off with Chromium missing, the browser
+#                   streaming sites off with Google Chrome missing, the browser
 #                   table and Keep apps up to date (Home's Add apps tile, the
 #                   Apps page, setup's Your apps)
 #   --theme ID      any installed theme (themes/, or BDTV_THEMES_DIR), with its
@@ -115,9 +115,12 @@ if installs:
                           app("disney-plus", "Disney+", "disney-plus", enabled=False, size=130000000),
                           app("hulu", "Hulu", "hulu", enabled=False, size=130000000)]
     d["capabilities"]["app.install"] = {"available": True, "backend": "flathub"}
-    d["apps"] = {"auto_update": True, "browser": "chromium", "streaming_browser": "chromium", "browsers": [
-        {"id": "chromium", "label": "Chromium", "flatpak_id": "org.chromium.Chromium", "streaming_unverified": False},
-        {"id": "brave", "label": "Brave", "flatpak_id": "com.brave.Browser", "streaming_unverified": True}]}
+    d["apps"] = {"auto_update": True, "browser": "brave", "streaming_browser": "chrome", "browsers": [
+        {"id": "chrome", "label": "Google Chrome", "flatpak_id": "com.google.Chrome", "streaming_unverified": False,
+         "notes": ["Google Chrome, made by Google: it shares usage data with Google.", "Streaming sites play at up to 720p on Linux.",
+                   "A community-packaged Flatpak of Google's official Chrome."]},
+        {"id": "brave", "label": "Brave", "flatpak_id": "com.brave.Browser", "streaming_unverified": True,
+         "notes": ["Brave, from Brave Software: its Flatpak changes Chromium's sandbox in ways Brave has not reviewed."]}]}
 json.dump(d, open(sys.argv[2], "w"))
 EOF
   out=${out:-build/shots/$screen-${theme:-default}${plain:+-plain}${classic:+-classic}${wx:+-${wx//:/-}}${bears:+-$bears}${installs:+-installs}.png}

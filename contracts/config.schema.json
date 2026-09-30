@@ -42,7 +42,7 @@
           "enabled": {"type": "boolean", "description": "Absent means true. false: the owner turned the app off (TV Settings -> Streaming sites); it has no tile (state.applications[].hidden). Only web adapters can be turned off from the TV (IPC app.enable)."},
           "web": {
             "type": "object",
-            "description": "Web adapters only (netflix, disney-plus, hulu, browser): the page Chromium opens. Owner-edited on the TV, never sent by phones. Semantic rules in config.md rule 11: https only, no user name or password, no port, the adapter's own host (any host for browser).",
+            "description": "Web adapters only (netflix, disney-plus, hulu, browser): the page the browser opens. Owner-edited on the TV, never sent by phones. Semantic rules in config.md rule 11: https only, no user name or password, no port, the adapter's own host (any host for browser).",
             "properties": {
               "url": {"type": "string", "minLength": 9, "maxLength": 512, "pattern": "^https://[^\\s]+$"}
             },
@@ -134,11 +134,11 @@
     },
     "apps": {
       "type": "object",
-      "description": "Optional; absent means auto_update on and Chromium for every web app. App installs from Flathub and the web apps' browser (contracts/config.md).",
+      "description": "Optional; absent means auto_update on, Google Chrome for the streaming sites and Brave for the Browser tile. App installs from Flathub and the web apps' browser (contracts/config.md).",
       "properties": {
         "auto_update": {"type": "boolean", "description": "Keep apps up to date: update the apps installed for this user while the TV is idle."},
-        "browser": {"enum": ["chromium", "brave"], "description": "The Browser tile's browser (absent = chromium). Rule 3: the browser row's launch.app_id is this browser's Flatpak id."},
-        "streaming_browser": {"enum": ["chromium", "brave"], "description": "The streaming sites' browser (absent = chromium; brave is unverified for streaming). Rule 3: their rows' launch.app_id is this browser's Flatpak id."}
+        "browser": {"enum": ["brave", "chrome"], "description": "The Browser tile's browser (absent = brave). Rule 3: the browser row's launch.app_id is this browser's Flatpak id."},
+        "streaming_browser": {"enum": ["chrome", "brave"], "description": "The streaming sites' browser (absent = chrome; brave is unverified for streaming). Chromium is retired: an older config.json naming it is moved by the coordinator before this schema is checked (config.md, ADR 0014). Rule 3: their rows' launch.app_id is this browser's Flatpak id."}
       },
       "required": ["auto_update"],
       "additionalProperties": false

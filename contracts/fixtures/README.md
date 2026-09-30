@@ -68,8 +68,8 @@ Canonical messages consumed by contract tests in Go ([`tests/contract/fixtures_t
 | `state.guest-achievements.invalid.json` | rejected: a guest pass never gets `achievements` |
 | `state.locked-achievements.invalid.json` | rejected: a locked session never carries `achievements` |
 | `state.phone-celebrate.invalid.json` | rejected: `achievements.celebrate` is for the shell only (a phone view has `me`) |
-| `state.phone-owner-installs.valid.json` | `state.schema.json` (owner phone: one app downloading a runtime, one available with its size, a system install, Chromium done with Widevine pending, `apps.auto_update`) |
-| `state.phone-owner-browsers.valid.json` | `state.schema.json` (owner phone: `apps.browser` brave, `apps.streaming_browser` chromium, and the two browsers with Brave marked `streaming_unverified`) |
+| `state.phone-owner-installs.valid.json` | `state.schema.json` (owner phone: one app downloading a runtime, one available with its size, a system install, the streaming sites' browser done with playback support pending, `apps.auto_update`) |
+| `state.phone-owner-browsers.valid.json` | `state.schema.json` (owner phone: `apps.browser` brave, `apps.streaming_browser` chrome, and the two browsers with Brave marked `streaming_unverified` and Chrome's `notes`) |
 | `state.browser-no-note.invalid.json` | rejected: every `apps.browsers[]` entry says whether it is unverified for streaming |
 | `state.family-install.invalid.json` | rejected: a phone without `owner` never gets `applications[].install` |
 | `state.guest-install.invalid.json` | rejected: a guest pass never gets `applications[].install` |
@@ -77,9 +77,9 @@ Canonical messages consumed by contract tests in Go ([`tests/contract/fixtures_t
 | `state.install-progress-range.invalid.json` | rejected: `install.progress` is 0..100 |
 | `state.install-ref.invalid.json` | rejected: `install` has no room for a ref or anything else (`additionalProperties: false`) |
 | `config.apps-auto-update-not-bool.invalid.json` | rejected structurally: `apps.auto_update` must be a boolean |
-| `config.brave-browser.valid.json` | `config.schema.json` (the Browser tile in Brave, `apps.browser: brave`, its row's `launch.app_id` `com.brave.Browser`; the streaming sites stay in Chromium) |
-| `config.browser-mismatch.invalid.json` | rejected semantically: `apps.browser` is `brave` but the Browser row still runs `org.chromium.Chromium` (rule 3) |
-| `config.browser-unknown.invalid.json` | rejected structurally: `apps.streaming_browser` must be `chromium` or `brave` |
+| `config.browsers-swapped.valid.json` | `config.schema.json` (the defaults swapped: the Browser tile in Google Chrome, `apps.browser: chrome`, its row's `launch.app_id` `com.google.Chrome`; the streaming sites in Brave, `apps.streaming_browser: brave`, their rows `com.brave.Browser`) |
+| `config.browser-mismatch.invalid.json` | rejected semantically: `apps.browser` is `chrome` but the Browser row still runs `com.brave.Browser` (rule 3) |
+| `config.browser-unknown.invalid.json` | rejected structurally: `apps.streaming_browser` must be `chrome` or `brave` |
 | `config.default.valid.json` | `config.schema.json` (built-in defaults) |
 | `config.web-apps.valid.json` | `config.schema.json` (a Netflix row and a Browser with its own start page) |
 | `config.web-http.invalid.json` | rejected structurally: `web.url` must start with `https://` |

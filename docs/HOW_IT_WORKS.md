@@ -3,7 +3,7 @@
 Bear Den TV turns a small Linux box into a TV: a home screen you drive with a
 phone, which opens Plex, YouTube (VacuumTube), Moonlight and, once installed,
 Spotify, Jellyfin Desktop and RetroArch, plus Netflix, Disney+, Hulu and a
-Browser in Chromium, and always brings you back with Home. It does this
+Browser in a browser from Flathub (Google Chrome, Brave), and always brings you back with Home. It does this
 **without wrapping, embedding or modifying the apps**. They are ordinary
 Flatpak apps; Bear Den decides which one is on screen, makes it fullscreen,
 and routes the remote's buttons to whatever is in front.
@@ -25,7 +25,7 @@ This page explains the moving parts. The contracts are in
                                          │        ▼                                      │
                                          │ bear-den-tv-shell  (Qt 6 / QML home screen)   │
                                          │                                               │
-                                         │ apps (Flatpak) · Chromium for web apps        │
+                                         │ apps (Flatpak) · Chrome/Brave for web apps    │
                                          └──────────────────────────────────────────────┘
 ```
 
@@ -34,7 +34,7 @@ This page explains the moving parts. The contracts are in
 | **Coordinator** | `cmd/bear-den-tv`, `internal/` (Go) | the session: which app is in front, launching and closing apps, routing input, pairing and permissions, configuration, the LAN service |
 | **Home screen ("shell")** | `apps/tv-shell` (Qt 6 QML/C++) | everything you see on the TV between apps: tiles, focus, settings, pairing, themes, bears |
 | **Phone remote** | `apps/remote-web` (TypeScript, Preact) | the remote UI on the phone; served by the coordinator (embedded in its binary) |
-| **Navigation script** | `apps/web-nav` (TypeScript) | D-pad control of web pages, injected into Chromium by the coordinator (embedded in its binary) |
+| **Navigation script** | `apps/web-nav` (TypeScript) | D-pad control of web pages, injected into the web apps' browser by the coordinator (embedded in its binary) |
 | **Contracts** | `contracts/` | the shapes the three talk in (actions, state, IPC, config, layout, theme), validated in Go, C++ and TypeScript |
 | **Themes** | `themes/` (built in), `~/.local/share/bear-den-tv/themes/` (yours) | theme packages: a `theme.json` plus art, read by both the shell and the coordinator |
 
@@ -71,7 +71,7 @@ When you pick a tile (on the TV or the phone):
    waits (up to 30 s) until the app's window is **actually in front**. Windows
    are recognised by their X11 `WM_CLASS`: a lower-case substring match on
    `plex`, `vacuumtube`, `moonlight`, `spotify`, `jellyfin` or `retroarch`,
-   and for web apps the class Bear Den gives Chromium (`BearDenWeb-<adapter>`)
+   and for web apps the class Bear Den gives the browser (`BearDenWeb-<adapter>`)
    ([`adapters.go`](../internal/applications/adapters/adapters.go)). On
    Wayland the window's `app_id` plays that part (the Flatpak id, or the same
    substrings); see [Wayland](#wayland) below.
@@ -85,11 +85,12 @@ their Flatpak is installed (`hide_when_missing` in the config).
 ### Web apps
 
 Netflix, Disney+ and Hulu have no Linux apps, so Bear Den opens their websites
-in Chromium from Flathub, full screen, one profile per app, and a Browser tile
-opens ordinary Chromium (the owner may choose Brave from Flathub instead, for
-the Browser tile or the streaming sites:
+in Google Chrome from Flathub, full screen, each as its own app (its own
+profile, window class and sandbox; one shared Chrome install), and a Browser
+tile opens ordinary Brave from Flathub (the owner may swap either:
+[ADR 0014](decisions/0014-google-chrome-for-streaming-brave-for-browser.md),
 [ADR 0013](decisions/0013-brave-as-a-browser-choice.md); the same flags and
-pipe, its own profiles). The coordinator starts Chromium itself with
+pipe, each browser its own profiles). The coordinator starts the browser itself with
 `--remote-debugging-pipe` (two private fds, nothing listening), injects its
 navigation script (`apps/web-nav`) into an isolated world of every page, and
 turns the phone's named actions into the script's moves plus trusted clicks
@@ -102,13 +103,14 @@ cannot. Details: [ADR 0010](decisions/0010-web-apps-over-cdp-pipe.md),
 A "Not installed" tile opens an install card instead. One press on Install
 (the owner's consent; phones need the `owner` permission) has the
 coordinator run `flatpak install --user --noninteractive -y flathub <id>`
-for that app's Flatpak id from the adapter table (Chromium for the web
-apps): per user, no root, from Flathub only. The card and the tile show the
+for that app's Flatpak id from the adapter table (for the web apps their
+browser's: Google Chrome for the streaming sites, Brave for the Browser): per user, no root, from Flathub only. The card and the tile show the
 progress from state pushes; when it is done the app opens if you are still
 on its card or tile. Apps → Add apps lists everything missing, and
 Apps → Keep apps up to date updates this user's installs once a day
-while nothing is on screen. After Chromium, each enabled streaming site's
-profile runs once, headless, so Chromium fetches Widevine. Details:
+while nothing is on screen. Google Chrome brings its own Widevine; in
+Brave, each enabled streaming site's profile runs once, headless, so Brave
+fetches it. Details:
 [ADR 0011](decisions/0011-per-user-flathub-installs.md),
 [`operations.md`](operations.md#app-installs).
 

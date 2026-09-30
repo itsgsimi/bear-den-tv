@@ -81,7 +81,7 @@ Graphical checks on the target need `DISPLAY=:0 XAUTHORITY=$HOME/.Xauthority DBU
 | State (devices, sessions, focus memory, Den badge counters) | `$XDG_DATA_HOME/bear-den-tv/state.db` |
 | Artwork cache | `$XDG_CACHE_HOME/bear-den-tv/artwork/` (the DEMO pictures of `dev --dev-fixtures`), `$XDG_CACHE_HOME/bear-den-tv/plex-artwork/` (Plex posters, deleted on sign-out) |
 | Plex client id | `$XDG_DATA_HOME/bear-den-tv/plex-client-id` (32 hex characters; not a secret, but Plex ties the sign-in to it) |
-| Web app profiles (one per app and browser: cookies, sign-ins, Widevine) | `$XDG_DATA_HOME/bear-den-tv/web/<app-id>/` (Chromium), `$XDG_DATA_HOME/bear-den-tv/web-brave/<app-id>/` (Brave) ([Streaming sites and the Browser](#streaming-sites-and-the-browser)) |
+| Web app profiles (one per app and browser: cookies, sign-ins) | `$XDG_DATA_HOME/bear-den-tv/web-chrome/<app-id>/` (Google Chrome), `$XDG_DATA_HOME/bear-den-tv/web-brave/<app-id>/` (Brave); `web/` is retired Chromium's, left in place ([Streaming sites and the Browser](#streaming-sites-and-the-browser)) |
 | IPC socket, instance lock | `$XDG_RUNTIME_DIR/bear-den-tv/` |
 | Connector tokens | Desktop Secret Service (never files) |
 
@@ -122,6 +122,25 @@ because `config.json` did not load.
 you deleted by hand comes back (hidden or off where a fresh install has it
 so). To keep a streaming site away, leave it off in Settings → Streaming
 sites.
+
+**Off Chromium** ([ADR 0014](decisions/0014-google-chrome-for-streaming-brave-for-browser.md)).
+A `config.json` from the Chromium era (`apps.browser` or
+`apps.streaming_browser` `chromium`, web apps running
+`org.chromium.Chromium`) moves when the coordinator starts: Netflix,
+Disney+ and Hulu to Google Chrome, the Browser tile to Brave (a browser you
+had already chosen other than Chromium is kept). It is written like any
+other change and logged once as `config: moved the web apps off Chromium`;
+nothing else changes (a site that was off stays off). Install Chrome and
+Brave with one press each (Apps → Add apps), then sign in to each site
+again: the old sign-ins are in Chromium's profiles, which Bear Den leaves in
+`~/.local/share/bear-den-tv/web/` and never opens again. Bear Den never
+uninstalls Chromium either. When you no longer need them:
+
+```sh
+rm -r ~/.local/share/bear-den-tv/web            # the old Chromium profiles (sign-ins)
+flatpak uninstall --user org.chromium.Chromium  # Chromium itself, if you installed it for Bear Den
+flatpak uninstall --user --unused               # runtimes nothing needs any more
+```
 
 ## Starting, stopping, autostart
 
@@ -416,7 +435,7 @@ on phones. [`docs/THEMES.md`](THEMES.md) is the theme designer's guide.
 **Themes → App icons** (or App icons in the phone's Layout editor) chooses
 what each tile shows: **App's own** (the default) is the icon the installed
 Flatpak exports; **Bear Den style** is Bear Den's own drawing. An app that is
-not installed, and the streaming sites (they run in Chromium), show Bear
+not installed, and the streaming sites (they run in Google Chrome), show Bear
 Den's either way. An icon you put in
 `~/.local/share/bear-den-tv/brand/<adapter>/icon.{png,svg,jpg,webp}` comes
 before both (phones skip SVG). Details:
@@ -658,18 +677,26 @@ is off. Reset cannot be undone.
 ## Streaming sites and the Browser
 
 Netflix, Disney+ and Hulu have no Linux apps; Bear Den opens their websites
-full screen in Chromium and drives them with the remote. They play at up to
-about 720p in a Linux browser (the services cap it). A Browser tile opens
-ordinary Chromium for keyboard and mouse. Design:
-[ADR 0010](decisions/0010-web-apps-over-cdp-pipe.md); what is and is not
-verified: [`IMPLEMENTATION_STATUS.md`](IMPLEMENTATION_STATUS.md).
+full screen in **Google Chrome** from Flathub and drives them with the
+remote. They play at up to about 720p in a Linux browser (the services cap
+it). A Browser tile opens ordinary **Brave** from Flathub for keyboard and
+mouse. Design: [ADR 0010](decisions/0010-web-apps-over-cdp-pipe.md) (the
+control channel) and [ADR 0014](decisions/0014-google-chrome-for-streaming-brave-for-browser.md)
+(the browsers); what is and is not verified:
+[`IMPLEMENTATION_STATUS.md`](IMPLEMENTATION_STATUS.md). Chromium is no longer
+used: on the owner's TV Hulu refused to play in it (error RUNUNK13), and the
+services support Google Chrome, not Chromium builds.
 
-1. **Chromium from Flathub:** turning a site on while Chromium is missing
-   opens the install card for it (or Apps → Add apps → Chromium; one
-   press, per user, see [App installs](#app-installs)). By hand:
-   `flatpak install --user flathub org.chromium.Chromium`. Until it is
-   installed the four tiles stay hidden. Bear Den uses only this Chromium,
-   never Google Chrome.
+1. **Google Chrome from Flathub:** turning a site on while Chrome is missing
+   opens the install card for it (or Apps → Add apps → Google Chrome;
+   one press, per user, see [App installs](#app-installs)). By hand:
+   `flatpak install --user flathub com.google.Chrome`. The Flatpak is
+   community-packaged: installing it downloads Google's official Chrome
+   (about 140 MB) once, and updates fetch the new official release. All
+   three sites share that one install, but each is its own app: its own
+   window, its own profile and sign-in, no shared data. Until it is
+   installed the streaming tiles stay hidden. Google Chrome is Google's: it
+   shares usage data with Google (the TV says so beside the choice).
 2. **Turn a site on:** TV Apps → Streaming sites, OK on Netflix, Disney+
    or Hulu (they are off by default; the Browser is on). The tile appears on
    Home with "Up to 720p" until it is first opened. Turning a site off hides
@@ -679,52 +706,58 @@ verified: [`IMPLEMENTATION_STATUS.md`](IMPLEMENTATION_STATUS.md).
    phone's text box types into it (Send presses Enter), and the **Touchpad**
    (shown on the phone while a web app is in front: drag to move, tap to
    click, two fingers to scroll) reaches anything the D-pad cannot.
-4. **Widevine:** the services need Chromium's Widevine module. Flathub's
-   Chromium fetches it itself into each profile (Bear Den never downloads
-   it). After Chromium is installed, and when you turn a site on, Bear Den
-   starts that site's profile once, headless and out of sight, until
-   `~/.local/share/bear-den-tv/web/<app-id>/WidevineCdm/*/manifest.json`
-   appears (about a minute in a container; up to 5 minutes), and the install
-   card says "Ready" or "Still setting up playback support". Opening the
-   site also lets Chromium fetch it. To check by hand, open the Browser tile
-   with a keyboard, go to `chrome://components` and look for "Widevine
-   Content Decryption Module" with a version other than 0.0.0.0. Without it
-   the sites open but refuse to play.
+4. **Widevine:** Google Chrome brings its own Widevine module; nothing is
+   fetched per site. Bear Den counts playback support as ready once
+   `~/.local/share/flatpak/app/com.google.Chrome/current/active/files/extra/WidevineCdm/manifest.json`
+   (or the same under `/var/lib/flatpak`) exists, and puts an empty file at
+   each site's `<profile>/WidevineCdm`, as the Flatpak's own launcher does
+   for Chrome's default profile, so Chrome keeps using its bundled copy. To
+   check by hand, open `chrome://components` in a site's window with a
+   keyboard (Ctrl+L) and look for "Widevine Content Decryption Module".
 
 **Where things live:** each app's profile is
-`~/.local/share/bear-den-tv/web/<app-id>/` (`netflix`, `disney-plus`, `hulu`,
-`browser`), mode 0700. Deleting a folder signs that app out and forgets its
-Widevine copy. The page each tile opens is `applications[].web.url` in
-`config.json` (https on the service's own domain; for the Browser any https
-start page, or none for a blank page; [`contracts/config.md`](../contracts/config.md) rule 11).
-A `config.json` from before the web apps gains their rows when Bear Den
-starts ([Upgrading](#upgrading)).
+`~/.local/share/bear-den-tv/web-chrome/<app-id>/` for the streaming sites
+(`netflix`, `disney-plus`, `hulu`) and
+`~/.local/share/bear-den-tv/web-brave/browser/` for the Browser tile, mode
+0700. Deleting a folder signs that app out. The page each tile opens is
+`applications[].web.url` in `config.json` (https on the service's own domain;
+for the Browser any https start page, or none for a blank page;
+[`contracts/config.md`](../contracts/config.md) rule 11). A `config.json`
+from before the web apps gains their rows when Bear Den starts, and one from
+the Chromium era moves to Chrome and Brave ([Upgrading](#upgrading)).
 
-5. **Brave instead of Chromium** (optional,
+5. **Choosing the browsers** ([ADR 0014](decisions/0014-google-chrome-for-streaming-brave-for-browser.md),
    [ADR 0013](decisions/0013-brave-as-a-browser-choice.md)): TV Settings →
-   Streaming sites, "Browser tile uses" and "Streaming sites use" (◀ ▶).
-   Both start on Chromium. Brave comes from Flathub (`com.brave.Browser`,
-   published by Brave Software) with the same one-press install. Brave
-   itself recommends its native packages over the Flatpak, whose sandbox it
-   has not vetted; those need root, so Bear Den does not install them. For
-   the streaming sites Brave is **unverified** and the row says so: its
-   Flatpak may not load Widevine from Bear Den's profile. Each browser has
-   its own profiles (`web/` and `web-brave/`), so switching starts signed
-   out and switching back finds the old sign-ins. Before each start Bear Den
-   writes Brave's Widevine opt-in (`brave.widevine_opted_in`) and turns its
-   welcome page, full-screen reminder, VPN, Wallet, Leo, Rewards and News
-   buttons off, in its own profiles only. In config: `apps.browser` and
-   `apps.streaming_browser` ([`contracts/config.md`](../contracts/config.md)).
+   Streaming sites, "Browser tile uses" and "Streaming sites use" (◀ ▶),
+   Google Chrome or Brave; the box beside the list shows the focused
+   browser's notes. The streaming sites start in Chrome, the Browser tile in
+   Brave. Brave comes from Flathub (`com.brave.Browser`, published by Brave
+   Software) with the same one-press install; Brave itself recommends its
+   native packages over the Flatpak, whose sandbox it has not vetted, and
+   those need root, so Bear Den does not install them. For the streaming
+   sites Brave is **unverified** and the row says so: its Flatpak may not
+   load Widevine from Bear Den's profile. Each browser has its own profiles
+   (`web-chrome/` and `web-brave/`), so switching starts signed out and
+   switching back finds the old sign-ins. Before each start Bear Den writes
+   the browser's own settings into its own profiles only: for Chrome no
+   default-browser check, no signing in to Chrome itself, no password,
+   address, card or translate bubbles, and a clean exit (the sites' own
+   sign-in is untouched); for Brave its Widevine opt-in
+   (`brave.widevine_opted_in`) and its welcome page, full-screen reminder,
+   VPN, Wallet, Leo, Rewards and News buttons off. In config:
+   `apps.browser` and `apps.streaming_browser` (`chrome` or `brave`;
+   [`contracts/config.md`](../contracts/config.md)).
 
 **How Bear Den controls the browser:** it starts
-`flatpak run org.chromium.Chromium --user-data-dir=… --remote-debugging-pipe
---no-first-run --no-default-browser-check --class=BearDenWeb-<adapter>
---start-fullscreen --app=<url>` (the Browser: `--start-maximized <url>`) and
-talks to it over that private pipe only; nothing listens on the network.
-Brave gets the same arguments, as `flatpak run
---filesystem=$XDG_DATA_HOME/bear-den-tv/web-brave com.brave.Browser …`
-(its Flatpak cannot see your data folder otherwise; the grant is for that
-folder and that run only).
+`flatpak run --filesystem=$XDG_DATA_HOME/bear-den-tv/web-chrome com.google.Chrome
+--user-data-dir=… --remote-debugging-pipe --no-first-run
+--no-default-browser-check --class=BearDenWeb-<adapter> --start-fullscreen
+--app=<url>` (the Browser, in Brave: `flatpak run
+--filesystem=$XDG_DATA_HOME/bear-den-tv/web-brave com.brave.Browser … --start-maximized <url>`)
+and talks to it over that private pipe only; nothing listens on the network.
+Neither Flatpak can see your data folder otherwise; the grant is for that
+browser's profile folder and that run only. `--class` gives each site its own
+window class, so Home, Now playing and Close treat them as separate apps.
 Home pauses a playing video with the site's own pause key first. If Bear Den
 was restarted while a web app was open, the phone says it is not connected:
 close the app and open it again.
@@ -732,8 +765,9 @@ close the app and open it again.
 **Try it without the TV:** `bear-den-tv dev --dev-fixtures` shows the tiles
 with a pretend page (the phone's Touchpad appears when a web app is in
 front); `bear-den-tv dev --dev-browser ~/.cache/ms-playwright/chromium-*/chrome-linux64/chrome`
-runs web apps in a real Chromium binary. `make test-webnav` runs the
-navigation script against local fixture pages.
+runs web apps in a real Chromium-engine binary (Playwright's test browser,
+not a choice on the TV). `make test-webnav` runs the navigation script
+against local fixture pages.
 
 ## App installs
 
@@ -743,9 +777,10 @@ password, nothing system-wide.
 
 - **On the TV:** OK on a "Not installed" tile opens the install card (size,
   "From Flathub", Install / Not now). Apps → Add apps lists every app
-  Bear Den knows that is not installed, including Chromium ("Browser for
-  Netflix, Disney+, Hulu"); turning a streaming site on while Chromium is
-  missing offers Chromium the same way. Back hides the card; the install
+  Bear Den knows that is not installed, including Google Chrome ("Browser
+  for Netflix, Disney+, Hulu") and Brave ("The Browser tile's browser");
+  turning a streaming site on while Chrome is missing offers Chrome the
+  same way. Back hides the card; the install
   carries on and the tile shows its progress.
 - **From the owner's phone:** the Add apps section (owner phones only).
 - **From a terminal on the TV:** `bear-den-tv apps install moonlight` (asks the
@@ -781,8 +816,8 @@ runtime (418 MB to download, 2.6 GB on disk) in 16 s on a fast line, then
 [`internal/applications/install/testdata`](../internal/applications/install/testdata/README.md).
 flatpak needs a system D-Bus there (it asks malcontent before deploying an
 app), as on any desktop. Try the TV screens without Flathub:
-`bear-den-tv dev --dev-installs` (Moonlight, RetroArch, Jellyfin and Chromium
-start missing; a pretend DEMO install takes 20 s).
+`bear-den-tv dev --dev-installs` (Moonlight, RetroArch, Jellyfin, Google
+Chrome and Brave start missing; a pretend DEMO install takes 20 s).
 
 ## Further reading
 

@@ -1,7 +1,7 @@
 // The web apps' browser (browsers.go, IPC apps.browser): the choice moves
 // the Browser tile or the streaming sites to that browser's Flatpak in
-// config.json and nowhere else, the streaming sites stay in Chromium until
-// the owner moves them too, installs and launches follow the row, Widevine
+// config.json and nowhere else (the streaming sites in Google Chrome and
+// the Browser tile in Brave until the owner moves them), installs and launches follow the row, Widevine
 // is prepared in the new browser, and a browser outside the table is
 // refused with nothing changed.
 
@@ -35,34 +35,30 @@ func TestBrowserChoiceMovesOnlyItsWebApps(t *testing.T) {
 		fw = newFakeWeb(o.Desktop.(*fake.Desktop))
 		o.Web, o.DRM = fw, fd
 	})
-	sl.setScope(adapters.ChromiumFlatpakID, "user")
-	h.c.rediscover(t.Context(), adapters.ChromiumFlatpakID)
-	h.eventually("chromium discovered", func() bool { return appState(h.c.buildState(viewShell), "browser").Installed })
+	sl.setScope(adapters.ChromeFlatpakID, "user")
+	h.c.rediscover(t.Context(), adapters.ChromeFlatpakID)
+	h.eventually("chrome discovered", func() bool { return appState(h.c.buildState(viewShell), "netflix").Installed })
 	if r := enable(h, "netflix", true); !r.OK {
 		t.Fatal(r.Error)
 	}
-	h.eventually("netflix preparing in chromium", func() bool { return drm(h, "netflix") == contract.DRMPreparing })
+	h.eventually("netflix preparing in chrome", func() bool { return drm(h, "netflix") == contract.DRMPreparing })
 
-	// The choices and the table reach the shell.
+	// The choices and the table reach the shell: Chrome for the streaming
+	// sites and Brave for the Browser tile by default, Chromium nowhere.
 	apps := h.c.buildState(viewShell).Apps
-	if apps.Browser != "chromium" || apps.StreamingBrowser != "chromium" || len(apps.Browsers) != 2 ||
-		apps.Browsers[1] != (contract.BrowserOption{ID: "brave", Label: "Brave", FlatpakID: adapters.BraveFlatpakID, StreamingUnverified: true}) ||
-		apps.Browsers[0].StreamingUnverified {
+	if apps.Browser != "brave" || apps.StreamingBrowser != "chrome" || len(apps.Browsers) != 2 {
 		t.Fatalf("state.apps %+v", apps)
 	}
-
-	// The Browser tile moves to Brave; the streaming sites stay in Chromium.
-	if r := setBrowsers(h, "brave", "chromium"); !r.OK {
-		t.Fatal(r.Error)
+	ch, br := apps.Browsers[0], apps.Browsers[1]
+	if ch.ID != "chrome" || ch.Label != "Google Chrome" || ch.FlatpakID != adapters.ChromeFlatpakID || ch.StreamingUnverified || len(ch.Notes) != 3 ||
+		br.ID != "brave" || br.Label != "Brave" || br.FlatpakID != adapters.BraveFlatpakID || !br.StreamingUnverified {
+		t.Fatalf("state.apps.browsers %+v", apps.Browsers)
 	}
-	if rowBrowser(h, "browser") != adapters.BraveFlatpakID || rowBrowser(h, "netflix") != adapters.ChromiumFlatpakID || rowBrowser(h, "hulu") != adapters.ChromiumFlatpakID {
+	if rowBrowser(h, "browser") != adapters.BraveFlatpakID || rowBrowser(h, "netflix") != adapters.ChromeFlatpakID || rowBrowser(h, "hulu") != adapters.ChromeFlatpakID {
 		t.Fatalf("rows: browser %s netflix %s hulu %s", rowBrowser(h, "browser"), rowBrowser(h, "netflix"), rowBrowser(h, "hulu"))
 	}
-	if st := h.c.buildState(viewShell); st.Apps.Browser != "brave" || st.Apps.StreamingBrowser != "chromium" {
-		t.Fatalf("state.apps %+v", st.Apps)
-	}
 	// Brave is not installed: the tile says so, and Install fetches Brave
-	// from the table, not Chromium.
+	// from the table, not Chrome.
 	h.eventually("browser not installed in brave", func() bool {
 		a := appState(h.c.buildState(viewShell), "browser")
 		return !a.Installed && a.Installation == "none"
@@ -85,11 +81,11 @@ func TestBrowserChoiceMovesOnlyItsWebApps(t *testing.T) {
 	fw.mu.Lock()
 	launched := fmt.Sprint(fw.launched)
 	fw.mu.Unlock()
-	if launched != "[browser "+adapters.BraveFlatpakID+" netflix "+adapters.ChromiumFlatpakID+"]" {
+	if launched != "[browser "+adapters.BraveFlatpakID+" netflix "+adapters.ChromeFlatpakID+"]" {
 		t.Fatalf("launched %s", launched)
 	}
 
-	// The streaming sites move too: the enabled one is prepared in Brave.
+	// The streaming sites move to Brave: the enabled one is prepared there.
 	if r := setBrowsers(h, "brave", "brave"); !r.OK {
 		t.Fatal(r.Error)
 	}
@@ -98,25 +94,35 @@ func TestBrowserChoiceMovesOnlyItsWebApps(t *testing.T) {
 			t.Fatalf("%s runs in %s", id, rowBrowser(h, id))
 		}
 	}
-	// (Turning Netflix on prepared it in Chromium; opening it stopped that run.)
+	// (Turning Netflix on prepared it in Chrome; opening it stopped that run.)
 	h.eventually("netflix prepared in brave", func() bool {
 		fd.mu.Lock()
 		defer fd.mu.Unlock()
-		return fmt.Sprint(fd.prepared) == "[netflix netflix]" && fmt.Sprint(fd.browsers) == "["+adapters.ChromiumFlatpakID+" "+adapters.BraveFlatpakID+"]"
+		return fmt.Sprint(fd.prepared) == "[netflix netflix]" && fmt.Sprint(fd.browsers) == "["+adapters.ChromeFlatpakID+" "+adapters.BraveFlatpakID+"]"
 	})
+	// The Browser tile moves to Chrome; the streaming sites stay in Brave.
+	if r := setBrowsers(h, "chrome", "brave"); !r.OK {
+		t.Fatal(r.Error)
+	}
+	if rowBrowser(h, "browser") != adapters.ChromeFlatpakID || rowBrowser(h, "netflix") != adapters.BraveFlatpakID {
+		t.Fatalf("rows: browser %s netflix %s", rowBrowser(h, "browser"), rowBrowser(h, "netflix"))
+	}
 
 	// Keep apps up to date leaves the browsers alone.
 	if r := h.shellSend(shellipc.AppsConfigure{Type: shellipc.TypeAppsConfigure, RequestID: "au", AutoUpdate: false}, "au"); !r.OK {
 		t.Fatal(r.Error)
 	}
-	if cfg := h.c.opts.Config.Current(); cfg.BrowserName() != "brave" || cfg.StreamingBrowserName() != "brave" || cfg.AutoUpdate() {
+	if cfg := h.c.opts.Config.Current(); cfg.BrowserName() != "chrome" || cfg.StreamingBrowserName() != "brave" || cfg.AutoUpdate() {
 		t.Fatalf("apps %+v", cfg.Apps)
 	}
 
-	// A browser outside the table: refused, nothing changes.
+	// A browser outside the table, retired Chromium included: refused,
+	// nothing changes.
 	rev := h.c.opts.Config.Current().Revision
-	if r := setBrowsers(h, "firefox", "chromium"); r.OK {
-		t.Fatal("an unknown browser was stored")
+	for _, pair := range [][2]string{{"firefox", "chrome"}, {"chromium", "chrome"}, {"brave", "chromium"}} {
+		if r := setBrowsers(h, pair[0], pair[1]); r.OK {
+			t.Fatalf("%v was stored", pair)
+		}
 	}
 	if cfg := h.c.opts.Config.Current(); cfg.Revision != rev || rowBrowser(h, "netflix") != adapters.BraveFlatpakID {
 		t.Fatalf("config changed: revision %d → %d", rev, cfg.Revision)

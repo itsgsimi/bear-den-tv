@@ -180,7 +180,8 @@ public:
     // mirrors internal/applications/adapters. A web adapter's is its
     // browser's: Session.apps.browser (the Browser tile) or
     // streaming_browser (the streaming sites) looked up in
-    // Session.apps.browsers, Chromium when the snapshot has none.
+    // Session.apps.browsers; without one, the defaults (Google Chrome for
+    // the streaming sites, Brave for the Browser tile).
     Q_INVOKABLE QString flatpakIdFor(const QString &adapter) const;
     // The Flatpak whose exported icon is this adapter's own icon: the app's
     // Flatpak, or "" for the streaming sites (they run in a browser and never

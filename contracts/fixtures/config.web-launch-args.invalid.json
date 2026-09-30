@@ -24,7 +24,7 @@
       "adapter": "netflix",
       "launch": {
         "kind": "flatpak",
-        "app_id": "org.chromium.Chromium",
+        "app_id": "com.google.Chrome",
         "args": [
           "--kiosk"
         ]

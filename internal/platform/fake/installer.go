@@ -17,7 +17,7 @@ import (
 )
 
 // DemoMissing are the Flatpak ids --dev-installs reports as not installed.
-var DemoMissing = []string{"com.moonlight_stream.Moonlight", "org.libretro.RetroArch", "org.jellyfin.JellyfinDesktop", "org.chromium.Chromium", "com.brave.Browser"}
+var DemoMissing = []string{"com.moonlight_stream.Moonlight", "org.libretro.RetroArch", "org.jellyfin.JellyfinDesktop", "com.google.Chrome", "com.brave.Browser"}
 
 // SetMissing makes Discover report ids as not installed until SetInstalled.
 func (l *Launcher) SetMissing(ids ...string) {

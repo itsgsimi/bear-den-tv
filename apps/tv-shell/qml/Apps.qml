@@ -51,7 +51,7 @@ QtObject {
         return ""
     }
     // The browser a web adapter runs in: its entry in Session.apps.browsers
-    // ({id, label, flatpak_id, streaming_unverified}; the Browser tile's is
+    // ({id, label, flatpak_id, streaming_unverified, notes}; the Browser tile's is
     // apps.browser, the streaming sites' apps.streaming_browser), or null for
     // an app that is not a website. Data from the coordinator, never a name
     // test here.
@@ -62,7 +62,7 @@ QtObject {
         const list = (Session.apps && Session.apps.browsers) || []
         for (const b of list)
             if (b.flatpak_id === fid) return b
-        return { id: "chromium", label: "Chromium", flatpak_id: fid, streaming_unverified: false }
+        return { id: "", label: qsTr("Web browser"), flatpak_id: fid, streaming_unverified: false, notes: [] }
     }
     function browserLabel(adapter) {
         const b = browserOf(adapter)

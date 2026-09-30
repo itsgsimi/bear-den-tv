@@ -3,7 +3,7 @@
 The script Bear Den injects into every page of a web app (Netflix, Disney+,
 Hulu, the Browser tile) so a TV remote can drive an ordinary website. The
 coordinator ([`internal/applications/web`](../../internal/applications/web/web.go))
-runs Flathub Chromium with `--remote-debugging-pipe` and puts this script in
+runs the web app's browser (Google Chrome or Brave from Flathub) with `--remote-debugging-pipe` and puts this script in
 an isolated world named `bearden` of each page; the site cannot see it.
 Why and the security model: [ADR 0010](../../docs/decisions/0010-web-apps-over-cdp-pipe.md).
 `dist/nav.js` is committed and embedded by Go (`WebNav` in [`embed.go`](../../embed.go)),

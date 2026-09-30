@@ -1,7 +1,8 @@
 // `dev --dev-browser PATH`: the real web app manager (internal/applications/web)
-// running a Chromium binary directly, with a window on the fake desktop
-// standing in for Chromium's so the coordinator sees the app in front.
-// Development only; the TV runs Flathub Chromium through `flatpak run`.
+// running a Chromium-engine binary directly (Playwright's test browser),
+// with a window on the fake desktop standing in for the browser's so the
+// coordinator sees the app in front. Development only; the TV runs Google
+// Chrome and Brave from Flathub through `flatpak run`.
 
 package main
 

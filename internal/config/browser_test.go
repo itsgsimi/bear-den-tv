@@ -11,9 +11,10 @@ import (
 
 // Rule 3 for web adapters: each row runs in the browser config apps names
 // for it (apps.browser for the Browser tile, apps.streaming_browser for the
-// streaming sites; absent means Chromium), and only table browsers exist.
+// streaming sites; absent means Brave for the tile and Google Chrome for
+// the streaming sites), and only table browsers exist: Chromium is not one.
 func TestWebBrowserRule(t *testing.T) {
-	const brave = "com.brave.Browser"
+	const brave, chrome, chromium = "com.brave.Browser", "com.google.Chrome", "org.chromium.Chromium"
 	for _, c := range []struct {
 		name     string
 		apps     map[string]any // config apps (nil: absent)
@@ -22,14 +23,16 @@ func TestWebBrowserRule(t *testing.T) {
 		browser  string
 		streamed string
 	}{
-		{"defaults", nil, nil, "", "chromium", "chromium"},
-		{"browser tile in brave", map[string]any{"auto_update": true, "browser": "brave"}, map[string]string{"browser": brave}, "", "brave", "chromium"},
-		{"streaming in brave", map[string]any{"auto_update": true, "streaming_browser": "brave"}, map[string]string{"netflix": brave, "disney-plus": brave, "hulu": brave}, "", "chromium", "brave"},
-		{"row left in chromium", map[string]any{"auto_update": true, "browser": "brave"}, nil, `application "browser" launch.app_id "org.chromium.Chromium" must be "com.brave.Browser" for adapter browser (apps.browser is brave)`, "", ""},
+		{"defaults", nil, nil, "", "brave", "chrome"},
+		{"browser tile in chrome", map[string]any{"auto_update": true, "browser": "chrome"}, map[string]string{"browser": chrome}, "", "chrome", "chrome"},
+		{"streaming in brave", map[string]any{"auto_update": true, "streaming_browser": "brave"}, map[string]string{"netflix": brave, "disney-plus": brave, "hulu": brave}, "", "brave", "brave"},
+		{"row left in brave", map[string]any{"auto_update": true, "browser": "chrome"}, nil, `application "browser" launch.app_id "com.brave.Browser" must be "com.google.Chrome" for adapter browser (apps.browser is chrome)`, "", ""},
 		{"one site left behind", map[string]any{"auto_update": true, "streaming_browser": "brave"}, map[string]string{"netflix": brave, "disney-plus": brave}, `(apps.streaming_browser is brave)`, "", ""},
-		{"brave without the setting", nil, map[string]string{"browser": brave}, `must be "org.chromium.Chromium" for adapter browser (apps.browser is chromium)`, "", ""},
+		{"chrome tile without the setting", nil, map[string]string{"browser": chrome}, `must be "com.brave.Browser" for adapter browser (apps.browser is brave)`, "", ""},
 		{"not a web adapter", nil, map[string]string{"plex-htpc": brave}, `must be "tv.plex.PlexHTPC"`, "", ""},
 		{"unknown browser", map[string]any{"auto_update": true, "browser": "firefox"}, nil, `browser`, "", ""},
+		// Chromium is retired: a Flatpak app's row cannot name it either.
+		{"chromium on a non-web row", nil, map[string]string{"moonlight": chromium}, `must be "com.moonlight_stream.Moonlight"`, "", ""},
 	} {
 		raw := mutateJSON(t, defaultRaw(t), func(m map[string]any) {
 			if c.apps == nil {

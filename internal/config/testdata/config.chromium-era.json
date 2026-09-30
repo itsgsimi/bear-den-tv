@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "revision": 1,
+  "revision": 42,
   "device": {"display_name": "Bear Den", "preferred_display": "auto"},
   "ui": {"theme":"den-dark","accent":"#79A889","background":"den-gradient","text_scale":1.0,"tile_density":"comfortable","safe_margin_percent":3,"reduced_motion":false,"high_contrast_focus":false,"hero_enabled":true,"clock_enabled":true,"art_style":"pixel"},
   "applications": [
@@ -10,10 +10,10 @@
     {"id":"spotify","label":"Spotify","adapter":"spotify","launch":{"kind":"flatpak","app_id":"com.spotify.Client","args":[]},"home_policy":"leave-running","remote_enabled":true,"hide_when_missing":true},
     {"id":"jellyfin","label":"Jellyfin","adapter":"jellyfin","launch":{"kind":"flatpak","app_id":"org.jellyfin.JellyfinDesktop","args":["--fullscreen","--tv"]},"home_policy":"pause-if-supported","remote_enabled":true,"hide_when_missing":true},
     {"id":"retroarch","label":"RetroArch","adapter":"retroarch","launch":{"kind":"flatpak","app_id":"org.libretro.RetroArch","args":["--fullscreen"]},"home_policy":"pause-if-supported","remote_enabled":true,"hide_when_missing":true},
-    {"id":"netflix","label":"Netflix","adapter":"netflix","launch":{"kind":"flatpak","app_id":"com.google.Chrome","args":[]},"home_policy":"pause-if-supported","remote_enabled":true,"hide_when_missing":true,"enabled":false,"web":{"url":"https://www.netflix.com/"}},
-    {"id":"disney-plus","label":"Disney+","adapter":"disney-plus","launch":{"kind":"flatpak","app_id":"com.google.Chrome","args":[]},"home_policy":"pause-if-supported","remote_enabled":true,"hide_when_missing":true,"enabled":false,"web":{"url":"https://www.disneyplus.com/"}},
-    {"id":"hulu","label":"Hulu","adapter":"hulu","launch":{"kind":"flatpak","app_id":"com.google.Chrome","args":[]},"home_policy":"pause-if-supported","remote_enabled":true,"hide_when_missing":true,"enabled":false,"web":{"url":"https://www.hulu.com/"}},
-    {"id":"browser","label":"Browser","adapter":"browser","launch":{"kind":"flatpak","app_id":"com.brave.Browser","args":[]},"home_policy":"pause-if-supported","remote_enabled":true,"hide_when_missing":true}
+    {"id":"netflix","label":"Netflix","adapter":"netflix","launch":{"kind":"flatpak","app_id":"org.chromium.Chromium","args":[]},"home_policy":"pause-if-supported","remote_enabled":true,"hide_when_missing":true,"enabled":false,"web":{"url":"https://www.netflix.com/"}},
+    {"id":"disney-plus","label":"Disney+","adapter":"disney-plus","launch":{"kind":"flatpak","app_id":"org.chromium.Chromium","args":[]},"home_policy":"pause-if-supported","remote_enabled":true,"hide_when_missing":true,"enabled":false,"web":{"url":"https://www.disneyplus.com/"}},
+    {"id":"hulu","label":"Hulu","adapter":"hulu","launch":{"kind":"flatpak","app_id":"org.chromium.Chromium","args":[]},"home_policy":"pause-if-supported","remote_enabled":true,"hide_when_missing":true,"enabled":false,"web":{"url":"https://www.hulu.com/"}},
+    {"id":"browser","label":"Browser","adapter":"browser","launch":{"kind":"flatpak","app_id":"org.chromium.Chromium","args":[]},"home_policy":"pause-if-supported","remote_enabled":true,"hide_when_missing":true}
   ],
   "sections": [
     {"id":"favorites","title":"Your Apps","kind":"applications","enabled":true,"application_ids":["plex-htpc","youtube","moonlight","spotify","jellyfin","retroarch","netflix","disney-plus","hulu","browser"],"hide_when_empty":false},
@@ -28,5 +28,5 @@
   "onboarding": {"completed": false, "lan_consent": false},
   "weather": {"enabled": false, "place": null, "units": "celsius", "scene": true},
   "achievements": {"enabled": true},
-  "apps": {"auto_update": true, "browser": "brave", "streaming_browser": "chrome"}
+  "apps": {"auto_update": true, "browser": "chromium", "streaming_browser": "chromium"}
 }

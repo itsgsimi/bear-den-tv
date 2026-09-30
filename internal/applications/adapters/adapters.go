@@ -2,7 +2,8 @@
 // clients: the three core apps (Plex HTPC, VacuumTube, Moonlight) and the
 // optional ones (Spotify, Jellyfin Desktop, RetroArch; hidden while not
 // installed, config hide_when_missing), the web apps, and the browsers the
-// web apps may run in (Browsers: Chromium, Brave). Per app: the only Flatpak id it may
+// web apps may run in (Browsers: Google Chrome for the streaming sites,
+// Brave for the Browser tile; ADR 0014). Per app: the only Flatpak id it may
 // launch, the closed list of launch arguments, window matching by WM_CLASS
 // (X11) or app_id (Wayland), the action → logical-key map, the MPRIS match, how Home may pause
 // it (HomePause), the notes the TV and phones show about it (Notes: short
@@ -365,27 +366,30 @@ const (
 	HuluName       = "hulu"
 	BrowserName    = "browser"
 
-	// ChromiumFlatpakID is Flathub's Chromium, the default browser of every
-	// web adapter (docs/decisions/0010-web-apps-over-cdp-pipe.md).
-	ChromiumFlatpakID = "org.chromium.Chromium"
-	// BraveFlatpakID is Flathub's Brave (published by Brave Software),
-	// the owner's alternative (config apps.browser and
-	// apps.streaming_browser; docs/decisions/0013-brave-as-a-browser-choice.md).
+	// ChromeFlatpakID is Flathub's Google Chrome (community-packaged; it
+	// downloads Google's official Chrome as extra data at install time),
+	// the streaming sites' default browser (config apps.streaming_browser;
+	// docs/decisions/0014-google-chrome-for-streaming-brave-for-browser.md).
+	ChromeFlatpakID = "com.google.Chrome"
+	// BraveFlatpakID is Flathub's Brave (published by Brave Software), the
+	// Browser tile's default (config apps.browser;
+	// docs/decisions/0013-brave-as-a-browser-choice.md, ADR 0014).
 	BraveFlatpakID = "com.brave.Browser"
 	// WebClassPrefix starts the WM_CLASS Bear Den gives each web adapter's
-	// Chromium (--class=BearDenWeb-<adapter>), so windows of different web
-	// apps and of other Chromium windows are told apart.
+	// browser (--class=BearDenWeb-<adapter>), so every web app is its own
+	// window: the streaming sites share one Chrome install but never a
+	// window class, a profile or a process tree.
 	WebClassPrefix = "BearDenWeb-"
 )
 
 // Web modes: a streaming site opens as a full-screen app window (no tabs,
-// no address bar); the browser is ordinary Chromium, maximized.
+// no address bar); the Browser tile is the ordinary browser, maximized.
 const (
 	WebModeApp     = "app"
 	WebModeBrowser = "browser"
 )
 
-// WebSpec is what makes an adapter a web adapter: Chromium opens a page in
+// WebSpec is what makes an adapter a web adapter: a browser opens a page in
 // its own profile and the coordinator drives it through the navigation
 // script over the DevTools pipe (internal/applications/web).
 type WebSpec struct {
@@ -394,7 +398,7 @@ type WebSpec struct {
 	// Hints names the navigation hints file (apps/web-nav/hints/<id>.json);
 	// empty means the generic behaviour only.
 	Hints string
-	// Class is the WM_CLASS class Chromium is started with.
+	// Class is the WM_CLASS class the browser is started with (--class).
 	Class string
 }
 
@@ -420,8 +424,8 @@ func WebOf(ad applications.Adapter) (WebSpec, bool) {
 
 // OwnFlatpakIcon reports whether ad's Flatpak is the app itself, so the icon
 // that Flatpak exports is the app's own (layout ui.app_icons "app"). False
-// for the streaming sites: they run in Chromium and never show its icon; the
-// Browser tile is Chromium and may.
+// for the streaming sites: they run in Chrome and never show its icon; the
+// Browser tile is its browser and may.
 func OwnFlatpakIcon(ad applications.Adapter) bool {
 	if spec, ok := WebOf(ad); ok {
 		return spec.Mode == WebModeBrowser
@@ -431,32 +435,48 @@ func OwnFlatpakIcon(ad applications.Adapter) bool {
 
 func newWeb(name, mode, hints string, notes []string) applications.Adapter {
 	class := WebClassPrefix + name
+	spec := WebSpec{Mode: mode, Hints: hints, Class: class}
+	fid := DefaultBrowserFor(spec).FlatpakID
 	return &webApp{
-		app: app{name: name, flatpakID: ChromiumFlatpakID, fragments: []string{strings.ToLower(class)}, keys: map[string]platform.Key{},
-			// Not used to find the player (web apps share this Flatpak;
-			// the browser's process tree decides). Kept so a name
-			// never matches the bare "chromium" bus name, which
+		app: app{name: name, flatpakID: fid, fragments: []string{strings.ToLower(class)}, keys: map[string]platform.Key{},
+			// Not used to find the player (web apps share their browser's
+			// Flatpak; the browser's process tree decides). Kept so a
+			// name never matches the bare "chromium" bus name, which
 			// Electron apps such as VacuumTube use too.
-			media: ChromiumFlatpakID,
+			media: fid,
 			home:  HomePause{Kind: "page", Why: "A film should wait while you are Home: the site's own pause key, only when the page reports a playing video."},
 			notes: notes},
-		web: WebSpec{Mode: mode, Hints: hints, Class: class},
+		web: spec,
 	}
 }
 
 // Browser names (config apps.browser and apps.streaming_browser).
 const (
-	ChromiumBrowser = "chromium"
-	BraveBrowser    = "brave"
-	// DefaultBrowser is every web adapter's browser when config names none.
-	DefaultBrowser = ChromiumBrowser
+	ChromeBrowser = "chrome"
+	BraveBrowser  = "brave"
+	// DefaultStreamingBrowser runs the streaming sites when config names
+	// none: the services support Google Chrome, not Chromium builds (ADR 0014).
+	DefaultStreamingBrowser = ChromeBrowser
+	// DefaultTileBrowser runs the Browser tile when config names none.
+	DefaultTileBrowser = BraveBrowser
 )
+
+// DefaultBrowserFor is the browser a web spec runs in when config names
+// none: Chrome for a streaming site, Brave for the Browser tile.
+func DefaultBrowserFor(spec WebSpec) BrowserInfo {
+	name := DefaultTileBrowser
+	if spec.IsStreaming() {
+		name = DefaultStreamingBrowser
+	}
+	b, _ := BrowserNamed(name)
+	return b
+}
 
 // BrowserInfo is one browser web adapters may run in: a Flathub Flatpak,
 // Chromium-based (the DevTools pipe and the navigation script work the
 // same), started by internal/applications/web with Bear Den's own profile
-// per app. The table below is the only place a browser's Flatpak id and
-// profile settings are written.
+// per app. The table below is the only place a browser's Flatpak id,
+// label, notes and profile settings are written.
 type BrowserInfo struct {
 	// Name is the config value; Label is what the TV shows.
 	Name  string
@@ -473,6 +493,20 @@ type BrowserInfo struct {
 	// StreamingUnverified: nothing shows that the streaming sites' Widevine
 	// works in this browser's Flatpak; the TV says so next to the choice.
 	StreamingUnverified bool
+	// BundledWidevine: the Widevine CDM ships inside the installed Flatpak
+	// (files/extra/WidevineCdm, Google Chrome's own copy), so playback
+	// support is ready once the browser is installed and no quiet first
+	// run is needed (internal/applications/web/widevine.go).
+	BundledWidevine bool
+	// BlockProfileWidevine: Bear Den puts an empty file at
+	// <profile>/WidevineCdm before every start, as the Flatpak's own
+	// launcher does for its default profile (chrome.sh), so the browser
+	// keeps using the bundled CDM and never fetches its own into the
+	// profile.
+	BlockProfileWidevine bool
+	// Notes are plain words the TV shows beside the choice (state
+	// apps.browsers[].notes).
+	Notes []string
 	// LocalState and Preferences are prefs Bear Den writes, before every
 	// start, into its own profiles only: <profile>/Local State and
 	// <profile>/Default/Preferences. Keys are dotted pref paths.
@@ -482,7 +516,42 @@ type BrowserInfo struct {
 
 // browsers is the table, in the order the TV offers them.
 var browsers = []BrowserInfo{
-	{Name: ChromiumBrowser, Label: "Chromium", FlatpakID: ChromiumFlatpakID, ProfileRoot: "web"},
+	{
+		Name: ChromeBrowser, Label: "Google Chrome", FlatpakID: ChromeFlatpakID, ProfileRoot: "web-chrome",
+		// The Flatpak's finish-args give it neither home nor xdg-data, only
+		// the xdg-download/documents/music/videos/pictures folders
+		// (flathub/com.google.Chrome, com.google.Chrome.yaml, read 2026-09-29).
+		GrantProfileRoot: true,
+		// apply_extra.sh unpacks Google's .deb (/opt/google/chrome) into
+		// /app/extra, WidevineCdm/ included; chrome.sh touches
+		// ~/.var/app/com.google.Chrome/config/google-chrome/WidevineCdm, a
+		// file, so the default profile never gets a component-updated copy.
+		BundledWidevine:      true,
+		BlockProfileWidevine: true,
+		Notes: []string{
+			"Google Chrome, made by Google: it shares usage data with Google.",
+			"Streaming sites play at up to 720p on Linux.",
+			"A community-packaged Flatpak of Google's official Chrome.",
+		},
+		// Chrome's own prompts stay out of the kiosk profile's way (pref
+		// names from Chromium's pref_names.h files; effect not yet seen on
+		// the TV). The sites' own sign-in is untouched: only signing in to
+		// Chrome itself is off.
+		Preferences: map[string]any{
+			"browser.check_default_browser":  false,
+			"browser.has_seen_welcome_page":  true,
+			"signin.allowed":                 false,
+			"signin.allowed_on_next_startup": false,
+			"sync.requested":                 false,
+			"credentials_enable_service":     false,
+			"credentials_enable_autosignin":  false,
+			"autofill.profile_enabled":       false,
+			"autofill.credit_card_enabled":   false,
+			"translate.enabled":              false,
+			"profile.exit_type":              "Normal",
+			"profile.exited_cleanly":         true,
+		},
+	},
 	{
 		Name: BraveBrowser, Label: "Brave", FlatpakID: BraveFlatpakID, ProfileRoot: "web-brave",
 		// The Flatpak's finish-args give it neither home nor xdg-data
@@ -492,6 +561,9 @@ var browsers = []BrowserInfo{
 		// default profile's WidevineCdm folder (cobalt ExposeWidevine), not
 		// from a --user-data-dir; never seen playing (ADR 0013).
 		StreamingUnverified: true,
+		Notes: []string{
+			"Brave, from Brave Software: its Flatpak changes Chromium's sandbox in ways Brave has not reviewed.",
+		},
 		// Widevine opt-in: brave-core kWidevineEnabled, a Local State pref
 		// (components/constants/pref_names.h, browser/widevine/widevine_utils.cc).
 		// P3A's first-run notice is a Local State pref too (components/p3a/pref_names.h).
@@ -579,8 +651,8 @@ func (r *Registry) InstallableFlatpakIDs() []string {
 	return out
 }
 
-// Netflix returns the Netflix web adapter (Chromium app window, hints
-// netflix.json). Plays at up to 720p in a Linux browser.
+// Netflix returns the Netflix web adapter (a Chrome app window by default,
+// hints netflix.json). Plays at up to 720p in a Linux browser.
 func Netflix() applications.Adapter {
 	return newWeb(NetflixName, WebModeApp, "netflix", streamingNotes)
 }
@@ -593,8 +665,9 @@ func DisneyPlus() applications.Adapter {
 // Hulu returns the Hulu web adapter.
 func Hulu() applications.Adapter { return newWeb(HuluName, WebModeApp, "hulu", huluNotes) }
 
-// Browser returns the Browser adapter: ordinary Chromium in its own
-// profile, for keyboard and mouse, with the navigation script too.
+// Browser returns the Browser adapter: the ordinary browser (Brave by
+// default) in its own profile, for keyboard and mouse, with the navigation
+// script too.
 func Browser() applications.Adapter { return newWeb(BrowserName, WebModeBrowser, "", browserNotes) }
 
 // Registry resolves config adapter names to adapters.

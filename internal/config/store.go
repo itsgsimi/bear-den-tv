@@ -100,6 +100,9 @@ type Store struct {
 	pending *pendingChange
 	report  LoadReport
 	loaded  bool
+	// retiredMoved: rows moved off the retired browser while config.json
+	// loaded, for UpgradeBrowsers to write (upgrade.go).
+	retiredMoved []string
 }
 
 type pendingChange struct {
@@ -155,9 +158,10 @@ func (s *Store) Load() (LoadReport, error) {
 	raw, err := os.ReadFile(s.Path())
 	switch {
 	case err == nil:
-		cfg, perr := Parse(raw, s.opts.Rules)
+		cfg, moved, perr := parseUpgrading(raw, s.opts.Rules)
 		if perr == nil {
 			s.cur = cfg
+			s.retiredMoved = moved
 			rep.Source = SourceConfig
 			if lerr := s.promoteLKG(raw); lerr != nil {
 				s.opts.Logger.Warn("config: last-known-good promotion failed", "error", lerr.Error())

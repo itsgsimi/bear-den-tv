@@ -385,7 +385,7 @@ func (c *Coordinator) stopUpdateFor(why string) {
 }
 
 // afterInstalled runs what a freshly installed Flatpak needs before its
-// apps are fully ready: for Chromium, the enabled streaming sites' playback
+// apps are fully ready: for a web browser, the enabled streaming sites' playback
 // support (widevine.go).
 func (c *Coordinator) afterInstalled(flatpakID string) {
 	c.prepareEnabledStreaming(flatpakID)

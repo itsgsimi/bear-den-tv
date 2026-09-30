@@ -150,7 +150,7 @@ func newInstaller(t *testing.T, f *fakeRunner, d *disk) *Installer {
 	t.Helper()
 	return New(Options{
 		Runner: f, Environ: []string{"HOME=/home/tv", "LANG=de_DE.UTF-8", "PATH=/usr/bin"},
-		Allowed: []string{moonlight, adapters.ChromiumFlatpakID}, FreeBytes: d.Free,
+		Allowed: []string{moonlight, adapters.ChromeFlatpakID}, FreeBytes: d.Free,
 		LookPath: func(string) (string, error) { return "/usr/bin/flatpak", nil }, GOARCH: "amd64",
 		Poll: 2 * time.Millisecond, KillGrace: 30 * time.Millisecond,
 	})
@@ -299,8 +299,8 @@ func TestRefsComeOnlyFromTheAdapterTable(t *testing.T) {
 			t.Errorf("%s (%s) is in the table but not allowed", a.Name(), a.FlatpakID())
 		}
 	}
-	if !in.Allowed(adapters.ChromiumFlatpakID) {
-		t.Fatal("Chromium is not installable")
+	if !in.Allowed(adapters.ChromeFlatpakID) {
+		t.Fatal("Google Chrome is not installable")
 	}
 	for _, id := range []string{"org.example.Evil", "--no-gpg-verify", "app/com.moonlight_stream.Moonlight/x86_64/stable", "com.moonlight_stream.Moonlight//beta", ""} {
 		if err := in.Start(id); !errors.Is(err, ErrNotAllowed) {
@@ -364,7 +364,7 @@ func TestCancelStopsFlatpakAndReturnsToAvailable(t *testing.T) {
 			p.mu.Unlock()
 			p.line("Installing runtime/org.freedesktop.Platform.GL.default/x86_64/25.08")
 			waitFor(t, "downloading", func() bool { return in.Status(moonlight).State == contract.InstallDownloading })
-			if err := in.Start(adapters.ChromiumFlatpakID); !errors.Is(err, ErrBusy) {
+			if err := in.Start(adapters.ChromeFlatpakID); !errors.Is(err, ErrBusy) {
 				t.Fatalf("a second install = %v, want ErrBusy", err)
 			}
 			if err := in.Cancel(moonlight); err != nil {
@@ -547,7 +547,7 @@ func TestUpdateArgvAndCancel(t *testing.T) {
 	f := newFakeRunner()
 	in := newInstaller(t, f, &disk{free: 50e9})
 	errc := make(chan error, 1)
-	go func() { errc <- in.Update(context.Background(), []string{moonlight, adapters.ChromiumFlatpakID}) }()
+	go func() { errc <- in.Update(context.Background(), []string{moonlight, adapters.ChromeFlatpakID}) }()
 	p := started(t, f)
 	waitFor(t, "updating", in.Updating)
 	if err := in.Start(moonlight); !errors.Is(err, ErrBusy) {
@@ -562,7 +562,7 @@ func TestUpdateArgvAndCancel(t *testing.T) {
 	if fmt.Sprint(p.Signals()) != fmt.Sprint([]syscall.Signal{syscall.SIGTERM}) {
 		t.Fatalf("signals %v", p.Signals())
 	}
-	want := "[[flatpak update --user --noninteractive -y com.moonlight_stream.Moonlight org.chromium.Chromium]]"
+	want := "[[flatpak update --user --noninteractive -y com.moonlight_stream.Moonlight com.google.Chrome]]"
 	if fmt.Sprint(f.all()) != want {
 		t.Fatalf("argv %q", f.all())
 	}

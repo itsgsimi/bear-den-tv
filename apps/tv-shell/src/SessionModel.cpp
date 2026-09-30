@@ -263,6 +263,18 @@ bool SessionModel::validateSnapshot(const QJsonObject &snapshot, QString *error)
                 if (!requireKeys(browser, {QStringLiteral("id"), QStringLiteral("label"), QStringLiteral("flatpak_id"), QStringLiteral("streaming_unverified")}, where, error)
                     || !requireType(browser, QStringLiteral("streaming_unverified"), QJsonValue::Bool, where, error))
                     return false;
+                // notes (optional): plain words shown beside the choice.
+                if (browser.contains(QStringLiteral("notes"))) {
+                    if (!requireType(browser, QStringLiteral("notes"), QJsonValue::Array, where, error))
+                        return false;
+                    for (const QJsonValue &n : browser.value(QStringLiteral("notes")).toArray()) {
+                        if (!n.isString()) {
+                            if (error)
+                                *error = where + QStringLiteral(".notes[] must be a string");
+                            return false;
+                        }
+                    }
+                }
             }
         }
     }

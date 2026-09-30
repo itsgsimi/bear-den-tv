@@ -455,7 +455,7 @@ func (c *Coordinator) reconcileApps(ctx context.Context) {
 		launching = launching || rt.launchState == "launching"
 		running := hasWindow[a.ID] || live[a.Launch.AppID]
 		if c.isWebAdapter(a.Adapter) {
-			// Every web app is the same Chromium Flatpak: its own window or
+			// Web apps share their browser's Flatpak: its own window or
 			// its own DevTools connection says whether it runs.
 			running = hasWindow[a.ID] || (c.opts.Web != nil && c.opts.Web.Running(a.ID))
 		}

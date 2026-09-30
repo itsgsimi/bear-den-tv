@@ -2,6 +2,10 @@
 
 Date: 2026-09-29. Status: accepted (owner decision). Amends
 [ADR 0010](0010-web-apps-over-cdp-pipe.md) ("Chromium, and only that").
+**Update 2026-09-29 (later):** [ADR 0014](0014-google-chrome-for-streaming-brave-for-browser.md)
+removes Chromium: the choice is now Google Chrome or Brave, with Brave the
+Browser tile's default and Chrome the streaming sites'; everything below
+about Brave still holds.
 
 The owner wants Brave as an alternative to Chromium for the web apps. This
 ADR decides how, without weakening ADR 0010's control channel or ADR 0011's

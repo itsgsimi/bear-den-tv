@@ -79,8 +79,8 @@ func cmdSession(args []string, dev bool) error {
 		fs.BoolVar(&f.devPlexFake, "dev-plex-fake", false, "Plex sign-in and rows against a local fake plex.tv and server (DEMO titles; links on the 3rd poll)")
 		fs.StringVar(&f.devListen, "dev-listen", "127.0.0.1:8787", "loopback address for the phone remote (no LAN exposure)")
 		fs.StringVar(&f.dataDir, "data-dir", "", "isolated config/data root (default: a per-user temp directory)")
-		fs.StringVar(&f.devBrowser, "dev-browser", "", "run web apps in this Chromium binary (a real browser window; default: a pretend page on the fake desktop)")
-		fs.BoolVar(&f.devInstalls, "dev-installs", false, "Moonlight, RetroArch, Jellyfin, Chromium and Brave start missing and a pretend Flathub installs them (DEMO; no network)")
+		fs.StringVar(&f.devBrowser, "dev-browser", "", "run web apps in this Chromium-engine binary (a real browser window; default: a pretend page on the fake desktop)")
+		fs.BoolVar(&f.devInstalls, "dev-installs", false, "Moonlight, RetroArch, Jellyfin, Google Chrome and Brave start missing and a pretend Flathub installs them (DEMO; no network)")
 	} else {
 		// Testing affordance: while set, the phone remote listens only on this
 		// loopback address (reached over an SSH tunnel) and the consent-gated
@@ -147,6 +147,11 @@ func runSession(f sessionFlags) error {
 		return fmt.Errorf("loading configuration: %w", err)
 	}
 	log.Info("config loaded", "source", report.Source, "revision", store.Revision(), "dir", paths.ConfigDir)
+	// A config.json of the Chromium era moves to Chrome (streaming) and
+	// Brave (the Browser tile), written and logged once (config/upgrade.go).
+	if _, err := store.UpgradeBrowsers(); err != nil {
+		log.Warn("config: could not move the web apps off Chromium", "err", err)
+	}
 	// A config.json from an older version gains the apps this version knows
 	// (hidden or off as the defaults have them; config/upgrade.go).
 	if _, err := store.UpgradeApps(); err != nil {
@@ -319,11 +324,11 @@ func runSession(f sessionFlags) error {
 		det.Overrides = func(adapter string) tuning.Overrides { return store.Current().PlaybackOverrides(adapter) }
 		tuner = det
 	}
-	// Web apps (streaming sites, the Browser tile): Flathub Chromium over the
-	// DevTools pipe on the TV; in dev a pretend page on the fake desktop, or
-	// a real Chromium binary with --dev-browser.
+	// Web apps (streaming sites, the Browser tile): Google Chrome and Brave
+	// from Flathub over the DevTools pipe on the TV; in dev a pretend page on
+	// the fake desktop, or a real Chromium-engine binary with --dev-browser.
 	var webApps session.WebApps
-	dataHome := filepath.Dir(paths.DataDir) // $XDG_DATA_HOME; profiles in bear-den-tv/web/<app-id>
+	dataHome := filepath.Dir(paths.DataDir) // $XDG_DATA_HOME; profiles in bear-den-tv/web-<browser>/<app-id>
 	switch {
 	case !f.dev:
 		webApps = web.NewManager(web.Options{DataHome: dataHome, Starter: web.FlatpakStarter(dataHome), Logger: log})
@@ -331,7 +336,7 @@ func runSession(f sessionFlags) error {
 		fd := desk.(*fake.Desktop)
 		webApps = devBrowser{Manager: web.NewManager(web.Options{DataHome: dataHome, Logger: log,
 			Starter: web.ExecStarter{Env: flatpak.PassthroughEnv(os.Environ()), Prefix: []string{f.devBrowser}}}), desk: fd}
-		log.Info("dev: web apps run in a real Chromium", "binary", f.devBrowser)
+		log.Info("dev: web apps run in a real Chromium-engine binary", "binary", f.devBrowser)
 	default:
 		webApps = fake.NewWeb(desk.(*fake.Desktop))
 	}

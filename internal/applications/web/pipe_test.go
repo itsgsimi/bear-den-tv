@@ -135,7 +135,7 @@ func TestPipeChannelHasOnlyTwoHoldersAndTheWorldIsIsolated(t *testing.T) {
 		return nil
 	}
 	m := NewManager(Options{DataHome: t.TempDir(), Starter: fc})
-	app := config.Application{ID: "hulu", Label: "Hulu", Adapter: "hulu", Launch: config.Launch{Kind: "flatpak", AppID: "org.chromium.Chromium"}, Web: &config.Web{URL: "https://www.hulu.com/"}}
+	app := config.Application{ID: "hulu", Label: "Hulu", Adapter: "hulu", Launch: config.Launch{Kind: "flatpak", AppID: "com.google.Chrome"}, Web: &config.Web{URL: "https://www.hulu.com/"}}
 	ad, _ := adapters.ForName("hulu")
 	spec, _ := adapters.WebOf(ad)
 	if _, err := m.Launch(context.Background(), app, spec); err != nil {

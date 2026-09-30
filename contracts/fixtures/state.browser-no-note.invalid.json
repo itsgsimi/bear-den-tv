@@ -244,12 +244,12 @@
   "apps": {
     "auto_update": true,
     "browser": "brave",
-    "streaming_browser": "chromium",
+    "streaming_browser": "chrome",
     "browsers": [
       {
-        "id": "chromium",
-        "label": "Chromium",
-        "flatpak_id": "org.chromium.Chromium",
+        "id": "chrome",
+        "label": "Google Chrome",
+        "flatpak_id": "com.google.Chrome",
         "streaming_unverified": false
       },
       {

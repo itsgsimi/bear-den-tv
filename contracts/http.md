@@ -68,8 +68,8 @@ and after an install).
   `state.applications[].installed` says, so a lingering export does not
   count), its Flatpak's exported PNG (`hicolor/{256x256,128x128,512x512,192x192,96x96,64x64,48x48}/apps/<flatpak-id>.png`
   under the user's then the system's Flatpak exports), only when the Flatpak
-  is the app itself (never Chromium's icon for the streaming sites; the
-  Browser tile may use it). Otherwise `404 no_icon`, and the phone draws Bear
+  is the app itself (never Google Chrome's icon for the streaming sites; the
+  Browser tile may use its browser's). Otherwise `404 no_icon`, and the phone draws Bear
   Den's own icon (then a monogram).
 - **Safety:** SVG is never served (the coordinator has no SVG rasteriser, so
   an SVG-only brand icon or export is skipped); a source file over 1 MiB or
@@ -88,7 +88,7 @@ Every application may carry `notes`: 0..6 short plain sentences (each 1..160 cha
 
 ## App installs (`state.applications[].install`)
 
-The shell and **owner** phones get `install` on every application and `state.apps` (`{"auto_update": true|false, "browser", "streaming_browser", "browsers": [{"id", "label", "flatpak_id", "streaming_unverified"}]}`: config `apps.auto_update`, the web apps' browsers, and the browser table; the last three are absent from older coordinators). Family (`controller`) phones, layout editors, guest passes and anonymous viewers never do (the schema rejects it), so they draw no install controls. Apps that share a Flatpak share one install: the web apps show their browser's (Chromium's by default).
+The shell and **owner** phones get `install` on every application and `state.apps` (`{"auto_update": true|false, "browser", "streaming_browser", "browsers": [{"id", "label", "flatpak_id", "streaming_unverified", "notes"?}]}`: config `apps.auto_update`, the web apps' browsers, and the browser table; the last three are absent from older coordinators). Family (`controller`) phones, layout editors, guest passes and anonymous viewers never do (the schema rejects it), so they draw no install controls. Apps that share a Flatpak share one install: the web apps show their browser's (Google Chrome's for the streaming sites and Brave's for the Browser tile by default). `notes` are plain words the TV shows beside a browser choice (for Chrome that it shares usage data with Google, the 720p cap, and that the Flatpak is community-packaged).
 
 | `state` | Meaning |
 |---|---|
@@ -101,7 +101,7 @@ The shell and **owner** phones get `install` on every application and `state.app
 | `done` | Installed by this session; the tile is ready. |
 
 - **Progress** comes from flatpak's own output (one line per runtime or app it starts) and from how much the disk under `~/.local/share/flatpak` has filled against Flathub's sizes: `flatpak install --noninteractive` prints no percentages. It never goes backwards and reaches 100 only when the install is verified.
-- **Streaming sites** (`netflix`, `disney-plus`, `hulu`) carry `drm` once Chromium is installed: `ready` when their Chromium profile holds Widevine, `preparing` while Bear Den's quiet first run fetches it, `pending` otherwise ("Still setting up playback support").
+- **Streaming sites** (`netflix`, `disney-plus`, `hulu`) carry `drm` once their browser is installed: `ready` when it can play protected video (Google Chrome: its bundled Widevine is in the installed Flatpak; Brave: the site's profile holds Widevine), `preparing` while Bear Den's quiet first run in Brave fetches it, `pending` otherwise ("Still setting up playback support").
 
 ## Now playing (`state.now_playing`)
 

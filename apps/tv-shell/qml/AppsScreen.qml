@@ -14,7 +14,9 @@
 //                    missing opens the install card), then "Browser tile
 //                    uses" / "Streaming sites use" from Session.apps.browsers
 //                    (◀ ▶ or OK send Shell.setBrowsers → IPC apps.browser; a
-//                    browser with streaming_unverified says so). ADR 0013.
+//                    browser with streaming_unverified says so; the help
+//                    panel shows the focused browser's notes). ADR 0013,
+//                    ADR 0014.
 //   Updates          Keep apps up to date (Shell.setAutoUpdate → IPC
 //                    apps.configure).
 // Beside the list, the focused entry's help (Help.qml) and, for an app, its
@@ -65,8 +67,8 @@ Item {
     // The browser table and the two choices (older coordinators send none:
     // then there are no browser rows).
     readonly property var browsers: (Session.apps && Session.apps.browsers) || []
-    readonly property string browserId: (Session.apps && Session.apps.browser) || "chromium"
-    readonly property string streamingId: (Session.apps && Session.apps.streaming_browser) || "chromium"
+    readonly property string browserId: (Session.apps && Session.apps.browser) || "brave"
+    readonly property string streamingId: (Session.apps && Session.apps.streaming_browser) || "chrome"
     readonly property var choices: browsers.length > 1 ? ["browser", "streaming"] : []
     readonly property bool hasApps: Session.apps !== undefined && Session.apps.auto_update !== undefined
 
@@ -144,7 +146,7 @@ Item {
     function browserEntry(id) {
         for (const b of browsers)
             if (b.id === id) return b
-        return { id: id, label: id, streaming_unverified: false }
+        return { id: id, label: id, streaming_unverified: false, notes: [] }
     }
     function describeSite(app) {
         const i = app.install || {}
@@ -369,7 +371,11 @@ Item {
             help: root.current.id === "add" && root.focusedApp ? root.installDescribe(root.focusedApp) + ". " + Help.text("add-apps")
                 : root.focusedApp && root.current.id === "installed" ? Apps.about(root.focusedApp.adapter)
                 : Help.text(root.helpId)
-            notes: root.focusedApp ? (root.focusedApp.notes || []) : []
+            // An app's notes, or on a browser row that browser's (who makes
+            // it, what it shares, its limits: state.apps.browsers[].notes).
+            notes: root.focusedApp ? (root.focusedApp.notes || [])
+                 : root.current.kind === "browser" ? (root.browserEntry(root.current.which === "browser" ? root.browserId : root.streamingId).notes || [])
+                 : []
         }
     }
 

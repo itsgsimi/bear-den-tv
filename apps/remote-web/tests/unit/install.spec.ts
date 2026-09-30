@@ -1,6 +1,6 @@
 // Unit tests for Add apps (src/views/install.tsx): drawn only for the
 // owner's phone (never a family phone or a guest pass) while app.install is
-// listed; one row per Flatpak (the web apps share Chromium's); progress and
+// listed; one row per Flatpak (the web apps share their browser's); progress and
 // Cancel while an install runs; Install and Cancel send app.install and
 // app.install_cancel to the shell target. The "+ Add apps" tile: same
 // audience, only with something left to add, a subline built from the
@@ -166,7 +166,7 @@ describe('Add apps tile', () => {
     expect(addAppsSubline(installEntries(snapshot(['owner'], three.slice(0, 2))))).toBe('Spotify and Netflix');
     expect(addAppsSubline(installEntries(snapshot(['owner'], [app('jellyfin', 'jellyfin', false, idle())])))).toBe('Jellyfin');
     expect(addAppsSubline([])).toBe('');
-    // The web apps share one Chromium row: counted once, named by the app.
+    // The web apps share one browser row: counted once, named by the app.
     expect(addAppsSubline(installEntries(snapshot(['owner'], APPS)))).toBe('Moonlight and Netflix');
     expect(text(byTestId(tile(listing(['owner'], three)).tree, 'add-apps-tile-sub'))).toBe('Spotify, Netflix and more');
   });

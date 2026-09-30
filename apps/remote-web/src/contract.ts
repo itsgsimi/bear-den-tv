@@ -254,7 +254,7 @@ export interface Install {
   /** About how much disk it takes once installed. */
   disk_bytes?: number;
   message?: string;
-  /** Streaming web apps only: Widevine in the app's Chromium profile. */
+  /** Streaming web apps only: whether their browser can play protected video (Chrome's bundled Widevine, or Widevine in the app's Brave profile). */
   drm?: 'ready' | 'preparing' | 'pending';
 }
 
@@ -276,6 +276,8 @@ export interface BrowserOption {
   flatpak_id: string;
   /** Nothing shows the streaming sites' Widevine works in this browser's Flatpak. */
   streaming_unverified: boolean;
+  /** Plain words shown beside the choice (who makes it, what it shares, its limits). */
+  notes?: string[];
 }
 
 export interface RemoteLimits {

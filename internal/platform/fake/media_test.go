@@ -49,10 +49,10 @@ func TestFakePlayerFollowsTheClock(t *testing.T) {
 		t.Fatal("exact match not found")
 	}
 	m.Add(ProcessKey(42), p)
-	if _, ok, _ := m.Find(ctx, platform.MediaMatch{FlatpakID: "org.chromium.Chromium", ProcessRoot: 41}); ok {
+	if _, ok, _ := m.Find(ctx, platform.MediaMatch{FlatpakID: "com.google.Chrome", ProcessRoot: 41}); ok {
 		t.Fatal("another process tree found a player")
 	}
-	if got, ok, _ := m.Find(ctx, platform.MediaMatch{FlatpakID: "org.chromium.Chromium", ProcessRoot: 42}); !ok || got != p {
+	if got, ok, _ := m.Find(ctx, platform.MediaMatch{FlatpakID: "com.google.Chrome", ProcessRoot: 42}); !ok || got != p {
 		t.Fatal("the process tree's player not found")
 	}
 }

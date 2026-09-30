@@ -1,12 +1,18 @@
 // A browser's own settings in Bear Den's profiles: before every start (a web
 // app, or Widevine's quiet run) the browser row's LocalState prefs go into
 // <profile>/Local State and its Preferences into <profile>/Default/Preferences
-// (adapters.BrowserInfo; for Brave the Widevine opt-in and quieter kiosk
-// defaults, none for Chromium). Only a profile Bear Den owns is touched:
+// (adapters.BrowserInfo; for Chrome no first-run, default-browser, sign-in
+// to Chrome, password, autofill or translate prompts, and a clean exit so no
+// "Restore pages?" bubble; for Brave the Widevine opt-in and quieter kiosk
+// defaults), and for a browser that bundles Widevine (Chrome) an empty file
+// at <profile>/WidevineCdm, as the Flatpak's own launcher makes for its
+// default profile, so the bundled CDM is used and none is fetched into the
+// profile. Only a profile Bear Den owns is touched:
 // the path comes from ProfileDir (under $XDG_DATA_HOME/bear-den-tv), and a
 // symbolic link anywhere from the profile root down is refused, so a
 // profile cannot be pointed at a personal browser's folder. Other keys in
-// those files are kept. Spec: docs/decisions/0013-brave-as-a-browser-choice.md.
+// those files are kept. Spec: docs/decisions/0013-brave-as-a-browser-choice.md,
+// docs/decisions/0014-google-chrome-for-streaming-brave-for-browser.md.
 
 package web
 
@@ -18,6 +24,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"syscall"
 
 	"bear-den-tv/internal/applications/adapters"
 )
@@ -27,6 +34,9 @@ const (
 	LocalStateFile  = "Local State"
 	PreferencesFile = "Preferences"
 	defaultProfile  = "Default"
+	// WidevineFile is the component-updated CDM's folder name in a profile;
+	// BlockProfileWidevine puts an empty file there instead.
+	WidevineFile = "WidevineCdm"
 )
 
 // SeedPrefs writes browser b's prefs into appID's profile and returns the
@@ -46,6 +56,11 @@ func SeedPrefs(dataHome string, b adapters.BrowserInfo, appID string) (string, e
 	}
 	if err := ownedDir(profile); err != nil {
 		return "", err
+	}
+	if b.BlockProfileWidevine {
+		if err := blockFile(filepath.Join(profile, WidevineFile)); err != nil {
+			return "", err
+		}
 	}
 	if len(b.LocalState) > 0 {
 		if err := mergePrefs(filepath.Join(profile, LocalStateFile), b.LocalState); err != nil {
@@ -82,6 +97,27 @@ func ownedDir(dir string) error {
 		return fmt.Errorf("web: %s is not a folder Bear Den owns", dir)
 	}
 	return nil
+}
+
+// blockFile makes an empty file at path (0600) unless something is there
+// already; a symbolic link is refused, a folder (a CDM fetched before) is
+// left as it is.
+func blockFile(path string) error {
+	fi, err := os.Lstat(path)
+	if err == nil {
+		if fi.Mode()&os.ModeSymlink != 0 {
+			return fmt.Errorf("web: %s is not a file Bear Den owns", path)
+		}
+		return nil
+	}
+	if !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("web: profile: %w", err)
+	}
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL|syscall.O_NOFOLLOW, 0o600)
+	if err != nil {
+		return fmt.Errorf("web: profile: %w", err)
+	}
+	return f.Close()
 }
 
 // mergePrefs sets each dotted pref path in the JSON file at path, keeping

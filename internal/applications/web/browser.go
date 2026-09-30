@@ -1,5 +1,5 @@
-// The web app manager: starts a web app's browser (Chromium or Brave, the
-// app's config row says which) with the DevTools pipe,
+// The web app manager: starts a web app's browser (Google Chrome or Brave,
+// the app's config row says which) with the DevTools pipe,
 // attaches to every page it opens, injects the navigation script into the
 // "bearden" isolated world, tracks what each page reports (video, text
 // field, visibility), and turns the coordinator's named actions into script
@@ -32,7 +32,7 @@ var (
 	// ErrNotRunning: Bear Den has no DevTools connection to this app (it is
 	// not running, or it was started before the coordinator restarted).
 	ErrNotRunning = errors.New("web: not connected to this app")
-	// ErrNoPage: Chromium has no page with the navigation script yet.
+	// ErrNoPage: the browser has no page with the navigation script yet.
 	ErrNoPage = errors.New("web: no page is ready")
 )
 
@@ -99,7 +99,7 @@ type Outcome struct {
 	Detail   map[string]any
 }
 
-// Process is a started Chromium.
+// Process is a started browser.
 type Process interface {
 	PID() int
 	Done() <-chan struct{}
@@ -114,7 +114,7 @@ type Starter interface {
 // ExecStarter runs Prefix + the browser's arguments through the Flatpak
 // launcher's runner (fixed argv, filtered environment, own session), the
 // same binary whichever browser is asked for: `dev --dev-browser PATH` and
-// the end-to-end tests use a Chromium binary directly.
+// the end-to-end tests use a Chromium-engine binary directly.
 type ExecStarter struct {
 	Runner flatpak.Runner
 	Env    []string
@@ -170,7 +170,7 @@ type Options struct {
 	SetupTimeout time.Duration
 }
 
-// Manager owns the running web apps, one Chromium per app.
+// Manager owns the running web apps, one browser process (and profile) per app.
 type Manager struct {
 	opts     Options
 	log      *slog.Logger
@@ -291,7 +291,7 @@ func (m *Manager) Launch(ctx context.Context, app config.Application, spec adapt
 	if err != nil {
 		return applications.Instance{}, err
 	}
-	// Chromium reads commands on fd 3 and writes replies on fd 4.
+	// The browser reads commands on fd 3 and writes replies on fd 4.
 	toR, toW, err := os.Pipe()
 	if err != nil {
 		return applications.Instance{}, err
@@ -302,7 +302,7 @@ func (m *Manager) Launch(ctx context.Context, app config.Application, spec adapt
 		toW.Close()
 		return applications.Instance{}, err
 	}
-	proc, err := m.opts.Starter.Start(ctx, browser, ChromiumArgs(spec, profile, url), []*os.File{toR, fromW})
+	proc, err := m.opts.Starter.Start(ctx, browser, BrowserArgs(spec, profile, url), []*os.File{toR, fromW})
 	// The child has its own copies now; the coordinator keeps only its ends,
 	// so the pipe has exactly two holders.
 	toR.Close()
@@ -351,7 +351,7 @@ func (b *Browser) watch(w, r *os.File) {
 
 func (b *Browser) kill() {
 	if pid := b.proc.PID(); pid > 0 {
-		// The starter gave Chromium its own session: signal the whole group.
+		// The starter gave the browser its own session: signal the whole group.
 		_ = syscall.Kill(-pid, syscall.SIGTERM)
 	}
 }
@@ -513,7 +513,7 @@ func (b *Browser) setupPage(pg *page) {
 		}
 	}
 	// A document that was already loaded before we attached gets the world
-	// from runImmediately; if Chromium did not create it, make it here.
+	// from runImmediately; if the browser did not create it, make it here.
 	select {
 	case <-pg.ready:
 		return
@@ -631,7 +631,7 @@ func (b *Browser) freshStatus(ctx context.Context, pg *page) (Status, error) {
 	return st, nil
 }
 
-// viewport asks Chromium (not the page) for the visible size.
+// viewport asks the browser (not the page) for the visible size.
 func (b *Browser) viewport(ctx context.Context, pg *page) (Viewport, error) {
 	var lm struct {
 		CSS struct {
@@ -915,7 +915,7 @@ func (m *Manager) Pointer(ctx context.Context, appID, action string, args map[st
 	return refused(action + " is not a pointer action.")
 }
 
-// Close asks Chromium to close (Browser.close over the pipe), and ends the
+// Close asks the browser to close (Browser.close over the pipe), and ends the
 // process group if it has not gone within 5 s, or at once with force.
 func (m *Manager) Close(ctx context.Context, appID string, force bool) error {
 	b := m.get(appID)

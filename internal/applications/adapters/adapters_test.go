@@ -225,15 +225,16 @@ func TestOptionalApps(t *testing.T) {
 	}
 }
 
-// Web adapters: Chromium only, no XTEST keys at all (input goes through the
-// page), windows told apart by the per-adapter WM_CLASS Bear Den starts
-// Chromium with, and never by a plain Chromium window.
+// Web adapters: the streaming sites in Google Chrome and the Browser tile
+// in Brave by default, no XTEST keys at all (input goes through the page),
+// windows told apart by the per-adapter WM_CLASS Bear Den starts the browser
+// with, and never by a plain browser window.
 func TestWebAdapters(t *testing.T) {
-	cases := []struct{ name, mode, hints string }{
-		{NetflixName, WebModeApp, "netflix"},
-		{DisneyPlusName, WebModeApp, "disney-plus"},
-		{HuluName, WebModeApp, "hulu"},
-		{BrowserName, WebModeBrowser, ""},
+	cases := []struct{ name, mode, hints, flatpak string }{
+		{NetflixName, WebModeApp, "netflix", ChromeFlatpakID},
+		{DisneyPlusName, WebModeApp, "disney-plus", ChromeFlatpakID},
+		{HuluName, WebModeApp, "hulu", ChromeFlatpakID},
+		{BrowserName, WebModeBrowser, "", BraveFlatpakID},
 	}
 	for _, c := range cases {
 		a, ok := ForName(c.name)
@@ -244,7 +245,7 @@ func TestWebAdapters(t *testing.T) {
 		if !ok || spec.Mode != c.mode || spec.Hints != c.hints || spec.Class != "BearDenWeb-"+c.name {
 			t.Errorf("%s: web spec %+v", c.name, spec)
 		}
-		if a.FlatpakID() != ChromiumFlatpakID || len(a.ApprovedArgs()) != 0 {
+		if a.FlatpakID() != c.flatpak || len(a.ApprovedArgs()) != 0 {
 			t.Errorf("%s: flatpak %s args %v", c.name, a.FlatpakID(), a.ApprovedArgs())
 		}
 		for _, action := range []string{"nav.up", "select", "back", "media.play"} {
@@ -255,16 +256,24 @@ func TestWebAdapters(t *testing.T) {
 		if !a.MatchWindow(platform.WindowInfo{Class: []string{"www.example.com", "BearDenWeb-" + c.name}}) {
 			t.Errorf("%s: own window not matched", c.name)
 		}
-		if a.MatchWindow(platform.WindowInfo{Class: []string{"chromium-browser", "Chromium"}}) {
-			t.Errorf("%s: a plain Chromium window matched", c.name)
+		for _, plain := range [][]string{{"google-chrome", "Google-chrome"}, {"brave-browser", "Brave-browser"}, {"chromium-browser", "Chromium"}} {
+			if a.MatchWindow(platform.WindowInfo{Class: plain}) {
+				t.Errorf("%s: a plain browser window %v matched", c.name, plain)
+			}
 		}
-		if a.MediaMatch() != ChromiumFlatpakID || HomePauseOf(a).Kind != "page" {
+		if a.MediaMatch() != c.flatpak || HomePauseOf(a).Kind != "page" {
 			t.Errorf("%s: media %q home %+v", c.name, a.MediaMatch(), HomePauseOf(a))
 		}
 	}
-	nf, _ := ForName(NetflixName)
-	if nf.MatchWindow(platform.WindowInfo{Class: []string{"x", "BearDenWeb-hulu"}}) {
-		t.Error("netflix matched hulu's window")
+	// Each streaming site is its own app: one Chrome install, but no site
+	// matches another's window.
+	for _, a := range cases {
+		ad, _ := ForName(a.name)
+		for _, b := range cases {
+			if a.name != b.name && ad.MatchWindow(platform.WindowInfo{Class: []string{"www.example.com__", "BearDenWeb-" + b.name}}) {
+				t.Errorf("%s matched %s's window", a.name, b.name)
+			}
+		}
 	}
 	if _, ok := WebOf(PlexHTPC()); ok {
 		t.Error("plex-htpc reported as a web adapter")
@@ -306,5 +315,50 @@ func TestNotes(t *testing.T) {
 	n[0] = "changed"
 	if NotesOf(PlexHTPC())[0] == "changed" {
 		t.Fatal("NotesOf returned the table itself")
+	}
+}
+
+// The browser table: Google Chrome (the streaming sites' default) and Brave
+// (the Browser tile's), and Chromium nowhere: not a row, not installable,
+// not a Flatpak a web app may run from.
+func TestBrowserTable(t *testing.T) {
+	var names []string
+	for _, b := range Browsers() {
+		names = append(names, b.Name)
+		if b.FlatpakID == "org.chromium.Chromium" || b.Name == "chromium" {
+			t.Errorf("Chromium is still a browser: %+v", b)
+		}
+	}
+	if !reflect.DeepEqual(names, []string{ChromeBrowser, BraveBrowser}) {
+		t.Fatalf("browsers %v", names)
+	}
+	chrome, _ := BrowserNamed(ChromeBrowser)
+	brave, _ := BrowserNamed(BraveBrowser)
+	if chrome.Label != "Google Chrome" || chrome.FlatpakID != "com.google.Chrome" || !chrome.GrantProfileRoot || !chrome.BundledWidevine || !chrome.BlockProfileWidevine || chrome.StreamingUnverified {
+		t.Errorf("chrome row %+v", chrome)
+	}
+	if brave.FlatpakID != "com.brave.Browser" || brave.BundledWidevine || brave.BlockProfileWidevine || !brave.StreamingUnverified {
+		t.Errorf("brave row %+v", brave)
+	}
+	if chrome.ProfileRoot == brave.ProfileRoot || chrome.ProfileRoot == "web" || brave.ProfileRoot == "web" {
+		t.Errorf("profile roots %q %q (web/ was Chromium's)", chrome.ProfileRoot, brave.ProfileRoot)
+	}
+	notes := strings.Join(chrome.Notes, "\n")
+	for _, want := range []string{"shares usage data with Google", "720p", "community-packaged"} {
+		if !strings.Contains(notes, want) {
+			t.Errorf("chrome notes lack %q: %q", want, notes)
+		}
+	}
+	if DefaultBrowserFor(WebSpec{Mode: WebModeApp}).Name != ChromeBrowser || DefaultBrowserFor(WebSpec{Mode: WebModeBrowser}).Name != BraveBrowser {
+		t.Error("defaults are not Chrome for streaming and Brave for the tile")
+	}
+	nf, _ := ForName(NetflixName)
+	if RunsIn(nf, "org.chromium.Chromium") || !RunsIn(nf, BraveFlatpakID) || !RunsIn(nf, ChromeFlatpakID) {
+		t.Error("RunsIn disagrees with the table")
+	}
+	for _, id := range NewRegistry().InstallableFlatpakIDs() {
+		if id == "org.chromium.Chromium" {
+			t.Error("Chromium is installable")
+		}
 	}
 }

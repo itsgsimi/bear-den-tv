@@ -42,7 +42,7 @@ BADGE = {
     'spotify': {'top': '#2FCF6A', 'bottom': '#10703A', 'ear': '#0C5A2C', 'inner': '#7FE0A2'},
     'jellyfin': {'top': '#9A5CC8', 'bottom': '#1E78B8', 'ear': '#5A2E82', 'inner': '#C9A0E8'},
     'retroarch': {'top': '#3E3478', 'bottom': '#141030', 'ear': '#221C4A', 'inner': '#7A6AC8'},
-    # Web apps (Chromium): our own colours, never the services' logos.
+    # Web apps (Google Chrome, Brave): our own colours, never the services' logos.
     'netflix': {'top': '#5A2A40', 'bottom': '#220E18', 'ear': '#3A1626', 'inner': '#9A5A74'},
     'disney-plus': {'top': '#3A4AA8', 'bottom': '#141A48', 'ear': '#222C6A', 'inner': '#7A8AE0'},
     'hulu': {'top': '#1E5A3A', 'bottom': '#0A2416', 'ear': '#123A24', 'inner': '#5A9A74'},

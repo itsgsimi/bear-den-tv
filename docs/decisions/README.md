@@ -18,7 +18,8 @@ win.
 | [0007](0007-wayland-profile.md) | The Wayland profile: wlroots window control, honest reasons elsewhere | 2026-09-28 |
 | [0008](0008-hdmi-cec.md) | TV control over HDMI-CEC through the kernel CEC API, off by default | 2026-09-28 |
 | [0009](0009-den-badges-local-counters.md) | Den badges from local counters: ids, counts and days only | 2026-09-28 |
-| [0010](0010-web-apps-over-cdp-pipe.md) | Web apps (Netflix, Disney+, Hulu, Browser): Flathub Chromium driven over the DevTools pipe | 2026-09-28 |
+| [0010](0010-web-apps-over-cdp-pipe.md) | Web apps (Netflix, Disney+, Hulu, Browser): a Flathub browser driven over the DevTools pipe (Chromium then; Chrome and Brave since 0014) | 2026-09-28 |
 | [0011](0011-per-user-flathub-installs.md) | One-press app installs: per user from Flathub, with the owner's consent | 2026-09-28 |
 | [0012](0012-app-icons-apps-own-by-default.md) | App icons: the app's own by default, Bear Den's as a choice, served safely to phones | 2026-09-29 |
-| [0013](0013-brave-as-a-browser-choice.md) | Brave from Flathub as a browser choice for the web apps; Chromium stays the default, streaming in Brave is marked unverified | 2026-09-29 |
+| [0013](0013-brave-as-a-browser-choice.md) | Brave from Flathub as a browser choice for the web apps; Chromium stays the default, streaming in Brave is marked unverified (defaults superseded by 0014) | 2026-09-29 |
+| [0014](0014-google-chrome-for-streaming-brave-for-browser.md) | Google Chrome from Flathub for the streaming sites, Brave for the Browser tile; Chromium removed; each streaming site its own app | 2026-09-29 |

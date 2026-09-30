@@ -4,7 +4,12 @@ Date: 2026-09-28. Status: accepted. **Update 2026-09-29:** "Chromium, and
 only that" is amended by [ADR 0013](0013-brave-as-a-browser-choice.md): the
 owner may choose Brave from Flathub for the Browser tile and, marked
 unverified for streaming, for the streaming sites. Chromium stays the
-default and everything below still holds for it.
+default and everything below still holds for it. **Update 2026-09-29
+(later):** [ADR 0014](0014-google-chrome-for-streaming-brave-for-browser.md)
+replaces Chromium: the streaming sites run in Google Chrome from Flathub
+(its bundled Widevine) and the Browser tile in Brave; Chromium is no longer
+used, after Hulu refused to play in it on the TV. The control channel below
+is unchanged.
 
 Bear Den replaces a smart TV that stays offline. Netflix, Disney+ and Hulu
 have no Linux apps; in a Linux browser they play, capped (Netflix and Disney+

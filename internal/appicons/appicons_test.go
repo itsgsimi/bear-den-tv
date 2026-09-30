@@ -76,8 +76,8 @@ var (
 
 func TestResolutionOrder(t *testing.T) {
 	plex := App{Adapter: "plex-htpc", FlatpakID: "tv.plex.PlexHTPC", OwnFlatpak: true}
-	netflix := App{Adapter: "netflix", FlatpakID: "org.chromium.Chromium", OwnFlatpak: false}
-	browser := App{Adapter: "browser", FlatpakID: "org.chromium.Chromium", OwnFlatpak: true}
+	netflix := App{Adapter: "netflix", FlatpakID: "com.google.Chrome", OwnFlatpak: false}
+	browser := App{Adapter: "browser", FlatpakID: "com.google.Chrome", OwnFlatpak: true}
 
 	tr := newTree(t)
 	// Nothing installed, no brand: Bear Den's (ErrNoIcon), either choice.
@@ -112,10 +112,10 @@ func TestResolutionOrder(t *testing.T) {
 		}
 	}
 
-	// Streaming sites never take Chromium's icon; the Browser tile does.
-	tr.export(t, tr.system, "128x128", "org.chromium.Chromium", ".png", pngOf(t, 4, 4, green))
+	// Streaming sites never take their browser's icon; the Browser tile, in the same browser here, does.
+	tr.export(t, tr.system, "128x128", "com.google.Chrome", ".png", pngOf(t, 4, 4, green))
 	if _, _, err := tr.f.PNG(netflix, "app"); !errors.Is(err, ErrNoIcon) {
-		t.Fatalf("netflix took Chromium's icon: %v", err)
+		t.Fatalf("netflix took Chrome's icon: %v", err)
 	}
 	if _, src, err := tr.f.PNG(browser, "app"); err != nil || src != SourceFlatpak {
 		t.Fatalf("browser: src %q err %v", src, err)

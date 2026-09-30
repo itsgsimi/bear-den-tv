@@ -1,20 +1,24 @@
 // Package web runs Bear Den's web apps (streaming sites and the Browser
-// tile): a Chromium-based browser from Flathub (Chromium, or Brave by the
-// owner's choice: the adapter table's browsers, config apps.browser and
-// apps.streaming_browser), full screen, one profile per app and browser
-// under $XDG_DATA_HOME/bear-den-tv/<profile root>/<app-id> (web/ for
-// Chromium, web-brave/ for Brave; prefs.go seeds a browser's own settings
-// there and nowhere else), controlled over the DevTools
+// tile): a Chromium-based browser from Flathub (Google Chrome for the
+// streaming sites and Brave for the Browser tile by default; the adapter
+// table's browsers, config apps.browser and apps.streaming_browser), full
+// screen, one profile per app and browser under
+// $XDG_DATA_HOME/bear-den-tv/<profile root>/<app-id> (web-chrome/ for
+// Chrome, web-brave/ for Brave; web/ was retired Chromium's and is left
+// alone; prefs.go seeds a browser's own settings there and nowhere else),
+// each app its own window class and process tree, controlled over the DevTools
 // protocol on --remote-debugging-pipe, with the navigation script
 // (apps/web-nav) injected into an isolated world of every page. Phones never
 // reach this package with anything but named actions: page addresses come
 // from the owner's config.json (contracts/config.md rule 11), the script
 // and its hints are embedded in the binary, and the only trusted input it
-// sends Chromium is a click inside the page's viewport, a key from
+// sends the browser is a click inside the page's viewport, a key from
 // AllowedKeys, the phone's text into a focused field, or a pointer move,
 // click or wheel. Decision and security model:
 // docs/decisions/0010-web-apps-over-cdp-pipe.md,
-// docs/decisions/0013-brave-as-a-browser-choice.md, docs/security.md.
+// docs/decisions/0013-brave-as-a-browser-choice.md,
+// docs/decisions/0014-google-chrome-for-streaming-brave-for-browser.md,
+// docs/security.md.
 package web
 
 import (
@@ -28,7 +32,7 @@ import (
 	"bear-den-tv/internal/config"
 )
 
-// BlankPage is what the Browser opens without a start page: Chromium's own
+// BlankPage is what the Browser opens without a start page: the browser's own
 // empty page, with no search engine and nothing loaded from the network.
 const BlankPage = "about:blank"
 
@@ -69,9 +73,9 @@ const MaxKeys = 30
 var appIDPattern = regexp.MustCompile(`^[a-z][a-z0-9-]{0,63}$`)
 
 // ProfileRoot is the folder holding browser b's profiles,
-// $XDG_DATA_HOME/bear-den-tv/<b.ProfileRoot>: "web" for Chromium (as
-// before there was a choice), "web-brave" for Brave, so no profile is ever
-// opened by two browsers. A path with ":" is refused: `flatpak run
+// $XDG_DATA_HOME/bear-den-tv/<b.ProfileRoot>: "web-chrome" for Google
+// Chrome, "web-brave" for Brave ("web" held retired Chromium's), so no
+// profile is ever opened by two browsers. A path with ":" is refused: `flatpak run
 // --filesystem=` would read what follows as an access mode.
 func ProfileRoot(dataHome string, b adapters.BrowserInfo) (string, error) {
 	if dataHome == "" || !filepath.IsAbs(dataHome) {
@@ -131,14 +135,17 @@ func StartURL(app config.Application) (string, error) {
 	return raw, nil
 }
 
-// ChromiumArgs is the browser's argument list for one web app (the same for
-// Chromium and Brave: Brave's help center lists every switch used here;
-// Brave's Flatpak wrapper appends --no-default-browser-check itself): its own profile,
-// the DevTools pipe (never a port), no first-run questions, the adapter's
-// window class, and either a full-screen app window on the page or the
-// ordinary browser, maximized, on the start page. The page address is last
-// and, for app mode, glued to --app= so it can never read as a flag.
-func ChromiumArgs(spec adapters.WebSpec, profile, url string) []string {
+// BrowserArgs is the browser's argument list for one web app (the same for
+// Google Chrome and Brave, both Chromium-based: Brave's help center lists
+// every switch used here; Brave's Flatpak wrapper appends
+// --no-default-browser-check itself): its own profile, the DevTools pipe
+// (never a port), no first-run questions, the adapter's window class (its
+// own WM_CLASS, so each streaming site is its own window even though they
+// share one Chrome install), and either a full-screen app window on the
+// page or the ordinary browser, maximized, on the start page. The page
+// address is last and, for app mode, glued to --app= so it can never read
+// as a flag.
+func BrowserArgs(spec adapters.WebSpec, profile, url string) []string {
 	args := []string{
 		"--user-data-dir=" + profile,
 		"--remote-debugging-pipe",

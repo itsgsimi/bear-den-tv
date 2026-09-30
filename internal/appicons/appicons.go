@@ -56,7 +56,7 @@ type App struct {
 	// FlatpakID is the Flatpak the adapter launches.
 	FlatpakID string
 	// OwnFlatpak is true when that Flatpak is the app itself, so its icon is
-	// the app's own. False for the streaming sites, which run in Chromium.
+	// the app's own. False for the streaming sites, which run in Google Chrome.
 	OwnFlatpak bool
 }
 

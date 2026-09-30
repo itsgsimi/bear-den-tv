@@ -1,4 +1,4 @@
-// Playback support after Chromium is installed (widevine.go): the enabled
+// Playback support after the streaming sites' browser is installed (widevine.go): the enabled
 // streaming sites' profiles get one quiet run each, never the Browser's or a
 // turned-off site's; install.drm says preparing, then ready or pending;
 // opening the site stops its quiet run; turning a site on prepares it.
@@ -73,7 +73,7 @@ func drm(h *harness, id string) string {
 	return in.DRM
 }
 
-func TestChromiumInstallPreparesTheEnabledStreamingSites(t *testing.T) {
+func TestBrowserInstallPreparesTheEnabledStreamingSites(t *testing.T) {
 	fd := &fakeDRM{ready: map[string]bool{}, release: make(chan string)}
 	h, fi, sl := installHarness(t, func(o *Options) {
 		o.DRM = fd
@@ -83,11 +83,11 @@ func TestChromiumInstallPreparesTheEnabledStreamingSites(t *testing.T) {
 		t.Fatal(r.Error)
 	}
 	if got := drm(h, "netflix"); got != "" {
-		t.Fatalf("drm before Chromium is installed: %q", got)
+		t.Fatalf("drm before Chrome is installed: %q", got)
 	}
-	// Chromium's install finishes.
-	sl.setScope(adapters.ChromiumFlatpakID, "user")
-	fi.set(adapters.ChromiumFlatpakID, install.Status{State: contract.InstallDone, Progress: 100})
+	// Chrome's install finishes.
+	sl.setScope(adapters.ChromeFlatpakID, "user")
+	fi.set(adapters.ChromeFlatpakID, install.Status{State: contract.InstallDone, Progress: 100})
 	h.eventually("netflix preparing", func() bool { return drm(h, "netflix") == contract.DRMPreparing })
 	if got := drm(h, "hulu"); got != contract.DRMPending {
 		t.Fatalf("hulu (off) drm %q", got)

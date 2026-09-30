@@ -110,7 +110,7 @@ const SCHEMA_FOR: Record<string, string> = {
   'state.phone-web-app.valid.json': 'state.schema.json',
   'state.enabled-not-bool.invalid.json': 'state.schema.json',
   'config.web-apps.valid.json': 'config.schema.json',
-  'config.brave-browser.valid.json': 'config.schema.json',
+  'config.browsers-swapped.valid.json': 'config.schema.json',
   'config.browser-unknown.invalid.json': 'config.schema.json',
   'state.phone-owner-browsers.valid.json': 'state.schema.json',
   'state.browser-no-note.invalid.json': 'state.schema.json',

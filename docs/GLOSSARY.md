@@ -40,9 +40,10 @@ and through which backend, or why not. Unverified capabilities are refused.
 `capabilities` in [`contracts/state.schema.json`](../contracts/state.schema.json);
 built in [`internal/session/state.go`](../internal/session/state.go).
 
-**CDP pipe (DevTools pipe).** How the coordinator controls Chromium:
+**CDP pipe (DevTools pipe).** How the coordinator controls a web app's
+browser (Google Chrome or Brave, both Chromium-based):
 `--remote-debugging-pipe` gives it the Chrome DevTools Protocol on two
-private file descriptors that only it and that Chromium hold. No port, no
+private file descriptors that only it and that browser hold. No port, no
 socket, nothing another program can attach to.
 [`internal/applications/web/cdp.go`](../internal/applications/web/cdp.go),
 [ADR 0010](decisions/0010-web-apps-over-cdp-pipe.md).
@@ -142,7 +143,7 @@ for a web app, nothing for the others. `HomePause` in
 [`internal/session/homepause.go`](../internal/session/homepause.go).
 
 **Install card.** The TV dialog that opens from a "Not installed" tile,
-Apps → Add apps, or a streaming site turned on without Chromium: the
+Apps → Add apps, or a streaming site turned on without its browser: the
 app, its download and disk size, Install / Not now, then progress. It says
 why when installs are unavailable (for example no Flatpak).
 [`InstallCard.qml`](../apps/tv-shell/qml/InstallCard.qml),
@@ -289,11 +290,13 @@ the clock and, if chosen, rain or snow in the Home scene. Phones never see it.
 [`internal/weather/`](../internal/weather/), [`WeatherScreen.qml`](../apps/tv-shell/qml/WeatherScreen.qml).
 
 **Web app.** A website Bear Den runs as an app (Netflix, Disney+, Hulu, the
-Browser tile): Flathub Chromium with its own profile, driven over the
+Browser tile): Google Chrome (the streaming sites) or Brave (the Browser
+tile) from Flathub, each app its own profile and window, driven over the
 DevTools pipe with the navigation script (web-nav). The three streaming sites
 are off until the owner turns them on (Apps → Streaming sites).
 [`internal/applications/web`](../internal/applications/web/web.go),
-[ADR 0010](decisions/0010-web-apps-over-cdp-pipe.md).
+[ADR 0010](decisions/0010-web-apps-over-cdp-pipe.md),
+[ADR 0014](decisions/0014-google-chrome-for-streaming-brave-for-browser.md).
 
 **Web-nav (navigation script).** The TypeScript script injected into
 every page of a web app, in an isolated world the site cannot see: it moves a
@@ -302,9 +305,10 @@ the coordinator performs the trusted clicks and keys it asks for, from a
 closed list. [`apps/web-nav/`](../apps/web-nav/AGENTS.md).
 
 **Widevine.** The DRM module the streaming services need for playback.
-Flathub Chromium fetches it into each profile itself; after Chromium is
-installed Bear Den starts each enabled site's profile once, headless, so it
-can. Whether the sites then play on the TV is unverified.
+Google Chrome bundles it (ready once Chrome is installed); Brave fetches it
+into each profile itself after an opt-in, so Bear Den starts each enabled
+site's Brave profile once, headless. Whether the sites then play on the TV
+is unverified.
 [`internal/applications/web/widevine.go`](../internal/applications/web/widevine.go).
 
 **World / World.beat.** `World` is the QML singleton for the active theme.

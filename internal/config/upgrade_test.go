@@ -152,7 +152,7 @@ func TestUpgradeRespectsOwnRowsBrowsersAndRecovery(t *testing.T) {
 	c.Applications = append(c.Applications, own)
 	c.Apps = &Apps{AutoUpdate: true, Browser: "brave", StreamingBrowser: "brave"}
 	for i := range c.Applications {
-		if c.Applications[i].Launch.AppID == "org.chromium.Chromium" {
+		if c.Applications[i].Launch.AppID == "com.google.Chrome" {
 			c.Applications[i].Launch.AppID = "com.brave.Browser"
 		}
 	}

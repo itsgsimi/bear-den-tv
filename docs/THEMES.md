@@ -898,7 +898,7 @@ is a streaming site, or its Flatpak exports none).
   1. the owner's brand folder (`brand/<adapter>/icon.*`);
   2. with "App's own": the icon the **installed** Flatpak exports, when that
      Flatpak is the app itself. The streaming sites (Netflix, Disney+, Hulu)
-     run in Chromium and never show its icon; the Browser tile may. An app
+     run in Google Chrome and never show its icon; the Browser tile may show its browser's. An app
      that is not installed has no export;
   3. Bear Den's icon;
   4. a monogram.

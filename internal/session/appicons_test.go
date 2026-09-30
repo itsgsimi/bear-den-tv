@@ -1,7 +1,7 @@
 // Tests for the coordinator's phone icon source (appicons.go): adapter ids
 // from the adapter table only, the layout's ui.app_icons choice, installed
 // apps only (as the tiles say), and the streaming sites never taking
-// Chromium's icon.
+// its browser's icon.
 package session
 
 import (
@@ -39,9 +39,9 @@ func TestAppIconForPhones(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	// Exports for Plex (installed), and for Moonlight and Chromium, which
-	// the harness starts missing (a lingering export must not show).
-	for _, id := range []string{adapters.PlexHTPCFlatpakID, adapters.MoonlightFlatpakID, adapters.ChromiumFlatpakID} {
+	// Exports for Plex (installed), and for Moonlight, Brave and Chrome,
+	// which the harness starts missing (a lingering export must not show).
+	for _, id := range []string{adapters.PlexHTPCFlatpakID, adapters.MoonlightFlatpakID, adapters.BraveFlatpakID, adapters.ChromeFlatpakID} {
 		put(filepath.Join(root, "exports", "icons", "hicolor", "128x128", "apps", id+".png"))
 	}
 	h, fi, sl := installHarness(t, func(o *Options) { o.IconFinder = &finder })
@@ -64,10 +64,10 @@ func TestAppIconForPhones(t *testing.T) {
 		t.Fatalf("not installed, lingering export: %v", err)
 	}
 	if _, err := h.c.AppIcon(ctx, "browser"); !errors.Is(err, remote.ErrNoIcon) {
-		t.Fatalf("Chromium not installed: %v", err)
+		t.Fatalf("Brave not installed: %v", err)
 	}
 	// Installed now: the icons follow once discovery sees it.
-	for _, a := range []struct{ app, flatpak string }{{"moonlight", adapters.MoonlightFlatpakID}, {"browser", adapters.ChromiumFlatpakID}} {
+	for _, a := range []struct{ app, flatpak string }{{"moonlight", adapters.MoonlightFlatpakID}, {"browser", adapters.BraveFlatpakID}, {"netflix", adapters.ChromeFlatpakID}} {
 		if r := h.shellSend(shellipc.AppInstall{Type: shellipc.TypeAppInstall, RequestID: "i-" + a.app, AppID: a.app}, "i-"+a.app); !r.OK {
 			t.Fatalf("app.install %s refused: %+v", a.app, r)
 		}
@@ -76,16 +76,16 @@ func TestAppIconForPhones(t *testing.T) {
 	}
 	h.eventually("rediscovery", func() bool {
 		apps := h.c.opts.Config.Current().Applications
-		return h.c.adapterInstalled(apps, "moonlight") && h.c.adapterInstalled(apps, "browser")
+		return h.c.adapterInstalled(apps, "moonlight") && h.c.adapterInstalled(apps, "browser") && h.c.adapterInstalled(apps, "netflix")
 	})
 	if _, err := h.c.AppIcon(ctx, "moonlight"); err != nil {
 		t.Fatalf("moonlight installed: %v", err)
 	}
 	if _, err := h.c.AppIcon(ctx, "browser"); err != nil {
-		t.Fatalf("the Browser tile may use Chromium's icon: %v", err)
+		t.Fatalf("the Browser tile may use its browser's icon: %v", err)
 	}
 	if _, err := h.c.AppIcon(ctx, "netflix"); !errors.Is(err, remote.ErrNoIcon) {
-		t.Fatalf("netflix took Chromium's icon: %v", err)
+		t.Fatalf("netflix took Chrome's icon: %v", err)
 	}
 	// The owner's brand icon wins even for an app that is not installed.
 	put(filepath.Join(root, "brand", "retroarch", "icon.png"))

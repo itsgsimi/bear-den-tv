@@ -419,7 +419,7 @@ func (c *Coordinator) doLaunch(ctx context.Context, s sender, req contract.Actio
 	}
 	isApp := func(t contract.Target) bool { return t.Kind == "app" && strOr(t.AppID) == appID }
 	c.stopUpdateFor("an app is starting") // never update during an app session
-	c.stopDRMPrep(appID)                  // one Chromium per profile: the real run takes over
+	c.stopDRMPrep(appID)                  // one browser per profile: the real run takes over
 
 	// A second press while the app is still starting waits for that launch
 	// instead of starting another instance. Checking and claiming "launching"
@@ -617,9 +617,9 @@ func (c *Coordinator) doClose(ctx context.Context, req contract.ActionRequest) c
 		return c.fail(req, contract.CodeInvalid, "That application is not registered.")
 	}
 	if boolArg(req.Args, "force") && c.isWebAdapter(app.Adapter) && c.opts.Web != nil && c.opts.Web.Running(appID) {
-		// A web app's Chromium is the process Bear Den started: end it
+		// A web app's browser is the process Bear Den started: end it
 		// (never `flatpak kill`, which could name another web app's
-		// instance of the same Chromium).
+		// instance of the same browser).
 		if err := c.opts.Web.Close(ctx, appID, true); err != nil {
 			return c.fail(req, contract.CodeInternal, app.Label+" could not be stopped.")
 		}

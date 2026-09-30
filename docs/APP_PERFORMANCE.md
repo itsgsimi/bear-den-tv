@@ -3,7 +3,7 @@
 Bear Den runs Plex HTPC, YouTube (VacuumTube) and Moonlight as they are and
 never patches them. What it does is give each app **opinionated settings that
 fit the box**. The optional apps (Spotify, Jellyfin Desktop, RetroArch) and
-the web apps (Netflix, Disney+, Hulu, Browser in Chromium) are listed too,
+the web apps (Netflix, Disney+, Hulu in Google Chrome, the Browser in Brave) are listed too,
 with nothing tuned yet ([below](#spotify-jellyfin-retroarch-optional-apps-no-tunable-settings)). The reference box is a 2-core Celeron 2955U. It is the **floor**
 Bear Den is designed and tested on, and it gets the careful settings. Anything
 faster gets more automatically: 4K, higher frame rates, full-quality scaling.
@@ -190,12 +190,12 @@ them with what to expect.
 
 ### Web apps (Netflix, Disney+, Hulu, Browser): no tunable settings
 
-Each has a `NoTuning` row (`webRow` in `detect.go`) on Chromium's Flatpak id:
+Each has a `NoTuning` row (`webRow` in `detect.go`) on its default browser's Flatpak id (Google Chrome's for the streaming sites, Brave's for the Browser):
 the site chooses its own quality, and Bear Den leaves the browser's settings
 alone. What to expect: in a Linux browser Netflix and Disney+ stop at about
 720p and Hulu may go lower ("Up to 720p" on the tiles), and playback needs
-Widevine ([ADR 0010](decisions/0010-web-apps-over-cdp-pipe.md)). How
-Chromium decodes video on an entry box, and what a 720p stream costs on the
+Widevine (bundled with Google Chrome; [ADR 0014](decisions/0014-google-chrome-for-streaming-brave-for-browser.md)). How
+Chrome decodes video on an entry box, and what a 720p stream costs on the
 reference box's two cores, is **not measured**.
 
 ## What to expect, and the caveats
