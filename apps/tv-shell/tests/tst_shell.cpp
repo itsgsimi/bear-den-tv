@@ -1124,8 +1124,9 @@ private slots:
 
     // Home says what to do next: an installing app has no "Not installed"
     // pill beside "Installing 42%" (UX-07); a failed open offers "Try
-    // opening … again" (UX-08); OK on a running app asks Switch (focused) or
-    // Close, drawn red, and Back just closes the question (UX-25, UX-31);
+    // opening … again" (UX-08); OK on a running app switches in one press,
+    // and Close is on the featured panel (Up, then Right), asking first with
+    // Cancel focused and the Close button red (UX-25, UX-31);
     // status marks are plain dots, not stepped circles that read as "+"
     // (UX-26); a focused not-installed tile is at full strength (UX-20).
     void homeSaysWhatToDoNext()
@@ -1158,15 +1159,37 @@ private slots:
 
         // Running: OK asks, Switch focused, Close red; Back only closes.
         toFavoriteTile(QStringLiteral("plex-htpc"));
-        QTRY_COMPARE(heroAction(), QStringLiteral("Switch to or close Plex"));
+        QTRY_COMPARE(heroAction(), QStringLiteral("Open Plex"));
+        QVERIFY(visibleItem(QStringLiteral("heroClose")));
+        // OK switches in one press (offline here: the "not connected" note,
+        // never the close question).
         ipc->clearSent();
+        act(QStringLiteral("select"));
+        QVERIFY(!visibleItem(QStringLiteral("confirmButton")));
+        if (m_nav->screen() == QLatin1String("dialog"))
+            act(QStringLiteral("back"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("plex-htpc"));
+        // Up reaches the panel's Open, Right its Close, which asks first.
+        act(QStringLiteral("nav.up"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("hero-open"));
+        act(QStringLiteral("nav.right"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("hero-close"));
+        shot(QStringLiteral("home-running-close"));
         act(QStringLiteral("select"));
         QCOMPARE(m_nav->screen(), QStringLiteral("dialog"));
         QCOMPARE(m_nav->itemId(), QStringLiteral("cancel"));
         QVERIFY(visibleItem(QStringLiteral("confirmButton"))->property("danger").toBool());
-        act(QStringLiteral("back"));
+        shot(QStringLiteral("home-running-close-confirm"));
+        act(QStringLiteral("select")); // Cancel
         QCOMPARE(m_nav->screen(), QStringLiteral("home"));
         QVERIFY(lastSent(QStringLiteral("request")).isEmpty());
+        QCOMPARE(m_nav->itemId(), QStringLiteral("plex-htpc"));
+        // Down from the panel returns to the tile.
+        act(QStringLiteral("nav.up"));
+        act(QStringLiteral("nav.down"));
+        QCOMPARE(m_nav->itemId(), QStringLiteral("plex-htpc"));
+        act(QStringLiteral("nav.up"));
+        act(QStringLiteral("nav.right"));
         act(QStringLiteral("select"));
         act(QStringLiteral("nav.left"));
         act(QStringLiteral("select"));

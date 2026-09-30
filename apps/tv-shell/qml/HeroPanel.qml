@@ -38,6 +38,9 @@ PixelBox {
     readonly property var brand: isApp ? Apps.brand(app.adapter || "") : null
     readonly property var stage: isApp ? Apps.stage(app.adapter || "") : null
     property int focusIndex: 0                 // position in the rail, for parallax
+    // HomeScreen.heroIndex: -1 none, 0 Open, 1 Close (a running app, UX-25).
+    property int buttonFocus: -1
+    readonly property bool closable: isApp && item.running === true
     readonly property bool lively: World.decorated && !World.performance
     readonly property bool staged: lively && isApp && !hasBackdrop && art.logo.length === 0
     // The cub behind the OK button: after focus has stayed 7 s on one item.
@@ -387,6 +390,8 @@ PixelBox {
                 implicitHeight: 64 * Theme.scale
                 radius: height / 2
                 color: Theme.pillActiveBg
+                objectName: "heroOpen"
+                FocusFrame { shown: root.buttonFocus === 0; cornerRadius: okButton.radius }
                 // The cub sneaks up behind the button when focus stays a while,
                 // and ducks back down as soon as focus moves (drawn behind it).
                 BearHead {
@@ -428,7 +433,7 @@ PixelBox {
                         // installs or says why it can't (never "How to install").
                         text: root.isApp
                               ? (root.item.installed === false ? (root.item.installState === "preparing" || root.item.installState === "downloading" || root.item.installState === "installing" ? qsTr("Installing %1%").arg(root.item.installProgress) : qsTr("Install"))
-                                 : root.item.running ? qsTr("Switch to or close %1").arg(root.item.title)
+                                 : root.item.running ? qsTr("Open %1").arg(root.item.title)
                                  // A failed open says what to do next (UX-08).
                                  : root.item.launchState === "failed" || root.item.launchState === "crashed" ? qsTr("Try opening %1 again").arg(root.item.title)
                                  : qsTr("Open %1").arg(root.item.title))
@@ -445,6 +450,42 @@ PixelBox {
                         font.weight: Font.Bold
                     }
                 }
+            }
+            // A running app: Close, next to Open, reached with Up then Right;
+            // it asks first (ShellRoot). The key hint says how to get here.
+            PixelBox {
+                objectName: "heroClose"
+                visible: root.closable
+                anchors.verticalCenter: okButton.verticalCenter
+                implicitWidth: closeRow.implicitWidth + 44 * Theme.scale
+                implicitHeight: 64 * Theme.scale
+                radius: height / 2
+                color: root.buttonFocus === 1 ? Theme.pillActiveBg : Theme.alpha("#000000", 0.4)
+                borderColor: Theme.danger
+                borderWidth: 2 * Theme.scale
+                Row {
+                    id: closeRow
+                    anchors.centerIn: parent
+                    spacing: 12 * Theme.scale
+                    Text {
+                        visible: root.buttonFocus < 0
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "▲"
+                        color: Theme.textSecondary
+                        font.family: Theme.fontFamily
+                        font.pixelSize: 18 * Theme.fontUnit
+                    }
+                    Text {
+                        objectName: "heroCloseText"
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: qsTr("Close %1").arg(root.item.title || "")
+                        color: root.buttonFocus === 1 ? Theme.danger : Theme.textPrimary
+                        font.family: Theme.fontFamily
+                        font.pixelSize: 25 * Theme.fontUnit
+                        font.weight: Font.Bold
+                    }
+                }
+                FocusFrame { shown: root.buttonFocus === 1; cornerRadius: parent.radius }
             }
         }
     }

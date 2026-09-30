@@ -3,8 +3,10 @@
 // within a rail; each rail restores its item by id. The first apps rail ends
 // with an "Add apps" tile while Bear Den could install something
 // (SessionModel adds it, kind `add-apps`); OK on it opens the Apps page at
-// Add apps. OK on a running app asks Switch (focused) or Close (UX-25:
-// closing an app was only possible from a phone).
+// Add apps. OK on a running app switches to it in one press. Closing it
+// (UX-25: it was only possible from a phone) is on the featured panel: Up
+// from a running app's tile focuses the panel's "Open <App>", Right reaches
+// "Close <App>", which asks first; Down or Back return to the tile.
 
 import QtQuick
 import BearDen
@@ -18,11 +20,18 @@ Item {
 
     signal openScreen(string name)
     signal appUnavailable(var app)
-    // OK on a running app's tile: Switch to it or Close it (UX-25).
-    signal runningApp(var item)
+    // Close on the featured panel of a running app (UX-25).
+    signal closeRequested(var item)
+    // -1: focus on the rails or header; 0: the panel's Open; 1: its Close.
+    property int heroIndex: -1
+    readonly property var heroApp: activeRail && activeRail.currentData.kind === "app" && activeRail.currentData.running === true
+                                   ? activeRail.currentData : null
+    onHeroAppChanged: if (!heroApp && heroIndex >= 0) { heroIndex = -1; if (activeRail) activeRail.restore() }
+    function reportHero() { Nav.reportFocus(activeRail.sectionId, heroIndex === 0 ? "hero-open" : "hero-close", 0) }
     signal message(string title, string body)
 
     function restoreFocus() {
+        heroIndex = -1
         const idx = Session.sections.indexOfSection(FocusMemory.lastSectionId)
         row = railCount === 0 ? -1 : (idx >= 0 ? idx : 0)
         headerIndex = 0
@@ -44,13 +53,28 @@ Item {
         Nav.reportFocus("header", header.pills[headerIndex][0], 0)
     }
     function setRow(r) {
+        heroIndex = -1
         row = r
         if (row < 0) reportHeader()
     }
 
     function navigate(action) {
+        if (heroIndex >= 0) {
+            switch (action) {
+            case "nav.left": heroIndex = 0; reportHero(); return true
+            case "nav.right": heroIndex = 1; reportHero(); return true
+            case "nav.down": case "back": heroIndex = -1; activeRail.restore(); return true
+            case "nav.up": heroIndex = -1; if (row > 0) setRow(row - 1); else setRow(-1); return true
+            case "select":
+                if (heroIndex === 0) Shell.launchApp(heroApp.appId)
+                else closeRequested(heroApp)
+                return true
+            }
+            return false
+        }
         switch (action) {
         case "nav.up":
+            if (heroApp && hero.visible) { heroIndex = 0; reportHero(); return true }
             if (row > 0) setRow(row - 1)
             else if (row === 0) setRow(-1)
             return true
@@ -90,7 +114,6 @@ Item {
             openScreen("add-apps")   // the Apps page, at Add apps
         } else if (item.kind === "app") {
             if (item.installed === false) appUnavailable(Session.application(item.appId))
-            else if (item.running) runningApp(item)
             else Shell.launchApp(item.appId)
         } else if (item.kind === "setup") {
             // Empty, loading or failing Plex rows: Settings → Plex when this
@@ -120,6 +143,7 @@ Item {
         item: root.activeRail ? root.activeRail.currentData : ({})
         focusIndex: root.activeRail ? root.activeRail.currentIndex : 0
         sectionTitle: root.activeRail ? root.activeRail.title : ""
+        buttonFocus: root.heroIndex
     }
 
     // The theme's corner scene (manifest "scene": den, camp, moon, campfire), when
@@ -177,7 +201,7 @@ Item {
                 Rail {
                     required property int index
                     width: column.width
-                    active: root.row === index
+                    active: root.row === index && root.heroIndex < 0
                     onActivated: (item) => root.activateItem(item)
                 }
             }

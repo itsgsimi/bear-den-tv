@@ -281,13 +281,11 @@ FocusScope {
             Behavior on y { NumberAnimation { duration: Theme.ms(260); easing.type: Easing.OutCubic } }
             onOpenScreen: (name) => root.open(name)
             onAppUnavailable: (app) => installCard.openFor(app.id, true)
-            onRunningApp: (item) => confirmDialog.open({
-                title: qsTr("%1 is open").arg(item.title),
-                body: qsTr("Switch back to it, or close it. Closing asks %1 to quit, as if you closed it yourself.").arg(item.title),
-                confirmLabel: qsTr("Close %1").arg(item.title), cancelLabel: qsTr("Switch to %1").arg(item.title),
-                danger: true, dismissOnBack: true,
-                onAccept: () => Shell.closeApp(item.appId),
-                onReject: () => Shell.launchApp(item.appId)
+            onCloseRequested: (item) => confirmDialog.open({
+                title: qsTr("Close %1?").arg(item.title),
+                body: qsTr("%1 is asked to quit, as if you closed it yourself. Anything playing stops.").arg(item.title),
+                confirmLabel: qsTr("Close %1").arg(item.title), danger: true,
+                onAccept: () => Shell.closeApp(item.appId)
             })
             onMessage: (title, body) => messageDialog.open(title, body)
         }
