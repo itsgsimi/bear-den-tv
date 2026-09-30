@@ -348,7 +348,7 @@ export const t = {
     hidden: 'Badges show on family phones while the TV is unlocked.',
     earnedOn: (day: string) => `Earned ${day}`,
     progress: (count: number, goal: number) => `${count} of ${goal}`,
-    privacy: 'Counted on the TV only: just counts and days, never what was watched. Turn badges off or reset them in Settings → Badges on the TV.',
+    privacy: 'Counted on the TV only: just counts and days, never what was watched. Turn badges off or reset them in Themes → Den badges on the TV.',
     names: {
       'first-night-in': ['First Night In', 'Open any app from Home.'],
       'movie-night': ['Movie Night', 'Open Plex ten times.'],
