@@ -83,7 +83,8 @@ func (c *Coordinator) buildStateFor(view viewKind, v *remote.Viewer) contract.St
 	locked := c.locked
 	playback := c.playback // an immutable snapshot, replaced whole by the tuner
 	nowPlaying := c.nowPlayingLocked()
-	st.Power = c.powerLocked() // also while locked: the shell swallows the waking key
+	audio := c.audioStateLocked(cfg) // read under c.mu: watchAudio replaces c.audioLevel
+	st.Power = c.powerLocked()       // also while locked: the shell swallows the waking key
 	st.CEC = c.cecStateLocked(cfg.CECSettings())
 	c.mu.Unlock()
 	showNowPlaying := cfg.Remote.ShowNowPlaying()
@@ -184,7 +185,7 @@ func (c *Coordinator) buildStateFor(view viewKind, v *remote.Viewer) contract.St
 				// The PC's real mute state and volume, for the phone's
 				// Mute button (contracts/http.md "The PC's sound").
 				if v.Has(contract.PermGuest) {
-					st.Audio = c.audioStateLocked(cfg)
+					st.Audio = audio
 				}
 				st.Content = c.content()
 			}
