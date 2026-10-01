@@ -78,13 +78,17 @@ var plexMediaKeys = map[string]platform.Key{
 
 // spotifyKeys follow Spotify's documented shortcuts
 // (support.spotify.com, "Keyboard shortcuts"): Up/Down move through a list and
-// Return plays the selected row. Left/Right are left unmapped because Spotify
-// documents them as list actions (add to library/queue), not as moving focus;
-// there is no documented Back key. Playback goes through MPRIS instead.
+// Return plays the selected row. Right is Tab, the next control: Spotify's
+// own Left/Right are list actions (add to library/queue), not focus moves,
+// and its buttons (Log in on its sign-in screen, checked on the reference TV:
+// one Tab focuses it, Return presses it) are reached only with Tab. Left
+// stays unmapped: Shift+Tab is a key combination, which Bear Den does not
+// press. There is no documented Back key. Playback goes through MPRIS instead.
 var spotifyKeys = map[string]platform.Key{
-	"nav.up":   platform.KeyUp,
-	"nav.down": platform.KeyDown,
-	"select":   platform.KeySelect,
+	"nav.up":    platform.KeyUp,
+	"nav.down":  platform.KeyDown,
+	"nav.right": platform.KeyTab,
+	"select":    platform.KeySelect,
 }
 
 // retroArchKeys are RetroArch's default keyboard controls (retroarch.cfg and
@@ -174,7 +178,9 @@ var (
 	// hint (apps/tv-shell/qml/Apps.qml).
 	spotifyNotes = []string{
 		"Easiest to play from the Spotify app on your phone: pick this TV as the speaker.",
-		"The remote's arrows reach only part of it: up, down and OK in lists.",
+		"Sign the TV in once: in Spotify press ▶ to reach Log in, then OK. Its sign-in page opens here; type with your phone's keyboard.",
+		"Spotify's \"Scan code to log in\" doesn't work with this app: use Log in.",
+		"The remote's arrows reach only part of it: up, down and OK in lists, ▶ to the next button.",
 		"Music keeps playing when you go Home.",
 	}
 	jellyfinNotes = []string{
@@ -596,6 +602,12 @@ var browsers = []BrowserInfo{
 			"brave.new_tab_page.show_brave_news":                      false,
 			"brave.today.should_show_toolbar_button":                  false,
 			"brave.ask_widevine_install":                              false,
+			// A clean exit recorded before each start: a browser that was
+			// stopped (Close with force, the box losing power) otherwise
+			// opens with "Restore pages?", which took the keyboard focus
+			// over a sign-in page on the TV.
+			"profile.exit_type":      "Normal",
+			"profile.exited_cleanly": true,
 			// Chromium's own browser colour scheme (0 system, 1 light, 2 dark),
 			// so the toolbar and address bar are dark too.
 			"browser.theme.color_scheme2": float64(2),

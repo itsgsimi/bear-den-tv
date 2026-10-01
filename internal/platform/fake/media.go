@@ -87,6 +87,7 @@ type Player struct {
 	reads      int
 	calls      []string
 	watchers   map[chan struct{}]struct{}
+	onQuit     func()
 }
 
 // NewPlayer returns a controllable player reporting info (Rate 0 means 1).
@@ -212,6 +213,25 @@ func (p *Player) control(call, status string, seek time.Duration) error {
 	}
 	p.mu.Unlock()
 	p.Signal()
+	return nil
+}
+
+// SetOnQuit sets what Quit does besides recording the call (the app exiting).
+func (p *Player) SetOnQuit(fn func()) {
+	p.mu.Lock()
+	p.onQuit = fn
+	p.mu.Unlock()
+}
+
+// Quit implements platform.MediaQuitter: recorded, then the SetOnQuit action.
+func (p *Player) Quit(context.Context) error {
+	p.mu.Lock()
+	p.calls = append(p.calls, "Quit")
+	fn := p.onQuit
+	p.mu.Unlock()
+	if fn != nil {
+		fn()
+	}
 	return nil
 }
 

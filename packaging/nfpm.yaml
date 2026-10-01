@@ -79,6 +79,10 @@ contents:
     dst: /usr/share/applications/bear-den-tv.desktop
     file_info:
       mode: 0644
+  - src: packaging/bear-den-tv-links.desktop
+    dst: /usr/share/applications/bear-den-tv-links.desktop
+    file_info:
+      mode: 0644
   - src: packaging/autostart/bear-den-tv.desktop
     dst: /usr/share/bear-den-tv/autostart/bear-den-tv.desktop
     file_info:

@@ -95,6 +95,7 @@ type harness struct {
 	lock   *fakeLock
 	shellW platform.WindowID
 	shell  *shellipc.Conn
+	sock   string // the coordinator's socket (cli clients dial it)
 	phones *PhoneBackend
 	ctl    remote.Viewer
 	owner  remote.Viewer
@@ -157,6 +158,7 @@ func newHarness(t *testing.T, configure ...func(*Options)) *harness {
 		t.Fatal(err)
 	}
 	h.c.AttachShellServer(srv)
+	h.sock = sock
 	ctx, cancel := context.WithCancel(context.Background())
 	h.stop = cancel
 	t.Cleanup(func() { cancel(); srv.Close() })

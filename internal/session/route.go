@@ -421,6 +421,11 @@ func (c *Coordinator) doLaunch(ctx context.Context, s sender, req contract.Actio
 		return c.fail(req, contract.CodeUnsupported, app.Label+" is turned off. Turn it on in Apps → Streaming sites.")
 	}
 	isApp := func(t contract.Target) bool { return t.Kind == "app" && strOr(t.AppID) == appID }
+	c.mu.Lock()
+	if s := c.signIn; s != nil && appID != s.browser && appID != s.returnTo {
+		c.signIn = nil // the owner moved on from a sign-in Bear Den opened (links.go)
+	}
+	c.mu.Unlock()
 	c.stopUpdateFor("an app is starting") // never update during an app session
 	c.stopDRMPrep(appID)                  // one browser per profile: the real run takes over
 
@@ -479,7 +484,16 @@ func (c *Coordinator) doLaunch(ctx context.Context, s sender, req contract.Actio
 	c.setLaunch(appID, "launching", "", nil)
 	var inst applications.Instance
 	var err error
-	if isWeb {
+	c.mu.Lock()
+	link := c.launchLink[appID] // a link to open instead of its own page (links.go)
+	delete(c.launchLink, appID)
+	c.mu.Unlock()
+	if lw, ok := c.opts.Web.(linkWeb); isWeb && ok && link != "" {
+		inst, err = lw.LaunchAt(ctx, app, webSpec, link)
+		if err != nil {
+			c.log.Warn("session: web app did not start", "app", appID, "err", err)
+		}
+	} else if isWeb {
 		inst, err = c.opts.Web.Launch(ctx, app, webSpec)
 		if err != nil {
 			c.log.Warn("session: web app did not start", "app", appID, "err", err)
@@ -509,15 +523,89 @@ func (c *Coordinator) doLaunch(ctx context.Context, s sender, req contract.Actio
 		c.noteLaunched(app)
 		return c.result(req, contract.OutcomeObserved, map[string]any{"app_id": appID})
 	}
+	if c.alive(ctx, app, isWeb) {
+		// Running, no window yet: a slow (first) start, not a failure. It
+		// stays "launching" and comes to the front when its window shows.
+		go c.awaitSlowStart(app, ad, isWeb, isApp)
+		res := c.result(req, contract.OutcomeDelivered, map[string]any{"app_id": appID, "slow_start": true})
+		res.Message = app.Label + " is taking a while to start (the first start after installing is the slowest). It comes to the front by itself."
+		return res
+	}
 	c.setLaunch(appID, "failed", app.Label+" started but its window was not seen.", nil)
 	return c.fail(req, contract.CodeTimeout, app.Label+" started but its window was not seen.")
+}
+
+// alive reports whether app's process runs: its browser for a web app, its
+// Flatpak instance otherwise.
+func (c *Coordinator) alive(ctx context.Context, app config.Application, isWeb bool) bool {
+	if isWeb {
+		return c.opts.Web != nil && c.opts.Web.Running(app.ID)
+	}
+	if c.opts.Launcher == nil {
+		return false
+	}
+	insts, err := c.opts.Launcher.Instances(ctx)
+	if err != nil {
+		return false
+	}
+	for _, in := range insts {
+		if in.FlatpakID == app.Launch.AppID {
+			return true
+		}
+	}
+	return false
+}
+
+// awaitSlowStart waits up to SlowStartFor for a running app's window, brings
+// it forward when it shows, and gives up (failed, with the reason) when the
+// app exits first or never shows one. It stops when anything else takes the
+// app out of "launching" (a close, the owner opening it again).
+func (c *Coordinator) awaitSlowStart(app config.Application, ad applications.Adapter, isWeb bool, isApp func(contract.Target) bool) {
+	ctx := context.Background()
+	deadline := c.clock.Now().Add(SlowStartFor)
+	for c.clock.Now().Before(deadline) {
+		<-c.clock.After(slowStartPoll)
+		c.mu.Lock()
+		state := c.appLocked(app.ID).launchState
+		c.mu.Unlock()
+		if state != "launching" {
+			return
+		}
+		if _, t, _ := c.current(); isApp(t) {
+			c.setLaunch(app.ID, "running", "", nil)
+			c.noteLaunched(app)
+			return
+		}
+		if wins, err := c.opts.Desktop.ListWindows(ctx); err == nil {
+			for _, w := range wins {
+				if !w.Mapped || !ad.MatchWindow(w) {
+					continue
+				}
+				c.log.Info("session: a slow start's window showed; bringing it forward", "app", app.ID)
+				if err := c.opts.Desktop.Activate(ctx, w.ID); err == nil && c.waitTarget(ctx, ActivateObserveTimeout, isApp) {
+					c.setLaunch(app.ID, "running", "", nil)
+					c.noteLaunched(app)
+					return
+				}
+				break
+			}
+		}
+		if !c.alive(ctx, app, isWeb) {
+			c.setLaunch(app.ID, "failed", app.Label+" closed before its window showed.", nil)
+			return
+		}
+	}
+	c.setLaunch(app.ID, "failed", app.Label+" started but its window was not seen.", nil)
 }
 
 // closeOtherApps sends a normal close request to every registered app other
 // than keep that has a mapped window. Failures are logged, never fatal.
 func (c *Coordinator) closeOtherApps(ctx context.Context, keep string) {
 	for _, a := range c.opts.Config.Current().Applications {
-		if a.ID == keep {
+		c.mu.Lock()
+		waiting := c.keptForSignInLocked(a.ID) // its sign-in is open in keep (links.go)
+		c.mu.Unlock()
+		if a.ID == keep || waiting {
 			continue
 		}
 		ad, ok := c.opts.Adapters.ForName(a.Adapter)
@@ -649,16 +737,69 @@ func (c *Coordinator) doClose(ctx context.Context, req contract.ActionRequest) c
 	if !ok {
 		return c.fail(req, contract.CodeUnsupported, "No adapter is registered for "+app.Label+".")
 	}
+	_, isWeb := adapters.WebOf(ad)
 	n, err := c.closeApp(ctx, appID, ad)
 	switch {
 	case n > 0:
+		if !isWeb {
+			// An app that hides its window instead of quitting (Spotify)
+			// is asked to quit once it is still running without one.
+			go c.quitIfHidden(app, ad)
+		}
 		return c.result(req, contract.OutcomeDelivered, map[string]any{"app_id": appID})
 	case errors.Is(err, errListWindows):
 		return c.fail(req, contract.CodeUnknownForeground, "Windows could not be listed.")
 	case err != nil:
 		return c.fail(req, contract.CodeInternal, app.Label+" could not be asked to close.")
 	}
+	if !isWeb && c.alive(ctx, app, false) {
+		// Running in the background with its window hidden.
+		if c.quitThroughPlayer(ctx, appID) {
+			res := c.result(req, contract.OutcomeDelivered, map[string]any{"app_id": appID, "background": true})
+			res.Message = app.Label + " was running in the background; it was asked to quit."
+			return res
+		}
+		return c.fail(req, contract.CodeNoTarget, app.Label+" is running in the background without a window, and it cannot be asked to quit from here.")
+	}
 	return c.fail(req, contract.CodeNoTarget, app.Label+" is not running.")
+}
+
+// quitIfHidden: CloseQuitAfter after the owner's Close, an app still running
+// with no window of its own is asked to quit through its media player.
+func (c *Coordinator) quitIfHidden(app config.Application, ad applications.Adapter) {
+	<-c.clock.After(CloseQuitAfter)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	wins, err := c.opts.Desktop.ListWindows(ctx)
+	if err != nil {
+		return
+	}
+	for _, w := range wins {
+		if w.Mapped && ad.MatchWindow(w) {
+			return // a window is still there: the close is still in progress
+		}
+	}
+	if c.alive(ctx, app, false) && c.quitThroughPlayer(ctx, app.ID) {
+		c.log.Info("session: an app hid its window instead of closing; asked it to quit", "app", app.ID)
+	}
+}
+
+// quitThroughPlayer asks appID to quit through its own media player (MPRIS
+// Quit), when it has one that allows it.
+func (c *Coordinator) quitThroughPlayer(ctx context.Context, appID string) bool {
+	if c.opts.Media == nil {
+		return false
+	}
+	m, ok := c.mediaMatchFor(appID)
+	if !ok {
+		return false
+	}
+	p, found, err := c.opts.Media.Find(ctx, m)
+	if err != nil || !found {
+		return false
+	}
+	q, ok := p.(platform.MediaQuitter)
+	return ok && q.Quit(ctx) == nil
 }
 
 // mediaMatchFor says which MPRIS players belong to appID

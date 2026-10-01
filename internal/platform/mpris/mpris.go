@@ -321,6 +321,20 @@ func (p *Player) guarded(ctx context.Context, canProp, method string, args ...an
 	return err
 }
 
+// Quit implements platform.MediaQuitter: MediaPlayer2.Quit after confirming
+// the player's CanQuit (the application quits, not just its playback).
+func (p *Player) Quit(ctx context.Context) error {
+	v, err := p.bus.Property(ctx, p.Name, objectPath, rootIface, "CanQuit")
+	if err != nil {
+		return fmt.Errorf("mpris: CanQuit on %s: %w", p.Name, err)
+	}
+	if ok, _ := v.(bool); !ok {
+		return fmt.Errorf("%w: %s reports CanQuit=false", platform.ErrUnsupported, p.Name)
+	}
+	_, err = p.bus.Call(ctx, p.Name, objectPath, rootIface+".Quit")
+	return err
+}
+
 // CanControl returns the player's CanControl property.
 func (p *Player) CanControl(ctx context.Context) (bool, error) {
 	return p.boolProp(ctx, "CanControl")

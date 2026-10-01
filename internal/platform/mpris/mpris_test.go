@@ -140,6 +140,28 @@ func TestFindAndControl(t *testing.T) {
 	}
 }
 
+func TestQuitOnlyWhenThePlayerAllowsIt(t *testing.T) {
+	ctx := context.Background()
+	players := map[string]*fakePlayer{
+		Prefix + "spotify":  {props: map[string]any{"CanQuit": true}},
+		Prefix + "stubborn": {props: map[string]any{"CanQuit": false}},
+	}
+	bus := fakeBus(players)
+	if err := NewPlayer(bus, Prefix+"spotify").Quit(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if got := players[Prefix+"spotify"].calls; len(got) != 1 || got[0] != rootIface+".Quit" {
+		t.Fatalf("calls %v", got)
+	}
+	if err := NewPlayer(bus, Prefix+"stubborn").Quit(ctx); !errors.Is(err, platform.ErrUnsupported) {
+		t.Fatalf("CanQuit=false: %v", err)
+	}
+	if len(players[Prefix+"stubborn"].calls) != 0 {
+		t.Fatal("Quit was called on a player that does not allow it")
+	}
+	var _ platform.MediaQuitter = (*Player)(nil)
+}
+
 func TestListRecordsPerPlayerErrors(t *testing.T) {
 	players := map[string]*fakePlayer{
 		"org.mpris.MediaPlayer2.b": {props: map[string]any{"Identity": "B", "DesktopEntry": "b", "PlaybackStatus": "Paused", "CanControl": true, "CanPause": true, "CanPlay": true, "CanSeek": true}},

@@ -15,6 +15,8 @@
 //	bear-den-tv weather status|search Q|set Q|off local weather on the running coordinator
 //	bear-den-tv plex status|sign-in|server ID|libraries ID...|cancel|sign-out  Plex sign-in on the running coordinator
 //	bear-den-tv badges status|on|off|reset         Den badges on the running coordinator
+//	bear-den-tv links enable|disable|status       web links an app opens show on the TV (sign-ins)
+//	bear-den-tv open-url URL                      the desktop's handler for web links (links enable)
 //	bear-den-tv version              print the version
 package main
 
@@ -48,6 +50,10 @@ commands:
   plex      "plex status" | "plex sign-in" | "plex server ID" | "plex libraries ID..." | "plex cancel" |
             "plex sign-out": sign the TV in to Plex for the Home rows (the code also shows on the TV)
   badges    "badges status" | "badges on" | "badges off" | "badges reset": Den badges (local counters only)
+  links     "links enable|disable|status": Bear Den handles the desktop's web links, so an app's sign-in
+            page shows on the TV; other links go on to your usual browser (on at every session start
+            until "links disable")
+  open-url  "open-url URL": the desktop's handler for a web link (on the TV, else your usual browser)
   version   print the version
 `)
 }
@@ -86,6 +92,10 @@ func main() {
 		err = cmdPlex(args)
 	case "badges":
 		err = cmdBadges(args)
+	case "links":
+		err = cmdLinks(args)
+	case "open-url":
+		err = cmdOpenURL(args)
 	case "version", "--version":
 		fmt.Println(Version)
 	case "help", "-h", "--help":

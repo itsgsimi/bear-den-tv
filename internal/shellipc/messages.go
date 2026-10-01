@@ -601,6 +601,9 @@ func Decode(frame []byte) (Message, error) {
 		if m = decodeTips(head.Type); m != nil {
 			break
 		}
+		if m = decodeLinks(head.Type); m != nil {
+			break
+		}
 		return nil, fmt.Errorf("%w: %q", ErrUnknownType, head.Type)
 	}
 	if err := json.Unmarshal(frame, m); err != nil {
@@ -701,6 +704,9 @@ func deref(m Message) Message {
 		return v
 	}
 	if v := derefTips(m); v != nil {
+		return v
+	}
+	if v := derefLinks(m); v != nil {
 		return v
 	}
 	return m

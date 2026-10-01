@@ -793,6 +793,55 @@ runs web apps in a real Chromium-engine binary (Playwright's test browser,
 not a choice on the TV). `make test-webnav` runs the navigation script
 against local fixture pages.
 
+## Sign-ins on the TV
+
+Some apps sign in through a web page: Spotify's **Log in** asks the desktop to
+open its sign-in page in a browser, and waits for the page to hand the result
+back to it on this machine (`http://127.0.0.1:4381/login`). On a TV that page
+used to open in the desktop's browser (Firefox), behind the app, where the
+remote cannot reach it. Bear Den now shows such pages on the TV:
+
+1. **Bear Den is the desktop's handler for web links.** The package installs
+   a hidden entry, `/usr/share/applications/bear-den-tv-links.desktop`
+   (`bear-den-tv open-url %u`), and every `bear-den-tv session` start makes it
+   the default for `http` and `https` links (`xdg-mime default`), remembering
+   the one before in `$XDG_STATE_HOME/bear-den-tv/links.json`.
+2. **A link an app opens while Bear Den or one of its apps is in front**
+   opens in the **Browser tile** (Brave), full screen with its address bar:
+   a new tab when the Browser is open, else the Browser starts on it. The
+   remote's arrows move between fields and buttons and the phone's keyboard
+   types, as in any web app ([Streaming sites and the Browser](#streaming-sites-and-the-browser)).
+   The app that asked stays open (opening an app normally closes the others).
+3. **When the page hands back** (its tab goes to the app's own address on
+   this machine, `127.0.0.1`, usually as one hop of a redirect: Spotify's
+   then goes on to `open.spotify.com/desktop/auth/...`), Bear Den closes that
+   tab, says "Signed in. Back to Spotify." and brings the app back.
+4. **Every other link** (the desktop in front, the Browser tile off or not
+   installed, Bear Den not running) opens in the browser that was the default
+   before, run from its own desktop entry. Nothing changes for the desktop.
+
+The sign-in's cookies stay in the Browser tile's profile
+(`$XDG_DATA_HOME/bear-den-tv/web-brave/browser`), like anything else signed
+in there.
+
+```bash
+bear-den-tv links status    # on, and which browser gets the other links
+bear-den-tv links disable   # links go back to that browser; Bear Den stops taking them over
+bear-den-tv links enable    # Bear Den handles them again (also at every session start)
+```
+
+Removing the package removes its entry, and the desktop falls back to its own
+browser by itself. `bear-den-tv dev` never changes the desktop's links.
+
+**Spotify** ([`internal/applications/adapters`](../internal/applications/adapters/adapters.go)):
+sign the TV in once. In Spotify press ▶ to reach **Log in** (the remote's ▶ is
+Tab there, the next button), then OK; Spotify's sign-in page opens on the TV.
+After that, play from the Spotify app on the phone: pick this TV as the
+speaker. Spotify's own "Scan code to log in" does not work with the Linux app:
+on the reference TV (Spotify 1.2.95, 2026-09-30) the phone accepted the
+scan but Spotify's server answered "The pairing code is incorrect." for the
+code the TV showed.
+
 ## App installs
 
 Bear Den installs the apps it knows from Flathub, for the TV's user, with one

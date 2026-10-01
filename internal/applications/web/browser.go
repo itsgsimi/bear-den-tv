@@ -181,6 +181,7 @@ type Manager struct {
 	onChange   func()
 	startCards func() []StartCard
 	onOpen     func(from, appID string)
+	onLoopback func(appID, targetID, url string)
 }
 
 // SetStartCards registers what the Browser's start page offers: the
@@ -244,6 +245,8 @@ type Browser struct {
 	current string           // session id of the page last seen visible
 	cx, cy  float64          // touchpad cursor, CSS pixels
 	cursor  bool
+	// loopback is the last loopback address reported per tab (links.go).
+	loopback map[string]string
 }
 
 type page struct {
@@ -289,6 +292,12 @@ func (m *Manager) get(appID string) *Browser {
 
 // Launch starts app's browser, or returns the running one.
 func (m *Manager) Launch(ctx context.Context, app config.Application, spec adapters.WebSpec) (applications.Instance, error) {
+	return m.launch(ctx, app, spec, "")
+}
+
+// launch starts app's browser on link, or on the app's own start page when
+// link is "" (LaunchAt checked link), or returns the running one.
+func (m *Manager) launch(ctx context.Context, app config.Application, spec adapters.WebSpec, link string) (applications.Instance, error) {
 	if b := m.get(app.ID); b != nil {
 		return applications.Instance{FlatpakID: b.flatpakID, PID: b.proc.PID()}, nil
 	}
@@ -304,7 +313,9 @@ func (m *Manager) Launch(ctx context.Context, app config.Application, spec adapt
 		return applications.Instance{}, err
 	}
 	startPage := ""
-	if url == BlankPage && spec.Mode == adapters.WebModeBrowser {
+	if link != "" {
+		url = link
+	} else if url == BlankPage && spec.Mode == adapters.WebModeBrowser {
 		// No start page of its own: Bear Den's, with today's cards.
 		m.mu.Lock()
 		cardsFn := m.startCards
@@ -366,6 +377,14 @@ func (m *Manager) Launch(ctx context.Context, app config.Application, spec adapt
 	if err := b.conn.Call(sctx, "", "Target.setAutoAttach", map[string]any{"autoAttach": true, "waitForDebuggerOnStart": true, "flatten": true}, nil); err != nil {
 		b.kill()
 		return applications.Instance{}, fmt.Errorf("web: devtools auto-attach: %w", err)
+	}
+	// Requests to this machine, from every tab from its first one, pause
+	// until Bear Den lets them go on (at once): a sign-in's hand-back is
+	// often only a redirect through a loopback address (links.go).
+	// Optional: without it the pages work and a hand-back that ends on the
+	// loopback address is still seen.
+	if err := b.conn.Call(sctx, "", "Fetch.enable", map[string]any{"patterns": loopbackPatterns}, nil); err != nil {
+		m.log.Warn("web: no loopback watch in this browser", "app", app.ID, "err", err)
 	}
 	m.changed()
 	return applications.Instance{FlatpakID: browser.FlatpakID, PID: proc.PID()}, nil
@@ -478,6 +497,12 @@ func (b *Browser) onEvent(ev Event) {
 			pg.ctx = 0
 		}
 		b.mu.Unlock()
+	case "Fetch.requestPaused":
+		b.requestPaused(ev.SessionID, ev.Params)
+	case "Target.targetInfoChanged":
+		b.targetInfoChanged(ev.Params)
+	case "Page.frameNavigated":
+		b.frameNavigated(ev.SessionID, ev.Params)
 	case "Page.navigatedWithinDocument":
 		// A card of Bear Den's start page (its "#open-<app>" link), in the
 		// page's main frame: the coordinator opens that app, and the page
@@ -573,12 +598,15 @@ func (b *Browser) setupPage(pg *page) {
 		{"Page.enable", nil},
 		{"Runtime.addBinding", map[string]any{"name": ReportBinding, "executionContextName": WorldName}},
 		{"Page.addScriptToEvaluateOnNewDocument", map[string]any{"source": b.source, "worldName": WorldName, "runImmediately": true}},
-		{"Runtime.runIfWaitingForDebugger", nil},
 	} {
 		if err := call(step.method, step.params); err != nil {
 			b.m.log.Warn("web: page setup failed", "app", b.appID, "step", step.method, "err", err)
 			return
 		}
+	}
+	if err := call("Runtime.runIfWaitingForDebugger", nil); err != nil {
+		b.m.log.Warn("web: page setup failed", "app", b.appID, "step", "Runtime.runIfWaitingForDebugger", "err", err)
+		return
 	}
 	// A document that was already loaded before we attached gets the world
 	// from runImmediately; if the browser did not create it, make it here.

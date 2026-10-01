@@ -23,6 +23,7 @@ const (
 	keysymX            xproto.Keysym = 0x0078
 	keysymZ            xproto.Keysym = 0x007a
 	keysymP            xproto.Keysym = 0x0070
+	keysymTab          xproto.Keysym = 0xff09
 )
 
 // keysyms is the only key → keysym table; anything absent cannot be injected.
@@ -41,6 +42,7 @@ var keysyms = map[platform.Key]xproto.Keysym{
 	platform.KeyLetterX:   keysymX,
 	platform.KeyLetterZ:   keysymZ,
 	platform.KeyLetterP:   keysymP,
+	platform.KeyTab:       keysymTab,
 }
 
 // KeysymFor returns the X keysym for a logical key, or false when the key is

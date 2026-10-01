@@ -47,6 +47,8 @@ apt-get update -qq >/dev/null
 apt-get install -y -qq --no-install-recommends /pkg/bear-den-tv_*.deb >/out/apt-install.log 2>&1 || { tail -20 /out/apt-install.log; fail "apt-get install"; }
 grep -E '^(Setting up|Unpacking) ' /out/apt-install.log | wc -l | xargs echo "  packages set up/unpacked:"
 [ ! -e /etc/xdg/autostart/bear-den-tv.desktop ] || fail "the package enabled autostart"
+grep -qx 'Exec=/usr/bin/bear-den-tv open-url %u' /usr/share/applications/bear-den-tv-links.desktop \
+  || fail "the web-link handler entry (Sign-ins on the TV)"
 
 echo "[smoke] 2. CLI"
 bear-den-tv version

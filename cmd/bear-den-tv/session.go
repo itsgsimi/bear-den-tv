@@ -121,6 +121,10 @@ func runSession(f sessionFlags) error {
 	if f.dev {
 		paths = devPaths(f.dataDir)
 	}
+	if !f.dev {
+		// Web links an app opens (a sign-in) show on the TV (links.go).
+		go ensureLinks(ctx, log)
+	}
 
 	// Configuration. OnChange runs after every write; wire it once the
 	// coordinator and listener exist.

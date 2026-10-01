@@ -195,6 +195,16 @@ func (h *ShellHandler) Receive(cl *shellipc.Client, m shellipc.Message) {
 		h.reply(cl, msg.RequestID, err, data)
 	case shellipc.AppInstallCancel:
 		h.reply(cl, msg.RequestID, c.cancelInstall(msg.AppID), nil)
+	case shellipc.LinkOpen:
+		// `bear-den-tv open-url`: the desktop's handler for web links
+		// (links.go). Not handled, the command gives the link to the
+		// desktop's own browser.
+		if isShell {
+			h.reply(cl, msg.RequestID, errors.New("link.open is for the bear-den-tv command"), nil)
+			break
+		}
+		handled, reason := c.openLink(ctx, msg.URL)
+		h.reply(cl, msg.RequestID, nil, map[string]any{"handled": handled, "reason": reason})
 	case shellipc.AppUninstall:
 		// Waiting out an idle update may take seconds: answer from a
 		// goroutine so the read loop keeps serving pings.

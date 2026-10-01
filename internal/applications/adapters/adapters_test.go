@@ -159,8 +159,8 @@ func TestOptionalApps(t *testing.T) {
 	}{
 		{
 			name: "spotify", id: "com.spotify.Client", class: []string{"spotify", "Spotify"},
-			keys:     map[string]platform.Key{"nav.up": platform.KeyUp, "nav.down": platform.KeyDown, "select": platform.KeySelect},
-			unmapped: []string{"nav.left", "nav.right", "back", "media.play", "media.pause"},
+			keys:     map[string]platform.Key{"nav.up": platform.KeyUp, "nav.down": platform.KeyDown, "nav.right": platform.KeyTab, "select": platform.KeySelect},
+			unmapped: []string{"nav.left", "back", "media.play", "media.pause"},
 			media:    "spotify",
 			home:     HomePause{Kind: "none"},
 		},
@@ -366,6 +366,14 @@ func TestBrowserTable(t *testing.T) {
 // Every browser Bear Den runs is dark whatever the desktop says: on the TV
 // the desktop never signalled "prefer dark" and the Flatpaks could not see
 // its dark GTK theme, so the browsers came up light.
+func TestEveryBrowserProfileRecordsACleanExit(t *testing.T) {
+	for _, b := range Browsers() {
+		if b.Preferences["profile.exit_type"] != "Normal" || b.Preferences["profile.exited_cleanly"] != true {
+			t.Errorf("%s: no clean exit recorded: a stopped browser would open with \"Restore pages?\"", b.Name)
+		}
+	}
+}
+
 func TestEveryBrowserProfileIsDark(t *testing.T) {
 	for _, b := range Browsers() {
 		if b.Preferences["browser.theme.color_scheme2"] != float64(2) {

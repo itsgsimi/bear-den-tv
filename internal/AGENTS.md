@@ -31,6 +31,7 @@ Wire shapes come from [`contracts/`](../contracts/AGENTS.md) and nowhere else.
 | [`shellipc`](shellipc/server.go) | [`contracts/ipc.md`](../contracts/ipc.md): Unix socket to the shell and CLI; shell supervisor | `messages.go`, `server.go`, `dial.go`, `supervisor.go` |
 | [`platform`](platform/platform.go) | the desktop seam (`DesktopAdapter`, lock, media, audio, `DisplayPower`, `TVControl`) | `platform.go` |
 | [`platform/cec`](platform/cec/cec.go) | HDMI-CEC through the kernel CEC API: ioctl on `/dev/cecN`, no cgo ([ADR 0008](../docs/decisions/0008-hdmi-cec.md)); not seen on hardware | `cec.go`, `kernel.go` (structs, ioctl numbers), `msg.go` (frames) |
+| [`platform/links`](platform/links/links.go) | Bear Den as the desktop's http/https handler (`Ensure`, `Enable`, `Disable`, `Status` through `xdg-mime`, remembering the previous handler in `$XDG_STATE_HOME/bear-den-tv/links.json`) and `Forward` (the previous browser from its own desktop entry: `ExecFor`, `ExecArgv`; never xdg-open) | `links.go` |
 | [`platform/autostart`](platform/autostart/autostart.go) | the user's XDG autostart entry (`File`, `StartScript`/`StartScriptFor` for the checkout and installed layouts, `DesktopEntry`, `Enable`, `Disable`, `Enabled`); used by `bear-den-tv autostart` and the TV's "Start with this PC" (`session/setup.go`) | `autostart.go` |
 | `platform/{x11,wayland,detect,lock,mpris,proc,audio,dbusx,probe,suspend,fake}` | X11 EWMH+XTEST adapter and DPMS display power (`dpms.go`: captures and restores the exact DPMS state); Wayland (wlr-foreign-toplevel on wlroots, honest reasons elsewhere; ADR 0007); session detection; lock observation; MPRIS (a player belongs to an app by the process owning its bus name: `Locator.WithProcesses`, `platform.MediaMatch`); a process's Flatpak app id and ancestry from `/proc`, same user only (`proc`); `pactl`; narrow D-Bus; probe report; logind `CanSuspend` (asks only); in-memory desktop | one file each (x11: `adapter.go`, `keys.go`, `props.go`, `dpms.go`; wayland: `wayland.go`, `client.go`, `wire.go`) |
 | [`providers`](providers/providers.go) | optional home content (`ContentProvider`, `Feed`); `plex/` connector (driven by `plexlink`; `sessions.go`: `/status/sessions` and `ThisPlayer`), `plex/plexfake` loopback fake of plex.tv and a server (tests, `dev --dev-plex-fake`), `fixtures/` DEMO items | `feed.go`, `plex/provider.go`, `plex/account.go`, `fixtures/fixtures.go` |
@@ -273,6 +274,7 @@ keep its header comment and `usage()` text in step with it.
 | `weather status\|search Q\|set Q [INDEX]\|off` | `weather.go` |
 | `plex status\|sign-in\|server ID\|libraries ID...\|cancel\|sign-out` | `plex.go` (also `newPlexLink`, the session wiring and `--dev-plex-fake`) |
 | `badges status\|on\|off\|reset` | `badges.go` |
+| `links enable\|disable\|status`, `open-url URL` | `links.go` (`internal/platform/links`; `open-url` sends IPC `link.open`, else hands the link to the previous browser; `session` runs `links.Ensure` at start) |
 | `version` | `main.go` |
 
 Commands that act on the running coordinator send one typed `shellipc`

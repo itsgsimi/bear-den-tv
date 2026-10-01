@@ -38,6 +38,9 @@ const (
 	KeyLetterX Key = "letter_x" // XK_x
 	KeyLetterZ Key = "letter_z" // XK_z
 	KeyLetterP Key = "letter_p" // XK_p
+	// KeyTab moves focus to the next control (Spotify: the remote's ▶
+	// reaches buttons such as Log in, which its arrow keys never do).
+	KeyTab Key = "tab" // XK_Tab
 )
 
 // WindowInfo is what the backend can observe about a top-level window.
@@ -162,6 +165,14 @@ type MediaPlayer interface {
 	// closed. Signals are coalesced; the position itself is not signalled
 	// while it advances, so readers re-read it (Info) on their own schedule.
 	Watch(ctx context.Context) (<-chan struct{}, error)
+}
+
+// MediaQuitter is a player that can ask its whole application to quit (MPRIS
+// MediaPlayer2.Quit, only when the player reports CanQuit). Bear Den uses it
+// for one thing: the owner's Close of an app that keeps running with its
+// window hidden instead of quitting (Spotify hides to the tray).
+type MediaQuitter interface {
+	Quit(ctx context.Context) error
 }
 
 // MediaInfo is one reading of a player (MPRIS PlaybackStatus, Metadata,

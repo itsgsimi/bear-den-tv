@@ -40,7 +40,20 @@ var (
 	ActivateObserveTimeout = 5 * time.Second
 	LaunchObserveTimeout   = 30 * time.Second
 	MediaObserveTimeout    = 2 * time.Second
+	// SlowStartFor is how much longer an app whose process is alive but
+	// whose window has not shown yet is waited for (the first start after
+	// installing builds font caches; on the reference Celeron Spotify's
+	// took longer than LaunchObserveTimeout). Its window comes to the front
+	// when it shows.
+	SlowStartFor = 3 * time.Minute
+	// CloseQuitAfter is how long after the owner's Close an app that hid its
+	// window instead of quitting (still running, no window) is asked to quit
+	// through its media player.
+	CloseQuitAfter = 3 * time.Second
 )
+
+// slowStartPoll is how often a slow start looks for the app's window.
+var slowStartPoll = time.Second
 
 // CloseFollowFor is how long a closed app stays watched for windows it opens
 // in reply to the close; those are closed too. Moonlight answers a close of its
@@ -180,6 +193,8 @@ type Coordinator struct {
 	audioLevel    *platform.AudioLevel       // the PC's sink as last read (state.audio); nil when unknown
 	fullscreened  map[platform.WindowID]bool // app windows already asked to go fullscreen
 	closing       map[string]*closeWatch     // app id → watch for windows opened while closing
+	signIn        *signIn                    // a link Bear Den opened on the TV, until it hands back (links.go)
+	launchLink    map[string]string          // web app id → link its next start opens instead of its own page
 	homeAfterExit bool                       // an app exited; bring the shell back once no app is launching (reconcileApps)
 	playback      *contract.Playback         // latest playback detection summary (shell view)
 	tune          tuneState
@@ -238,6 +253,7 @@ func New(opts Options) *Coordinator {
 		audioCap:     platform.Capability{Reason: "checking PC audio"},
 		fullscreened: map[platform.WindowID]bool{},
 		closing:      map[string]*closeWatch{},
+		launchLink:   map[string]string{},
 		remote:       contract.RemoteState{Transport: "local-only", Addresses: []string{}, Limits: contract.DefaultLimits},
 	}
 	c.holds = actions.NewHolds(opts.Clock, c.limits, c.holdTap, c.publish)
@@ -246,6 +262,7 @@ func New(opts Options) *Coordinator {
 	if opts.Web != nil {
 		opts.Web.Watch(c.publish) // page status changes capabilities (text field, video)
 		c.wireStartPage()         // the Browser's start page (startpage.go)
+		c.wireLinks()             // sign-in links on the TV (links.go)
 	}
 	c.cec.kick = make(chan struct{}, 1)
 	c.initAchievements()

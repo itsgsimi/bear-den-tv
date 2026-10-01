@@ -1,0 +1,16 @@
+# Bear Den's handler for web links (packaging/nfpm.yaml; docs/operations.md
+# "Sign-ins on the TV"). While Bear Den runs it is the desktop's default for
+# http and https links (`bear-den-tv links`): a link an app opens while Bear
+# Den or one of its apps is in front shows on the TV, in the Browser tile;
+# every other link goes on to the browser that was the default before. Hidden
+# from menus. Removing the package removes this file, and the desktop falls
+# back to its own browser by itself.
+[Desktop Entry]
+Type=Application
+Name=Bear Den TV links
+Comment=Opens web links on the TV while Bear Den is in front, else in your usual browser
+Exec=/usr/bin/bear-den-tv open-url %u
+NoDisplay=true
+Terminal=false
+StartupNotify=false
+MimeType=x-scheme-handler/http;x-scheme-handler/https;
