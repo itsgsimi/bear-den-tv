@@ -14,6 +14,8 @@
 // `add-apps` and `streaming` open the Apps page at that section, and
 // `onboarding-<step>` opens the setup at a step (sandbox screenshots).
 
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import BearDen
 
@@ -23,6 +25,8 @@ FocusScope {
     focus: true
     property var stack: ["home"]
     readonly property string screen: stack[stack.length - 1]
+    // Home, and a ScreenSlot for every other screen (built when first opened;
+    // screenItem() gives the screen itself).
     readonly property var screens: ({
         "home": home, "settings": settings, "remote-setup": remoteSetup,
         "pairing": pairing, "devices": devices, "diagnostics": diagnostics, "playback": playback,
@@ -51,11 +55,23 @@ FocusScope {
         // Modal focus returns to the control that opened it.
         if (!topDialog) {
             if (screen === "home") home.restoreFocus()
-            else if (current().report) current().report()
+            else if (current().report) {
+                current().report()
+                // Again once the state push that closed the dialog (a removed
+                // app's card) has reached every screen: a screen built after
+                // the dialog sees each push after it, so the report above
+                // can name an item that push just removed.
+                Qt.callLater(() => { if (!root.topDialog && root.current().report) root.current().report() })
+            }
         }
     }
 
-    function current() { return screens[screen] || home }
+    // The screen called `name`, built now if it is not yet (null: no such screen).
+    function screenItem(name) {
+        const s = screens[name]
+        return s === home ? home : s ? s.ensure() : null
+    }
+    function current() { return screenItem(screen) || home }
     function open(name) {
         const alias = aliases[name]
         if (alias) {
@@ -66,7 +82,8 @@ FocusScope {
         const step = /^onboarding-([0-9])$/.exec(name)
         if (step) {
             open("onboarding")
-            if (screen === "onboarding") onboarding.showStep(Math.min(Number(step[1]), onboarding.lastStep))
+            const setup = screenItem("onboarding")
+            if (screen === "onboarding") setup.showStep(Math.min(Number(step[1]), setup.lastStep))
             return
         }
         if (!screens[name] || name === screen) return
@@ -102,9 +119,9 @@ FocusScope {
         case "add-apps": open("add-apps"); break
         case "phone-remote": open("pairing"); break
         case "now-playing": toast.show("info", qsTr("Enjoy the show!")); break
-        case "sleep-timer": open("settings"); settings.openCategory("power"); break
+        case "sleep-timer": open("settings"); screenItem("settings").openCategory("power"); break
         case "badges": open("badges"); break
-        case "guest-pass": open("pairing"); pairing.chooseKind(1); break
+        case "guest-pass": open("pairing"); screenItem("pairing").chooseKind(1); break
         }
     }
     function goHome() {
@@ -309,143 +326,156 @@ FocusScope {
             })
             onMessage: (title, body) => messageDialog.open(title, body)
         }
-        SettingsScreen {
+        ScreenSlot {
             id: settings
+            name: "settings"
+            current: root.screen
             width: parent.width; height: parent.height
-            opacity: root.screen === "settings" ? 1 : 0
-            visible: opacity > 0
-            y: root.screen === "settings" ? 0 : 24 * Theme.scale
-            Behavior on opacity { NumberAnimation { duration: Theme.ms(220); easing.type: Easing.OutCubic } }
-            Behavior on y { NumberAnimation { duration: Theme.ms(260); easing.type: Easing.OutCubic } }
-            onOpenScreen: (name) => root.open(name)
-            onConfirm: (title, body, label, accept, danger) => confirmDialog.open({ title: title, body: body, confirmLabel: label, onAccept: accept, danger: danger })
+            sourceComponent: Component {
+                SettingsScreen {
+                    onOpenScreen: (name) => root.open(name)
+                    onConfirm: (title, body, label, accept, danger) => confirmDialog.open({ title: title, body: body, confirmLabel: label, onAccept: accept, danger: danger })
+                }
+            }
         }
-        AppsScreen {
+        ScreenSlot {
             id: apps
+            name: "apps"
+            current: root.screen
             width: parent.width; height: parent.height
-            active: root.screen === "apps" && !root.topDialog
-            opacity: root.screen === "apps" ? 1 : 0
-            visible: opacity > 0
-            y: root.screen === "apps" ? 0 : 24 * Theme.scale
-            Behavior on opacity { NumberAnimation { duration: Theme.ms(220); easing.type: Easing.OutCubic } }
-            Behavior on y { NumberAnimation { duration: Theme.ms(260); easing.type: Easing.OutCubic } }
-            onOpenInstall: (appId, forApp) => installCard.openFor(appId, forApp)
-            onOpenRemove: (appId) => removeCard.openFor(appId)
+            sourceComponent: Component {
+                AppsScreen {
+                    active: root.screen === "apps" && !root.topDialog
+                    onOpenInstall: (appId, forApp) => installCard.openFor(appId, forApp)
+                    onOpenRemove: (appId) => removeCard.openFor(appId)
+                }
+            }
         }
-        ThemesScreen {
+        ScreenSlot {
             id: themes
+            name: "themes"
+            current: root.screen
             width: parent.width; height: parent.height
-            active: root.screen === "themes" && !root.topDialog
-            opacity: root.screen === "themes" ? 1 : 0
-            visible: opacity > 0
-            y: root.screen === "themes" ? 0 : 24 * Theme.scale
-            Behavior on opacity { NumberAnimation { duration: Theme.ms(220); easing.type: Easing.OutCubic } }
-            Behavior on y { NumberAnimation { duration: Theme.ms(260); easing.type: Easing.OutCubic } }
-            onOpenScreen: (name) => root.open(name)
+            sourceComponent: Component {
+                ThemesScreen {
+                    active: root.screen === "themes" && !root.topDialog
+                    onOpenScreen: (name) => root.open(name)
+                }
+            }
         }
-        OnboardingScreen {
+        ScreenSlot {
             id: onboarding
+            name: "onboarding"
+            current: root.screen
             width: parent.width; height: parent.height
-            active: root.screen === "onboarding" && !root.topDialog
-            opacity: root.screen === "onboarding" ? 1 : 0
-            visible: opacity > 0
-            y: root.screen === "onboarding" ? 0 : 24 * Theme.scale
-            Behavior on opacity { NumberAnimation { duration: Theme.ms(220); easing.type: Easing.OutCubic } }
-            Behavior on y { NumberAnimation { duration: Theme.ms(260); easing.type: Easing.OutCubic } }
-            onOpenScreen: (name) => root.open(name)
-            onOpenInstall: (appId, forApp) => installCard.openFor(appId, forApp)
-            onFinished: root.goHome()
+            sourceComponent: Component {
+                OnboardingScreen {
+                    active: root.screen === "onboarding" && !root.topDialog
+                    onOpenScreen: (name) => root.open(name)
+                    onOpenInstall: (appId, forApp) => installCard.openFor(appId, forApp)
+                    onFinished: root.goHome()
+                }
+            }
         }
-        RemoteSetupScreen {
+        ScreenSlot {
             id: remoteSetup
+            name: "remote-setup"
+            current: root.screen
             width: parent.width; height: parent.height
-            opacity: root.screen === "remote-setup" ? 1 : 0
-            visible: opacity > 0
-            y: root.screen === "remote-setup" ? 0 : 24 * Theme.scale
-            Behavior on opacity { NumberAnimation { duration: Theme.ms(220); easing.type: Easing.OutCubic } }
-            Behavior on y { NumberAnimation { duration: Theme.ms(260); easing.type: Easing.OutCubic } }
-            onOpenScreen: (name) => root.open(name)
+            sourceComponent: Component {
+                RemoteSetupScreen {
+                    onOpenScreen: (name) => root.open(name)
+                }
+            }
         }
-        PairingScreen {
+        ScreenSlot {
             id: pairing
+            name: "pairing"
+            current: root.screen
             width: parent.width; height: parent.height
-            opacity: root.screen === "pairing" ? 1 : 0
-            visible: opacity > 0
-            y: root.screen === "pairing" ? 0 : 24 * Theme.scale
-            Behavior on opacity { NumberAnimation { duration: Theme.ms(220); easing.type: Easing.OutCubic } }
-            Behavior on y { NumberAnimation { duration: Theme.ms(260); easing.type: Easing.OutCubic } }
-            onOpenScreen: (name) => root.open(name)
-            onDone: root.pop()
+            sourceComponent: Component {
+                PairingScreen {
+                    onOpenScreen: (name) => root.open(name)
+                    onDone: root.pop()
+                }
+            }
         }
-        DevicesScreen {
+        ScreenSlot {
             id: devices
+            name: "devices"
+            current: root.screen
             width: parent.width; height: parent.height
-            opacity: root.screen === "devices" ? 1 : 0
-            visible: opacity > 0
-            y: root.screen === "devices" ? 0 : 24 * Theme.scale
-            Behavior on opacity { NumberAnimation { duration: Theme.ms(220); easing.type: Easing.OutCubic } }
-            Behavior on y { NumberAnimation { duration: Theme.ms(260); easing.type: Easing.OutCubic } }
-            onOpenScreen: (name) => root.open(name)
-            onConfirm: (title, body, label, accept, danger) => confirmDialog.open({ title: title, body: body, confirmLabel: label, onAccept: accept, danger: danger })
+            sourceComponent: Component {
+                DevicesScreen {
+                    onOpenScreen: (name) => root.open(name)
+                    onConfirm: (title, body, label, accept, danger) => confirmDialog.open({ title: title, body: body, confirmLabel: label, onAccept: accept, danger: danger })
+                }
+            }
         }
-        DiagnosticsScreen {
+        ScreenSlot {
             id: diagnostics
+            name: "diagnostics"
+            current: root.screen
             width: parent.width; height: parent.height
-            opacity: root.screen === "diagnostics" ? 1 : 0
-            visible: opacity > 0
-            y: root.screen === "diagnostics" ? 0 : 24 * Theme.scale
-            Behavior on opacity { NumberAnimation { duration: Theme.ms(220); easing.type: Easing.OutCubic } }
-            Behavior on y { NumberAnimation { duration: Theme.ms(260); easing.type: Easing.OutCubic } }
+            sourceComponent: Component {
+                DiagnosticsScreen {
+                }
+            }
         }
-        PlaybackScreen {
+        ScreenSlot {
             id: playback
+            name: "playback"
+            current: root.screen
             width: parent.width; height: parent.height
-            opacity: root.screen === "playback" ? 1 : 0
-            visible: opacity > 0
-            y: root.screen === "playback" ? 0 : 24 * Theme.scale
-            Behavior on opacity { NumberAnimation { duration: Theme.ms(220); easing.type: Easing.OutCubic } }
-            Behavior on y { NumberAnimation { duration: Theme.ms(260); easing.type: Easing.OutCubic } }
+            sourceComponent: Component {
+                PlaybackScreen {
+                }
+            }
         }
-        AdvancedPlaybackScreen {
+        ScreenSlot {
             id: advancedPlayback
+            name: "advanced-playback"
+            current: root.screen
             width: parent.width; height: parent.height
-            opacity: root.screen === "advanced-playback" ? 1 : 0
-            visible: opacity > 0
-            y: root.screen === "advanced-playback" ? 0 : 24 * Theme.scale
-            Behavior on opacity { NumberAnimation { duration: Theme.ms(220); easing.type: Easing.OutCubic } }
-            Behavior on y { NumberAnimation { duration: Theme.ms(260); easing.type: Easing.OutCubic } }
+            sourceComponent: Component {
+                AdvancedPlaybackScreen {
+                }
+            }
         }
-        WeatherScreen {
+        ScreenSlot {
             id: weather
+            name: "weather"
+            current: root.screen
             width: parent.width; height: parent.height
-            active: root.screen === "weather" && !root.topDialog
-            opacity: root.screen === "weather" ? 1 : 0
-            visible: opacity > 0
-            y: root.screen === "weather" ? 0 : 24 * Theme.scale
-            Behavior on opacity { NumberAnimation { duration: Theme.ms(220); easing.type: Easing.OutCubic } }
-            Behavior on y { NumberAnimation { duration: Theme.ms(260); easing.type: Easing.OutCubic } }
+            sourceComponent: Component {
+                WeatherScreen {
+                    active: root.screen === "weather" && !root.topDialog
+                }
+            }
         }
-        PlexScreen {
+        ScreenSlot {
             id: plex
+            name: "plex"
+            current: root.screen
             width: parent.width; height: parent.height
-            active: root.screen === "plex" && !root.topDialog
-            opacity: root.screen === "plex" ? 1 : 0
-            visible: opacity > 0
-            y: root.screen === "plex" ? 0 : 24 * Theme.scale
-            Behavior on opacity { NumberAnimation { duration: Theme.ms(220); easing.type: Easing.OutCubic } }
-            Behavior on y { NumberAnimation { duration: Theme.ms(260); easing.type: Easing.OutCubic } }
-            onConfirm: (title, body, label, accept, danger) => confirmDialog.open({ title: title, body: body, confirmLabel: label, onAccept: accept, danger: danger })
+            sourceComponent: Component {
+                PlexScreen {
+                    active: root.screen === "plex" && !root.topDialog
+                    onConfirm: (title, body, label, accept, danger) => confirmDialog.open({ title: title, body: body, confirmLabel: label, onAccept: accept, danger: danger })
+                }
+            }
         }
-        BadgesScreen {
+        ScreenSlot {
             id: badges
+            name: "badges"
+            current: root.screen
             width: parent.width; height: parent.height
-            active: root.screen === "badges" && !root.topDialog
-            opacity: root.screen === "badges" ? 1 : 0
-            visible: opacity > 0
-            y: root.screen === "badges" ? 0 : 24 * Theme.scale
-            Behavior on opacity { NumberAnimation { duration: Theme.ms(220); easing.type: Easing.OutCubic } }
-            Behavior on y { NumberAnimation { duration: Theme.ms(260); easing.type: Easing.OutCubic } }
-            onConfirm: (title, body, label, accept, danger) => confirmDialog.open({ title: title, body: body, confirmLabel: label, onAccept: accept, danger: danger })
+            sourceComponent: Component {
+                BadgesScreen {
+                    active: root.screen === "badges" && !root.topDialog
+                    onConfirm: (title, body, label, accept, danger) => confirmDialog.open({ title: title, body: body, confirmLabel: label, onAccept: accept, danger: danger })
+                }
+            }
         }
         ErrorBanner {
             anchors { bottom: parent.bottom; horizontalCenter: parent.horizontalCenter }

@@ -790,6 +790,22 @@ Celeron driving a 120 Hz output.
    - Canvas items repaint only when their inputs change.
    - No custom GPU shaders (Canvas/QPainter, Image, Rectangle).
 6. **Plain turns everything off.**
+7. **Memory and start-up: build and decode only what shows.**
+   - Images decode at the size they are drawn: `sourceSize` on every
+     `Image`; `RoundedImage` does it itself, on first paint. A 2560×1440
+     wallpaper on a 360-pixel theme card is a few hundred kilobytes, not
+     15 MB.
+   - A component with a Pixel and a Classic version creates only the current
+     one (a `Repeater` of 0 or 1, or a `Loader`), never both with one hidden:
+     a hidden Canvas still costs an item, a 2D context and a texture, and
+     `PixelBox` alone appears hundreds of times.
+   - Screens other than Home are built when first opened (`ScreenSlot` in
+     `ShellRoot.qml`); each takes a few milliseconds (up to ~0.1 s on the
+     Celeron), inside its fade-in.
+   - Measured with the reference TV's own state (Classic art, Midnight),
+     offscreen on a desktop: the shell's private memory went from 322 MB to
+     90 MB when these three landed (pixel art: about 150 MB before, as
+     much or less after). On the TV it was about 460 MB resident before.
 
 Check with `make perf` (`scripts/perf-sandbox.sh`): it runs the shell here,
 offscreen on two cores, and fails when resting or the screensaver draws more

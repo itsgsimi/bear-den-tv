@@ -314,6 +314,54 @@ private slots:
         QTRY_COMPARE(m_nav->sectionId(), QStringLiteral("favorites"));
     }
 
+    // Start-up builds Home only: every other screen (a ScreenSlot in
+    // ShellRoot) is built the first time it opens, and stays built after.
+    // First among the tests, before any of them opens a screen.
+    void screensAreBuiltWhenFirstOpened()
+    {
+        QList<QObject *> screenSlots;
+        for (QObject *o : m_window->findChildren<QObject *>())
+            if (QByteArray(o->metaObject()->className()).startsWith("ScreenSlot"))
+                screenSlots.append(o);
+        QVERIFY2(screenSlots.size() >= 13, qPrintable(QString::number(screenSlots.size())));
+        QObject *themes = nullptr;
+        for (QObject *s : screenSlots) {
+            QVERIFY2(!s->property("active").toBool() && !s->property("item").value<QObject *>(),
+                     qPrintable(s->property("name").toString() + QStringLiteral(" was built at start")));
+            if (s->property("name").toString() == QLatin1String("themes"))
+                themes = s;
+        }
+        QVERIFY(themes);
+        QMetaObject::invokeMethod(shellRoot(), "open", Q_ARG(QVariant, QStringLiteral("themes")));
+        QVERIFY(themes->property("item").value<QObject *>());
+        QCOMPARE(m_nav->screen(), QStringLiteral("settings"));   // Themes reports as settings
+        goHome();
+        QVERIFY2(themes->property("item").value<QObject *>(), "a screen stays built after leaving it");
+    }
+
+    // Artwork decodes at the size it is drawn (RoundedImage, on first
+    // paint), not at its own: a 2560×1440 wallpaper on a theme card.
+    void artworkDecodesAtTheSizeDrawn()
+    {
+        QQmlComponent c(m_engine);
+        c.setData("import QtQuick\nimport BearDen\nRoundedImage { width: 360; height: 240; coverage: 1; fade: 0; source: \"qrc:/themes/den/wallpaper.jpg\" }",
+                  QUrl(QStringLiteral("qrc:/test/Rounded.qml")));
+        std::unique_ptr<QObject> obj(c.create());
+        QVERIFY2(obj, qPrintable(c.errorString()));
+        auto *item = qobject_cast<QQuickItem *>(obj.get());
+        QVERIFY(item);
+        QVERIFY2(item->property("ready").toBool(), "the header is read when the source is set");
+        QVERIFY2(item->property("decodedSize").toSize().isEmpty(), "nothing is decoded before it paints");
+        item->setParentItem(m_window->contentItem());
+        item->setZ(1000);
+        QTRY_VERIFY(!item->property("decodedSize").toSize().isEmpty());
+        // Cover-cropped into 360×240 the 16:9 picture needs 427×240 of it; the
+        // decode may add some headroom, never the whole 2560×1440 (36 times as much).
+        const QSize decoded = item->property("decodedSize").toSize();
+        QVERIFY2(decoded.width() >= 360 && decoded.height() >= 240 && decoded.width() * decoded.height() <= 2 * 427 * 240,
+                 qPrintable(QStringLiteral("decoded at %1x%2 for 360x240").arg(decoded.width()).arg(decoded.height())));
+    }
+
     // Offline (fixtures, these tests) nothing answers, so requests never time
     // out: an unanswered request used to open "Bear Den did not answer in
     // time" 10 s later, over whichever test was running by then. Connected,
@@ -4048,8 +4096,16 @@ private slots:
                     return child->isVisible();
             return false;
         };
+        auto exists = [&](const char *type) {
+            for (QQuickItem *child : qobject_cast<QQuickItem *>(box.get())->childItems())
+                if (QByteArray(child->metaObject()->className()).startsWith(type))
+                    return true;
+            return false;
+        };
         withArt("classic");
         QVERIFY(drawn("QQuickRectangle") && !drawn("QQuickCanvasItem"));
+        // Not merely hidden: a classic box creates no Canvas (hundreds of boxes).
+        QTRY_VERIFY2(!exists("QQuickCanvasItem"), "a classic PixelBox made a Canvas");
         QVERIFY(box->property("sprig").toUrl().toString().endsWith(QStringLiteral("/sprig.svg")));
         QVERIFY(Theme::instance()->wallpaperSource().toString().endsWith(QStringLiteral("/den/wallpaper.jpg")));
         // Its own size, for animated layers placed in its pixels.
@@ -4216,7 +4272,8 @@ Item {
         QCOMPARE(puppet->width(), puppet->property("frameW").toReal() * puppet->property("unit").toReal());
         QVERIFY(!item("cornerSmooth")->isVisible() && item("cornerPixel")->isVisible());
         QVERIFY(!item("cornerPixel")->antialiasing() && !item("cornerPixel")->smooth());
-        QVERIFY(!item("brandBackdropSmooth")->isVisible());
+        // Only the current style's backdrop Canvas exists (one per app tile).
+        QTRY_VERIFY2(!item("brandBackdropSmooth"), "Pixel creates no smooth backdrop Canvas");
         const int px = qRound(4 * Theme::instance()->property("scale").toReal());
         QCOMPARE(std::fmod(item("ring")->property("thickness").toReal(), qMax(1, px)), 0.0);
         const QString pixelScene = sceneMade();

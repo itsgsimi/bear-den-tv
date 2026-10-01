@@ -99,6 +99,7 @@ set(BDTV_QML_FILES
   qml/ProgressBar.qml
   qml/SettingsRow.qml
   qml/ScreenFrame.qml
+  qml/ScreenSlot.qml
   qml/KeyHints.qml
   qml/AmbientClassic.qml
   qml/BearPuppetClassic.qml
